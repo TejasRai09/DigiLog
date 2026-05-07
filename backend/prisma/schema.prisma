@@ -1,0 +1,539 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ── App 1: GSMA Mill Logbook ──────────────────────────────
+
+model MillLogbook1 {
+  id                    Int       @id @default(autoincrement())
+  Date                  DateTime? @db.Date
+  Shift                 String?   @db.VarChar(10)
+  Time                  DateTime? @db.DateTime(0)
+  CaneKeig_MtrTemp      Float?
+  CaneKeig_GearTempDE   Float?
+  CaneKeig_GearTempNDE  Float?
+  CaneKeig_BearTempDE   Float?
+  CaneKeig_BearTempNDE  Float?
+  CardDrum1_MtrTemp     Float?
+  CardDrum1_GearTempDE  Float?
+  CardDrum1_GearTempNDE Float?
+  CardDrum1_BearTempDE  Float?
+  CardDrum1_BearTempNDE Float?
+  CardDrum2_MtrTemp     Float?
+  CardDrum2_GearTempDE  Float?
+  CardDrum2_GearTempNDE Float?
+  CardDrum2_BearTempDE  Float?
+  CardDrum2_BearTempNDE Float?
+  FeedDrum_MtrTemp      Float?
+  FeedDrum_GearTempDE   Float?
+  FeedDrum_GearTempNDE  Float?
+  FeedDrum_BearTempDE   Float?
+  FeedDrum_BearTempNDE  Float?
+  CaneCar_MtrTemp       Float?
+  CaneCar_GearTempDE    Float?
+  CaneCar_GearTempNDE   Float?
+  CaneCar_BearTempDE    Float?
+  CaneCar_BearTempNDE   Float?
+  ShredCar_MtrTemp      Float?
+  ShredCar_GearTempDE   Float?
+  ShredCar_GearTempNDE  Float?
+  ShredCar_BearTempDE   Float?
+  ShredCar_BearTempNDE  Float?
+  BeltConvy_MtrTemp     Float?
+  BeltConvy_GearTempDE  Float?
+  BeltConvy_GearTempNDE Float?
+  BeltConvy_BearTempDE  Float?
+  BeltConvy_BearTempNDE Float?
+  IRC1_MtrTemp          Float?
+  IRC1_GearTempDE       Float?
+  IRC1_GearTempNDE      Float?
+  IRC1_BearTempDE       Float?
+  IRC1_BearTempNDE      Float?
+  IRC2_MtrTemp          Float?
+  IRC2_GearTempDE       Float?
+  IRC2_GearTempNDE      Float?
+  IRC2_BearTempDE       Float?
+  IRC2_BearTempNDE      Float?
+  IRC3_MtrTemp          Float?
+  IRC3_GearTempDE       Float?
+  IRC3_GearTempNDE      Float?
+  IRC3_BearTempDE       Float?
+  IRC3_BearTempNDE      Float?
+  IRC4_MtrTemp          Float?
+  IRC4_GearTempDE       Float?
+  IRC4_GearTempNDE      Float?
+  IRC4_BearTempDE       Float?
+  IRC4_BearTempNDE      Float?
+  Mill0_MtrTemp         Float?
+  Mill0_GearTempDE      Float?
+  Mill0_GearTempNDE     Float?
+  Mill0_BearTempDE      Float?
+  Mill0_BearTempNDE     Float?
+  Mill4_MtrTemp         Float?
+  Mill4_GearTempDE      Float?
+  Mill4_GearTempNDE     Float?
+  Mill4_BearTempDE      Float?
+  Mill4_BearTempNDE     Float?
+  timestamp             DateTime? @default(now())
+
+  @@map("mill_logbook1")
+}
+
+model MillLogbook2 {
+  id                   Int       @id @default(autoincrement())
+  Date                 DateTime? @db.Date
+  Shift                String?   @db.VarChar(10)
+  Time                 DateTime? @db.DateTime(0)
+  shredR_MtrTemp       Float?
+  shredR_BearTempSite  Float?
+  shredR_BearTempDCS   Float?
+  shredR_VibH          Float?
+  shredR_VibV          Float?
+  shredR_VibA          Float?
+  shredL_MtrTemp       Float?
+  shredL_BearTempSite  Float?
+  shredL_BearTempDCS   Float?
+  shredL_VibH          Float?
+  shredL_VibV          Float?
+  shredL_VibA          Float?
+  M1_InpT              Float?
+  M1_InpM              Float?
+  M1_IntT              Float?
+  M1_IntM              Float?
+  M1_OutT              Float?
+  M1_OutM              Float?
+  M2_InpT              Float?
+  M2_InpM              Float?
+  M2_IntT              Float?
+  M2_IntM              Float?
+  M2_OutT              Float?
+  M2_OutM              Float?
+  M3_InpT              Float?
+  M3_InpM              Float?
+  M3_IntT              Float?
+  M3_IntM              Float?
+  M3_OutT              Float?
+  M3_OutM              Float?
+  M4_InpT              Float?
+  M4_InpM              Float?
+  M4_IntT              Float?
+  M4_IntM              Float?
+  M4_OutT              Float?
+  M4_OutM              Float?
+  timestamp            DateTime? @default(now())
+
+  @@map("mill_logbook2")
+}
+
+model MillLogbook3 {
+  id                 Int       @id @default(autoincrement())
+  Date               DateTime? @db.Date
+  Shift              String?   @db.VarChar(10)
+  Time               DateTime? @db.DateTime(0)
+  LubePressure_ACC   Float?
+  LubePressure_MCC   Float?
+  LubePressure_Shred Float?
+  LubePressure_M0    Float?
+  M0_gsT             Float?
+  M0_gsB             Float?
+  M0_gsUF            Float?
+  M0_psT             Float?
+  M0_psB             Float?
+  M0_psUF            Float?
+  M1_gsT             Float?
+  M1_gsB             Float?
+  M1_gsUF            Float?
+  M1_psT             Float?
+  M1_psB             Float?
+  M1_psUF            Float?
+  M2_gsT             Float?
+  M2_gsB             Float?
+  M2_gsUF            Float?
+  M2_psT             Float?
+  M2_psB             Float?
+  M2_psUF            Float?
+  M3_gsT             Float?
+  M3_gsB             Float?
+  M3_gsUF            Float?
+  M3_psT             Float?
+  M3_psB             Float?
+  M3_psUF            Float?
+  M4_gsT             Float?
+  M4_gsB             Float?
+  M4_gsUF            Float?
+  M4_psT             Float?
+  M4_psB             Float?
+  M4_psUF            Float?
+  timestamp          DateTime? @default(now())
+
+  @@map("mill_logbook3")
+}
+
+model MillStoppage {
+  id         Int       @id @default(autoincrement())
+  Date       DateTime? @db.Date
+  start_time DateTime? @db.DateTime(0)
+  end_time   DateTime? @db.DateTime(0)
+  section    String?   @db.VarChar(100)
+  machinery  String?   @db.VarChar(200)
+  remarks    String?   @db.VarChar(600)
+  timestamp  DateTime? @default(now())
+
+  @@map("mill_stoppages")
+}
+
+// ── App 2: GSMA Lab Logbook ───────────────────────────────
+
+model DsLogbook {
+  id                  Int       @id @default(autoincrement())
+  Date                DateTime? @db.Date
+  Shift               String?   @db.VarChar(10)
+  Sampling_time       String?   @db.VarChar(10)
+  PJ_Pol              Float?
+  PJ_Brix             Float?
+  MJ_Pol              Float?
+  MJ_Brix             Float?
+  LMJ_Pol             Float?
+  LMJ_Brix            Float?
+  CJ_Pol              Float?
+  CJ_Brix             Float?
+  FJ_Pol              Float?
+  FJ_Brix             Float?
+  USul_Syrp_Pol       Float?
+  USul_Syrp_Brix      Float?
+  Sul_Syrp_Pol        Float?
+  Sul_Syrp_Brix       Float?
+  A_Mc_Pol            Float?
+  A_Mc_Brix           Float?
+  B_Mc_Pol            Float?
+  B_Mc_Brix           Float?
+  A1_Mc_Pol           Float?
+  A1_Mc_Brix          Float?
+  C_Mc_Pol            Float?
+  C_Mc_Brix           Float?
+  AH_Mol_Pol          Float?
+  AH_Mol_Brix         Float?
+  AL_Mol_Pol          Float?
+  AL_Mol_Brix         Float?
+  BH_Mol_Pol          Float?
+  BH_Mol_Brix         Float?
+  CL_Mol_Pol          Float?
+  CL_Mol_Brix         Float?
+  FMol_Pol            Float?
+  FMol_Brix           Float?
+  Bag_Pol             Float?
+  Bag_Moisture        Float?
+  FCake_Pol           Float?
+  op_mode             String?   @db.VarChar(10)
+  A1_Mol_Pol          Float?
+  A1_Mol_Brix         Float?
+  MillDrain_Pol       Float?
+  BoilHouseDrain_Pol  Float?
+  timestamp           DateTime? @default(now())
+
+  @@map("ds_logbook")
+}
+
+model RsLogbook {
+  id                   Int       @id @default(autoincrement())
+  Date                 DateTime? @db.Date
+  Shift                String?   @db.VarChar(10)
+  Sampling_time        String?   @db.VarChar(10)
+  CJ_Pol               Float?
+  CJ_Brix              Float?
+  FJ_Pol               Float?
+  FJ_Brix              Float?
+  UtrSyrp_Pol          Float?
+  UtrSyrp_Brix         Float?
+  RawMc_Pol            Float?
+  RawMc_Brix           Float?
+  R1Mc_Pol             Float?
+  R1Mc_Brix            Float?
+  R2Mc_Pol             Float?
+  R2Mc_Brix            Float?
+  BMc_Pol              Float?
+  BMc_Brix             Float?
+  CMc_Pol              Float?
+  CMc_Brix             Float?
+  AH_Mol_Pol           Float?
+  AH_Mol_Brix          Float?
+  AL_Mol_Pol           Float?
+  AL_Mol_Brix          Float?
+  R1_Mol_Pol           Float?
+  R1_Mol_Brix          Float?
+  R2_Mol_Pol           Float?
+  R2_Mol_Brix          Float?
+  BH_Mol_Pol           Float?
+  BH_Mol_Brix          Float?
+  CL_Mol_Pol           Float?
+  CL_Mol_Brix          Float?
+  FMol_Pol             Float?
+  FMol_Brix            Float?
+  FCake_Pol            Float?
+  op_mode              String?   @db.VarChar(10)
+  R1Mc_IU              Float?
+  R2Mc_IU              Float?
+  R1Mol_IU             Float?
+  R2Mol_IU             Float?
+  RawMlt_Pol           Float?
+  RawMlt_Brix          Float?
+  RawMlt_IU            Float?
+  ClearMlt_Pol         Float?
+  ClearMlt_Brix        Float?
+  ClearMlt_IU          Float?
+  Pol_FineLiqourMelt   Float?
+  Brix_FineLiqourMelt  Float?
+  IU_FineLiqourMelt    Float?
+  IERInlet_IU          Float?
+  IERInlet_PH          Float?
+  IEROutlet_IU         Float?
+  IEROutlet_PH         Float?
+  timestamp            DateTime? @default(now())
+
+  @@map("rs_logbook")
+}
+
+model OpsLogbook {
+  id                Int       @id @default(autoincrement())
+  Date              DateTime? @db.Date
+  Shift             String?   @db.VarChar(10)
+  Sampling_time     String?   @db.VarChar(10)
+  yard_bal          Float?
+  crush             Float?
+  imb_wtr           Float?
+  imb_temp          Float?
+  mixj_ds           Float?
+  mixj_rs           Float?
+  mol_ds            Float?
+  mol_rs            Float?
+  fcake_ds          Float?
+  fcake_rs          Float?
+  qty_dsl           Float?
+  mesh_dsl          Float?
+  bagtemp_dsl       Float?
+  qty_dsm           Float?
+  mesh_dsm          Float?
+  bagtemp_dsm       Float?
+  qty_dss           Float?
+  mesh_dss          Float?
+  bagtemp_dss       Float?
+  qty_rsl           Float?
+  mesh_rsl          Float?
+  bagtemp_rsl       Float?
+  qty_rsm           Float?
+  mesh_rsm          Float?
+  bagtemp_rsm       Float?
+  qty_rss           Float?
+  mesh_rss          Float?
+  bagtemp_rss       Float?
+  qty_p20           Float?
+  bagtemp_p20       Float?
+  qty_p30           Float?
+  bagtemp_p30       Float?
+  qty_p40           Float?
+  bagtemp_p40       Float?
+  FBDInlet_TempDS   Float?
+  FBDInlet_MoistDS  Float?
+  FBDOutlet_TempDS  Float?
+  FBDOutlet_MoistDS Float?
+  Hopper_TempDS     Float?
+  Hopper_MoistDS    Float?
+  FBDInlet_TempRS   Float?
+  FBDInlet_MoistRS  Float?
+  FBDOutlet_TempRS  Float?
+  FBDOutlet_MoistRS Float?
+  Hopper_TempRS     Float?
+  Hopper_MoistRS    Float?
+  RSDInlet_Temp     Float?
+  RSDInlet_Moist    Float?
+  RSDOutlet_Temp    Float?
+  RSDOutlet_Moist   Float?
+  timestamp         DateTime? @default(now())
+
+  @@map("ops_logbook")
+}
+
+model SaLogbook {
+  id             Int       @id @default(autoincrement())
+  Date           DateTime? @db.Date
+  Shift          String?   @db.VarChar(10)
+  Sampling_time  String?   @db.VarChar(10)
+  retn_DSL       Float?
+  retn_DSM       Float?
+  retn_DSS       Float?
+  retn_RSL       Float?
+  retn_RSM       Float?
+  retn_RSS       Float?
+  retn_Pharma20  Float?
+  retn_Pharma30  Float?
+  retn_Pharma40  Float?
+  moist_DSL      Float?
+  moist_DSM      Float?
+  moist_DSS      Float?
+  moist_RSL      Float?
+  moist_RSM      Float?
+  moist_RSS      Float?
+  moist_Pharma20 Float?
+  moist_Pharma30 Float?
+  moist_Pharma40 Float?
+  col_DSL        Float?
+  col_DSM        Float?
+  col_DSS        Float?
+  col_RSL        Float?
+  col_RSM        Float?
+  col_RSS        Float?
+  col_Pharma20   Float?
+  col_Pharma30   Float?
+  col_Pharma40   Float?
+  col_ClrJDS     Float?
+  col_RawMeltRS  Float?
+  col_ClrMeltRS  Float?
+  col_FineLqrRS  Float?
+  timestamp_col  DateTime? @default(now())
+
+  @@map("sa_logbook")
+}
+
+model SyrpLogbook {
+  id           Int       @id @default(autoincrement())
+  Date         DateTime? @db.Date
+  Shift        String?   @db.VarChar(10)
+  syrp_prodDS  Float?
+  syrp_prodRS  Float?
+  div_mode     String?   @db.VarChar(30)
+  syrp_div     Float?
+  MoLtoDist_DS Float?
+  MoLtoDist_RS Float?
+  syrp_trs     Float?
+  bh_trs       Float?
+  timestamp    DateTime? @default(now())
+
+  @@map("syrp_logbook")
+}
+
+model StoppageLogbook {
+  id         Int       @id @default(autoincrement())
+  Date       DateTime? @db.Date
+  start_time DateTime? @db.DateTime(0)
+  end_time   DateTime? @db.DateTime(0)
+  department String?   @db.VarChar(40)
+  remarks    String?   @db.VarChar(225)
+  timestamp  DateTime? @default(now())
+
+  @@map("stoppage_logbook")
+}
+
+// ── App 3: GSMA Power Logbook ─────────────────────────────
+
+model PhPower {
+  id                 Int       @id @default(autoincrement())
+  Date               DateTime? @db.Date
+  Time               DateTime? @db.DateTime(0)
+  Crush              Float?
+  Baggase            Float?
+  Hours30            Float?
+  Hours3Old          Float?
+  Hours3New          Float?
+  Hours4             Float?
+  PowerGen30         Float?
+  PowerGen3Old       Float?
+  PowerGen3New       Float?
+  PowerGen4MW        Float?
+  GenDG30            Float?
+  GenDG3Old          Float?
+  GenDG3New          Float?
+  GenDG4             Float?
+  ExportGrid30       Float?
+  ExportGrid3Old     Float?
+  ExportGrid3New     Float?
+  ExportGrid4        Float?
+  ExportSug30        Float?
+  ExportSug3Old      Float?
+  ExportSug3New      Float?
+  ExportSug4         Float?
+  ExportCogen30      Float?
+  ExportCogen3Old    Float?
+  ExportCogen3New    Float?
+  ExportCogen4       Float?
+  ExportDist30       Float?
+  Imp_Grid           Float?
+  Imp_3MWOld         Float?
+  Imp_3MWNew         Float?
+  Imp_4MW            Float?
+  PowerConMillHouse  Float?
+  PowerConDSHouse    Float?
+  PowerConRaw_Ref    Float?
+  PowerCon70TPH      Float?
+  PowerConETP        Float?
+  PowerConColony     Float?
+  PowerConOthers     Float?
+  remark             String?   @db.VarChar(600)
+  timestamp          DateTime? @default(now())
+
+  @@map("ph_power")
+}
+
+model PhSteam {
+  id                               Int       @id @default(autoincrement())
+  Date                             DateTime? @db.Date
+  Time                             DateTime? @db.DateTime(0)
+  SteamGen150                      Float?
+  SteamCon30MW                     Float?
+  SteamtoSugar110_3ATAPRDS         Float?
+  Stmto3Old110_45ATAPRDS           Float?
+  Stmto3New110_45ATAPRDS           Float?
+  StmMillTurbine110_45ATAPRDS      Float?
+  StmtoDistil110_45ATAPRDS_o       Float?
+  Stm4MWTG110_45ATAPRDS            Float?
+  ExtractionStm30MW                Float?
+  Bleed2HPH1Stm                    Float?
+  Bleed1HPH2Stm                    Float?
+  TotalStmtoSug150                 Float?
+  Stmtodeareator150                Float?
+  SteamGen35                       Float?
+  StmCons4                         Float?
+  StmCons45_55ATAPRDS              Float?
+  Stm45_55ATADeareatorEjectorPRDS  Float?
+  Extractionstm4                   Float?
+  TotalStmdistil                   Float?
+  StmtoEjector                     Float?
+  Stm35TDeareator                  Float?
+  StmtoSugDisti                    Float?
+  SteamGen70                       Float?
+  StmCons3Old35                    Float?
+  StmCons3New35                    Float?
+  StmDist70                        Float?
+  Stmto4_70TPH                     Float?
+  TotalStmtoSug70                  Float?
+  Firewood150                      Float?
+  Baggase150                       Float?
+  Firewood70                       Float?
+  Baggase70                        Float?
+  Firewood35                       Float?
+  Baggase35                        Float?
+  SlopCon                          Float?
+  timestamp                        DateTime? @default(now())
+
+  @@map("ph_steam")
+}
+
+model PhStoppage {
+  id          Int       @id @default(autoincrement())
+  Date        DateTime? @db.Date
+  start_time  DateTime? @db.DateTime(0)
+  end_Time    DateTime? @db.DateTime(0)
+  section     String?   @db.VarChar(100)
+  sub_section String?   @db.VarChar(100)
+  machinery   String?   @db.VarChar(100)
+  category    String?   @db.VarChar(100)
+  remarks     String?   @db.VarChar(300)
+  created_at  DateTime? @default(now())
+  timestamp   DateTime? @default(now())
+
+  @@map("ph_stoppage")
+}
