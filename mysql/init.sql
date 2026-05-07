@@ -554,3 +554,63 @@ CREATE TABLE IF NOT EXISTS `ph_stoppage` (
   `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
+-- ── Mill House Equipment Life History Card ────────────────────
+
+CREATE TABLE IF NOT EXISTS `mh_equipment` (
+  `id`           INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_no`     VARCHAR(30)  NOT NULL,
+  `plant`        VARCHAR(50)  NOT NULL DEFAULT 'Mill House',
+  `name`         VARCHAR(200) NOT NULL,
+  `location`     VARCHAR(200) DEFAULT NULL,
+  `commissioned` VARCHAR(50)  DEFAULT NULL,
+  `drive`        VARCHAR(300) DEFAULT NULL,
+  `photo`        MEDIUMTEXT   DEFAULT NULL,
+  `plate`        MEDIUMTEXT   DEFAULT NULL,
+  `sort_order`   INT          NOT NULL DEFAULT 0,
+  `created_at`   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `mh_specs` (
+  `id`         INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`   INT          NOT NULL,
+  `lbl`        VARCHAR(300) NOT NULL,
+  `val`        TEXT         DEFAULT NULL,
+  `sort_order` INT          NOT NULL DEFAULT 0,
+  FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `mh_oem_schedule` (
+  `id`       INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id` INT          NOT NULL,
+  `no`       INT          NOT NULL,
+  `comp`     VARCHAR(500) DEFAULT NULL,
+  `act`      TEXT         DEFAULT NULL,
+  `iv_W`     CHAR(1)      DEFAULT NULL,
+  `iv_M`     CHAR(1)      DEFAULT NULL,
+  `iv_Q`     CHAR(1)      DEFAULT NULL,
+  `iv_H`     CHAR(1)      DEFAULT NULL,
+  `iv_Y`     CHAR(1)      DEFAULT NULL,
+  `iv_T`     CHAR(1)      DEFAULT NULL,
+  FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `mh_history` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `season`      VARCHAR(20)  DEFAULT NULL,
+  `year`        VARCHAR(20)  DEFAULT NULL,
+  `date_start`  DATE         DEFAULT NULL,
+  `date_finish` DATE         DEFAULT NULL,
+  `obs`         TEXT         DEFAULT NULL,
+  `act`         TEXT         DEFAULT NULL,
+  `cost`        VARCHAR(50)  DEFAULT NULL,
+  `svc`         VARCHAR(20)  DEFAULT NULL,
+  `provider`    VARCHAR(300) DEFAULT NULL,
+  `resp`        VARCHAR(300) DEFAULT NULL,
+  `rem`         TEXT         DEFAULT NULL,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

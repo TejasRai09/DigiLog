@@ -5,10 +5,11 @@ const rateLimit = require('express-rate-limit');
 
 const { testMysqlConnection } = require('./config/mysql');
 
-const authRoutes  = require('./routes/auth.routes');
-const adminRoutes = require('./routes/admin.routes');
-const appRoutes   = require('./routes/app.routes');
-const formRoutes  = require('./routes/form.routes');
+const authRoutes      = require('./routes/auth.routes');
+const adminRoutes     = require('./routes/admin.routes');
+const appRoutes       = require('./routes/app.routes');
+const formRoutes      = require('./routes/form.routes');
+const equipmentRoutes = require('./routes/equipment.routes');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use('/api/auth',       authRoutes);
 app.use('/api/admin',      adminRoutes);
 app.use('/api/apps',       appRoutes);
 app.use('/api/forms',      formRoutes);
+app.use('/api/equipment',  equipmentRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

@@ -32,6 +32,10 @@ import PhPower    from './pages/forms/power/PhPower';
 import PhSteam    from './pages/forms/power/PhSteam';
 import PhStoppage from './pages/forms/power/PhStoppage';
 
+// Equipment History Cards
+import EquipmentList   from './pages/equipment/EquipmentList';
+import EquipmentDetail from './pages/equipment/EquipmentDetail';
+
 const App = () => {
   const { user, loading } = useAuth();
 
@@ -68,6 +72,10 @@ const App = () => {
           <Route path="/forms/ph_power"    element={<PhPower />} />
           <Route path="/forms/ph_steam"    element={<PhSteam />} />
           <Route path="/forms/ph_stoppage" element={<PhStoppage />} />
+
+          {/* Equipment History Cards */}
+          <Route path="/equipment"     element={<EquipmentList />} />
+          <Route path="/equipment/:id" element={<EquipmentDetail />} />
         </Route>
 
         {/* Protected – admin only */}
