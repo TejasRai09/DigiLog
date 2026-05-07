@@ -9,24 +9,29 @@ import { AuthProvider } from './context/AuthContext';
 import App from './App';
 import './index.css';
 
-// MSAL v3 requires initialize() before any API calls (including handleRedirectPromise)
-msalInstance.initialize().then(() => {
+const app = (
+  <React.StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+        <Toaster
+          position="top-right"
+          toastOptions={{ duration: 3500, style: { fontSize: '0.875rem' } }}
+        />
+      </AuthProvider>
+    </BrowserRouter>
+  </React.StrictMode>
+);
+
+const render = () => {
   ReactDOM.createRoot(document.getElementById('root')).render(
-    <React.StrictMode>
-      <MsalProvider instance={msalInstance}>
-        <BrowserRouter>
-          <AuthProvider>
-            <App />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 3500,
-                style: { fontSize: '0.875rem' },
-              }}
-            />
-          </AuthProvider>
-        </BrowserRouter>
-      </MsalProvider>
-    </React.StrictMode>
+    msalInstance ? <MsalProvider instance={msalInstance}>{app}</MsalProvider> : app
   );
-});
+};
+
+// MSAL v3 requires initialize() before use; skip entirely on HTTP (no crypto)
+if (msalInstance) {
+  msalInstance.initialize().then(render);
+} else {
+  render();
+}
