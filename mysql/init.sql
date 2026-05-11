@@ -600,7 +600,7 @@ CREATE TABLE IF NOT EXISTS `mh_history` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `equip_id`    INT          NOT NULL,
   `season`      VARCHAR(20)  DEFAULT NULL,
-  `year`        VARCHAR(20)  DEFAULT NULL,
+  `year`        VARCHAR(50)  DEFAULT NULL,
   `date_start`  DATE         DEFAULT NULL,
   `date_finish` DATE         DEFAULT NULL,
   `obs`         TEXT         DEFAULT NULL,
@@ -610,6 +610,8 @@ CREATE TABLE IF NOT EXISTS `mh_history` (
   `provider`    VARCHAR(300) DEFAULT NULL,
   `resp`        VARCHAR(300) DEFAULT NULL,
   `rem`         TEXT         DEFAULT NULL,
+  `img_before`  MEDIUMTEXT   DEFAULT NULL,
+  `img_after`   MEDIUMTEXT   DEFAULT NULL,
   `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE

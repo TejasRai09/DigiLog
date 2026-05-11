@@ -31,8 +31,9 @@ const resizeImage = (file) =>
   });
 
 const EMPTY_HIST = {
-  season: 'Season', year: '', date_start: '', date_finish: '',
+  season: '', year: '', date_start: '', date_finish: '',
   obs: '', act: '', cost: '', svc: '', provider: '', resp: '', rem: '',
+  img_before: null, img_after: null,
 };
 
 const IV_LABELS = {
@@ -60,6 +61,39 @@ const Section = ({ title, open, onToggle, badge, children }) => (
         : <MdExpandMore className="h-5 w-5 text-gray-400" />}
     </button>
     {open && <div className="border-t border-gray-100">{children}</div>}
+  </div>
+);
+
+// ── Inline image zone for history modal ──────────────────────
+const HistImgZone = ({ label, value, onChange }) => (
+  <div className="flex-1">
+    <span className="text-xs font-semibold text-gray-600 mb-1 block">{label}</span>
+    {value ? (
+      <div className="relative group rounded-lg overflow-hidden border border-gray-200 h-28 bg-gray-50">
+        <img src={value} alt={label} className="w-full h-full object-contain" />
+        <button
+          type="button"
+          onClick={() => onChange(null)}
+          className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow"
+        >
+          <MdClose className="h-3 w-3" />
+        </button>
+      </div>
+    ) : (
+      <label className="flex flex-col items-center justify-center h-28 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors">
+        <MdCameraAlt className="h-6 w-6 text-gray-400 mb-0.5" />
+        <span className="text-xs text-gray-400">Click to upload</span>
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={async (e) => {
+            const file = e.target.files[0];
+            if (file) onChange(await resizeImage(file));
+          }}
+        />
+      </label>
+    )}
   </div>
 );
 
@@ -104,7 +138,7 @@ const EquipmentDetail = () => {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
 
-  const [open, setOpen] = useState({ id: true, spec: false, oem: false, hist: false });
+  const [open, setOpen] = useState({ id: true, spec: false, oem: false, hist: true });
   const toggle = (s) => setOpen(o => ({ ...o, [s]: !o[s] }));
 
   const [editId,    setEditId]    = useState(false);
@@ -642,6 +676,7 @@ const EquipmentDetail = () => {
                     <th className="th">Cost</th>
                     <th className="th">Service</th>
                     <th className="th">Responsible</th>
+                    <th className="th w-10 text-center">Pics</th>
                     <th className="th w-16"></th>
                   </tr>
                 </thead>
@@ -678,6 +713,14 @@ const EquipmentDetail = () => {
                       </td>
                       <td className="td text-gray-500 max-w-xs">
                         <p className="truncate">{h.resp || '—'}</p>
+                      </td>
+                      <td className="td text-center">
+                        {(h.img_before || h.img_after) && (
+                          <MdCameraAlt
+                            className="h-4 w-4 text-blue-500 inline"
+                            title="Has service photos — click Edit to view"
+                          />
+                        )}
                       </td>
                       <td className="td">
                         <div className="flex gap-1">
@@ -749,14 +792,15 @@ const EquipmentDetail = () => {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="label">Season *</label>
+                  <label className="label">Season</label>
                   <select
                     className="input"
                     value={histModal.data.season}
                     onChange={(e) => setHistField('season', e.target.value)}
                   >
-                    <option value="Season">Season</option>
-                    <option value="OFF Season">OFF Season</option>
+                    <option value="">— Select —</option>
+                    <option value="Season">In Season</option>
+                    <option value="OFF Season">Off Season</option>
                   </select>
                 </div>
                 <div>
@@ -860,6 +904,22 @@ const EquipmentDetail = () => {
                   value={histModal.data.rem}
                   onChange={(e) => setHistField('rem', e.target.value)}
                 />
+              </div>
+
+              <div>
+                <label className="label">Service Photos</label>
+                <div className="flex gap-4">
+                  <HistImgZone
+                    label="Before Service"
+                    value={histModal.data.img_before}
+                    onChange={(v) => setHistField('img_before', v)}
+                  />
+                  <HistImgZone
+                    label="After Service"
+                    value={histModal.data.img_after}
+                    onChange={(v) => setHistField('img_after', v)}
+                  />
+                </div>
               </div>
             </div>
 

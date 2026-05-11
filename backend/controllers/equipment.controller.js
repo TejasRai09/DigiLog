@@ -192,16 +192,18 @@ const addHistory = async (req, res) => {
     const eq = await getEq(id);
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
-    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem } = req.body;
+    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
+    const validImg = (d) => (d && String(d).startsWith('data:image') ? d : null);
     const [result] = await pool.execute(
       `INSERT INTO mh_history
-         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [id,
        season || null, year || null,
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
-       svc || null, provider || null, resp || null, rem || null]
+       svc || null, provider || null, resp || null, rem || null,
+       validImg(img_before), validImg(img_after)]
     );
     res.status(201).json({ message: 'Record added.', id: result.insertId });
   } catch (err) {
@@ -214,16 +216,19 @@ const addHistory = async (req, res) => {
 const updateHistory = async (req, res) => {
   try {
     const { id, hid } = req.params;
-    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem } = req.body;
+    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
+    const validImg = (d) => (d && String(d).startsWith('data:image') ? d : null);
     const [result] = await pool.execute(
       `UPDATE mh_history
        SET season=?, year=?, date_start=?, date_finish=?,
-           obs=?, act=?, cost=?, svc=?, provider=?, resp=?, rem=?
+           obs=?, act=?, cost=?, svc=?, provider=?, resp=?, rem=?,
+           img_before=?, img_after=?
        WHERE id=? AND equip_id=?`,
       [season || null, year || null,
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
        svc || null, provider || null, resp || null, rem || null,
+       validImg(img_before), validImg(img_after),
        hid, id]
     );
     if (result.affectedRows === 0)
