@@ -1,7 +1,19 @@
 import axios from 'axios';
 
+/** Prefer explicit API origin/path (prod / split hosts); else same-origin `/api` (nginx → Node :5000). */
+function resolveApiBaseURL() {
+  const raw = import.meta.env.VITE_API_URL;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (trimmed !== '') {
+      return trimmed.replace(/\/+$/, '');
+    }
+  }
+  return '/api';
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: resolveApiBaseURL(),
   headers: { 'Content-Type': 'application/json' },
 });
 
