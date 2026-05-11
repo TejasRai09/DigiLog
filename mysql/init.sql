@@ -1,6 +1,13 @@
 -- ═══════════════════════════════════════════════════════════
 --  GSMA Portal – MySQL schema (gsmadb)
 --  Run once: Get-Content mysql\init.sql | mysql -u root -p
+--
+--  Forward schema changes for form/logbook tables (Mill, Lab, Power,
+--  Distillery) are managed with Prisma Migrate from DigiLog/backend:
+--    npm run db:migrate:dev        (dev)
+--    npm run db:migrate:deploy     (CI/prod)
+--  If you created the DB with this file first, sync migration history:
+--    cd backend && npm run db:migrate:resolve-baseline
 -- ═══════════════════════════════════════════════════════════
 
 CREATE DATABASE IF NOT EXISTS gsmadb CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
@@ -555,6 +562,34 @@ CREATE TABLE IF NOT EXISTS `ph_stoppage` (
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `distillery_operations` (
+  `Date`                      DATE         NULL DEFAULT NULL,
+  `operation_mode`            VARCHAR(32)  NULL DEFAULT NULL,
+  `syrup_molasses_qtls`       DOUBLE       NULL DEFAULT NULL,
+  `wash_distilled`            DOUBLE       NULL DEFAULT NULL,
+  `trs`                       DOUBLE       NULL DEFAULT NULL,
+  `ufs`                       DOUBLE       NULL DEFAULT NULL,
+  `alcohol_pct`               DOUBLE       NULL DEFAULT NULL,
+  `actual_ethanol_bl`         DOUBLE       NULL DEFAULT NULL,
+  `al_bl_ratio_pct`           DOUBLE       NULL DEFAULT NULL,
+  `total_bh_molasses_qtls`    DOUBLE       NULL DEFAULT NULL,
+  `total_ch_molasses_qtls`    DOUBLE       NULL DEFAULT NULL,
+  `ethanol_storage_bl`        DOUBLE       NULL DEFAULT NULL,
+  `fs`                        DOUBLE       NULL DEFAULT NULL,
+  `fs_quantity`               DOUBLE       NULL DEFAULT NULL,
+  `theoretical_yield`         DOUBLE       NULL DEFAULT NULL,
+  `alcohol_prod_fermentation` DOUBLE       NULL DEFAULT NULL,
+  `fe`                        DOUBLE       NULL DEFAULT NULL,
+  `actual_prod_al`            DOUBLE       NULL DEFAULT NULL,
+  `de`                        DOUBLE       NULL DEFAULT NULL,
+  `oe`                        DOUBLE       NULL DEFAULT NULL,
+  `rec_bl`                    DOUBLE       NULL DEFAULT NULL,
+  `rec_al`                    DOUBLE       NULL DEFAULT NULL,
+  `trs_qty`                   DOUBLE       NULL DEFAULT NULL,
+  `ufs_qty`                   DOUBLE       NULL DEFAULT NULL,
+  `timestamp`                 TIMESTAMP    NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
+
 -- ── Mill House Equipment Life History Card ────────────────────
 
 CREATE TABLE IF NOT EXISTS `mh_equipment` (
@@ -600,7 +635,7 @@ CREATE TABLE IF NOT EXISTS `mh_history` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `equip_id`    INT          NOT NULL,
   `season`      VARCHAR(20)  DEFAULT NULL,
-  `year`        VARCHAR(20)  DEFAULT NULL,
+  `year`        VARCHAR(64)  DEFAULT NULL,
   `date_start`  DATE         DEFAULT NULL,
   `date_finish` DATE         DEFAULT NULL,
   `obs`         TEXT         DEFAULT NULL,

@@ -13,6 +13,23 @@ export function headerLabel({ heading, subheading }) {
   return heading;
 }
 
+/**
+ * VIEW DATA / CSV: show calendar dates as YYYY-MM-DD (not ISO midnight UTC strings).
+ */
+export function formatRecordCellForDisplay(dbKey, value) {
+  if (value === null || value === undefined) return '';
+  const s = typeof value === 'string' ? value : String(value);
+  /* MySQL DATE often arrives as ISO instant from APIs / older responses */
+  if (dbKey === 'Date') {
+    const isoMidnight = s.match(/^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.000)?Z$/);
+    if (isoMidnight) return isoMidnight[1];
+    const isoDate = s.match(/^(\d{4}-\d{2}-\d{2})T/);
+    if (isoDate) return isoDate[1];
+    return s;
+  }
+  return s;
+}
+
 // ─── mill_logbook1 (EquipmentTemp) ────────────────────────────
 const M1_EQUIP = [
   { key: 'CaneKeig', label: 'Cane Kicker' },
@@ -385,6 +402,37 @@ function schemaPhPower() {
   return a;
 }
 
+// ─── distillery_ops ────────────────────────────────────────────
+function schemaDistilleryOps() {
+  const a = [];
+  push(a, 'Date', 'GSMA Distillery Operations', 'Operation Date');
+  push(a, 'operation_mode', 'GSMA Distillery Operations', 'Operation Mode');
+  push(a, 'syrup_molasses_qtls', 'Throughput & quality', 'Syrup/Molasses Used (Qtls)');
+  push(a, 'wash_distilled', 'Throughput & quality', 'Wash Distilled');
+  push(a, 'trs', 'Throughput & quality', 'TRS');
+  push(a, 'ufs', 'Throughput & quality', 'UFS');
+  push(a, 'alcohol_pct', 'Throughput & quality', 'Alcohol %');
+  push(a, 'actual_ethanol_bl', 'Production', 'Actual Ethanol Production (BL)');
+  push(a, 'al_bl_ratio_pct', 'Production', 'AL/BL Ratio (%)');
+  push(a, 'total_bh_molasses_qtls', 'Storage', 'Total BH Molasses in Storage — Qtls');
+  push(a, 'total_ch_molasses_qtls', 'Storage', 'Total CH Molasses in Storage — Qtls');
+  push(a, 'ethanol_storage_bl', 'Storage', 'Ethanol in Storage (BL)');
+  push(a, 'fs', 'Calculated', 'FS');
+  push(a, 'fs_quantity', 'Calculated', 'FS Quantity');
+  push(a, 'theoretical_yield', 'Calculated', 'Theoretical yield');
+  push(a, 'alcohol_prod_fermentation', 'Calculated', 'Alcohol prod in fermentation');
+  push(a, 'fe', 'Calculated', 'FE');
+  push(a, 'actual_prod_al', 'Calculated', 'Actual prod. AL');
+  push(a, 'de', 'Calculated', 'DE');
+  push(a, 'oe', 'Calculated', 'OE');
+  push(a, 'rec_bl', 'Calculated', 'REC BL');
+  push(a, 'rec_al', 'Calculated', 'REC AL');
+  push(a, 'trs_qty', 'Calculated', 'TRS QTY');
+  push(a, 'ufs_qty', 'Calculated', 'UFS QTY');
+  push(a, 'timestamp', 'System', 'Recorded at');
+  return a;
+}
+
 // ─── ph_steam (order matches PhSteam.jsx / PHReport_Steam.html) ─────────
 function schemaPhSteam() {
   const a = [];
@@ -459,6 +507,7 @@ const BUILDERS = {
   ph_power: schemaPhPower,
   ph_steam: schemaPhSteam,
   ph_stoppage: schemaPhStoppage,
+  distillery_ops: schemaDistilleryOps,
 };
 
 export function getColumnDescriptors(formKey) {

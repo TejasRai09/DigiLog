@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
-import { getDisplayColumns, headingRuns, headerLabel } from '../config/formColumnSchemas';
+import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -17,12 +17,13 @@ const escapeCsvCell = (v) => {
     : s;
 };
 
-/** Rows must be raw API records; columns from getDisplayColumns(formKey, row). */
 const downloadCSV = (filename, rows, columns) => {
   if (!rows.length) { toast.error('No data to download.'); return; }
   const headerLine = columns.map(headerLabel).map(escapeCsvCell).join(',');
   const dataLines = rows.map((row) =>
-    columns.map(({ dbKey }) => escapeCsvCell(row[dbKey])).join(','),
+    columns.map(({ dbKey }) =>
+      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey])),
+    ).join(','),
   );
   const csv = [headerLine, ...dataLines].join('\r\n');
 
@@ -135,7 +136,7 @@ const ViewDataModal = ({ form, onClose }) => {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {data.records.map((row, i) => (
-                  <tr key={i} className="hover:bg-gray-50">
+                  <tr key={`${page}-${i}`} className="hover:bg-gray-50">
                     {columns.map((col) => (
                       <td
                         key={col.dbKey}
@@ -144,7 +145,7 @@ const ViewDataModal = ({ form, onClose }) => {
                         {row[col.dbKey] === null || row[col.dbKey] === undefined ? (
                           <span className="text-gray-300">—</span>
                         ) : (
-                          String(row[col.dbKey])
+                          formatRecordCellForDisplay(col.dbKey, row[col.dbKey])
                         )}
                       </td>
                     ))}

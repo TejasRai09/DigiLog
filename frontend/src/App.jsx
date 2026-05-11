@@ -32,6 +32,8 @@ import PhPower    from './pages/forms/power/PhPower';
 import PhSteam    from './pages/forms/power/PhSteam';
 import PhStoppage from './pages/forms/power/PhStoppage';
 
+import DistilleryOperations from './pages/forms/distillery/DistilleryOperations';
+
 // Equipment History Cards
 import EquipmentList   from './pages/equipment/EquipmentList';
 import EquipmentDetail from './pages/equipment/EquipmentDetail';
@@ -72,6 +74,9 @@ const App = () => {
           <Route path="/forms/ph_power"    element={<PhPower />} />
           <Route path="/forms/ph_steam"    element={<PhSteam />} />
           <Route path="/forms/ph_stoppage" element={<PhStoppage />} />
+
+          {/* Distillery */}
+          <Route path="/forms/distillery_ops" element={<DistilleryOperations />} />
 
           {/* Equipment History Cards */}
           <Route path="/equipment"     element={<EquipmentList />} />
