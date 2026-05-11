@@ -44,10 +44,11 @@ import PowerList             from './pages/power/PowerList';
 import PowerEquipmentDetail  from './pages/power/PowerEquipmentDetail';
 
 // EHS Forms
-import EhsLanding  from './pages/ehs/EhsLanding';
-import EhsNearMiss from './pages/forms/ehs/EhsNearMiss';
-import EhsAccident from './pages/forms/ehs/EhsAccident';
-import EhsWaterGwa from './pages/forms/ehs/EhsWaterGwa';
+import EhsLanding   from './pages/ehs/EhsLanding';
+import EhsNearMiss  from './pages/forms/ehs/EhsNearMiss';
+import EhsWaterGwa  from './pages/forms/ehs/EhsWaterGwa';
+import EhsWaterEtp  from './pages/forms/ehs/EhsWaterEtp';
+import EhsWaterCpu  from './pages/forms/ehs/EhsWaterCpu';
 
 const App = () => {
   const { user, loading } = useAuth();
@@ -102,8 +103,9 @@ const App = () => {
           {/* EHS Forms */}
           <Route path="/ehs"                       element={<EhsLanding />} />
           <Route path="/forms/ehs_near_miss"       element={<EhsNearMiss />} />
-          <Route path="/forms/ehs_accident"        element={<EhsAccident />} />
           <Route path="/forms/ehs_water_gwa"       element={<EhsWaterGwa />} />
+          <Route path="/forms/ehs_water_etp"       element={<EhsWaterEtp />} />
+          <Route path="/forms/ehs_water_cpu"       element={<EhsWaterCpu />} />
         </Route>
 
         {/* Protected – admin only */}

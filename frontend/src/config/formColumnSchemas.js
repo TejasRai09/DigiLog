@@ -518,20 +518,6 @@ function schemaEhsNearMiss() {
   return a;
 }
 
-// ─── ehs_accident ───────────────────────────────────────────────
-function schemaEhsAccident() {
-  const a = [];
-  push(a, 'Date',             'Accident Register', 'Date');
-  push(a, 'Time',             'Accident Register', 'Time');
-  push(a, 'injured_person',   'Accident Register', 'Injured Person');
-  push(a, 'department',       'Accident Register', 'Department');
-  push(a, 'location',         'Accident Register', 'Location');
-  push(a, 'type_of_accident', 'Accident Register', 'Type');
-  push(a, 'description',      'Accident Register', 'Description');
-  push(a, 'timestamp',        'System',            'Recorded at');
-  return a;
-}
-
 // ─── ehs_water_gwa ──────────────────────────────────────────────
 function schemaEhsWaterGwa() {
   const a = [];
@@ -557,6 +543,56 @@ function schemaEhsWaterGwa() {
   return a;
 }
 
+// ─── ehs_water_etp ──────────────────────────────────────────────
+function schemaEhsWaterEtp() {
+  const a = [];
+  push(a, 'Date',              'ETP Working',          'Date');
+  push(a, 'cane_crush_ondate', 'Cane Crushing',        'On Date (TCD)');
+  push(a, 'cane_crush_todate', 'Cane Crushing',        'To Date (TCD)');
+  push(a, 'etp_inlet_meter',   'ETP Inlet',            'Meter Reading');
+  push(a, 'etp_inlet_kl',      'ETP Inlet',            'KL');
+  push(a, 'etp_outlet_meter',  'ETP Outlet',           'Meter Reading');
+  push(a, 'etp_outlet_kl',     'ETP Outlet',           'KL');
+  push(a, 'effluent_200ltcd',  'Effluent',             '200 L/TCD On Date');
+  push(a, 'ph_g_shift',        'Quality Parameters',   'pH (G Shift)');
+  push(a, 'tss',               'Quality Parameters',   'TSS <30 ppm');
+  push(a, 'cod',               'Quality Parameters',   'COD <250 ppm');
+  push(a, 'bod',               'Quality Parameters',   'BOD <30 ppm');
+  push(a, 'tds',               'Quality Parameters',   'TDS <2100 mg/L');
+  push(a, 'oil_grease',        'Quality Parameters',   'Oil & Grease <10 mg/L');
+  push(a, 'ondate_kld',        'Effluent',             'On Date (KLD)');
+  push(a, 'remarks',           'Remarks',              'Remarks');
+  push(a, 'timestamp',         'System',               'Recorded at');
+  return a;
+}
+
+// ─── ehs_water_cpu ──────────────────────────────────────────────
+function schemaEhsWaterCpu() {
+  const a = [];
+  push(a, 'Date',                    'CPU Water Recycle',  'Date');
+  push(a, 'cane_crush_ondate',       'Cane Crushing',      'On Date (TCD)');
+  push(a, 'cane_crush_todate',       'Cane Crushing',      'To Date (TCD)');
+  push(a, 'cpu_inlet_ondate',        'CPU Inlet',          'On Date (KL)');
+  push(a, 'cpu_inlet_todate',        'CPU Inlet',          'To Date (KL)');
+  push(a, 'cpu_outlet_ondate',       'CPU Outlet',         'On Date (KL)');
+  push(a, 'cpu_outlet_todate',       'CPU Outlet',         'To Date (KL)');
+  push(a, 'effluent_200ltcd_ondate', 'Effluent 200 L/TCD', 'On Date');
+  push(a, 'effluent_200ltcd_todate', 'Effluent 200 L/TCD', 'To Date');
+  push(a, 'inlet_ph_a',              'Inlet pH',           'A Shift');
+  push(a, 'inlet_ph_b',              'Inlet pH',           'B Shift');
+  push(a, 'inlet_ph_c',              'Inlet pH',           'C Shift');
+  push(a, 'outlet_ph',               'Outlet Quality',     'pH (5.5–8.5)');
+  push(a, 'outlet_tss',              'Outlet Quality',     'TSS <30 ppm');
+  push(a, 'outlet_cod',              'Outlet Quality',     'COD <250 ppm');
+  push(a, 'outlet_bod',              'Outlet Quality',     'BOD <30 ppm');
+  push(a, 'outlet_tds',              'Outlet Quality',     'TDS <2100 mg/L');
+  push(a, 'oil_grease',              'Outlet Quality',     'Oil & Grease <10 mg/L');
+  push(a, 'transmittance',           'Outlet Quality',     'Transmittance >85');
+  push(a, 'remarks',                 'Remarks',            'Remarks');
+  push(a, 'timestamp',               'System',             'Recorded at');
+  return a;
+}
+
 const BUILDERS = {
   mill_logbook1: schemaMillLogbook1,
   mill_logbook2: schemaMillLogbook2,
@@ -571,10 +607,11 @@ const BUILDERS = {
   ph_power: schemaPhPower,
   ph_steam: schemaPhSteam,
   ph_stoppage: schemaPhStoppage,
-  distillery_ops: schemaDistilleryOps,
-  ehs_near_miss: schemaEhsNearMiss,
-  ehs_accident:  schemaEhsAccident,
-  ehs_water_gwa: schemaEhsWaterGwa,
+  distillery_ops:  schemaDistilleryOps,
+  ehs_near_miss:   schemaEhsNearMiss,
+  ehs_water_gwa:   schemaEhsWaterGwa,
+  ehs_water_etp:   schemaEhsWaterEtp,
+  ehs_water_cpu:   schemaEhsWaterCpu,
 };
 
 export function getColumnDescriptors(formKey) {

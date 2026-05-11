@@ -10,16 +10,22 @@ const EHS_FORMS = [
     description: 'Log workplace near misses, incidents and accidents for investigation',
   },
   {
-    _id:         'ehs_accident',
-    formKey:     'ehs_accident',
-    name:        'Accident Data Register',
-    description: 'Record accident details — person, department, type and description',
-  },
-  {
     _id:         'ehs_water_gwa',
     formKey:     'ehs_water_gwa',
     name:        'Water Dashboard — Ground Water Abstraction',
-    description: 'Daily ground water abstraction report (bore well extraction and usage)',
+    description: 'Daily bore well extraction and usage report',
+  },
+  {
+    _id:         'ehs_water_etp',
+    formKey:     'ehs_water_etp',
+    name:        'Water Dashboard — ETP Working',
+    description: 'Effluent Treatment Plant daily quantity and quality report',
+  },
+  {
+    _id:         'ehs_water_cpu',
+    formKey:     'ehs_water_cpu',
+    name:        'Water Dashboard — CPU Water Recycle',
+    description: 'CPU inlet/outlet daily report with quality parameters',
   },
 ];
 

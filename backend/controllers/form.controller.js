@@ -34,8 +34,9 @@ const FORM_CONFIG = {
   distillery_ops:   { table: 'distillery_operations', pattern: 'G', tsCol: 'timestamp' },
   // EHS – Environment Health & Safety
   ehs_near_miss:    { table: 'ehs_near_miss',    pattern: 'E', tsCol: 'timestamp' },
-  ehs_accident:     { table: 'ehs_accident',     pattern: 'E', tsCol: 'timestamp' },
   ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'E', tsCol: 'timestamp' },
+  ehs_water_etp:    { table: 'ehs_water_etp',    pattern: 'E', tsCol: 'timestamp' },
+  ehs_water_cpu:    { table: 'ehs_water_cpu',    pattern: 'E', tsCol: 'timestamp' },
 };
 
 // ─── Access guard ─────────────────────────────────────────────
