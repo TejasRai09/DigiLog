@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdApps, MdRefresh, MdPrecisionManufacturing, MdChevronRight } from 'react-icons/md';
+import { MdApps, MdRefresh, MdPrecisionManufacturing, MdChevronRight, MdFlashOn } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useAuth from '../hooks/useAuth';
@@ -16,6 +16,15 @@ const STATIC_MODULES = [
     color:       '#7C3AED',
     Icon:        MdPrecisionManufacturing,
     route:       '/equipment',
+    badge:       'History Cards',
+  },
+  {
+    id:          'power-plant-equipment',
+    name:        'Power Plant Equipment',
+    description: 'Electrical, Instrument and control valve history cards for the 30MW power plant',
+    color:       '#D97706',
+    Icon:        MdFlashOn,
+    route:       '/power',
     badge:       'History Cards',
   },
 ];
