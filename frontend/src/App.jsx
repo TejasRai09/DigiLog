@@ -43,6 +43,12 @@ import PowerLanding          from './pages/power/PowerLanding';
 import PowerList             from './pages/power/PowerList';
 import PowerEquipmentDetail  from './pages/power/PowerEquipmentDetail';
 
+// EHS Forms
+import EhsLanding  from './pages/ehs/EhsLanding';
+import EhsNearMiss from './pages/forms/ehs/EhsNearMiss';
+import EhsAccident from './pages/forms/ehs/EhsAccident';
+import EhsWaterGwa from './pages/forms/ehs/EhsWaterGwa';
+
 const App = () => {
   const { user, loading } = useAuth();
 
@@ -92,6 +98,12 @@ const App = () => {
           <Route path="/power"                 element={<PowerLanding />} />
           <Route path="/power/:dept"           element={<PowerList />} />
           <Route path="/power/:dept/:id"       element={<PowerEquipmentDetail />} />
+
+          {/* EHS Forms */}
+          <Route path="/ehs"                       element={<EhsLanding />} />
+          <Route path="/forms/ehs_near_miss"       element={<EhsNearMiss />} />
+          <Route path="/forms/ehs_accident"        element={<EhsAccident />} />
+          <Route path="/forms/ehs_water_gwa"       element={<EhsWaterGwa />} />
         </Route>
 
         {/* Protected – admin only */}

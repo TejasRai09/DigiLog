@@ -493,6 +493,70 @@ function schemaPhStoppage() {
   return a;
 }
 
+// ─── ehs_near_miss ─────────────────────────────────────────────
+function schemaEhsNearMiss() {
+  const a = [];
+  push(a, 'Date',             'EHS — Near Miss Report', 'Date');
+  push(a, 'Time',             'EHS — Near Miss Report', 'Time');
+  push(a, 'name',             'Person Involved',        'Name');
+  push(a, 'contact_no',       'Person Involved',        'Contact No.');
+  push(a, 'department',       'Person Involved',        'Dept / Section');
+  push(a, 'person_type',      'Person Involved',        'Type');
+  push(a, 'person_type_other','Person Involved',        'Other (specify)');
+  push(a, 'location',         'Incident Details',       'Location');
+  push(a, 'severity',         'Incident Details',       'Severity');
+  push(a, 'treatment',        'Treatment',              'Treatment Type');
+  push(a, 'treatment_given',  'Treatment',              'What was given');
+  push(a, 'treatment_by',     'Treatment',              'By Whom');
+  push(a, 'description',      'Incident Details',       'Description / Cause');
+  push(a, 'hazard_identified','Follow-up',              'Significant Hazard Identified');
+  push(a, 'hod_comments',     'HOD Sign-off',           'Comments');
+  push(a, 'hod_signed',       'HOD Sign-off',           'Signed');
+  push(a, 'hod_position',     'HOD Sign-off',           'Position');
+  push(a, 'hod_date',         'HOD Sign-off',           'Date');
+  push(a, 'timestamp',        'System',                 'Recorded at');
+  return a;
+}
+
+// ─── ehs_accident ───────────────────────────────────────────────
+function schemaEhsAccident() {
+  const a = [];
+  push(a, 'Date',             'Accident Register', 'Date');
+  push(a, 'Time',             'Accident Register', 'Time');
+  push(a, 'injured_person',   'Accident Register', 'Injured Person');
+  push(a, 'department',       'Accident Register', 'Department');
+  push(a, 'location',         'Accident Register', 'Location');
+  push(a, 'type_of_accident', 'Accident Register', 'Type');
+  push(a, 'description',      'Accident Register', 'Description');
+  push(a, 'timestamp',        'System',            'Recorded at');
+  return a;
+}
+
+// ─── ehs_water_gwa ──────────────────────────────────────────────
+function schemaEhsWaterGwa() {
+  const a = [];
+  push(a, 'Date',               'Water Dashboard',            'Date');
+  push(a, 'gw_pump1_meter',     'GW Pump 1 (Truck Yard)',     'Meter Reading');
+  push(a, 'gw_pump1_ext_kl',   'GW Pump 1 (Truck Yard)',     'Extracted (KL)');
+  push(a, 'gw_pump2_meter',     'GW Pump 2 (36 Block)',       'Meter Reading');
+  push(a, 'gw_pump2_ext_kl',   'GW Pump 2 (36 Block)',       'Extracted (KL)');
+  push(a, 'total_ext_kl',       'Total Bore Well',            'Total Ext. (KL)');
+  push(a, 'dom_colony',         'Domestic Uses',              'Colony (KL)');
+  push(a, 'dom_fire',           'Domestic Uses',              'Fire & Labour (KL)');
+  push(a, 'ind_distillery',     'Industrial Uses',            'Distillery (KL)');
+  push(a, 'ind_power_plant',    'Industrial Uses',            'Power Plant (KL)');
+  push(a, 'ind_refinery',       'Industrial Uses',            'Refinery + DS + Mill (KL)');
+  push(a, 'total_industrial',   'Industrial Uses',            'Total Industrial (KL)');
+  push(a, 'cane_crush_ondate',  'Cane Crushing',              'On Date (TCD)');
+  push(a, 'cane_crush_todate',  'Cane Crushing',              'To Date (TCD)');
+  push(a, 'sugar_total_lt',     'Water per Tonne Cane',       'Sugar + Dist (L/T)');
+  push(a, 'industrial_lt',      'Water per Tonne Cane',       'Industrial (L/T)');
+  push(a, 'total_ext_sugar_lt', 'Water per Tonne Cane',       'Total Sugar Ext (L/T)');
+  push(a, 'remarks',            'Remarks',                    'Remarks');
+  push(a, 'timestamp',          'System',                     'Recorded at');
+  return a;
+}
+
 const BUILDERS = {
   mill_logbook1: schemaMillLogbook1,
   mill_logbook2: schemaMillLogbook2,
@@ -508,6 +572,9 @@ const BUILDERS = {
   ph_steam: schemaPhSteam,
   ph_stoppage: schemaPhStoppage,
   distillery_ops: schemaDistilleryOps,
+  ehs_near_miss: schemaEhsNearMiss,
+  ehs_accident:  schemaEhsAccident,
+  ehs_water_gwa: schemaEhsWaterGwa,
 };
 
 export function getColumnDescriptors(formKey) {

@@ -32,6 +32,10 @@ const FORM_CONFIG = {
 
   // App 4 – Distillery
   distillery_ops:   { table: 'distillery_operations', pattern: 'G', tsCol: 'timestamp' },
+  // EHS – Environment Health & Safety
+  ehs_near_miss:    { table: 'ehs_near_miss',    pattern: 'E', tsCol: 'timestamp' },
+  ehs_accident:     { table: 'ehs_accident',     pattern: 'E', tsCol: 'timestamp' },
+  ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'E', tsCol: 'timestamp' },
 };
 
 // ─── Access guard ─────────────────────────────────────────────
