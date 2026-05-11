@@ -174,9 +174,9 @@ const getHistory = async (req, res) => {
     const [[{ total }]] = await pool.execute(
       'SELECT COUNT(*) AS total FROM mh_history WHERE equip_id = ?', [id]
     );
-    const [records] = await pool.execute(
-      'SELECT * FROM mh_history WHERE equip_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
-      [id, limit, offset]
+    const [records] = await pool.query(
+      `SELECT * FROM mh_history WHERE equip_id = ? ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      [id]
     );
     res.json({ total, page, limit, records });
   } catch (err) {
