@@ -28,6 +28,11 @@ const FORM_CONFIG = {
   ph_power:         { table: 'ph_power',         pattern: 'E', tsCol: 'timestamp' },
   ph_steam:         { table: 'ph_steam',         pattern: 'E', tsCol: 'timestamp' },
   ph_stoppage:      { table: 'ph_stoppage',      pattern: 'B', tsCol: 'timestamp' },
+
+  // EHS – Environment Health & Safety
+  ehs_near_miss:    { table: 'ehs_near_miss',    pattern: 'E', tsCol: 'timestamp' },
+  ehs_accident:     { table: 'ehs_accident',     pattern: 'E', tsCol: 'timestamp' },
+  ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'E', tsCol: 'timestamp' },
 };
 
 // ─── Access guard ─────────────────────────────────────────────

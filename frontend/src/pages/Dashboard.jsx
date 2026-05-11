@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdApps, MdRefresh, MdPrecisionManufacturing, MdChevronRight, MdFlashOn } from 'react-icons/md';
+import { MdApps, MdRefresh, MdPrecisionManufacturing, MdChevronRight, MdFlashOn, MdSecurity } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useAuth from '../hooks/useAuth';
@@ -26,6 +26,15 @@ const STATIC_MODULES = [
     Icon:        MdFlashOn,
     route:       '/power',
     badge:       'History Cards',
+  },
+  {
+    id:          'ehs',
+    name:        'EHS',
+    description: 'Environment Health & Safety — incident reports, accident register and water dashboard',
+    color:       '#16A34A',
+    Icon:        MdSecurity,
+    route:       '/ehs',
+    badge:       'EHS Forms',
   },
 ];
 
