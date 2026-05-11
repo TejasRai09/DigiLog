@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 
-// ── Resize image to max 900px JPEG 75% ───────────────────────
 const resizeImage = (file) =>
   new Promise((resolve) => {
     const reader = new FileReader();
@@ -38,11 +37,10 @@ const EMPTY_HIST = {
 
 const IV_LABELS = {
   iv_W: 'Weekly', iv_M: 'Monthly', iv_Q: 'Quarterly',
-  iv_H: 'Half-Yearly', iv_Y: 'Yearly', iv_T: '2-Years',
+  iv_H: 'Half-Yearly', iv_Y: 'Yearly', iv_T: '2-Years', iv_3Y: '3-Years',
 };
 const IV_KEYS = Object.keys(IV_LABELS);
 
-// ── Accordion section ─────────────────────────────────────────
 const Section = ({ title, open, onToggle, badge, children }) => (
   <div className="card mb-3 overflow-hidden">
     <button
@@ -64,7 +62,6 @@ const Section = ({ title, open, onToggle, badge, children }) => (
   </div>
 );
 
-// ── Inline image zone for history modal ──────────────────────
 const HistImgZone = ({ label, value, onChange }) => (
   <div className="flex-1">
     <span className="text-xs font-semibold text-gray-600 mb-1 block">{label}</span>
@@ -97,7 +94,6 @@ const HistImgZone = ({ label, value, onChange }) => (
   </div>
 );
 
-// ── Image upload zone ─────────────────────────────────────────
 const ImageZone = ({ src, label, Icon, onUpload, onRemove, saving }) => (
   <div className="flex-1 min-w-0 flex flex-col gap-1.5">
     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
@@ -122,11 +118,10 @@ const ImageZone = ({ src, label, Icon, onUpload, onRemove, saving }) => (
   </div>
 );
 
-// ─────────────────────────────────────────────────────────────
 const HIST_LIMIT = 20;
 
-const EquipmentDetail = () => {
-  const { id } = useParams();
+const PowerEquipmentDetail = () => {
+  const { id, dept } = useParams();
   const navigate = useNavigate();
 
   const [eq,        setEq]        = useState(null);
@@ -149,13 +144,12 @@ const EquipmentDetail = () => {
   const [specsForm, setSpecsForm] = useState([]);
   const [schedForm, setSchedForm] = useState([]);
 
-  const [histModal, setHistModal] = useState(null); // null | { mode, data }
+  const [histModal, setHistModal] = useState(null);
 
-  // ── Fetch ───────────────────────────────────────────────────
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get(`/equipment/${id}`);
+      const { data } = await api.get(`/power/${id}`);
       setEq(data.equipment);
       setSpecs(data.specs);
       setSchedule(data.schedule);
@@ -170,7 +164,7 @@ const EquipmentDetail = () => {
 
   const loadHistory = async (pg) => {
     try {
-      const { data } = await api.get(`/equipment/${id}/history`, {
+      const { data } = await api.get(`/power/${id}/history`, {
         params: { page: pg, limit: HIST_LIMIT },
       });
       setHistory(data.records);
@@ -183,7 +177,6 @@ const EquipmentDetail = () => {
 
   useEffect(() => { load(); }, [id]);
 
-  // ── ID Card edit ────────────────────────────────────────────
   const startEditId = () => {
     setIdForm({
       name: eq.name, equip_no: eq.equip_no,
@@ -196,7 +189,7 @@ const EquipmentDetail = () => {
   const saveId = async () => {
     setSaving(true);
     try {
-      await api.put(`/equipment/${id}`, idForm);
+      await api.put(`/power/${id}`, idForm);
       setEq(e => ({ ...e, ...idForm }));
       setEditId(false);
       toast.success('Equipment details saved.');
@@ -207,14 +200,13 @@ const EquipmentDetail = () => {
     }
   };
 
-  // ── Images ──────────────────────────────────────────────────
   const uploadImg = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
     setSaving(true);
     try {
       const b64 = await resizeImage(file);
-      await api.put(`/equipment/${id}/image/${type}`, { data: b64 });
+      await api.put(`/power/${id}/image/${type}`, { data: b64 });
       setEq(eq => ({ ...eq, [type]: b64 }));
       toast.success('Image uploaded.');
     } catch {
@@ -228,7 +220,7 @@ const EquipmentDetail = () => {
     if (!confirm('Remove this image?')) return;
     setSaving(true);
     try {
-      await api.delete(`/equipment/${id}/image/${type}`);
+      await api.delete(`/power/${id}/image/${type}`);
       setEq(eq => ({ ...eq, [type]: null }));
       toast.success('Image removed.');
     } catch {
@@ -238,7 +230,6 @@ const EquipmentDetail = () => {
     }
   };
 
-  // ── Specs edit ──────────────────────────────────────────────
   const startEditSpecs = () => {
     setSpecsForm(specs.map(s => ({ ...s })));
     setEditSpecs(true);
@@ -247,8 +238,8 @@ const EquipmentDetail = () => {
   const saveSpecs = async () => {
     setSaving(true);
     try {
-      await api.put(`/equipment/${id}/specs`, { specs: specsForm });
-      const { data } = await api.get(`/equipment/${id}`);
+      await api.put(`/power/${id}/specs`, { specs: specsForm });
+      const { data } = await api.get(`/power/${id}`);
       setSpecs(data.specs);
       setEditSpecs(false);
       toast.success('Specifications saved.');
@@ -262,7 +253,6 @@ const EquipmentDetail = () => {
   const updateSpecRow = (i, key, val) =>
     setSpecsForm(f => f.map((x, j) => j === i ? { ...x, [key]: val } : x));
 
-  // ── Schedule edit ───────────────────────────────────────────
   const startEditSched = () => {
     setSchedForm(schedule.map(s => ({ ...s })));
     setEditSched(true);
@@ -271,8 +261,8 @@ const EquipmentDetail = () => {
   const saveSched = async () => {
     setSaving(true);
     try {
-      await api.put(`/equipment/${id}/schedule`, { schedule: schedForm });
-      const { data } = await api.get(`/equipment/${id}`);
+      await api.put(`/power/${id}/schedule`, { schedule: schedForm });
+      const { data } = await api.get(`/power/${id}`);
       setSchedule(data.schedule);
       setEditSched(false);
       toast.success('Schedule saved.');
@@ -286,7 +276,6 @@ const EquipmentDetail = () => {
   const updateSchedRow = (i, key, val) =>
     setSchedForm(f => f.map((x, j) => j === i ? { ...x, [key]: val } : x));
 
-  // ── History ─────────────────────────────────────────────────
   const openAddHist  = () => setHistModal({ mode: 'add', data: { ...EMPTY_HIST } });
   const openEditHist = (rec) => setHistModal({
     mode: 'edit',
@@ -294,6 +283,8 @@ const EquipmentDetail = () => {
       ...rec,
       date_start:  rec.date_start  ? String(rec.date_start).slice(0, 10)  : '',
       date_finish: rec.date_finish ? String(rec.date_finish).slice(0, 10) : '',
+      img_before: rec.img_before || null,
+      img_after:  rec.img_after  || null,
     },
   });
 
@@ -306,10 +297,10 @@ const EquipmentDetail = () => {
     setSaving(true);
     try {
       if (mode === 'add') {
-        await api.post(`/equipment/${id}/history`, data);
+        await api.post(`/power/${id}/history`, data);
         toast.success('Record added.');
       } else {
-        await api.put(`/equipment/${id}/history/${data.id}`, data);
+        await api.put(`/power/${id}/history/${data.id}`, data);
         toast.success('Record updated.');
       }
       setHistModal(null);
@@ -325,7 +316,7 @@ const EquipmentDetail = () => {
     if (!confirm('Delete this history record?')) return;
     setSaving(true);
     try {
-      await api.delete(`/equipment/${id}/history/${hid}`);
+      await api.delete(`/power/${id}/history/${hid}`);
       toast.success('Record deleted.');
       await loadHistory(histPage);
     } catch (err) {
@@ -335,7 +326,6 @@ const EquipmentDetail = () => {
     }
   };
 
-  // ── Render ───────────────────────────────────────────────────
   if (loading) return <div className="flex justify-center py-32"><Spinner size="lg" /></div>;
   if (!eq)     return <p className="text-center py-20 text-gray-400">Equipment not found.</p>;
 
@@ -343,32 +333,34 @@ const EquipmentDetail = () => {
   const usedIv    = IV_KEYS.filter(k => schedule.some(s => s[k] !== null));
 
   const ID_FIELDS = [
-    { key: 'equip_no',     label: 'Equipment No.' },
+    { key: 'equip_no',     label: 'Tag / Equipment No.' },
     { key: 'name',         label: 'Name of Equipment' },
     { key: 'location',     label: 'Location' },
     { key: 'commissioned', label: 'Date of Commissioning' },
     { key: 'drive',        label: 'Drive' },
   ];
 
+  const DEPT_LABELS = { electrical: 'Electrical', instrument: 'Instrument', instrument2: 'Instrument II' };
+
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
       <button
-        onClick={() => navigate('/equipment')}
+        onClick={() => navigate(`/power/${dept}`)}
         className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
       >
-        <MdArrowBack className="h-4 w-4" /> Back to Equipment List
+        <MdArrowBack className="h-4 w-4" /> Back to {DEPT_LABELS[dept] || 'Power Plant'}
       </button>
 
       <div className="mb-6">
         <h1 className="page-title">{eq.name}</h1>
-        <p className="text-sm text-gray-500 mt-1 font-mono">{eq.equip_no} · {eq.plant}</p>
+        <p className="text-sm text-gray-500 mt-1 font-mono">
+          {eq.equip_no} · Power Plant · {DEPT_LABELS[dept] || dept}
+        </p>
       </div>
 
       {/* ── Section 1: ID Card ── */}
       <Section title="Equipment Life History Card" open={open.id} onToggle={() => toggle('id')}>
         <div className="p-5">
-          {/* Images */}
           <div className="flex gap-4 mb-6">
             <ImageZone
               src={eq.photo}
@@ -612,7 +604,7 @@ const EquipmentDetail = () => {
                         <th className="th">Component</th>
                         <th className="th">Maintenance Action</th>
                         {usedIv.map(k => (
-                          <th key={k} className="th w-28 text-center">{IV_LABELS[k]}</th>
+                          <th key={k} className="th w-24 text-center">{IV_LABELS[k]}</th>
                         ))}
                       </tr>
                     </thead>
@@ -937,4 +929,4 @@ const EquipmentDetail = () => {
   );
 };
 
-export default EquipmentDetail;
+export default PowerEquipmentDetail;

@@ -1,14 +1,21 @@
 /**
- * Applies repo mysql/init.sql using DATABASE_URL from backend/.env.
- * Creates gsmadb, users/apps/mappings, equipment tables, and all form tables.
+ * Applies mysql/init.sql using DATABASE_URL from backend/.env (server connection).
+ * Ensures gsmadb exists and defines:
+ *   system tables (users, apps, forms, mappings), form/logbook tables,
+ *   distillery_operations, mh_* Mill House cards, and pp_* Power Plant equipment
+ *   (pp_equipment, pp_specs, pp_oem_schedule, pp_history — used by /api/power).
  *
- * For ongoing DDL on form tables, use Prisma Migrate from this directory:
+ * Idempotent on an existing DB (CREATE TABLE IF NOT EXISTS): safe to re-run after pull
+ * to add new tables (e.g. pp_*) without wiping data.
+ *
+ * For ongoing form DDL, use Prisma from this directory:
  *   npm run db:migrate:dev
  *   npm run db:migrate:deploy
  *
- * If the database was first created with this script, record the baseline
- * migration without re-applying SQL:
+ * If the DB was first created with init.sql, record Prisma baseline:
  *   npm run db:migrate:resolve-baseline
+ *
+ * Optional reference for pp_* DDL only: mysql/migrate_add_power_tables.sql (same DDL is in init.sql).
  *
  * Usage: npm run db:schema   (from backend/)
  */
@@ -56,7 +63,7 @@ async function main() {
   try {
     conn = await mysql.createConnection(connectionOptionsNoDatabase(databaseUrl));
     await conn.query(sql);
-    console.log('Done — schema applied (init.sql creates/uses gsmadb and all tables).');
+    console.log('Done — schema applied (init.sql: gsmadb + forms + mh_* + pp_* + …).');
     console.log('Ensure DATABASE_URL database name matches gsmadb or change init.sql USE line.');
   } catch (err) {
     console.error('Apply failed:', err.message);

@@ -10,6 +10,7 @@ const adminRoutes     = require('./routes/admin.routes');
 const appRoutes       = require('./routes/app.routes');
 const formRoutes      = require('./routes/form.routes');
 const equipmentRoutes = require('./routes/equipment.routes');
+const powerRoutes     = require('./routes/power.routes');
 
 const app = express();
 
@@ -18,8 +19,8 @@ testMysqlConnection();
 
 // ─── Global middleware ───────────────────────────────────────
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── Rate limiting ───────────────────────────────────────────
 const globalLimiter = rateLimit({
@@ -46,6 +47,7 @@ app.use('/api/admin',      adminRoutes);
 app.use('/api/apps',       appRoutes);
 app.use('/api/forms',      formRoutes);
 app.use('/api/equipment',  equipmentRoutes);
+app.use('/api/power',      powerRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

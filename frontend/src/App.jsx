@@ -38,6 +38,11 @@ import DistilleryOperations from './pages/forms/distillery/DistilleryOperations'
 import EquipmentList   from './pages/equipment/EquipmentList';
 import EquipmentDetail from './pages/equipment/EquipmentDetail';
 
+// Power Plant History Cards
+import PowerLanding          from './pages/power/PowerLanding';
+import PowerList             from './pages/power/PowerList';
+import PowerEquipmentDetail  from './pages/power/PowerEquipmentDetail';
+
 const App = () => {
   const { user, loading } = useAuth();
 
@@ -79,8 +84,14 @@ const App = () => {
           <Route path="/forms/distillery_ops" element={<DistilleryOperations />} />
 
           {/* Equipment History Cards */}
+          {/* Mill House Equipment History Cards */}
           <Route path="/equipment"     element={<EquipmentList />} />
           <Route path="/equipment/:id" element={<EquipmentDetail />} />
+
+          {/* Power Plant Equipment History Cards */}
+          <Route path="/power"                 element={<PowerLanding />} />
+          <Route path="/power/:dept"           element={<PowerList />} />
+          <Route path="/power/:dept/:id"       element={<PowerEquipmentDetail />} />
         </Route>
 
         {/* Protected – admin only */}
