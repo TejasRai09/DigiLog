@@ -1,16 +1,13 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
-import { useMsal } from '@azure/msal-react';
-import { loginRequest } from '../msalConfig';
+import { msalInstance, loginRequest } from '../msalConfig';
 import api from '../api/axios';
 
 export const AuthContext = createContext(null);
 
-// Module-level flag: prevents double-handling the MSAL redirect in React StrictMode,
-// which mounts/unmounts/remounts effects — causing handleRedirectPromise to fire twice.
+// Prevents double-handling in React StrictMode (mount→unmount→remount)
 let _msalRedirectHandled = false;
 
 export const AuthProvider = ({ children }) => {
-  const { instance, accounts } = useMsal();
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -31,12 +28,12 @@ export const AuthProvider = ({ children }) => {
     restore();
   }, []);
 
-  // ── Handle MSAL redirect callback (fires on every page load) ─
+  // ── Handle MSAL redirect callback (only when MSAL is available) ─
   useEffect(() => {
-    if (_msalRedirectHandled) return;
+    if (!msalInstance || _msalRedirectHandled) return;
     _msalRedirectHandled = true;
 
-    instance
+    msalInstance
       .handleRedirectPromise()
       .then(async (response) => {
         if (!response) return;
@@ -45,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
       })
       .catch((err) => console.error('MSAL redirect error:', err));
-  }, [instance]);
+  }, []);
 
   // ── Manual login ────────────────────────────────────────────
   const loginManual = useCallback(async (email, password) => {
@@ -56,18 +53,18 @@ export const AuthProvider = ({ children }) => {
 
   // ── Outlook login (redirect – no popup) ─────────────────────
   const loginOutlook = useCallback(() => {
-    instance.loginRedirect(loginRequest);
-  }, [instance]);
+    if (!msalInstance) return;
+    msalInstance.loginRedirect(loginRequest);
+  }, []);
 
   // ── Logout ──────────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setUser(null);
-    // If signed in via Outlook, clear MSAL session too
-    if (accounts.length > 0) {
-      instance.logoutRedirect({ account: accounts[0] });
+    if (msalInstance && msalInstance.getAllAccounts().length > 0) {
+      msalInstance.logoutRedirect({ account: msalInstance.getAllAccounts()[0] });
     }
-  }, [instance, accounts]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, loginManual, loginOutlook, logout }}>
