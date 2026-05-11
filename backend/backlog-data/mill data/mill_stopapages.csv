@@ -1,0 +1,787 @@
+"Date";"start_time";"end_time";"section";"machinery";"remarks";"timestamp"
+"2023-11-17";"2023-11-17 16:16:00";"2023-11-17 17:14:00";"MILLS";"In-line Shredder";"Shredder motor tripped on high vibration and 3 MW turbine (Both tripped)";"2023-12-12 12:57:54"
+"2023-11-19";"2023-11-19 11:28:00";"2023-11-19 11:32:00";"MILLS";"Transmission Gearing 3";"Loose bolt got tightened of 3rd mill transmission gear bearing bolt";"2023-12-12 13:01:10"
+"2023-11-19";"2023-11-19 13:14:00";"2023-11-19 13:19:00";"MILLS";"Transmission Gearing 3";"Loose bolt got tightened of 3rd mill transmission gear bearing bolt";"2023-12-12 13:02:33"
+"2023-11-19";"2023-11-19 17:41:00";"2023-11-19 19:45:00";"MILLS";"Zero Mill";"Zero mill tripped due to oil pump tripping and baggasse jamming on the cane belt conveyer due to failure of interlocking";"2023-12-12 13:04:37"
+"2023-11-20";"2023-11-21 01:44:00";"2023-11-21 01:47:00";"MILLS";"IRC 1";"IRC-1 tripped due to high load";"2023-12-12 13:06:42"
+"2023-11-21";"2023-11-21 09:58:00";"2023-11-21 10:34:00";"MILLS";"In-line Shredder";"For checking shredder vibration at no load";"2023-12-12 13:07:49"
+"2023-11-21";"2023-11-21 12:55:00";"2023-11-21 12:58:00";"MILLS";"IRC 1";"IRC-1 tripped due to high load";"2023-12-12 13:08:36"
+"2023-11-21";"2023-11-21 19:43:00";"2023-11-21 20:58:00";"BOILING HOUSE";"Boiling House (DS) - Mechanical";"Vapour cell 2500 sq.m juice inlet control valve joint leak";"2023-12-12 13:10:14"
+"2023-11-22";"2023-11-22 14:27:00";"2023-11-22 14:31:00";"MILLS";"In-line Shredder";"Shredder tripping occurred due to high vibration";"2023-12-12 13:11:39"
+"2023-11-22";"2023-11-22 18:44:00";"2023-11-22 18:50:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration";"2023-12-12 13:12:27"
+"2023-11-22";"2023-11-23 01:02:00";"2023-11-23 01:26:00";"OTHERS";"Boiler - Electrical";"Grid failure";"2023-12-12 13:14:43"
+"2023-11-22";"2023-11-23 02:09:00";"2023-11-23 08:08:00";"MILLS";"In-line Shredder";"Shredder stoppage for checking work";"2023-12-12 13:15:35"
+"2023-11-23";"2023-11-23 08:00:00";"2023-11-23 11:28:00";"MILLS";"In-line Shredder";"Shredder checking work";"2023-12-12 13:16:33"
+"2023-11-23";"2023-11-24 00:26:00";"2023-11-24 00:32:00";"MILLS";"IRC 2";"IRC-2 stopped due to electrical problem";"2023-12-12 13:17:40"
+"2023-11-23";"2023-11-24 04:59:00";"2023-11-24 05:01:00";"MILLS";"IRC 1";"IRC-1 tripped due to high load";"2023-12-12 13:18:28"
+"2023-11-24";"2023-11-24 10:32:00";"2023-11-24 10:38:00";"MILLS";"In-line Shredder";"Shredder tripped due to high vibration";"2023-12-12 13:19:13"
+"2023-11-24";"2023-11-24 10:41:00";"2023-11-24 10:57:00";"MILLS";"In-line Shredder";"Shredder tripped due to high vibration";"2023-12-12 13:20:04"
+"2023-11-24";"2023-11-24 11:13:00";"2023-11-24 11:15:00";"MILLS";"IRC 1";"IRC-1 tripped due to high load";"2023-12-12 13:20:44"
+"2023-11-24";"2023-11-25 02:54:00";"2023-11-25 02:58:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration";"2023-12-12 13:21:39"
+"2023-11-24";"2023-11-25 05:50:00";"2023-11-25 05:54:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration";"2023-12-12 13:22:13"
+"2023-11-25";"2023-11-25 09:51:00";"2023-11-25 13:38:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration, shredder bearing checking & welding";"2023-12-12 13:23:55"
+"2023-11-25";"2023-11-26 05:22:00";"2023-11-26 05:28:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration";"2023-12-12 13:24:39"
+"2023-11-26";"2023-11-26 08:31:00";"2023-11-26 20:50:00";"MILLS";"In-line Shredder";"Shredder stopped due to shredder checking work";"2023-12-12 13:25:31"
+"2023-11-27";"2023-11-27 18:42:00";"2023-11-27 18:47:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration";"2023-12-12 13:26:05"
+"2023-11-28";"2023-11-29 06:25:00";"2023-11-29 06:29:00";"MILLS";"In-line Shredder";"Shredder tripping due to high vibration";"2023-12-12 13:26:42"
+"2023-12-02";"2023-12-02 08:00:00";"2023-12-04 15:32:00";"MILLS";"In-line Shredder";"Scheduled stoppage for Shredder Bearing Checking";"2023-12-12 13:30:10"
+"2023-12-05";"2023-12-05 22:19:00";"2023-12-05 22:21:00";"MILLS";"IRC 1";"IRC-1 tripped due to high load";"2023-12-12 13:31:06"
+"2023-12-05";"2023-12-06 03:51:00";"2023-12-06 03:52:00";"MILLS";"IRC 1";"IRC-1 tripped due to high load";"2023-12-12 13:31:53"
+"2023-12-06";"2023-12-06 09:05:00";"2023-12-06 09:10:00";"MILLS";"Main Cane Carrier";"MCC Motor tripped due to short circuit - Electrical";"2023-12-12 13:34:02"
+"2023-12-06";"2023-12-06 11:08:00";"2023-12-06 11:10:00";"MILLS";"Main Cane Carrier";"MCC Motor VFD malfunctioning, stand by drive taken in line";"2023-12-12 13:36:26"
+"2023-12-06";"2023-12-06 11:14:00";"2023-12-06 11:15:00";"MILLS";"Main Cane Carrier";"MCC Motor VFD malfunctioning, stand by drive taken in line";"2023-12-12 13:37:18"
+"2023-12-06";"2023-12-06 11:11:00";"2023-12-06 11:13:00";"MILLS";"Main Cane Carrier";"MCC Motor VFD malfunctioning, stand by drive taken in line";"2023-12-12 13:37:22"
+"2023-12-06";"2023-12-06 13:04:00";"2023-12-06 14:38:00";"MILLS";"4th Mill";"Mill no. 3 and 4 adjustment and mill 4 bypassed due to RLD scrapper teeth found broken";"2023-12-12 13:38:49"
+"2023-12-06";"2023-12-06 23:49:00";"2023-12-06 23:59:00";"MILLS";"4th Mill";"Mill 4 taken in line";"2023-12-12 13:41:41"
+"2023-12-07";"2023-12-08 03:03:00";"2023-12-08 03:11:00";"MILLS";"IRC 1";"IRC-1 rake, 2 no. bolt and IRC-3 rake, 1 no. missing bolt provided";"2023-12-12 13:43:19"
+"2023-12-10";"2023-12-11 06:44:00";"2023-12-11 07:32:00";"MILLS";"1st Mill";"Mill no. 1 donally chute jamming";"2023-12-12 13:44:18"
+"2023-12-11";"2023-12-11 13:49:00";"2023-12-11 14:17:00";"MILLS";"Cane Belt Conveyor";"Tripping of shredder belt conveyer and feedback failure from DCS panel of shredder belt conveyer due to overload";"2023-12-12 13:46:01"
+"2023-12-11";"2023-12-11 14:50:00";"2023-12-11 16:34:00";"MILLS";"Cane Belt Conveyor";"Shredder belt cleaning brush shaft bent and taken out";"2023-12-12 13:46:55"
+"2023-12-11";"2023-12-11 13:49:00";"2023-12-11 14:17:00";"MILLS";"Cane Belt Conveyor";"Run Feedback of Cane Belt Conveyor from DCS Panel Failure Due to High Load 
+";"2024-01-16 11:02:03"
+"2023-12-11";"2023-12-11 14:50:00";"2023-12-11 16:34:00";"MILLS";"Cane Belt Conveyor";"Shredder Cane Belt Cleaning Brush Bend shaft Taken Out";"2024-01-16 11:04:35"
+"2023-12-14";"2023-12-14 14:42:00";"2023-12-14 14:57:00";"MILLS";"Cane Belt Conveyor";" Mill No-4 By Pass for RLD Scrapper Setting 
+";"2024-01-16 11:09:02"
+"2023-12-14";"2023-12-14 14:59:00";"2023-12-14 15:05:00";"70TPH BOILER";"Boiler - Mechanical";"70 TPH Boiler Steam Pressure Low ";"2024-01-16 11:14:25"
+"2023-12-14";"2023-12-14 20:47:00";"2023-12-14 20:58:00";"MILLS";"4th Mill";"Mill No-4 Taken in line";"2024-01-16 11:17:38"
+"2023-12-21";"2023-12-21 13:31:00";"2023-12-21 13:33:00";"OTHERS";"Cane Equalizer";" Main Breaker Tripped of Cane belt Equalizer & Other 
+";"2024-01-16 11:34:31"
+"2023-12-21";"2023-12-21 15:30:00";"2023-12-21 15:39:00";"MILLS";"2nd Mill";" Mill No-2 Bypass Due to Mill Head Stock one Foundation Bolt Broken. 
+";"2024-01-16 11:39:11"
+"2023-12-22";"2023-12-22 05:10:00";"2023-12-22 05:16:00";"MILLS";"2nd Mill";" Mill No-2 Taken in Line 
+";"2024-01-16 11:41:13"
+"2023-12-25";"2023-12-25 08:35:00";"2023-12-25 19:10:00";"OTHERS";"Others";" Scheduled Stoppage for General Cleaning ( Hammer Tip Replaced By New) Schedule General Cleaning
+";"2024-01-16 11:47:19"
+"2023-12-25";"2023-12-25 20:24:00";"2023-12-25 20:30:00";"MILLS";"In-line Shredder";" Shredder Tripped Due to High Vibration 
+";"2024-01-16 11:49:13"
+"2023-12-30";"2023-12-30 09:54:00";"2023-12-30 11:30:00";"CANE";"No Cane";" Less availability of Cane  
+";"2024-01-16 11:52:43"
+"2024-01-04";"2024-01-04 22:58:00";"2024-01-04 23:15:00";"150TPH BOILER";"Others";" LSP at 150 TPH Boiler Due to all Bagasse Feeder tripped on A/C Grid Failure -150TPH Boiler
+";"2024-01-16 12:35:07"
+"2024-01-05";"2024-01-05 17:51:00";"2024-01-05 17:56:00";"MILLS";"2nd Mill";" Mill No-2 by pass due to top roller wrapped & Checked  
+";"2024-01-16 12:38:10"
+"2024-01-05";"2024-01-05 18:48:00";"2024-01-05 18:53:00";"MILLS";"2nd Mill";"Mill No-2 Taken in line";"2024-01-16 12:40:39"
+"2024-02-28";"2024-02-29 04:10:00";"2024-02-29 05:00:00";"REDUCED JUICE FLOW";"No Cane";"Reduced Cane Crush due to less arrival of cane";"2024-03-04 16:01:02"
+"2024-02-29";"2024-02-29 09:50:00";"2024-02-29 10:40:00";"REDUCED JUICE FLOW";"No Cane";"cane crush reduced due to less arrival of cane ";"2024-03-04 16:04:13"
+"2024-03-01";"2024-03-01 08:15:00";"2024-03-01 22:30:00";"OTHERS";"Others";"Schedule stoppage for shredder domite tips replacement & 70 TPH boiler Economizer Tube Leakage attended.";"2024-03-04 16:11:17"
+"2024-03-01";"2024-03-01 23:02:00";"2024-03-01 23:19:00";"MILLS";"Mill Turbine 3";"Mill No-3 turbine tripped due to low lube oil pressure.";"2024-03-04 16:14:48"
+"2024-03-01";"2024-03-02 00:39:00";"2024-03-02 00:46:00";"MILLS";"Mill Turbine 3";"Mill No-3 taken in line";"2024-03-04 16:17:12"
+"2024-03-01";"2024-03-02 01:31:00";"2024-03-02 01:36:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder tripped due to high vibration";"2024-03-04 16:19:57"
+"2024-03-02";"2024-03-03 04:02:00";"2024-03-03 05:00:00";"REDUCED JUICE FLOW";"Weather";"Less availability of cane due to bed weather";"2024-03-04 16:29:08"
+"2024-03-03";"2024-03-03 20:30:00";"2024-03-03 23:32:00";"REDUCED JUICE FLOW";"Weather";"Crush rate reduced due to less arrival of cane (Rain)";"2024-03-04 16:34:37"
+"2024-03-03";"2024-03-04 03:10:00";"2024-03-04 08:00:00";"CANE";"No Cane";"No cane due to bad weather";"2024-03-04 16:36:47"
+"2024-01-17";"2024-01-17 08:36:00";"2024-01-17 22:18:00";"OTHERS";"Others";"Schedule stoppage for General cleaning (Shredder hammer tips replacement & other Jobs) ";"2024-03-04 16:46:59"
+"2024-01-22";"2024-01-22 14:41:00";"2024-01-22 14:47:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped on high axial vibration";"2024-03-04 16:50:06"
+"2024-01-22";"2024-01-22 17:45:00";"2024-01-22 17:52:00";"MILLS";"4th Mill";"4th mill A/C motor tripped.( Electrical)";"2024-03-04 16:56:00"
+"2024-01-22";"2024-01-23 03:25:00";"2024-01-23 03:30:00";"MILLS";"4th Mill";"Mill no-4 motor tripped due to motor blower tripped (Electrical)";"2024-03-04 16:59:20"
+"2024-01-23";"2024-01-23 17:05:00";"2024-01-23 17:11:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder tripped on high axial vibration ";"2024-03-04 17:02:46"
+"2024-01-23";"2024-01-23 17:24:00";"2024-01-23 19:25:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder tripped on high vibration, checked all the welding & Found all ok, additional side support jack plate welded on base plate to arrest the axial displacement of Plummer block on LHS. The spikes has came down now.";"2024-03-04 17:08:05"
+"2024-01-25";"2024-01-25 17:00:00";"2024-01-25 19:02:00";"MILLS";"Cane Belt Conveyor";"Repairing of cane belt joint (Cane belt conveyor joint opened up on one side)";"2024-03-04 17:13:21"
+"2024-01-31";"2024-01-31 10:55:00";"2024-01-31 10:57:00";"MILLS";"2nd Mill";"Mill No-2 bypassed due to some unusual sound observed ";"2024-03-04 17:19:08"
+"2024-01-31";"2024-01-31 12:20:00";"2024-01-31 12:43:00";"MILLS";"2nd Mill";" Mill No-2 Taken in Line (the UFR scrapper root clearance found increased and buildup)";"2024-03-04 17:23:23"
+"2024-02-08";"2024-02-08 08:45:00";"2024-02-08 21:35:00";"OTHERS";"Others";"Schedule Stoppage for general cleaning(shredder hammer replacement & other jobs)";"2024-03-04 17:29:56"
+"2024-02-13";"2024-02-13 14:41:00";"2024-02-13 21:57:00";"MILLS";"Cane Belt Conveyor";"Shredded cane belt conveyor joint fully opened (the old spare belt has been used after taking out the belt)";"2024-03-04 17:35:23"
+"2024-02-16";"2024-02-17 05:30:00";"2024-02-17 06:13:00";"REDUCED JUICE FLOW";"No Cane";"Less availability of cane";"2024-03-04 17:56:50"
+"2024-02-20";"2024-02-21 06:40:00";"2024-02-21 06:47:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder drum tripped due to high load ";"2024-03-04 18:03:52"
+"2024-02-22";"2024-02-22 08:35:00";"2024-02-22 09:25:00";"PREPERATORY DEVICES";"In-line Shredder";"Solenoid valve main cable shorted and preplacement on main cable of shredder lube oil pump ( Electrical)";"2024-03-04 18:08:43"
+"2024-02-27";"2024-02-27 21:50:00";"2024-02-27 22:23:00";"MILLS";"IRC 1";"One Broken one rake replaced of IRC No-1 ";"2024-03-04 18:19:09"
+"2024-03-04";"2024-03-04 08:00:00";"2024-03-04 13:55:00";"CANE";"No Cane";" No Cane due to bad Weather 
+";"2024-03-06 18:57:45"
+"2024-03-04";"2024-03-04 14:30:00";"2024-03-04 15:14:00";"REDUCED JUICE FLOW";"No Cane";" Reduced Crush due to less availability of cane 
+";"2024-03-06 19:00:39"
+"2024-03-04";"2024-03-04 17:41:00";"2024-03-04 17:50:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Tripped Due to High Vibration  
+";"2024-03-06 19:02:45"
+"2024-03-04";"2024-03-04 19:44:00";"2024-03-04 19:51:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Tripped Due to High Vibration  
+";"2024-03-06 19:04:43"
+"2024-03-04";"2024-03-05 01:05:00";"2024-03-05 01:12:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Tripped Due to High Vibration  
+";"2024-03-06 19:07:20"
+"2024-03-04";"2024-03-05 03:08:00";"2024-03-05 03:14:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Tripped Due to High Vibration  
+";"2024-03-06 19:09:20"
+"2024-03-05";"2024-03-05 09:29:00";"2024-03-05 09:33:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped due to High Load  
+";"2024-03-06 19:12:00"
+"2024-03-05";"2024-03-05 14:03:00";"2024-03-05 14:08:00";"MILLS";"IRC 1";" IRC No-1 tripped due to high load 
+";"2024-03-06 19:14:29"
+"2024-03-05";"2024-03-05 15:28:00";"2024-03-05 15:31:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Tripped Due to High Vibration  
+";"2024-03-06 19:15:58"
+"2024-03-05";"2024-03-06 06:25:00";"2024-03-06 06:28:00";"MILLS";"4th Mill";"Mill No-4 Drive Motor Tripped due to Electrical Fault ( Electrical )
+";"2024-03-06 19:18:37"
+"2024-03-05";"2024-03-06 06:33:00";"2024-03-06 06:36:00";"MILLS";"4th Mill";"Mill No-4 Drive Motor Tripped due to Electrical Fault (Electrical)
+";"2024-03-06 19:20:10"
+"2024-03-07";"2024-03-07 16:23:00";"2024-03-07 16:42:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-09 10:17:22"
+"2024-03-07";"2024-03-07 16:49:00";"2024-03-07 16:54:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.";"2024-03-09 10:19:33"
+"2024-03-08";"2024-03-08 11:22:00";"2024-03-08 11:24:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum & Cane Carrier Tripped due to High Load ";"2024-03-09 10:20:48"
+"2024-03-08";"2024-03-08 16:20:00";"2024-03-08 16:22:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum Tripped due to High Load ";"2024-03-09 10:22:13"
+"2024-03-08";"2024-03-09 04:51:00";"2024-03-09 04:52:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load";"2024-03-09 10:23:52"
+"2024-03-07";"2024-03-07 16:23:00";"2024-03-07 16:42:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-11 10:28:57"
+"2024-03-07";"2024-03-07 16:49:00";"2024-03-07 16:54:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-11 10:30:11"
+"2024-03-08";"2024-03-08 11:22:00";"2024-03-08 11:24:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum & Cane Carrier Tripped due to High Load  
+";"2024-03-11 10:33:25"
+"2024-03-08";"2024-03-08 16:20:00";"2024-03-08 16:24:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum Tripped due to High Load  
+";"2024-03-11 10:34:37"
+"2024-03-08";"2024-03-09 04:51:00";"2024-03-09 04:52:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load
+";"2024-03-11 10:35:38"
+"2024-03-09";"2024-03-09 15:45:00";"2024-03-09 15:50:00";"MILLS";"Transmission Gearing 3";"Mill No-3 by passed Due to Some Sound observed in transmission gear PB";"2024-03-11 10:40:55"
+"2024-03-09";"2024-03-09 16:09:00";"2024-03-09 16:49:00";"MILLS";"IRC 3";"Bagasse jamming in IRC-3 & Mill No-3 taken in line ";"2024-03-11 10:43:22"
+"2024-03-10";"2024-03-10 23:21:00";"2024-03-10 23:24:00";"OTHERS";"Others";"Foreign material taken out from magnet ";"2024-03-11 10:47:27"
+"2024-03-10";"2024-03-10 23:45:00";"2024-03-10 23:50:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-11 10:48:47"
+"2023-03-11";"2024-03-11 15:32:00";"2024-03-11 15:38:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-13 10:53:37"
+"2024-03-11";"2024-03-11 19:16:00";"2024-03-11 19:22:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-13 10:55:26"
+"2024-03-11";"2024-03-11 20:23:00";"2024-03-11 20:25:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-13 10:57:25"
+"2024-03-12";"2024-03-12 15:04:00";"2024-03-12 15:06:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-13 10:59:26"
+"2024-03-12";"2024-03-12 19:25:00";"2024-03-12 20:16:00";"REDUCED JUICE FLOW";"No Cane";"Less Availability of Cane
+";"2024-03-13 11:02:17"
+"2024-03-12";"2024-03-12 20:55:00";"2024-03-12 20:57:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+
+";"2024-03-13 11:05:22"
+"2024-03-12";"2024-03-13 03:41:00";"2024-03-13 03:45:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-13 11:06:52"
+"2024-03-12";"2024-03-13 04:21:00";"2024-03-13 05:56:00";"OTHERS";"Others";"Mill Stopped due to Nylon Rope get Stuck between rake & hot water pipe of shredder carrier & pipe removed
+( Miscellaneous)";"2024-03-13 11:12:05"
+"2024-03-13";"2024-03-13 13:17:00";"2024-03-13 13:57:00";"MILLS";"Rake Carrier";"Bagasse Wrapped in Shredder Rake Carrier Trough.
+";"2024-03-15 10:49:03"
+"2024-03-13";"2024-03-13 19:44:00";"2024-03-13 20:23:00";"REDUCED JUICE FLOW";"No Cane";"Less Availability of Cane ( 7-44 PM to 8 AM)
+";"2024-03-15 10:52:45"
+"2024-03-14";"2024-03-14 08:00:00";"2024-03-14 09:20:00";"REDUCED JUICE FLOW";"No Cane";"Less Availability of Cane ( 8 AM to 5 PM)
+";"2024-03-15 10:58:28"
+"2024-03-14";"2024-03-14 14:49:00";"2024-03-14 14:53:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-15 11:01:20"
+"2024-03-14";"2024-03-14 16:35:00";"2024-03-14 16:40:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-15 11:02:57"
+"2024-03-14";"2024-03-15 07:25:00";"2024-03-15 07:26:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load
+";"2024-03-15 11:04:56"
+"2024-03-17";"2024-03-17 12:39:00";"2024-03-17 12:41:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-18 10:57:11"
+"2024-03-17";"2024-03-17 20:23:00";"2024-03-17 20:25:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-18 10:58:11"
+"2024-03-17";"2024-03-17 21:57:00";"2024-03-17 22:00:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-18 10:59:14"
+"2024-03-17";"2024-03-17 23:42:00";"2024-03-17 23:44:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-18 11:00:18"
+"2024-03-17";"2024-03-18 01:39:00";"2024-03-18 01:41:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-18 11:01:33"
+"2024-03-17";"2024-03-18 05:15:00";"2024-03-18 05:17:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-18 11:02:25"
+"2024-03-18";"2024-03-18 12:26:00";"2024-03-18 12:33:00";"MILLS";"Rake Carrier";"Bagasse Wrapped in Shredder Rake Carrier Trough.
+";"2024-03-22 10:09:20"
+"2024-03-18";"2024-03-19 01:36:00";"2024-03-19 01:39:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-03-22 10:11:38"
+"2024-03-19";"2024-03-19 18:26:00";"2024-03-19 18:28:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-22 10:13:31"
+"2024-03-19";"2024-03-19 23:32:00";"2024-03-19 23:34:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load
+";"2024-03-22 10:15:44"
+"2024-03-20";"2024-03-20 22:20:00";"2024-03-20 22:22:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-22 10:19:07"
+"2024-03-20";"2024-03-21 01:12:00";"2024-03-21 01:13:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load
+";"2024-03-22 10:21:25"
+"2024-03-21";"2024-03-22 03:31:00";"2024-03-22 03:32:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load
+";"2024-03-22 10:22:39"
+"2024-03-22";"2024-03-22 08:40:00";"2024-03-22 08:42:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-26 11:43:45"
+"2024-03-22";"2024-03-22 12:55:00";"2024-03-22 13:55:00";"MILLS";"IRC 1";"Broken Rake of IRC -1 Replaced 
+";"2024-03-26 11:45:35"
+"2024-03-22";"2024-03-22 17:06:00";"2024-03-22 17:08:00";"MILLS";"IRC 1";"IRC No-1 Missing Bolt Provided
+";"2024-03-26 11:47:08"
+"2024-03-22";"2024-03-22 20:12:00";"2024-03-22 20:16:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-26 11:49:54"
+"2024-03-22";"2024-03-22 20:46:00";"2024-03-22 21:03:00";"MILLS";"IRC 1";"Broken Rake of IRC -1 Replaced 
+";"2024-03-26 11:51:08"
+"2024-03-22";"2024-03-23 00:32:00";"2024-03-23 00:33:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-26 11:52:17"
+"2024-03-22";"2024-03-23 01:10:00";"2024-03-23 01:11:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-26 11:53:40"
+"2024-03-22";"2024-03-23 02:00:00";"2024-03-23 02:02:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-26 11:54:42"
+"2024-03-22";"2024-03-23 06:37:00";"2024-03-23 06:39:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load
+";"2024-03-26 11:55:57"
+"2024-03-23";"2024-03-23 08:40:00";"2024-03-23 15:22:00";"OTHERS";"Others";"Scheduled Stoppage for Shredder Hammer Tips Change.
+";"2024-03-26 11:57:51"
+"2024-03-25";"2024-03-25 11:30:00";"2024-03-25 13:24:00";"REDUCED JUICE FLOW";"No Cane";"Less availability of Cane due to Holi Festival ( 11.30 AM to 3.56 AM)";"2024-03-26 12:01:19"
+"2024-03-25";"2024-03-26 03:54:00";"2024-03-26 08:00:00";"CANE";"No Cane";"No Cane due to Holi Festival
+";"2024-03-26 12:02:45"
+"2024-03-26";"2024-03-26 08:00:00";"2024-03-26 12:57:00";"CANE";"No Cane";"No Cane due to Holi Festival.
+";"2024-03-28 12:00:33"
+"2024-03-27";"2024-03-27 11:26:00";"2024-03-27 11:29:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-03-28 12:02:45"
+"2024-03-27";"2024-03-27 16:43:00";"2024-03-27 16:50:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-03-28 12:05:13"
+"2024-03-27";"2024-03-27 17:22:00";"2024-03-27 17:26:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-03-28 12:06:41"
+"2024-03-27";"2024-03-27 20:15:00";"2024-03-27 20:30:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-03-28 12:07:54"
+"2024-03-27";"2024-03-27 21:56:00";"2024-03-27 23:56:00";"MILLS";"IRC 1";"IRC No-1 uprooted S.S. cladding plate taken out & welding work done. 
+";"2024-03-28 12:09:09"
+"2024-03-29";"2024-03-29 09:33:00";"2024-03-29 10:51:00";"MILLS";"Cane Belt Conveyor";"Open Patch Repaired by belt fastener.
+";"2024-04-01 10:33:29"
+"2024-03-29";"2024-03-30 03:02:00";"2024-03-30 08:00:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder motor No-2 (Ref Side) Non Drive End Both Failure Bearing Replaced by New. 
+";"2024-04-01 10:36:45"
+"2024-03-30";"2024-03-30 08:00:00";"2024-03-30 18:22:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder motor No-2 (Ref Side) Non Drive End Both Failure Bearing Replaced by new 
+";"2024-04-01 10:38:30"
+"2024-03-30";"2024-03-30 19:00:00";"2024-03-30 20:02:00";"PREPERATORY DEVICES";"In-line Shredder";"Crush Reduced Due to No Full Load Given at Shredder motor. 
+";"2024-04-01 10:40:52"
+"2024-03-31";"2024-03-31 10:32:00";"2024-03-31 10:39:00";"MILLS";"4th Mill";"Mill No-4 Drive motor tripped. 
+";"2024-04-01 10:43:32"
+"2024-03-31";"2024-03-31 13:50:00";"2024-03-31 14:14:00";"MILLS";"4th Mill";"Mill No-4 Drive motor tripped.
+";"2024-04-01 10:44:53"
+"2024-04-01";"2024-04-02 07:14:00";"2024-04-02 07:16:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-04-04 10:54:07"
+"2024-04-02";"2024-04-02 23:06:00";"2024-04-02 23:09:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-04-04 10:56:16"
+"2024-04-07";"2024-04-08 00:13:00";"2024-04-08 00:17:00";"MILLS";"1st Mill";"Ist Mill RPM Isolater Signal open (Instrument)
+";"2024-04-08 10:26:32"
+"2024-04-08";"2024-04-08 12:13:00";"2024-04-08 12:15:00";"MILLS";"Mill Automation System";"Ist Mill RPM Isolator Signal open ( Instrument)
+";"2024-04-15 09:53:21"
+"2024-04-08";"2024-04-09 06:32:00";"2024-04-09 06:37:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC Tripped Due to High Load.
+";"2024-04-15 09:55:38"
+"2024-04-09";"2024-04-10 06:32:00";"2024-04-10 06:37:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped due to High Load  
+";"2024-04-15 09:57:00"
+"2024-04-10";"2024-04-10 17:03:00";"2024-04-10 19:26:00";"MILLS";"Rake Carrier";"Bagasse Wrapped in shredder rake carrier, cleared bagasse, bend rake spokes straightened.
+";"2024-04-15 09:58:19"
+"2024-04-10";"2024-04-10 20:14:00";"2024-04-10 20:16:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-04-15 09:59:40"
+"2024-04-11";"2024-04-11 09:54:00";"2024-04-11 09:57:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load.
+";"2024-04-15 10:01:16"
+"2024-04-11";"2024-04-11 10:37:00";"2024-04-11 10:44:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"Broken pin Replaced of MCC Chain
+";"2024-04-15 10:02:33"
+"2024-04-11";"2024-04-12 04:57:00";"2024-04-12 05:02:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-04-15 10:04:16"
+"2024-04-12";"2024-04-12 08:50:00";"2024-04-12 08:56:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Tripped due to high Vibration.
+";"2024-04-15 10:05:32"
+"2024-04-12";"2024-04-12 09:33:00";"2024-04-12 13:46:00";"PREPERATORY DEVICES";"In-line Shredder";"Schedule stoppage for Shredder Hammer Tips reversed.
+";"2024-04-15 10:07:10"
+"2024-04-12";"2024-04-12 14:44:00";"2024-04-12 15:25:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Stopped due to high bearing temperature of Shredder Motor 
+";"2024-04-15 10:08:45"
+"2024-04-13";"2024-04-13 17:36:00";"2024-04-13 17:40:00";"MILLS";"Rake Carrier";"Shredder Carrier stopped due to Excess bagasse.
+";"2024-04-15 10:10:01"
+"2024-11-24";"2024-11-24 18:45:00";"2024-11-24 18:46:00";"CANE HANDLING EQUIPMENTS";"Feeder Drum";"MILL STOPPAGE 24.11.2024(6:45 pm to 6:46pm) DUE TO FEEDER DRUM MOTOR INSTALL AT FULL LOAD
+";"2024-11-25 11:19:33"
+"2024-11-25";"2024-11-25 05:51:00";"2024-11-25 05:53:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT OVER LOAD";"2024-11-26 11:14:52"
+"2024-11-26";"2024-11-26 16:01:00";"2024-11-26 16:05:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT OVER LOAD";"2024-11-27 10:10:50"
+"2024-11-26";"2024-11-26 19:47:00";"2024-11-26 19:53:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"ZSS OFF";"2024-11-27 10:12:40"
+"2024-11-23";"2024-11-23 16:15:00";"2024-11-23 16:17:00";"PREPERATORY DEVICES";"Feeder Drum";"feeder drum Motor installed at High current (over load)
+";"2024-11-27 15:27:50"
+"2024-11-23";"2024-11-23 03:51:00";"2024-11-23 03:53:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT OVER LOAD  ";"2024-11-27 15:34:30"
+"2024-11-22";"2024-11-22 22:02:00";"2024-11-22 22:04:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM Motor installed at High current .
+";"2024-11-27 15:36:59"
+"2024-11-21";"2024-11-21 13:05:00";"2024-11-21 13:07:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT OVER LOAD";"2024-11-27 15:39:37"
+"2024-11-20";"2024-11-20 20:35:00";"2024-11-20 20:42:00";"MILLS";"1st Mill";"MILL NO.1 TAKEN IN LINE ";"2024-11-27 15:41:41"
+"2024-11-20";"2024-11-20 09:35:00";"2024-11-20 15:58:00";"OTHERS";"Others";"GENERAL CLEANING (SCHEDULED STOPPAGE)";"2024-11-27 15:43:53"
+"2024-11-19";"2024-11-19 07:44:00";"2024-11-19 08:05:00";"PREPERATORY DEVICES";"Main Cane Carrier";"FOREIGN MATERIAL INSERT AT MAIN CANE CARRIER";"2024-11-27 15:47:25"
+"2024-11-17";"2024-11-17 08:18:00";"2024-11-17 08:25:00";"PREPERATORY DEVICES";"Kicker";"FOREIGN MATERIAL INSERT AT KICKER.";"2024-11-27 15:49:51"
+"2024-11-16";"2024-11-16 16:56:00";"2024-11-16 17:00:00";"CANE HANDLING EQUIPMENTS";"1st Stage Rotary Screen";"ROTARY NDE SIDE Drum bolt FOUND loose.
+";"2024-11-27 15:52:31"
+"2024-11-16";"2024-11-16 14:20:00";"2024-11-16 14:24:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT HIGH CURRENT (OVER LOAD)";"2024-11-27 15:55:29"
+"2024-11-15";"2024-11-15 07:46:00";"2024-11-15 07:58:00";"CANE HANDLING EQUIPMENTS";"IRC 3";"IRC NO. 3 BROKEN RAKE REPLACED. ";"2024-11-27 15:58:00"
+"2024-11-13";"2024-11-13 09:14:00";"2024-11-13 09:19:00";"PREPERATORY DEVICES";"In-line Shredder";"SHREDDER MOTOR TRIP AT HIGH AXIAL VIBRATION.";"2024-11-27 16:00:36"
+"2024-11-27";"2024-11-27 22:25:00";"2024-11-27 22:27:00";"MILLS";"Feeder Drum";"FEEDER DRUM TRIP.";"2024-11-28 01:30:17"
+"2024-11-29";"2024-11-29 09:46:00";"2024-11-29 09:52:00";"PREPERATORY DEVICES";"In-line Shredder";"SHREDDER MOTOR TRIP AT HIGH VIBRETION";"2024-11-30 17:02:54"
+"2024-11-29";"2024-11-29 17:26:00";"2024-11-29 17:31:00";"PREPERATORY DEVICES";"In-line Shredder";"SHREDDER MOTOR TRIP DUE TO HIGH AXIAL VIBRATION";"2024-12-05 14:40:59"
+"2024-12-01";"2024-12-01 11:46:00";"2024-12-01 11:51:00";"CANE HANDLING EQUIPMENTS";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT OVER LOAD ";"2024-12-05 14:42:35"
+"2024-12-03";"2024-12-03 08:18:00";"2024-12-03 08:20:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT HIGH LOAD";"2024-12-05 14:44:00"
+"2024-12-04";"2024-12-04 01:06:00";"2024-12-04 01:10:00";"PREPERATORY DEVICES";"In-line Shredder";"SHREDDER MOTOR TRIP DUE TO HIGH AXIAL VIBRETION";"2024-12-05 14:45:35"
+"2024-12-05";"2024-12-05 11:10:00";"2024-12-05 11:30:00";"CANE HANDLING EQUIPMENTS";"IRC 4";"RAKE MISSING BOLT FITTING WORK.";"2024-12-08 11:55:01"
+"2024-12-05";"2024-12-05 21:58:00";"2024-12-05 22:03:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MAIN CANE CARRIER MOTOR INSTALLED AT OVER LOAD";"2024-12-08 11:56:29"
+"2024-12-06";"2024-12-06 04:59:00";"2024-12-06 06:19:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MAIN CANE CARRIER MOTOR INSTALLED AT OVER LOAD";"2024-12-08 11:58:02"
+"2024-12-07";"2024-12-07 06:38:00";"2024-12-07 06:54:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MAIN CANE CARRIER MOTOR INSTALLED AT OVER LOAD";"2024-12-08 12:01:26"
+"2024-12-07";"2024-12-07 11:33:00";"2024-12-07 12:40:00";"70TPH BOILER";"Others";"3 MW TURBINE TRIP DUE TO TIE BREAKER OPEN";"2024-12-08 12:04:03"
+"2024-12-08";"2024-12-08 03:46:00";"2024-12-08 03:48:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED AT OVER LOAD";"2024-12-08 12:05:52"
+"2024-12-10";"2024-12-10 12:51:00";"2024-12-10 13:27:00";"MILLS";"1st Mill";"Mill no. l donnelly chute level HIGH";"2024-12-24 13:45:34"
+"2024-12-10";"2024-12-10 13:53:00";"2024-12-10 13:58:00";"MILLS";"1st Mill";"MILL NO.1 TOP SCRAPPER SET RIGHT";"2024-12-24 13:46:50"
+"2024-12-10";"2024-12-10 15:39:00";"2024-12-10 15:44:00";"MILLS";"1st Mill";"MILL NO.1 BYPASS DUE TO TOP SCRAPPER SET RIGHT";"2024-12-24 13:48:47"
+"2024-12-10";"2024-12-10 17:57:00";"2024-12-10 18:06:00";"MILLS";"1st Mill";"MILL NO.1 TAKEN IN LINE AFTER TOP  SCRAPPER SETTING.";"2024-12-24 13:50:38"
+"2024-12-12";"2024-12-12 08:55:00";"2024-12-12 16:45:00";"PREPERATORY DEVICES";"In-line Shredder";"GENERAL CLEANING WORK (SCHEDULED STOPPAGE) ";"2024-12-24 13:52:52"
+"2024-12-15";"2024-12-15 01:30:00";"2024-12-15 01:32:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM Motor installed at High current 
+";"2024-12-24 13:54:24"
+"2024-12-15";"2024-12-15 03:31:00";"2024-12-15 03:36:00";"CANE HANDLING EQUIPMENTS";"IRC 4";"IRC NO 4 RAKE MISSING BOLT FITTED";"2024-12-24 13:56:10"
+"2024-12-15";"2024-12-15 04:31:00";"2024-12-15 04:36:00";"PREPERATORY DEVICES";"In-line Shredder";"INLINE SHREDDER MOTOR TRIP DUE TO HIGH AXIAL VIBRATION ";"2024-12-24 13:59:08"
+"2024-12-19";"2024-12-19 00:45:00";"2024-12-19 00:49:00";"PREPERATORY DEVICES";"In-line Shredder";"INLINE SHREDDER MOTOR TRIP DUE TO HIGH AXIAL VIBRETION";"2024-12-24 14:22:31"
+"2024-12-19";"2024-12-19 21:35:00";"2024-12-19 21:37:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED DUE TO HIGH CURRENT";"2024-12-24 14:24:19"
+"2024-12-23";"2024-12-23 00:44:00";"2024-12-23 00:46:00";"MILLS";"Others";"ROTARY SCREEN TRIP DUE TO OVER LOAD";"2024-12-24 14:27:03"
+"2024-12-23";"2024-12-23 18:49:00";"2024-12-23 18:53:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED DUE TO HIGH LOAD ";"2024-12-24 14:28:47"
+"2024-12-23";"2024-12-23 14:50:00";"2024-12-23 14:53:00";"PREPERATORY DEVICES";"Feeder Drum";"ELECTRIC FEEDER TRIP ";"2024-12-24 14:31:32"
+"2024-12-24";"2024-12-24 03:41:00";"2024-12-24 03:43:00";"PREPERATORY DEVICES";"Feeder Drum";"feeder drum motor installed due to over current";"2024-12-26 15:46:42"
+"2024-12-25";"2024-12-25 17:18:00";"2024-12-25 19:00:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC SIDE SUPPORTING ANGLE BROKEN BY FOREIGN MATERIAL";"2024-12-26 15:52:49"
+"2024-12-25";"2024-12-25 16:54:00";"2024-12-25 17:09:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"Foreign material Remove from cane belt";"2025-01-26 12:45:55"
+"2024-12-26";"2024-12-26 07:19:00";"2024-12-26 07:20:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at over load";"2025-01-26 12:50:52"
+"2024-12-27";"2024-12-27 16:07:00";"2024-12-27 16:08:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 12:53:05"
+"2024-12-28";"2024-12-28 20:36:00";"2024-12-28 20:37:00";"CANE HANDLING EQUIPMENTS";"Feeder Drum";"Motor installed at high load";"2025-01-26 12:54:24"
+"2024-12-29";"2024-12-29 16:31:00";"2024-12-29 16:33:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"Rake missing bolt fitting work.";"2025-01-26 12:56:31"
+"2024-12-30";"2024-12-30 11:46:00";"2024-12-30 11:47:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at over load";"2025-01-26 12:58:00"
+"2024-12-30";"2024-12-30 20:36:00";"2024-12-30 20:37:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high current";"2025-01-26 13:00:34"
+"2024-12-31";"2024-12-31 17:47:00";"2024-12-31 19:48:00";"PREPERATORY DEVICES";"In-line Shredder";"Motor worn out carbon bush replace";"2025-01-26 13:05:23"
+"2025-01-01";"2025-01-01 19:01:00";"2025-01-01 20:09:00";"70TPH BOILER";"Others";"3 MW turbine trip";"2025-01-26 13:57:11"
+"2025-01-02";"2025-01-02 03:19:00";"2025-01-02 03:22:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at over load";"2025-01-26 13:59:12"
+"2025-01-02";"2025-01-02 14:57:00";"2025-01-02 15:03:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"Foreign material removed from belt";"2025-01-26 14:01:13"
+"2025-01-03";"2025-01-03 05:20:00";"2025-01-03 07:10:00";"70TPH BOILER";"Others";"id fan panel fault";"2025-01-26 14:05:05"
+"2025-01-03";"2025-01-03 10:40:00";"2025-01-03 17:35:00";"OTHERS";"Others";"General cleaning";"2025-01-26 14:08:13"
+"2025-01-03";"2025-01-03 09:03:00";"2025-01-03 10:40:00";"150TPH BOILER";"Others";"Jamming of baggase feeding system";"2025-01-26 14:11:47"
+"2025-01-03";"2025-01-03 17:51:00";"2025-01-03 18:27:00";"70TPH BOILER";"Cane Belt Conveyor";"Low  pressure of 70 tph boiler";"2025-01-26 14:14:15"
+"2025-01-09";"2025-01-09 04:03:00";"2025-01-09 04:05:00";"CANE HANDLING EQUIPMENTS";"Feeder Drum";"Feeder drum motor installed at high load";"2025-01-26 14:17:11"
+"2025-01-09";"2025-01-09 18:47:00";"2025-01-09 18:49:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 14:18:43"
+"2025-01-09";"2025-01-09 17:13:00";"2025-01-09 17:14:00";"PREPERATORY DEVICES";"Feeder Drum";"motor installed at high load";"2025-01-26 14:20:27"
+"2025-01-10";"2025-01-10 05:38:00";"2025-01-10 05:42:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder motor trip at high vibration";"2025-01-26 14:24:02"
+"2025-01-10";"2025-01-10 06:31:00";"2025-01-10 06:32:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at over load";"2025-01-26 14:25:18"
+"2025-01-10";"2025-01-10 18:21:00";"2025-01-10 18:25:00";"PREPERATORY DEVICES";"In-line Shredder";"Motor trip due to high axial vibration";"2025-01-26 14:26:47"
+"2025-01-11";"2025-01-11 02:42:00";"2025-01-11 02:43:00";"PREPERATORY DEVICES";"Feeder Drum";"motor installed at high load";"2025-01-26 14:28:16"
+"2025-01-12";"2025-01-12 23:57:00";"2025-01-13 00:00:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder motor trip at high load";"2025-01-26 14:30:48"
+"2025-01-13";"2025-01-13 04:02:00";"2025-01-13 04:07:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder trip due to high vibration";"2025-01-26 14:32:40"
+"2025-01-13";"2025-01-13 05:55:00";"2025-01-13 06:20:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"Cane jam at mcc";"2025-01-26 14:33:49"
+"2025-01-14";"2025-01-14 05:42:00";"2025-01-14 05:44:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at over load";"2025-01-26 14:54:08"
+"2025-01-14";"2025-01-14 13:28:00";"2025-01-14 13:39:00";"CANE HANDLING EQUIPMENTS";"Auxiliary Cane Carrier";"Worn out side plate welding work";"2025-01-26 15:01:03"
+"2025-01-17";"2025-01-17 21:28:00";"2025-01-17 21:30:00";"PREPERATORY DEVICES";"Feeder Drum";"motor installed at high load";"2025-01-26 15:06:26"
+"2025-01-16";"2025-01-16 19:01:00";"2025-01-16 19:13:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC no. 1 rake missing bolt fitted";"2025-01-26 15:08:31"
+"2025-01-18";"2025-01-18 00:42:00";"2025-01-18 00:44:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 15:09:48"
+"2025-01-18";"2025-01-18 15:47:00";"2025-01-18 15:49:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 15:11:05"
+"2025-01-19";"2025-01-19 04:04:00";"2025-01-19 04:11:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"Worn out coupling bush replaced";"2025-01-26 15:14:23"
+"2025-01-19";"2025-01-19 07:28:00";"2025-01-19 07:29:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"Over feeding at mcc";"2025-01-26 15:15:50"
+"2025-01-19";"2025-01-19 16:00:00";"2025-01-19 17:22:00";"CANE HANDLING EQUIPMENTS";"Zero Mill";"cane jam at 0 mill donnelly chute";"2025-01-26 15:18:10"
+"2025-01-20";"2025-01-20 05:35:00";"2025-01-20 05:36:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 15:19:10"
+"2025-01-21";"2025-01-21 10:08:00";"2025-01-21 10:11:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"Motor installed at high load";"2025-01-26 15:21:39"
+"2025-01-21";"2025-01-21 10:49:00";"2025-01-21 10:51:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 15:23:10"
+"2025-01-21";"2025-01-21 19:50:00";"2025-01-21 19:55:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC  no.1 missing bolt fitted";"2025-01-26 15:26:46"
+"2025-01-22";"2025-01-22 23:15:00";"2025-01-22 23:21:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC no.1 rake missing bolt fitted";"2025-01-26 15:28:20"
+"2025-01-23";"2025-01-23 07:33:00";"2025-01-23 07:34:00";"PREPERATORY DEVICES";"Feeder Drum";"motor installed at high load";"2025-01-26 15:33:09"
+"2025-01-23";"2025-01-23 22:11:00";"2025-01-23 22:12:00";"PREPERATORY DEVICES";"Feeder Drum";"Motor installed at high load";"2025-01-26 15:34:25"
+"2025-01-24";"2025-01-24 15:57:00";"2025-01-24 16:00:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC no. 1 missing bolt fittied";"2025-01-26 15:36:56"
+"2025-01-25";"2025-01-25 12:43:00";"2025-01-25 12:48:00";"PREPERATORY DEVICES";"Cane Belt Conveyor";"Foreign material remove from magnet";"2025-01-26 15:38:46"
+"2025-01-12";"2025-01-12 11:08:00";"2025-01-12 11:13:00";"OTHERS";"Others";"ASR cooling tower fan trip";"2025-01-26 15:42:54"
+"2025-01-26";"2025-01-26 12:23:00";"2025-01-26 12:24:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder drum motor installed at high load";"2025-01-29 16:12:54"
+"2025-01-27";"2025-01-27 15:39:00";"2025-01-27 15:46:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC no.1 rake missing bolt replaced";"2025-01-29 16:14:21"
+"2025-01-28";"2025-01-28 02:21:00";"2025-01-28 02:26:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC no. 1 rake Missing bolt Replaced";"2025-01-29 16:16:17"
+"2025-01-28";"2025-01-28 08:53:00";"2025-01-28 18:24:00";"MILLS";"Others";"General cleaning ";"2025-01-29 16:17:37"
+"2025-01-29";"2025-01-29 15:12:00";"2025-01-29 15:13:00";"PREPERATORY DEVICES";"Feeder Drum";"MOTOR INSTALLED AT HIGH LOAD";"2025-02-09 14:03:34"
+"2025-01-30";"2025-01-30 02:17:00";"2025-01-30 02:18:00";"PREPERATORY DEVICES";"Feeder Drum";"MOTOR INSTALLED AT OVER LOAD";"2025-02-09 14:05:01"
+"2025-01-31";"2025-01-31 11:00:00";"2025-01-31 11:01:00";"PREPERATORY DEVICES";"Feeder Drum";"MOTOR INSTALLED AT HIGH LOAD";"2025-02-09 14:06:52"
+"2025-02-03";"2025-02-03 19:08:00";"2025-02-03 19:09:00";"PREPERATORY DEVICES";"Feeder Drum";"MOTOR INSTALLED AT OVER LOAD";"2025-02-09 14:08:43"
+"2025-02-07";"2025-02-07 04:48:00";"2025-02-07 04:50:00";"PREPERATORY DEVICES";"Feeder Drum";"MOTOR INSTALLED AT OVER LOAD";"2025-02-09 14:09:55"
+"2025-02-08";"2025-02-08 23:14:00";"2025-02-08 23:24:00";"CANE HANDLING EQUIPMENTS";"Feeder Drum";"MOTOR INSTALLED AT OVER LOAD";"2025-02-09 14:13:22"
+"2025-02-10";"2025-02-10 15:52:00";"2025-02-10 16:09:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"IRC NO. 1 BROKEN RAKE REPLACE TO NEW";"2025-02-13 13:10:41"
+"2025-02-12";"2025-02-12 06:35:00";"2025-02-12 06:36:00";"PREPERATORY DEVICES";"Feeder Drum";"MOTOR INSTALLED AT OVER CURRENT";"2025-02-13 13:12:09"
+"2025-02-13";"2025-02-13 00:40:00";"2025-02-13 00:45:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MOTOR INSTALLED AT OVER CURRENT";"2025-02-13 13:14:01"
+"2025-02-13";"2025-02-13 10:09:00";"2025-02-13 10:27:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC MOTOR TRIP AT OVER LOAD";"2025-02-20 11:14:11"
+"2025-02-13";"2025-02-13 11:31:00";"2025-02-13 11:39:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC MOTOR TRIP AT OVER LOAD";"2025-02-20 11:15:25"
+"2025-02-14";"2025-02-14 04:47:00";"2025-02-14 04:49:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC MOTOR TRIP AT OVER LOAD";"2025-02-20 11:16:59"
+"2025-02-14";"2025-02-14 07:38:00";"2025-02-14 07:42:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC MOTOR TRIP AT OVER LOAD";"2025-02-20 11:18:06"
+"2025-02-14";"2025-02-14 11:14:00";"2025-02-14 11:20:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC MOTOR TRIP AT OVER LOAD";"2025-02-20 11:19:38"
+"2025-02-16";"2025-02-16 09:23:00";"2025-02-16 09:28:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"MCC MOTOR TRIP AT OVER LOAD";"2025-02-20 11:20:57"
+"2025-02-16";"2025-02-16 10:17:00";"2025-02-16 10:29:00";"CANE HANDLING EQUIPMENTS";"IRC 2";"HEAD SHAFT BROKEN SCRAPPER SET RIGHT";"2025-02-20 11:22:33"
+"2025-02-19";"2025-02-19 16:13:00";"2025-02-19 16:21:00";"PREPERATORY DEVICES";"In-line Shredder";"LOW OIL PRESSURE DUE TO OIL PUMP MOTOR TRIP";"2025-02-20 11:24:23"
+"2025-02-19";"2025-02-19 16:58:00";"2025-02-20 00:15:00";"MILLS";"Others";"GENERAL CLEANING";"2025-02-20 11:25:26"
+"2025-02-21";"2025-02-21 09:07:00";"2025-02-21 09:09:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED DUE TO OVER LOAD";"2025-02-22 17:55:53"
+"2025-02-21";"2025-02-21 11:44:00";"2025-02-21 11:46:00";"PREPERATORY DEVICES";"Kicker";"SOMEONE OPERATE EMERGENCY";"2025-02-22 17:58:07"
+"2025-02-22";"2025-02-22 13:03:00";"2025-02-22 13:04:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED DUE TO OVER LOAD";"2025-02-22 17:59:42"
+"2025-02-24";"2025-02-24 14:26:00";"2025-02-24 14:28:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED DUE TO OVER LOAD";"2025-02-27 15:24:59"
+"2025-02-25";"2025-02-25 22:36:00";"2025-02-25 23:06:00";"CANE HANDLING EQUIPMENTS";"Rake Carrier";"CANE JAM AT SHREDDER RAKE CARRIER DISCHARGE CHUTE ";"2025-02-27 15:27:36"
+"2025-02-27";"2025-02-27 09:03:00";"2025-02-27 11:36:00";"CANE";"No Cane";"NO CANE";"2025-02-27 15:28:19"
+"2025-02-27";"2025-03-27 17:06:00";"2025-03-27 17:09:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"FOREIGN MATERIAL REMOVING FROM MAGNET";"2025-03-05 11:35:09"
+"2025-02-28";"2025-02-28 15:11:00";"2025-02-28 15:26:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"FOREIGN MATERIAL REMOVING FROM MAGNET";"2025-03-05 11:37:02"
+"2025-03-01";"2025-03-01 06:54:00";"2025-03-01 07:11:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"FOREIGN MATERIAL REMOVING FROM MAGNET";"2025-03-05 11:39:36"
+"2025-03-01";"2025-03-01 14:04:00";"2025-03-01 14:06:00";"PREPERATORY DEVICES";"Feeder Drum";"FEEDER DRUM MOTOR INSTALLED DUE TO OVER LOAD";"2025-03-05 11:45:26"
+"2025-03-04";"2025-03-04 19:48:00";"2025-03-04 19:55:00";"PREPERATORY DEVICES";"In-line Shredder";"LOW OIL PRESSURE";"2025-03-05 11:48:05"
+"2025-02-27";"2025-02-27 09:03:00";"2025-02-27 11:36:00";"CANE";"No Cane";"NO CANE";"2025-03-05 11:52:47"
+"2025-03-02";"2025-03-02 09:03:00";"2025-03-02 12:25:00";"CANE";"No Cane";"NO CANE";"2025-03-05 11:54:19"
+"2025-03-05";"2025-03-05 10:46:00";"2025-03-05 10:53:00";"CANE HANDLING EQUIPMENTS";"IRC 2";"IRC NO. 2 BROKEN RUNNER WELDING WORK.";"2025-03-12 09:19:17"
+"2025-03-05";"2025-03-05 19:13:00";"2025-03-05 19:21:00";"PREPERATORY DEVICES";"In-line Shredder";" OIL PRESSURE LOW";"2025-03-12 09:21:02"
+"2025-03-06";"2025-03-06 13:32:00";"2025-03-06 13:34:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"OVER FEEDING AT MCC ";"2025-03-12 09:22:20"
+"2025-03-08";"2025-03-08 00:33:00";"2025-03-08 01:00:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"OVER CANE AT CANE BELT & SRE DISCHARGE CHUTE";"2025-03-12 09:23:55"
+"2025-03-10";"2025-03-10 08:24:00";"2025-03-10 08:29:00";"CANE HANDLING EQUIPMENTS";"IRC 2";"RAKE MISSING BOLT FITTING WORK.";"2025-03-12 09:27:07"
+"2025-03-11";"2025-03-11 05:58:00";"2025-03-11 06:08:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"OVER FEEEDING AT MAIN CANE CARRIER";"2025-03-12 09:31:16"
+"2025-03-11";"2025-03-11 12:22:00";"2025-03-11 12:44:00";"PREPERATORY DEVICES";"In-line Shredder";"SHREDDER MOTOR TRIP DUE TO OVER LOAD";"2025-03-12 09:32:28"
+"2025-03-12";"2025-03-12 00:09:00";"2025-03-12 00:12:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"OVER CANE AT CANE BELT & SRE DISCHARGE CHUTE";"2025-03-12 09:34:13"
+"2025-03-13";"2025-03-13 02:36:00";"2025-03-13 02:40:00";"CANE HANDLING EQUIPMENTS";"IRC 1";"Rake missing bolt fitted.";"2025-03-18 10:27:36"
+"2025-03-13";"2025-03-13 15:39:00";"2025-03-13 15:41:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"Foreign material remove from belt.";"2025-03-18 10:29:02"
+"2025-03-16";"2025-03-16 14:16:00";"2025-03-16 14:17:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"Foreign material taken out from magnet";"2025-03-18 10:31:23"
+"2025-03-14";"2025-03-14 23:54:00";"2025-03-15 13:30:00";"CANE";"No Cane";"no cane";"2025-03-18 10:40:36"
+"2025-03-20";"2025-03-20 04:23:00";"2025-03-20 04:25:00";"MILLS";"Main Cane Carrier";"main cane carrier trip at over load";"2025-03-28 18:13:22"
+"2025-03-22";"2025-03-22 02:51:00";"2025-03-22 02:52:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"foreign material remove from megnet";"2025-03-28 18:15:24"
+"2025-03-21";"2025-03-21 10:58:00";"2025-03-21 11:00:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"foreign material remove from magnate";"2025-03-28 18:17:31"
+"2025-03-24";"2025-03-24 12:32:00";"2025-03-24 12:33:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";"main cane carrier over load";"2025-03-28 18:18:57"
+"2025-03-26";"2025-03-26 00:11:00";"2025-03-26 00:15:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"Foreign Material remove from magnate";"2025-03-28 18:20:40"
+"2025-03-25";"2025-03-25 20:55:00";"2025-03-25 20:59:00";"MILLS";"4th Mill";"4th mill donnelly chute sensor falls reading";"2025-03-28 18:22:42"
+"2025-03-27";"2025-03-27 09:33:00";"2025-03-27 16:30:00";"CANE";"No Cane";"no cane";"2025-03-28 18:23:56"
+"2025-02-23";"2025-02-23 23:22:00";"2025-02-23 23:26:00";"PREPERATORY DEVICES";"In-line Shredder";"high vibration";"2025-04-01 09:15:42"
+"2025-03-05";"2025-03-05 14:21:00";"2025-03-05 14:37:00";"70TPH BOILER";"Boiler - Electrical";"70 TPH BOILER DRUM LEVEL LOW";"2025-04-01 09:34:14"
+"2025-03-29";"2025-03-29 00:22:00";"2025-03-29 00:32:00";"CANE HANDLING EQUIPMENTS";"Cane Belt Conveyor";"FOREIGN MATERIAL REMOVED FROM MAGNET";"2025-04-01 09:40:19"
+"2025-03-28";"2025-03-28 10:47:00";"2025-03-28 17:32:00";"CANE";"No Cane";"NO CANE ";"2025-04-01 09:41:39"
+"2025-03-29";"2025-03-29 07:00:00";"2025-03-29 21:56:00";"CANE";"No Cane";"NO CANE";"2025-04-01 09:43:22"
+"2024-11-10";"2024-11-10 10:29:00";"2024-11-10 11:26:00";"CANE HANDLING EQUIPMENTS";"IRC 4";"IRC NO 4 MOTOR TERMINAL LEAD OVER HEATING";"2025-04-01 10:01:59"
+"2024-10-29";"2024-10-29 08:19:00";"2024-10-29 08:25:00";"CANE HANDLING EQUIPMENTS";"Zero Mill";"false signal at zero mill donnelly chute sensor";"2025-04-01 10:25:13"
+"2024-10-29";"2024-10-29 18:40:00";"2024-10-29 18:42:00";"MILLS";"Mill Turbine 3";"false signal of mill no.3 turbine rpm";"2025-04-01 10:27:53"
+"2024-10-26";"2024-10-26 22:15:00";"2024-10-27 13:05:00";"CANE";"No Cane";"NO CANE";"2025-04-01 10:35:34"
+"2024-10-28";"2024-10-28 17:21:00";"2024-10-28 17:26:00";"70TPH BOILER";"Others";"LOW BOILER PRESSURE";"2025-04-01 10:37:27"
+"2024-10-28";"2024-10-28 22:21:00";"2024-10-28 22:40:00";"70TPH BOILER";"Others";"LOW BOILER PRESSURE";"2025-04-01 10:41:01"
+"2025-10-29";"2025-10-29 09:23:00";"2025-10-29 09:24:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load 
+";"2025-11-07 16:06:12"
+"2025-10-29";"2025-10-29 12:51:00";"2025-10-29 12:57:00";"MILLS";"Mill Turbine 1";"Mill Turbine No-1 Tripped due to Hunting, Throttle valve opening tuned 
+";"2025-11-07 16:10:04"
+"2025-10-30";"2025-10-30 13:20:00";"2025-10-30 13:40:00";"MILLS";"IRC 2";"IRC No-2 Bagasse wrapped in trough. 
+";"2025-11-07 16:13:16"
+"2025-10-30";"2025-10-30 22:52:00";"2025-10-30 23:35:00";"MILLS";"IRC 1";"Bagasse jamming in IRC No-1 
+";"2025-11-07 16:17:02"
+"2025-10-30";"2025-10-30 23:45:00";"2025-10-31 00:09:00";"OTHERS";"Weather";"Cane jamming at cane levelling pipe due to fluctuation in cane feeding (Rain)";"2025-11-07 16:24:30"
+"2025-10-31";"2025-10-31 12:12:00";"2025-10-31 12:32:00";"OTHERS";"Others";"3.0MW turbine trip due to AVR malfunctioning of 3MW New TG";"2025-11-07 16:28:21"
+"2025-11-01";"2025-11-01 23:28:00";"2025-11-01 23:33:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-07 16:30:15"
+"2025-11-01";"2025-11-02 05:54:00";"2025-11-02 05:59:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-07 16:31:51"
+"2025-11-02";"2025-11-02 08:24:00";"2025-11-02 08:29:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-07 16:34:50"
+"2025-11-02";"2025-11-02 09:27:00";"2025-11-02 09:50:00";"MILLS";"Mill Turbine 3";"Mill Turbine No-3 Tripped due to high Vibration  
+";"2025-11-07 16:36:54"
+"2025-11-02";"2025-11-02 11:52:00";"2025-11-02 11:57:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-07 16:41:13"
+"2025-11-03";"2025-11-04 05:27:00";"2025-11-04 05:39:00";"CANE";"Others";"All cane weighbridge Computer power Supply failure";"2025-11-07 16:49:03"
+"2025-11-03";"2025-11-04 04:02:00";"2025-11-04 04:24:00";"MILLS";"IRC 1";"Bagasse jamming in IRC No-1 
+";"2025-11-07 16:57:00"
+"2025-11-04";"2025-11-04 08:46:00";"2025-11-04 08:52:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 16:58:49"
+"2025-11-04";"2025-11-05 06:44:00";"2025-11-05 06:50:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:01:28"
+"2025-11-05";"2025-11-05 13:51:00";"2025-11-05 13:55:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:02:59"
+"2025-11-05";"2025-11-05 17:29:00";"2025-11-05 17:33:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:06:00"
+"2025-11-05";"2025-11-05 21:46:00";"2025-11-05 21:51:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:07:10"
+"2025-11-05";"2025-11-05 22:42:00";"2025-11-05 22:46:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:10:02"
+"2025-11-05";"2025-11-06 00:22:00";"2025-11-06 00:26:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:18:24"
+"2025-11-05";"2025-11-06 01:30:00";"2025-11-06 01:33:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:19:48"
+"2025-11-05";"2025-11-06 02:06:00";"2025-11-06 02:10:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:20:46"
+"2025-11-05";"2025-11-06 02:11:00";"2025-11-06 02:14:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:22:21"
+"2025-11-05";"2025-11-06 02:41:00";"2025-11-06 02:45:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:24:18"
+"2025-11-05";"2025-11-06 07:39:00";"2025-11-06 07:43:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:25:14"
+"2025-11-05";"2025-11-06 07:54:00";"2025-11-06 07:58:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:26:01"
+"2025-11-06";"2025-11-06 09:47:00";"2025-11-06 09:52:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:30:09"
+"2025-11-06";"2025-11-06 10:53:00";"2025-11-06 10:58:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration.";"2025-11-07 17:30:58"
+"2025-11-06";"2025-11-06 11:29:00";"2025-11-06 13:29:00";"OTHERS";"In-line Shredder";"Planned stoppage for shredder checking ";"2025-11-07 17:33:49"
+"2025-11-08";"2025-11-08 10:36:00";"2025-11-08 10:40:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-10 11:37:50"
+"2025-11-08";"2025-11-08 23:18:00";"2025-11-08 23:30:00";"MILLS";"IRC 1";"IRC No-1 Tripped due to High Load 
+";"2025-11-10 11:40:22"
+"2025-11-08";"2025-11-09 02:33:00";"2025-11-09 02:38:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-10 11:41:54"
+"2025-11-08";"2025-11-09 02:43:00";"2025-11-09 02:46:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-10 11:42:47"
+"2025-11-08";"2025-11-09 03:49:00";"2025-11-09 03:54:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-10 11:43:39"
+"2025-11-09";"2025-11-09 10:17:00";"2025-11-09 10:21:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-10 11:45:04"
+"2025-11-10";"2025-11-10 10:10:00";"2025-11-10 10:14:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum Tripped Due to high load  
+";"2025-11-11 16:56:29"
+"2025-11-10";"2025-11-11 05:49:00";"2025-11-11 05:54:00";"MILLS";"IRC 1";"Broken bolt replaced of IRC No-1  
+";"2025-11-11 16:58:23"
+"2025-11-11";"2025-11-11 08:51:00";"2025-11-11 08:55:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-12 17:09:53"
+"2025-11-11";"2025-11-11 09:05:00";"2025-11-11 09:10:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum Tripped Due to high load ";"2025-11-12 17:11:47"
+"2025-11-11";"2025-11-11 09:26:00";"2025-11-11 09:29:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-12 17:13:27"
+"2025-11-11";"2025-11-11 10:02:00";"2025-11-11 10:06:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-12 17:14:40"
+"2025-11-11";"2025-11-11 12:20:00";"2025-11-11 12:24:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-12 17:15:49"
+"2025-11-11";"2025-11-11 17:32:00";"2025-11-11 17:35:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-12 17:16:59"
+"2025-11-11";"2025-11-11 19:46:00";"2025-11-11 19:48:00";"PREPERATORY DEVICES";"Feeder Drum";"Feeder Drum Tripped Due to high load  
+";"2025-11-13 15:38:45"
+"2025-11-11";"2025-11-12 01:55:00";"2025-11-12 02:00:00";"PREPERATORY DEVICES";"In-line Shredder";"Shredder Motor Tripped due to high vibration. 
+";"2025-11-13 15:39:51"
+"2025-11-11";"2025-11-12 02:17:00";"2025-11-12 02:21:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-13 15:40:46"
+"2025-11-11";"2025-11-12 04:29:00";"2025-11-12 04:33:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-13 15:41:38"
+"2025-11-11";"2025-11-12 06:44:00";"2025-11-12 06:48:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high vibration. 
+";"2025-11-13 15:42:32"
+"2025-11-11";"2025-11-12 07:27:00";"2025-11-12 08:00:00";"OTHERS";"Others";" Schedule stoppage for Shredder hammer tips replaced, General checking of Mill & Boiling House.  
+";"2025-11-13 15:46:58"
+"2025-11-12";"2025-11-12 08:00:00";"2025-11-12 10:45:00";"OTHERS";"Others";"Schedule stoppage for Shredder hammer tips replaced, General checking of Mill & Boiling House.  
+";"2025-11-13 15:48:32"
+"2025-11-12";"2025-11-12 20:44:00";"2025-11-12 21:04:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-13 15:51:11"
+"2025-11-12";"2025-11-13 07:26:00";"2025-11-13 07:53:00";"MILLS";"IRC 2";" Bagasse wrapped in IRC No-2 
+";"2025-11-13 15:58:36"
+"2025-11-16";"2025-11-16 10:44:00";"2025-11-16 10:55:00";"OTHERS";"Others";" Foreign material removed from magnet. 
+";"2025-11-25 12:18:41"
+"2025-11-18";"2025-11-18 18:37:00";"2025-11-18 19:34:00";"70TPH BOILER";"Boiler - Mechanical";" 70 Ton Boiler drum level Low 
+";"2025-11-25 12:20:58"
+"2025-11-19";"2025-11-20 04:29:00";"2025-11-20 04:35:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:23:05"
+"2025-11-19";"2025-11-20 05:22:00";"2025-11-20 05:31:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:24:04"
+"2025-11-20";"2025-11-21 00:24:00";"2025-11-21 00:27:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:25:51"
+"2025-11-21";"2025-11-21 16:06:00";"2025-11-21 16:29:00";"MILLS";"IRC 1";" IRC No-1 Tripped due to High Load 
+";"2025-11-25 12:27:09"
+"2025-11-21";"2025-11-22 06:26:00";"2025-11-22 06:30:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:28:48"
+"2025-11-21";"2025-11-22 06:42:00";"2025-11-22 06:45:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:30:22"
+"2025-11-22";"2025-11-22 11:03:00";"2025-11-22 11:10:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:31:22"
+"2025-11-22";"2025-11-23 04:32:00";"2025-11-23 04:36:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:32:16"
+"2025-11-23";"2025-11-23 16:11:00";"2025-11-23 16:14:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-11-25 12:33:33"
+"2025-11-21";"2025-11-21 16:06:00";"2025-10-21 16:29:00";"MILLS";"IRC 1";" IRC No-1 Tripped due to High Load 
+";"2025-12-01 17:13:56"
+"2025-11-21";"2025-11-22 06:26:00";"2025-11-22 06:30:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:15:14"
+"2025-11-21";"2025-11-22 06:42:00";"2025-11-22 06:45:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:16:28"
+"2025-11-22";"2025-11-22 11:03:00";"2025-11-22 11:10:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:17:44"
+"2025-11-22";"2025-11-23 04:32:00";"2025-11-23 04:36:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:18:49"
+"2025-11-23";"2025-11-23 16:11:00";"2025-11-23 16:14:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:19:45"
+"2025-11-25";"2025-11-25 13:51:00";"2025-11-25 13:55:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due False signal (Lub oil pump stop) 
+";"2025-12-01 17:21:02"
+"2025-11-25";"2025-11-26 04:44:00";"2025-11-26 04:46:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:22:20"
+"2025-11-26";"2025-11-26 17:50:00";"2025-11-26 17:52:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:23:43"
+"2025-11-30";"2025-12-01 05:54:00";"2025-11-01 06:05:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-01 17:24:39"
+"2025-11-21";"2025-11-21 16:06:00";"2025-11-21 16:29:00";"MILLS";"IRC 1";" IRC No-1 Tripped due to High Load 
+";"2025-12-13 18:19:11"
+"2025-11-21";"2025-11-22 06:26:00";"2025-11-22 06:30:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:35:02"
+"2025-11-21";"2025-11-22 06:42:00";"2025-11-22 06:45:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:36:24"
+"2025-11-22";"2025-11-22 11:03:00";"2025-11-22 11:10:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:37:34"
+"2025-11-22";"2025-11-23 04:32:00";"2025-11-23 04:36:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:38:34"
+"2025-11-23";"2025-11-23 16:11:00";"2025-11-23 16:14:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:39:52"
+"2025-11-25";"2025-11-25 13:51:00";"2025-11-25 13:55:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due False signal (Lub oil pump stop) 
+";"2025-12-13 18:41:24"
+"2025-11-25";"2025-11-26 04:44:00";"2025-11-26 04:46:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:42:33"
+"2025-11-26";"2025-11-26 17:50:00";"2025-11-26 17:52:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:43:43"
+"2025-11-30";"2025-12-01 05:54:00";"2025-12-01 06:05:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:44:54"
+"2025-12-01";"2025-12-01 15:54:00";"2025-12-01 16:40:00";"MILLS";"IRC 2";" Bagasse wrapped in IRC No-2 Trough 
+";"2025-12-13 18:46:04"
+"2025-12-01";"2025-12-02 03:15:00";"2025-12-02 03:18:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:47:19"
+"2025-12-03";"2025-12-03 10:15:00";"2025-12-03 14:35:00";"OTHERS";"Others";" Scheduled stoppage for general cleaning ( Shredder Tips Reversed) 
+";"2025-12-13 18:49:10"
+"2025-12-03";"2025-12-03 14:35:00";"2025-12-03 15:48:00";"150TPH BOILER";"Others";" 150 TPH boiler slat conveyor fluid coupling problem 
+";"2025-12-13 18:51:29"
+"2025-12-04";"2025-12-04 18:35:00";"2025-12-04 18:37:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:52:53"
+"2025-12-04";"2025-12-05 02:24:00";"2025-12-05 02:33:00";"MILLS";"IRC 1";" IRC No-1 Tripped due to High Load 
+";"2025-12-13 18:54:03"
+"2025-12-05";"2025-12-06 01:03:00";"2025-12-06 01:11:00";"MILLS";"IRC 2";" Bagasse wrapped in IRC No-2 Trough 
+";"2025-12-13 18:55:14"
+"2025-12-08";"2025-12-09 03:56:00";"2025-12-09 04:00:00";"MILLS";"IRC 1";" 2Nos Missing Bolt Provided in IRC No-1( One Rake) 
+";"2025-12-13 18:56:23"
+"2025-12-10";"2025-12-10 12:22:00";"2025-12-10 12:24:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:57:19"
+"2025-12-12";"2025-12-12 15:49:00";"2025-12-12 15:52:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:58:28"
+"2025-12-12";"2025-12-12 20:39:00";"2025-12-12 20:42:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-13 18:59:14"
+"2025-12-12";"2025-12-13 01:44:00";"2025-12-13 01:46:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane carrier tripped due to Overload 
+";"2025-12-13 19:00:16"
+"2025-12-13";"2025-12-13 08:03:00";"2025-12-13 08:05:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-22 16:01:13"
+"2025-12-15";"2025-12-15 22:32:00";"2025-12-15 22:34:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier Stalled due to overload  
+";"2025-12-22 16:02:34"
+"2025-12-16";"2025-12-16 14:14:00";"2025-12-16 14:16:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier Stalled due to overload  
+";"2025-12-22 16:03:44"
+"2025-12-16";"2025-12-17 00:36:00";"2025-12-17 00:37:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-22 16:04:59"
+"2025-12-17";"2025-12-17 19:55:00";"2025-12-19 19:57:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-22 16:05:56"
+"2025-12-18";"2025-12-18 08:37:00";"2025-12-18 08:39:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2025-12-22 16:07:03"
+"2025-12-18";"2025-12-18 11:10:00";"2025-12-18 11:17:00";"PREPERATORY DEVICES";"Feeder Drum";" Cane Carrier & Feeder Drum Tripped due to high load  
+";"2025-12-22 16:08:11"
+"2025-12-18";"2025-12-19 03:47:00";"2025-12-19 04:02:00";"MILLS";"1st Mill";" Mill No-1 Top Roller groove cleaning  
+";"2025-12-22 16:09:21"
+"2025-12-18";"2025-12-19 04:33:00";"2025-12-19 04:39:00";"MILLS";"1st Mill";" Mill No-1 Top Roller groove cleaning  
+";"2025-12-22 16:10:25"
+"2025-12-20";"2025-12-20 23:27:00";"2025-12-20 23:37:00";"MILLS";"IRC 2";" IRC No-2 Tripped due to Overload 
+";"2025-12-22 16:11:24"
+"2025-12-21";"2025-12-21 23:53:00";"2025-12-21 23:55:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2025-12-22 16:12:28"
+"2025-12-23";"2025-12-24 06:36:00";"2025-12-24 06:42:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2025-12-26 16:10:06"
+"2025-12-24";"2025-12-24 10:09:00";"2025-12-24 10:11:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-02 11:12:05"
+"2025-12-25";"2025-12-25 13:19:00";"2025-12-25 13:32:00";"MILLS";"IRC 1";" IRC No-1 Tripped due to Overload 
+";"2026-01-02 11:15:00"
+"2025-12-26";"2025-12-26 08:25:00";"2025-12-26 08:30:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum & Cane Carrier Tripped due to overload 
+";"2026-01-02 11:16:47"
+"2025-12-27";"2025-12-27 14:02:00";"2025-12-27 14:04:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum & Cane Carrier Tripped due to overload 
+";"2026-01-02 11:21:44"
+"2025-12-27";"2025-12-27 22:35:00";"2025-12-27 22:37:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-01-02 11:22:56"
+"2025-12-28";"2025-12-28 15:09:00";"2025-12-28 15:13:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-01-02 11:24:11"
+"2025-12-28";"2025-12-28 23:37:00";"2025-12-29 01:15:00";"MILLS";"IRC 4";" IRC No-4 overload due to Donnelly chute level high. 
+";"2026-01-02 11:26:14"
+"2025-12-28";"2025-12-29 04:15:00";"2025-12-29 04:19:00";"MILLS";"IRC 1";" IRC No-1 tripped due to overload. 
+";"2026-01-02 11:27:44"
+"2025-12-29";"2025-12-29 12:57:00";"2025-12-29 13:05:00";"MILLS";"4th Mill";" Mill No-4 Donnelly chute level high. 
+";"2026-01-02 11:29:33"
+"2025-12-29";"2025-12-29 14:07:00";"2025-12-29 14:15:00";"MILLS";"IRC 4";" IRC No-4 Scrapper extended (as existing found wear out) 
+";"2026-01-02 11:31:07"
+"2025-12-30";"2025-12-31 05:17:00";"2025-12-31 05:20:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-01-02 11:32:24"
+"2025-12-31";"2025-12-31 11:15:00";"2025-12-31 11:35:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-01-02 11:35:43"
+"2025-12-31";"2026-01-01 05:15:00";"2026-01-01 06:16:00";"PREPERATORY DEVICES";"In-line Shredder";" Broken bolt replaced of Shredder Coupling  
+";"2026-01-02 11:37:49"
+"2026-01-02";"2026-01-02 10:07:00";"2026-01-02 10:22:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-01-06 19:02:49"
+"2026-01-02";"2026-01-02 20:04:00";"2026-01-02 20:10:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor tripped due to Low lub oil pressure 
+";"2026-01-06 19:04:23"
+"2026-01-02";"2026-01-02 20:29:00";"2026-01-02 20:35:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor tripped due to Low lub oil pressure (False Signal) 
+";"2026-01-06 19:05:26"
+"2026-01-03";"2026-01-03 10:00:00";"2026-01-03 18:00:00";"OTHERS";"Others";" Scheduled stoppage for general cleaning ( Shredder Tip replaced by new & Mill No-1 Top scrapper Replaced 
+";"2026-01-06 19:06:52"
+"2026-01-04";"2026-01-04 12:37:00";"2026-01-04 12:43:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-01-06 19:07:57"
+"2026-01-04";"2026-01-04 15:15:00";"2026-01-04 15:18:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-06 19:08:51"
+"2026-01-05";"2026-01-05 18:45:00";"2026-01-05 18:59:00";"MILLS";"IRC 2";" Bagasse wrapped in IRC No-2 Trough 
+";"2026-01-06 19:13:36"
+"2026-01-06";"2026-01-06 12:10:00";"2026-01-06 12:16:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-12 11:53:53"
+"2026-01-07";"2026-01-07 08:24:00";"2026-01-07 03:02:00";"MILLS";"IRC 2";" IRC No-2 tripped due to overload. 
+";"2026-01-12 11:54:56"
+"2026-01-07";"2026-01-07 23:58:00";"2026-01-08 00:00:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-12 11:56:01"
+"2026-01-07";"2026-01-08 02:27:00";"2026-01-08 02:42:00";"MILLS";"IRC 2";" IRC No-2 tripped due to overload. 
+";"2026-01-12 11:56:59"
+"2026-01-09";"2026-01-09 21:30:00";"2026-01-09 21:33:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-12 11:57:47"
+"2026-01-09";"2026-01-10 04:52:00";"2026-01-10 04:54:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-12 11:58:39"
+"2026-01-11";"2026-01-11 18:39:00";"2026-01-11 18:41:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-12 11:59:21"
+"2026-01-13";"2026-01-13 12:25:00";"2026-01-13 13:20:00";"PREPERATORY DEVICES";"Feeder Drum";" Initially feeder drum tripped on overload.then IRC No-4 Chain tail shaft support got broken. 
+";"2026-01-22 10:42:27"
+"2026-01-13";"2026-01-13 13:32:00";"2026-01-13 14:24:00";"MILLS";"3rd Mill";" Mill No-3 both juice line to Mill No-2 found choked with bagasse and Cleaned. 
+";"2026-01-22 10:45:34"
+"2026-01-20";"2026-01-20 14:57:00";"2026-01-20 14:59:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-01-22 10:47:19"
+"2026-01-20";"2026-01-20 21:24:00";"2026-01-21 01:46:00";"MILLS";"IRC 1";" Initially IRC No-1overload just after clearance IRC no-4 both side chain dislocated form sprocket,  
+";"2026-01-22 10:50:18"
+"2026-01-20";"2026-01-21 01:49:00";"2026-01-21 03:27:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder tripped due to false Vib & Temp signal at DCS, Zero Mill tripped, just before shredder,( RTD Replaced) 
+";"2026-01-22 10:51:57"
+"2026-01-20";"2026-01-21 03:29:00";"2026-01-21 03:38:00";"MILLS";"Zero Mill";" Zero Mill VFD panel cooling fan found jam ( Fan Replaced ) 
+";"2026-01-22 10:53:07"
+"2026-01-20";"2026-01-21 04:25:00";"2026-01-21 04:31:00";"OTHERS";"Others";" Foreign material removed from magnet. 
+";"2026-01-22 10:54:56"
+"2026-01-22";"2026-02-23 06:18:00";"2026-02-23 06:20:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 12:47:03"
+"2026-02-23";"2026-02-23 08:32:00";"2026-02-23 08:34:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 12:48:47"
+"2026-02-23";"2026-02-23 17:44:00";"2026-02-23 17:48:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 12:50:08"
+"2026-02-23";"2026-02-24 00:37:00";"2026-02-24 12:41:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 12:51:44"
+"2026-01-23";"2026-01-24 04:32:00";"2026-01-24 04:35:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 12:54:05"
+"2026-01-24";"2026-01-24 19:56:00";"2026-01-24 19:57:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 12:55:29"
+"2026-01-26";"2026-01-26 15:13:00";"2026-01-26 15:20:00";"MILLS";"IRC 1";" IRC No-1 tripped due to overload. 
+";"2026-02-16 12:56:42"
+"2026-01-26";"2026-01-26 18:15:00";"2026-01-26 18:17:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 12:57:53"
+"2026-01-27";"2026-01-27 17:44:00";"2026-01-27 17:46:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-02-16 13:00:28"
+"2026-01-28";"2026-01-29 06:07:00";"2026-01-29 06:10:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 13:01:29"
+"2026-01-29";"2026-01-29 10:24:00";"2026-01-29 18:12:00";"OTHERS";"Others";" General Cleaning ( Shortage of Cane due to rainy Weather)";"2026-02-16 13:02:51"
+"2026-01-31";"2026-02-01 02:34:00";"2026-02-01 02:35:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 13:04:05"
+"2026-02-06";"2026-02-06 15:26:00";"2026-02-06 15:28:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 13:04:54"
+"2026-02-06";"2026-02-07 07:20:00";"2026-02-07 07:23:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due Compact Cane  
+";"2026-02-16 13:05:51"
+"2026-02-08";"2026-02-09 01:30:00";"2026-02-09 01:35:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due Compact Cane  
+";"2026-02-16 13:06:38"
+"2026-02-09";"2026-02-09 20:49:00";"2026-02-09 20:54:00";"MILLS";"IRC 2";" IRC No-2 tripped due to overload. 
+";"2026-02-16 13:07:25"
+"2026-02-09";"2026-02-10 12:45:00";"2026-02-10 12:48:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 13:08:33"
+"2026-02-09";"2026-02-10 06:37:00";"2026-02-10 07:10:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 13:09:33"
+"2026-02-11";"2026-02-11 16:53:00";"2026-02-11 16:56:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 13:10:29"
+"2026-02-11";"2026-02-11 22:36:00";"2026-02-11 22:42:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 13:11:30"
+"2026-02-12";"2026-02-12 15:11:00";"2026-02-12 15:13:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 13:15:39"
+"2026-02-13";"2026-02-13 16:34:00";"2026-02-13 16:38:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-02-16 13:16:24"
+"2026-02-13";"2026-02-13 22:29:00";"2026-02-13 22:35:00";"MILLS";"IRC 1";" Missing Bolt Provided in IRC No-1 (  6 Nos Bolts) 
+";"2026-02-16 13:19:31"
+"2026-02-13";"2026-02-14 07:05:00";"2026-02-14 07:10:00";"PREPERATORY DEVICES";"Feeder Drum";"   Feeder Drum Tripped Due to high load  
+
+";"2026-02-16 13:20:42"
+"2026-02-15";"2026-02-15 10:56:00";"2026-02-15 11:00:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 13:21:40"
+"2026-02-15";"2026-02-15 15:41:00";"2026-02-15 15:44:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-02-16 13:22:33"
+"2026-02-15";"2026-02-15 17:27:00";"2026-02-15 17:34:00";"OTHERS";"Others";" Foreign Material found in Magnet. 
+";"2026-02-16 13:23:35"
+"2026-02-16";"2026-02-16 18:20:00";"2026-02-16 18:24:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor Tripped due to high Load. 
+";"2026-03-10 17:20:09"
+"2026-02-17";"2026-02-17 09:38:00";"2026-02-17 11:44:00";"OTHERS";"Others";" General Cleaning ( Hammer tips reversed) 
+";"2026-03-10 17:21:37"
+"2026-02-17";"2026-02-18 02:42:00";"2026-02-18 02:44:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to high load  
+";"2026-03-10 17:23:24"
+"2026-02-19";"2026-02-19 08:16:00";"2026-02-19 08:20:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:25:06"
+"2026-02-19";"2026-02-20 05:54:00";"2026-02-20 05:56:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:29:08"
+"2026-01-20";"2026-02-21 01:32:00";"2026-02-21 01:34:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:30:41"
+"2026-02-21";"2026-02-21 11:27:00";"2026-02-21 11:33:00";"PREPERATORY DEVICES";"In-line Shredder";" Shredder Motor tripped due to Malfunctioning 
+";"2026-03-10 17:32:16"
+"2026-02-21";"2026-02-21 11:40:00";"2026-02-21 11:43:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:33:12"
+"2026-02-21";"2026-02-21 20:02:00";"2026-02-21 20:05:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:34:20"
+"2026-02-22";"2026-02-22 08:10:00";"2026-02-22 08:12:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:35:19"
+"2026-02-25";"2026-02-25 23:08:00";"2026-02-25 23:10:00";"MILLS";"Rake Carrier";" Shredder Carrier One Rake 2 Nos Missing bolts Provided. 
+";"2026-03-10 17:36:22"
+"2026-02-25";"2026-02-25 23:44:00";"2026-02-25 23:47:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to Overload  
+";"2026-03-10 17:37:24"
+"2026-02-26";"2026-02-26 18:28:00";"2026-02-26 18:29:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:38:21"
+"2026-02-26";"2026-02-27 06:36:00";"2026-02-27 06:53:00";"PREPERATORY DEVICES";"Cane Belt Conveyor";" To Clear Jamming between belt conveyor and Magnet. 
+";"2026-03-10 17:40:18"
+"2026-02-28";"2026-02-28 15:00:00";"2026-02-28 15:02:00";"PREPERATORY DEVICES";"Feeder Drum";" Feeder Drum Tripped Due to Overload  
+";"2026-03-10 17:41:37"
+"2026-03-02";"2026-03-03 02:59:00";"2026-03-03 03:04:00";"MILLS";"IRC 4";" Bagasse wrapped in IRC No-4 
+";"2026-03-10 17:43:00"
+"2026-03-02";"2026-03-03 07:22:00";"2026-03-03 07:24:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-03-10 17:44:15"
+"2026-03-03";"2026-03-03 23:30:00";"2026-03-03 23:32:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:45:06"
+"2026-03-03";"2026-03-04 04:47:00";"2026-03-04 04:49:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:45:56"
+"2026-03-04";"2026-03-04 16:00:00";"2026-03-04 16:07:00";"CANE HANDLING EQUIPMENTS";"Main Cane Carrier";" Main Cane Carrier motor stalled due to overload 
+";"2026-03-10 17:46:57"
+"2026-03-04";"2026-03-04 23:22:00";"2026-03-04 08:00:00";"CANE";"No Cane";" No Cane due to Holi Festival (One side use tips reused.) 
+";"2026-03-10 17:47:46"
+"2026-03-05";"2026-03-05 08:00:00";"2026-03-05 15:10:00";"CANE";"No Cane";" No Cane due to Holi Festival (One side use tips reused.) 
+";"2026-03-10 17:48:41"
+"2026-03-08";"2026-03-08 18:33:00";"2026-03-08 19:05:00";"MILLS";"Rake Carrier";" Bagasse Jamming at shredder carrier discharge chute. 
+";"2026-03-10 17:49:43"
+"2026-03-09";"2026-03-09 15:36:00";"2026-03-09 15:37:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:51:01"
+"2026-03-09";"2026-03-09 17:40:00";"2026-03-09 17:41:00";"OTHERS";"Cane Belt Conveyor";" Foreign Material found in Magnet. 
+";"2026-03-10 17:52:22"
+"2026-03-09";"2026-03-09 19:50:00";"2026-03-09 19:52:00";"MILLS";"Cane Belt Conveyor";" Load cut of cane belt  
+";"2026-03-10 17:53:19"

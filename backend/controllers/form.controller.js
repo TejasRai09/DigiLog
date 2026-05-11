@@ -7,6 +7,7 @@ const { pool } = require('../config/mysql');
 //   C  →  Date, Shift, Sampling_time (lab logbooks)
 //   D  →  Date, Shift                (syrup – no time field)
 //   E  →  Date, Time                 (power logbooks)
+//   G  →  Date only                  (daily snapshot forms)
 
 // tsCol = the column used for ORDER BY DESC (varies by table)
 const FORM_CONFIG = {
@@ -28,6 +29,9 @@ const FORM_CONFIG = {
   ph_power:         { table: 'ph_power',         pattern: 'E', tsCol: 'timestamp' },
   ph_steam:         { table: 'ph_steam',         pattern: 'E', tsCol: 'timestamp' },
   ph_stoppage:      { table: 'ph_stoppage',      pattern: 'B', tsCol: 'timestamp' },
+
+  // App 4 – Distillery
+  distillery_ops:   { table: 'distillery_operations', pattern: 'G', tsCol: 'timestamp' },
 };
 
 // ─── Access guard ─────────────────────────────────────────────
@@ -82,6 +86,9 @@ const injectDateCols = (payload, pattern, body) => {
       payload.Date = body.date ?? null;
       payload.Time = body.time ?? null;
       break;
+    case 'G':
+      payload.Date = body.date ?? null;
+      break;
     default:
       break;
   }
@@ -120,8 +127,8 @@ const submitForm = async (req, res) => {
   const sql = `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`;
 
   try {
-    const [result] = await pool.execute(sql, values);
-    res.status(201).json({ message: 'Form submitted successfully.', id: result.insertId });
+    await pool.execute(sql, values);
+    res.status(201).json({ message: 'Form submitted successfully.' });
   } catch (err) {
     console.error('Form submit error:', err.message);
     res.status(500).json({ message: 'Database error: ' + err.message });

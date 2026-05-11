@@ -1,6 +1,5 @@
 -- CreateTable
 CREATE TABLE `mill_logbook1` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Time` DATETIME(0) NULL,
@@ -69,14 +68,11 @@ CREATE TABLE `mill_logbook1` (
     `Mill4_GearTempNDE` DOUBLE NULL,
     `Mill4_BearTempDE` DOUBLE NULL,
     `Mill4_BearTempNDE` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `mill_logbook2` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Time` DATETIME(0) NULL,
@@ -116,14 +112,11 @@ CREATE TABLE `mill_logbook2` (
     `M4_IntM` DOUBLE NULL,
     `M4_OutT` DOUBLE NULL,
     `M4_OutM` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `mill_logbook3` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Time` DATETIME(0) NULL,
@@ -161,28 +154,22 @@ CREATE TABLE `mill_logbook3` (
     `M4_psT` DOUBLE NULL,
     `M4_psB` DOUBLE NULL,
     `M4_psUF` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `mill_stoppages` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `start_time` DATETIME(0) NULL,
     `end_time` DATETIME(0) NULL,
     `section` VARCHAR(100) NULL,
     `machinery` VARCHAR(200) NULL,
     `remarks` VARCHAR(600) NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `ds_logbook` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Sampling_time` VARCHAR(10) NULL,
@@ -226,14 +213,11 @@ CREATE TABLE `ds_logbook` (
     `A1_Mol_Brix` DOUBLE NULL,
     `MillDrain_Pol` DOUBLE NULL,
     `BoilHouseDrain_Pol` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `rs_logbook` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Sampling_time` VARCHAR(10) NULL,
@@ -286,14 +270,11 @@ CREATE TABLE `rs_logbook` (
     `IERInlet_PH` DOUBLE NULL,
     `IEROutlet_IU` DOUBLE NULL,
     `IEROutlet_PH` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `ops_logbook` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Sampling_time` VARCHAR(10) NULL,
@@ -347,14 +328,11 @@ CREATE TABLE `ops_logbook` (
     `RSDInlet_Moist` DOUBLE NULL,
     `RSDOutlet_Temp` DOUBLE NULL,
     `RSDOutlet_Moist` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `sa_logbook` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `Sampling_time` VARCHAR(10) NULL,
@@ -389,14 +367,11 @@ CREATE TABLE `sa_logbook` (
     `col_RawMeltRS` DOUBLE NULL,
     `col_ClrMeltRS` DOUBLE NULL,
     `col_FineLqrRS` DOUBLE NULL,
-    `timestamp_col` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp_col` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `syrp_logbook` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Shift` VARCHAR(10) NULL,
     `syrp_prodDS` DOUBLE NULL,
@@ -407,27 +382,21 @@ CREATE TABLE `syrp_logbook` (
     `MoLtoDist_RS` DOUBLE NULL,
     `syrp_trs` DOUBLE NULL,
     `bh_trs` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `stoppage_logbook` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `start_time` DATETIME(0) NULL,
     `end_time` DATETIME(0) NULL,
     `department` VARCHAR(40) NULL,
     `remarks` VARCHAR(225) NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `ph_power` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Time` DATETIME(0) NULL,
     `Crush` DOUBLE NULL,
@@ -469,14 +438,11 @@ CREATE TABLE `ph_power` (
     `PowerConColony` DOUBLE NULL,
     `PowerConOthers` DOUBLE NULL,
     `remark` VARCHAR(600) NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `ph_steam` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `Time` DATETIME(0) NULL,
     `SteamGen150` DOUBLE NULL,
@@ -514,14 +480,11 @@ CREATE TABLE `ph_steam` (
     `Firewood35` DOUBLE NULL,
     `Baggase35` DOUBLE NULL,
     `SlopCon` DOUBLE NULL,
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-
-    PRIMARY KEY (`id`)
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
 CREATE TABLE `ph_stoppage` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
     `Date` DATE NULL,
     `start_time` DATETIME(0) NULL,
     `end_Time` DATETIME(0) NULL,
@@ -531,7 +494,193 @@ CREATE TABLE `ph_stoppage` (
     `category` VARCHAR(100) NULL,
     `remarks` VARCHAR(300) NULL,
     `created_at` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
-    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `timestamp` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `distillery_operations` (
+    `Date` DATE NULL,
+    `operation_mode` VARCHAR(32) NULL,
+    `syrup_molasses_qtls` DOUBLE NULL,
+    `wash_distilled` DOUBLE NULL,
+    `trs` DOUBLE NULL,
+    `ufs` DOUBLE NULL,
+    `alcohol_pct` DOUBLE NULL,
+    `actual_ethanol_bl` DOUBLE NULL,
+    `al_bl_ratio_pct` DOUBLE NULL,
+    `total_bh_molasses_qtls` DOUBLE NULL,
+    `total_ch_molasses_qtls` DOUBLE NULL,
+    `ethanol_storage_bl` DOUBLE NULL,
+    `fs` DOUBLE NULL,
+    `fs_quantity` DOUBLE NULL,
+    `theoretical_yield` DOUBLE NULL,
+    `alcohol_prod_fermentation` DOUBLE NULL,
+    `fe` DOUBLE NULL,
+    `actual_prod_al` DOUBLE NULL,
+    `de` DOUBLE NULL,
+    `oe` DOUBLE NULL,
+    `rec_bl` DOUBLE NULL,
+    `rec_al` DOUBLE NULL,
+    `trs_qty` DOUBLE NULL,
+    `ufs_qty` DOUBLE NULL,
+    `timestamp` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `users` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `email` VARCHAR(200) NOT NULL,
+    `password` VARCHAR(200) NULL,
+    `role` ENUM('admin', 'employee') NOT NULL DEFAULT 'employee',
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `auth_provider` VARCHAR(20) NOT NULL DEFAULT 'local',
+    `mail_sent` BOOLEAN NOT NULL DEFAULT false,
+    `microsoft_id` VARCHAR(200) NULL,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `updated_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    UNIQUE INDEX `email`(`email`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `apps` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `description` VARCHAR(500) NULL,
+    `icon` VARCHAR(100) NULL,
+    `color` VARCHAR(20) NULL,
+    `sort_order` INTEGER NOT NULL DEFAULT 0,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    UNIQUE INDEX `name`(`name`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `forms` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `description` VARCHAR(500) NULL,
+    `form_key` VARCHAR(100) NOT NULL,
+    `app_id` INTEGER NOT NULL,
+    `sort_order` INTEGER NOT NULL DEFAULT 0,
+    `is_active` BOOLEAN NOT NULL DEFAULT true,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    UNIQUE INDEX `form_key`(`form_key`),
+    INDEX `app_id`(`app_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `mappings` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `user_id` INTEGER NOT NULL,
+    `app_id` INTEGER NOT NULL,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    UNIQUE INDEX `uq_user_app`(`user_id`, `app_id`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `mapping_forms` (
+    `mapping_id` INTEGER NOT NULL,
+    `form_id` INTEGER NOT NULL,
+
+    PRIMARY KEY (`mapping_id`, `form_id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `mh_equipment` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `equip_no` VARCHAR(30) NOT NULL,
+    `plant` VARCHAR(50) NOT NULL DEFAULT 'Mill House',
+    `name` VARCHAR(200) NOT NULL,
+    `location` VARCHAR(200) NULL,
+    `commissioned` VARCHAR(50) NULL,
+    `drive` VARCHAR(300) NULL,
+    `photo` MEDIUMTEXT NULL,
+    `plate` MEDIUMTEXT NULL,
+    `sort_order` INTEGER NOT NULL DEFAULT 0,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `updated_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
 
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `mh_specs` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `equip_id` INTEGER NOT NULL,
+    `lbl` VARCHAR(300) NOT NULL,
+    `val` TEXT NULL,
+    `sort_order` INTEGER NOT NULL DEFAULT 0,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `mh_oem_schedule` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `equip_id` INTEGER NOT NULL,
+    `no` INTEGER NOT NULL,
+    `comp` VARCHAR(500) NULL,
+    `act` TEXT NULL,
+    `iv_W` CHAR(1) NULL,
+    `iv_M` CHAR(1) NULL,
+    `iv_Q` CHAR(1) NULL,
+    `iv_H` CHAR(1) NULL,
+    `iv_Y` CHAR(1) NULL,
+    `iv_T` CHAR(1) NULL,
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `mh_history` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `equip_id` INTEGER NOT NULL,
+    `season` VARCHAR(20) NULL,
+    `year` VARCHAR(64) NULL,
+    `date_start` DATE NULL,
+    `date_finish` DATE NULL,
+    `obs` TEXT NULL,
+    `act` TEXT NULL,
+    `cost` VARCHAR(50) NULL,
+    `svc` VARCHAR(20) NULL,
+    `provider` VARCHAR(300) NULL,
+    `resp` VARCHAR(300) NULL,
+    `rem` TEXT NULL,
+    `created_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `updated_at` TIMESTAMP(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `forms` ADD CONSTRAINT `forms_ibfk_1` FOREIGN KEY (`app_id`) REFERENCES `apps`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mappings` ADD CONSTRAINT `mappings_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mappings` ADD CONSTRAINT `mappings_ibfk_2` FOREIGN KEY (`app_id`) REFERENCES `apps`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mapping_forms` ADD CONSTRAINT `mapping_forms_ibfk_1` FOREIGN KEY (`mapping_id`) REFERENCES `mappings`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mapping_forms` ADD CONSTRAINT `mapping_forms_ibfk_2` FOREIGN KEY (`form_id`) REFERENCES `forms`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mh_specs` ADD CONSTRAINT `mh_specs_equip_id_fkey` FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mh_oem_schedule` ADD CONSTRAINT `mh_oem_schedule_equip_id_fkey` FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `mh_history` ADD CONSTRAINT `mh_history_equip_id_fkey` FOREIGN KEY (`equip_id`) REFERENCES `mh_equipment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

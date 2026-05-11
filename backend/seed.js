@@ -1,8 +1,8 @@
 /**
  * Seed MySQL with:
  *  - 1 admin user  (admin@gsma.com / Admin@123)
- *  - 3 apps
- *  - 13 forms
+ *  - 4 apps
+ *  - 14 forms
  *
  * Run: node seed.js
  */
@@ -35,6 +35,13 @@ const appDefs = [
     color:       '#F59E0B',
     sort_order:  3,
   },
+  {
+    name:        'GSMA Distillery Operations',
+    description: 'Daily operations tracking for the distillery at GSMA',
+    icon:        'MdLocalBar',
+    color:       '#0D9488',
+    sort_order:  4,
+  },
 ];
 
 const formDefs = [
@@ -56,6 +63,9 @@ const formDefs = [
   { name: 'Power Details',                   description: 'Power generation and consumption details',             formKey: 'ph_power',         app: 'GSMA Power Logbook', sort_order: 1 },
   { name: 'Steam Details',                   description: 'Steam generation and consumption details',             formKey: 'ph_steam',         app: 'GSMA Power Logbook', sort_order: 2 },
   { name: 'Stoppage Details',                description: 'Power house stoppage details',                        formKey: 'ph_stoppage',      app: 'GSMA Power Logbook', sort_order: 3 },
+
+  // App 4 – Distillery
+  { name: 'GSMA Distillery Operations Form', description: 'Daily operations tracking form for Distillery at GSMA', formKey: 'distillery_ops', app: 'GSMA Distillery Operations', sort_order: 1 },
 ];
 
 // ─── Seed ─────────────────────────────────────────────────────

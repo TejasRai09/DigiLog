@@ -3,6 +3,9 @@ const { pool }                    = require('../config/mysql');
 const { signToken }               = require('../utils/jwt');
 const { getMicrosoftUserProfile } = require('../services/microsoft.service');
 
+const NO_ACCESS_MSG =
+  'You do not have access to use this application. Please contact the administrator.';
+
 const buildTokenResponse = (row) => ({
   token: signToken({ id: row.id, role: row.role }),
   user: {
@@ -53,27 +56,25 @@ const outlookLogin = async (req, res) => {
   if (!profile.email)
     return res.status(400).json({ message: 'Could not retrieve email from Microsoft.' });
 
-  let [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [profile.email]);
+  let [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [
+    profile.email.toLowerCase(),
+  ]);
   let user = rows[0];
 
-  if (user) {
-    if (!user.microsoft_id) {
-      await pool.query(
-        'UPDATE users SET microsoft_id = ?, auth_provider = ? WHERE id = ?',
-        [profile.microsoftId, 'outlook', user.id]
-      );
-      user.microsoft_id = profile.microsoftId;
-      user.auth_provider = 'outlook';
-    }
-    if (!user.is_active)
-      return res.status(403).json({ message: 'Account is deactivated.' });
-  } else {
-    const [result] = await pool.query(
-      'INSERT INTO users (name, email, microsoft_id, auth_provider, role, is_active) VALUES (?, ?, ?, ?, ?, 1)',
-      [profile.name, profile.email, profile.microsoftId, 'outlook', 'employee']
+  if (!user) {
+    return res.status(403).json({ message: NO_ACCESS_MSG });
+  }
+
+  if (!user.microsoft_id) {
+    await pool.query(
+      'UPDATE users SET microsoft_id = ?, auth_provider = ? WHERE id = ?',
+      [profile.microsoftId, 'outlook', user.id]
     );
-    const [newRows] = await pool.query('SELECT * FROM users WHERE id = ?', [result.insertId]);
-    user = newRows[0];
+    user.microsoft_id = profile.microsoftId;
+    user.auth_provider = 'outlook';
+  }
+  if (!user.is_active) {
+    return res.status(403).json({ message: 'Account is deactivated.' });
   }
 
   res.json(buildTokenResponse(user));

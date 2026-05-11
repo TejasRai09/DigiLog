@@ -10,7 +10,6 @@ datasource db {
 // ── App 1: GSMA Mill Logbook ──────────────────────────────
 
 model MillLogbook1 {
-  id                    Int       @id @default(autoincrement())
   Date                  DateTime? @db.Date
   Shift                 String?   @db.VarChar(10)
   Time                  DateTime? @db.DateTime(0)
@@ -81,11 +80,11 @@ model MillLogbook1 {
   Mill4_BearTempNDE     Float?
   timestamp             DateTime? @default(now())
 
+  @@ignore
   @@map("mill_logbook1")
 }
 
 model MillLogbook2 {
-  id                   Int       @id @default(autoincrement())
   Date                 DateTime? @db.Date
   Shift                String?   @db.VarChar(10)
   Time                 DateTime? @db.DateTime(0)
@@ -127,11 +126,11 @@ model MillLogbook2 {
   M4_OutM              Float?
   timestamp            DateTime? @default(now())
 
+  @@ignore
   @@map("mill_logbook2")
 }
 
 model MillLogbook3 {
-  id                 Int       @id @default(autoincrement())
   Date               DateTime? @db.Date
   Shift              String?   @db.VarChar(10)
   Time               DateTime? @db.DateTime(0)
@@ -171,11 +170,11 @@ model MillLogbook3 {
   M4_psUF            Float?
   timestamp          DateTime? @default(now())
 
+  @@ignore
   @@map("mill_logbook3")
 }
 
 model MillStoppage {
-  id         Int       @id @default(autoincrement())
   Date       DateTime? @db.Date
   start_time DateTime? @db.DateTime(0)
   end_time   DateTime? @db.DateTime(0)
@@ -184,13 +183,13 @@ model MillStoppage {
   remarks    String?   @db.VarChar(600)
   timestamp  DateTime? @default(now())
 
+  @@ignore
   @@map("mill_stoppages")
 }
 
 // ── App 2: GSMA Lab Logbook ───────────────────────────────
 
 model DsLogbook {
-  id                  Int       @id @default(autoincrement())
   Date                DateTime? @db.Date
   Shift               String?   @db.VarChar(10)
   Sampling_time       String?   @db.VarChar(10)
@@ -236,11 +235,11 @@ model DsLogbook {
   BoilHouseDrain_Pol  Float?
   timestamp           DateTime? @default(now())
 
+  @@ignore
   @@map("ds_logbook")
 }
 
 model RsLogbook {
-  id                   Int       @id @default(autoincrement())
   Date                 DateTime? @db.Date
   Shift                String?   @db.VarChar(10)
   Sampling_time        String?   @db.VarChar(10)
@@ -295,11 +294,11 @@ model RsLogbook {
   IEROutlet_PH         Float?
   timestamp            DateTime? @default(now())
 
+  @@ignore
   @@map("rs_logbook")
 }
 
 model OpsLogbook {
-  id                Int       @id @default(autoincrement())
   Date              DateTime? @db.Date
   Shift             String?   @db.VarChar(10)
   Sampling_time     String?   @db.VarChar(10)
@@ -355,11 +354,11 @@ model OpsLogbook {
   RSDOutlet_Moist   Float?
   timestamp         DateTime? @default(now())
 
+  @@ignore
   @@map("ops_logbook")
 }
 
 model SaLogbook {
-  id             Int       @id @default(autoincrement())
   Date           DateTime? @db.Date
   Shift          String?   @db.VarChar(10)
   Sampling_time  String?   @db.VarChar(10)
@@ -396,11 +395,11 @@ model SaLogbook {
   col_FineLqrRS  Float?
   timestamp_col  DateTime? @default(now())
 
+  @@ignore
   @@map("sa_logbook")
 }
 
 model SyrpLogbook {
-  id           Int       @id @default(autoincrement())
   Date         DateTime? @db.Date
   Shift        String?   @db.VarChar(10)
   syrp_prodDS  Float?
@@ -413,11 +412,11 @@ model SyrpLogbook {
   bh_trs       Float?
   timestamp    DateTime? @default(now())
 
+  @@ignore
   @@map("syrp_logbook")
 }
 
 model StoppageLogbook {
-  id         Int       @id @default(autoincrement())
   Date       DateTime? @db.Date
   start_time DateTime? @db.DateTime(0)
   end_time   DateTime? @db.DateTime(0)
@@ -425,13 +424,13 @@ model StoppageLogbook {
   remarks    String?   @db.VarChar(225)
   timestamp  DateTime? @default(now())
 
+  @@ignore
   @@map("stoppage_logbook")
 }
 
 // ── App 3: GSMA Power Logbook ─────────────────────────────
 
 model PhPower {
-  id                 Int       @id @default(autoincrement())
   Date               DateTime? @db.Date
   Time               DateTime? @db.DateTime(0)
   Crush              Float?
@@ -475,11 +474,11 @@ model PhPower {
   remark             String?   @db.VarChar(600)
   timestamp          DateTime? @default(now())
 
+  @@ignore
   @@map("ph_power")
 }
 
 model PhSteam {
-  id                               Int       @id @default(autoincrement())
   Date                             DateTime? @db.Date
   Time                             DateTime? @db.DateTime(0)
   SteamGen150                      Float?
@@ -519,11 +518,11 @@ model PhSteam {
   SlopCon                          Float?
   timestamp                        DateTime? @default(now())
 
+  @@ignore
   @@map("ph_steam")
 }
 
 model PhStoppage {
-  id          Int       @id @default(autoincrement())
   Date        DateTime? @db.Date
   start_time  DateTime? @db.DateTime(0)
   end_Time    DateTime? @db.DateTime(0)
@@ -535,5 +534,186 @@ model PhStoppage {
   created_at  DateTime? @default(now())
   timestamp   DateTime? @default(now())
 
+  @@ignore
   @@map("ph_stoppage")
+}
+
+// ── App 4: Distillery ────────────────────────────────────────
+
+model DistilleryOperations {
+  Date                      DateTime? @db.Date
+  operation_mode            String?   @db.VarChar(32)
+  syrup_molasses_qtls       Float?
+  wash_distilled            Float?
+  trs                       Float?
+  ufs                       Float?
+  alcohol_pct               Float?
+  actual_ethanol_bl         Float?
+  al_bl_ratio_pct           Float?
+  total_bh_molasses_qtls    Float?
+  total_ch_molasses_qtls    Float?
+  ethanol_storage_bl        Float?
+  fs                        Float?
+  fs_quantity               Float?
+  theoretical_yield         Float?
+  alcohol_prod_fermentation Float?
+  fe                        Float?
+  actual_prod_al            Float?
+  de                        Float?
+  oe                        Float?
+  rec_bl                    Float?
+  rec_al                    Float?
+  trs_qty                   Float?
+  ufs_qty                   Float?
+  timestamp                 DateTime? @default(now()) @db.Timestamp(0)
+
+  @@ignore
+  @@map("distillery_operations")
+}
+
+// ── Portal system + Mill House equipment (init.sql) ───────
+
+enum UserRole {
+  admin
+  employee
+}
+
+model users {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(200)
+  email          String    @unique(map: "email") @db.VarChar(200)
+  password       String?   @db.VarChar(200)
+  role           UserRole  @default(employee)
+  is_active      Boolean   @default(true)
+  auth_provider  String    @default("local") @db.VarChar(20)
+  mail_sent      Boolean   @default(false)
+  microsoft_id   String?   @db.VarChar(200)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @updatedAt @db.Timestamp(0)
+  mappings       mappings[]
+
+  @@map("users")
+}
+
+model apps {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique(map: "name") @db.VarChar(200)
+  description String?     @db.VarChar(500)
+  icon        String?     @db.VarChar(100)
+  color       String?     @db.VarChar(20)
+  sort_order  Int         @default(0)
+  is_active   Boolean     @default(true)
+  created_at  DateTime?   @default(now()) @db.Timestamp(0)
+  forms       forms[]
+  mappings    mappings[]
+
+  @@map("apps")
+}
+
+model forms {
+  id            Int             @id @default(autoincrement())
+  name          String          @db.VarChar(200)
+  description   String?         @db.VarChar(500)
+  form_key      String          @unique(map: "form_key") @db.VarChar(100)
+  app_id        Int
+  sort_order    Int             @default(0)
+  is_active     Boolean         @default(true)
+  created_at    DateTime?       @default(now()) @db.Timestamp(0)
+  apps          apps            @relation(fields: [app_id], references: [id], onDelete: Cascade, map: "forms_ibfk_1")
+  mapping_forms mapping_forms[]
+
+  @@index([app_id], map: "app_id")
+  @@map("forms")
+}
+
+model mappings {
+  id             Int             @id @default(autoincrement())
+  user_id        Int
+  app_id         Int
+  created_at     DateTime?       @default(now()) @db.Timestamp(0)
+  users          users           @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "mappings_ibfk_1")
+  apps           apps            @relation(fields: [app_id], references: [id], onDelete: Cascade, map: "mappings_ibfk_2")
+  mapping_forms  mapping_forms[]
+
+  @@unique([user_id, app_id], map: "uq_user_app")
+  @@map("mappings")
+}
+
+model mapping_forms {
+  mapping_id Int
+  form_id    Int
+  mappings   mappings @relation(fields: [mapping_id], references: [id], onDelete: Cascade, map: "mapping_forms_ibfk_1")
+  forms      forms    @relation(fields: [form_id], references: [id], onDelete: Cascade, map: "mapping_forms_ibfk_2")
+
+  @@id([mapping_id, form_id])
+  @@map("mapping_forms")
+}
+
+model mh_equipment {
+  id             Int                @id @default(autoincrement())
+  equip_no       String             @db.VarChar(30)
+  plant          String             @default("Mill House") @db.VarChar(50)
+  name           String             @db.VarChar(200)
+  location       String?            @db.VarChar(200)
+  commissioned   String?            @db.VarChar(50)
+  drive          String?            @db.VarChar(300)
+  photo          String?            @db.MediumText
+  plate          String?            @db.MediumText
+  sort_order     Int                @default(0)
+  created_at     DateTime?          @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?          @default(now()) @updatedAt @db.Timestamp(0)
+  mh_specs       mh_specs[]
+  mh_oem_schedule mh_oem_schedule[]
+  mh_history     mh_history[]
+
+  @@map("mh_equipment")
+}
+
+model mh_specs {
+  id         Int           @id @default(autoincrement())
+  equip_id   Int
+  lbl        String        @db.VarChar(300)
+  val        String?       @db.Text
+  sort_order Int           @default(0)
+  equipment  mh_equipment  @relation(fields: [equip_id], references: [id], onDelete: Cascade)
+
+  @@map("mh_specs")
+}
+
+model mh_oem_schedule {
+  id       Int           @id @default(autoincrement())
+  equip_id Int
+  no       Int
+  comp     String?       @db.VarChar(500)
+  act      String?       @db.Text
+  iv_W     String?       @db.Char(1)
+  iv_M     String?       @db.Char(1)
+  iv_Q     String?       @db.Char(1)
+  iv_H     String?       @db.Char(1)
+  iv_Y     String?       @db.Char(1)
+  iv_T     String?       @db.Char(1)
+  equipment mh_equipment @relation(fields: [equip_id], references: [id], onDelete: Cascade)
+
+  @@map("mh_oem_schedule")
+}
+
+model mh_history {
+  id          Int           @id @default(autoincrement())
+  equip_id    Int
+  season      String?       @db.VarChar(20)
+  year        String?       @db.VarChar(64)
+  date_start  DateTime?     @db.Date
+  date_finish DateTime?     @db.Date
+  obs         String?       @db.Text
+  act         String?       @db.Text
+  cost        String?       @db.VarChar(50)
+  svc         String?       @db.VarChar(20)
+  provider    String?       @db.VarChar(300)
+  resp        String?       @db.VarChar(300)
+  rem         String?       @db.Text
+  created_at  DateTime?     @default(now()) @db.Timestamp(0)
+  updated_at  DateTime?     @default(now()) @updatedAt @db.Timestamp(0)
+  equipment   mh_equipment  @relation(fields: [equip_id], references: [id], onDelete: Cascade)
+
+  @@map("mh_history")
 }
