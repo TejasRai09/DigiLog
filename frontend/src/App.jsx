@@ -11,8 +11,6 @@ import Dashboard          from './pages/Dashboard';
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
-import FormMapping        from './pages/admin/FormMapping';
-
 // Mill Logbook forms
 import EquipmentTemp  from './pages/forms/mill/EquipmentTemp';
 import ShreddarOTG    from './pages/forms/mill/ShreddarOTG';
@@ -111,7 +109,7 @@ const App = () => {
         {/* Protected – admin only */}
         <Route element={<ProtectedRoute requiredRole="admin" />}>
           <Route path="/admin/employees" element={<EmployeeManagement />} />
-          <Route path="/admin/mappings"  element={<FormMapping />} />
+          <Route path="/admin/mappings" element={<Navigate to="/admin/employees" replace />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

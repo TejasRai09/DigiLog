@@ -9,7 +9,7 @@ const { pool } = require('../config/mysql');
 //   E  →  Date, Time                 (power logbooks)
 //   G  →  Date only                  (daily snapshot forms)
 
-// tsCol = the column used for ORDER BY DESC (varies by table)
+// tsCol = tie-breaker column when multiple rows share the same operation Date (usually inserted-at timestamp)
 const FORM_CONFIG = {
   // App 1 – Mill Logbook
   mill_logbook1:    { table: 'mill_logbook1',    pattern: 'A', tsCol: 'timestamp' },
@@ -159,7 +159,9 @@ const getRecords = async (req, res) => {
       `SELECT COUNT(*) AS total FROM \`${config.table}\``
     );
     const [rows] = await pool.query(
-      `SELECT * FROM \`${config.table}\` ORDER BY \`${config.tsCol}\` DESC LIMIT ${limit} OFFSET ${offset}`
+      `SELECT * FROM \`${config.table}\`
+       ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC
+       LIMIT ${limit} OFFSET ${offset}`
     );
     res.json({ total, page, limit, records: rows });
   } catch (err) {

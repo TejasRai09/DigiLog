@@ -11,7 +11,7 @@ import './index.css';
 
 const app = (
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_relativeSplatPath: true }}>
       <AuthProvider>
         <App />
         <Toaster

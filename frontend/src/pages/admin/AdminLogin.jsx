@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { MdAdminPanelSettings, MdEmail, MdLock, MdLogin } from 'react-icons/md';
+import { MdEmail, MdLock, MdLogin } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import Spinner from '../../components/Spinner';
@@ -45,11 +45,16 @@ const AdminLogin = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-amber-500 text-white shadow-xl mb-4">
-            <MdAdminPanelSettings className="h-9 w-9" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Admin Portal</h1>
-          <p className="mt-1 text-sm text-slate-400">Restricted access — administrators only</p>
+          <img
+            src="/logo.png"
+            alt="DigiLog"
+            className="mx-auto h-20 w-auto object-contain mb-4 drop-shadow-lg rounded-xl"
+            width={80}
+            height={80}
+          />
+          <h1 className="text-2xl font-bold text-white">DigiLog</h1>
+          <p className="mt-1 text-sm text-slate-300">Your digital logbook</p>
+          <p className="mt-2 text-xs text-slate-500">Administrator sign-in</p>
         </div>
 
         {/* Card */}
@@ -125,7 +130,7 @@ const AdminLogin = () => {
         </div>
 
         <p className="text-center text-xs text-slate-600 mt-6">
-          © {new Date().getFullYear()} GSMA Portal. All rights reserved.
+          © {new Date().getFullYear()} DigiLog. All rights reserved.
         </p>
       </div>
     </div>

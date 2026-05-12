@@ -1,7 +1,7 @@
 {
-  "name": "gsma-portal-backend",
+  "name": "digilog-backend",
   "version": "1.0.0",
-  "description": "GSMA Portal API – Express + MongoDB + MySQL",
+  "description": "DigiLog API – Your digital logbook (Express + MySQL)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
