@@ -18,7 +18,8 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-      <h2 style="color: #2563EB;">Welcome to GSMA Portal</h2>
+      <h2 style="color: #2563EB;">Welcome to DigiLog</h2>
+      <p style="color:#4b5563; font-size:14px; margin-top:4px;">Your digital logbook</p>
       <p>Hi <strong>${name}</strong>,</p>
       <p>Your account has been created and is now <strong>active</strong>.</p>
       <table style="border-collapse:collapse; margin: 16px 0;">
@@ -39,7 +40,7 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
   await transporter.sendMail({
     from: SMTP_FROM,
     to,
-    subject: 'Your GSMA Portal Account is Active',
+    subject: 'Your DigiLog Account is Active',
     html,
   });
 };

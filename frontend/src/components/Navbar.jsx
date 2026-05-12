@@ -1,6 +1,11 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MdElectricBolt, MdLogout, MdPeople, MdGridView, MdHome } from 'react-icons/md';
+import { MdLogout, MdPeople, MdHome } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
+
+const ZUARI_LOGO_URL =
+  'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
+const ADVENTZ_LOGO_URL =
+  'https://www.zuariindustries.in/assets/web/img/logo/adventz.png';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -23,42 +28,87 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-14 items-center justify-between gap-4">
-          {/* Brand */}
-          <Link to="/" className="flex items-center gap-2 font-bold text-blue-700 text-base">
-            <MdElectricBolt className="h-5 w-5" />
-            <span>GSMA Portal</span>
+      <div className="flex w-full min-h-[3.75rem] sm:min-h-16 items-center gap-2 py-2 sm:gap-3">
+        {/* Left: Zuari + DigiLog (app branding beside Zuari) */}
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:gap-4 pl-1 sm:pl-2 md:pl-3 min-w-0">
+          <a
+            href="https://www.zuariindustries.in/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            aria-label="Zuari Industries"
+          >
+            <img
+              src={ZUARI_LOGO_URL}
+              alt="Zuari Industries"
+              className="h-8 w-auto max-w-[100px] sm:h-9 sm:max-w-[140px] md:h-10 md:max-w-[170px] lg:h-11 lg:max-w-[190px] object-contain object-left"
+              width={190}
+              height={44}
+            />
+          </a>
+          <Link
+            to="/"
+            className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5 rounded-lg py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+          >
+            <img
+              src="/logo.png"
+              alt="DigiLog"
+              className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11 md:h-12 md:w-12"
+              width={48}
+              height={48}
+            />
+            <div className="hidden min-w-0 flex-col text-left leading-tight sm:flex">
+              <span className="text-sm font-bold text-blue-700 sm:text-base">DigiLog</span>
+              <span className="max-w-[8rem] truncate text-[10px] text-gray-500 sm:max-w-none sm:text-xs">
+                Your digital logbook
+              </span>
+            </div>
           </Link>
+        </div>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLink('/', 'Dashboard', MdHome)}
-            {user?.role === 'admin' && (
-              <>
-                {navLink('/admin/employees', 'Employees', MdPeople)}
-                {navLink('/admin/mappings',  'Form Mapping', MdGridView)}
-              </>
-            )}
-          </nav>
+        {/* Center: main nav */}
+        <nav className="hidden md:flex flex-1 justify-center items-center gap-1 min-w-0">
+          {navLink('/', 'Dashboard', MdHome)}
+          {user?.role === 'admin' && navLink('/admin/employees', 'Employees', MdPeople)}
+        </nav>
+        <div className="flex-1 min-w-0 md:hidden" aria-hidden />
 
-          {/* User + logout */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:block text-right">
-              <p className="text-sm font-medium text-gray-900 leading-tight">{user?.name}</p>
-              <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
-            </div>
-            <div className="h-8 w-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-bold uppercase select-none">
-              {user?.name?.[0] ?? '?'}
-            </div>
-            <button
-              onClick={() => { logout(); navigate('/login'); }}
-              className="p-2 rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-              title="Logout"
-            >
-              <MdLogout className="h-5 w-5" />
-            </button>
+        {/* Right: user + Adventz */}
+        <div className="flex shrink-0 items-center gap-1.5 pr-1 sm:gap-2 sm:pr-2 md:gap-3 md:pr-3">
+          <div className="hidden text-right sm:block">
+            <p className="text-sm font-medium leading-tight text-gray-900">{user?.name}</p>
+            <p className="text-xs capitalize text-gray-500">{user?.role}</p>
           </div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold uppercase text-white select-none sm:h-10 sm:w-10">
+            {user?.name?.[0] ?? '?'}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              navigate('/login');
+            }}
+            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+            title="Logout"
+          >
+            <MdLogout className="h-5 w-5" />
+          </button>
+
+          <a
+            href="https://www.adventz.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-0.5 shrink-0 rounded-md border-l border-gray-200 pl-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:pl-2"
+            aria-label="Adventz"
+          >
+            <img
+              src={ADVENTZ_LOGO_URL}
+              alt="Adventz"
+              className="h-8 w-auto max-w-[72px] object-contain object-right sm:h-9 sm:max-w-[92px] md:h-10 md:max-w-[112px] lg:h-11 lg:max-w-[124px]"
+              width={124}
+              height={44}
+            />
+          </a>
         </div>
       </div>
     </header>

@@ -48,7 +48,10 @@ const getEquipment = async (req, res) => {
       'SELECT COUNT(*) AS total FROM mh_history WHERE equip_id = ?', [eq.id]
     );
     const [history] = await pool.execute(
-      'SELECT * FROM mh_history WHERE equip_id = ? ORDER BY created_at DESC LIMIT 20', [eq.id]
+      `SELECT * FROM mh_history WHERE equip_id = ?
+       ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
+       LIMIT 20`,
+      [eq.id]
     );
 
     res.json({ equipment: eq, specs, schedule, history, histTotal: total });
@@ -175,7 +178,9 @@ const getHistory = async (req, res) => {
       'SELECT COUNT(*) AS total FROM mh_history WHERE equip_id = ?', [id]
     );
     const [records] = await pool.query(
-      `SELECT * FROM mh_history WHERE equip_id = ? ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      `SELECT * FROM mh_history WHERE equip_id = ?
+       ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
+       LIMIT ${limit} OFFSET ${offset}`,
       [id]
     );
     res.json({ total, page, limit, records });

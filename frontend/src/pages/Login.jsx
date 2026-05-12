@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdElectricBolt, MdEmail, MdLock, MdLogin } from 'react-icons/md';
+import { MdEmail, MdLock, MdLogin } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
@@ -53,11 +53,15 @@ const Login = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-blue-600 text-white shadow-lg mb-4">
-            <MdElectricBolt className="h-8 w-8" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">GSMA Portal</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to access your workspace</p>
+          <img
+            src="/logo.png"
+            alt="DigiLog"
+            className="mx-auto h-20 w-auto object-contain mb-4 drop-shadow-md"
+            width={80}
+            height={80}
+          />
+          <h1 className="text-2xl font-bold text-gray-900">DigiLog</h1>
+          <p className="mt-1 text-sm text-gray-600">Your digital logbook</p>
         </div>
 
         <div className="card p-8 shadow-lg">
@@ -127,7 +131,7 @@ const Login = () => {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          © {new Date().getFullYear()} GSMA Portal. All rights reserved.
+          © {new Date().getFullYear()} DigiLog. All rights reserved.
         </p>
       </div>
     </div>

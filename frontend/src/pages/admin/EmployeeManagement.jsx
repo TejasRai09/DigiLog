@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch, MdPeople,
-  MdClose, MdSave, MdEmail, MdSend,
+  MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
+import EmployeeFormMappingModal from '../../components/admin/EmployeeFormMappingModal';
 
 const ROLES = ['employee', 'admin'];
 
@@ -99,17 +101,29 @@ const EmployeeManagement = () => {
   const [modal, setModal]         = useState(null);
   const [selected, setSelected]   = useState(new Set());
   const [mailing, setMailing]     = useState(new Set());
+  const [rowMenu, setRowMenu]     = useState(null);
+  const [mappingUser, setMappingUser] = useState(null);
+  const [mappings, setMappings]   = useState([]);
 
-  const fetchUsers = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/admin/users');
-      setUsers(data);
-    } catch { toast.error('Failed to load users.'); }
-    finally { setLoading(false); }
+      const [uRes, mRes] = await Promise.all([
+        api.get('/admin/users'),
+        api.get('/admin/mappings'),
+      ]);
+      setUsers(uRes.data);
+      setMappings(mRes.data);
+    } catch {
+      toast.error('Failed to load data.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this employee?')) return;
@@ -117,7 +131,7 @@ const EmployeeManagement = () => {
       await api.delete(`/admin/users/${id}`);
       toast.success('Employee deleted.');
       setSelected((prev) => { const s = new Set(prev); s.delete(id); return s; });
-      fetchUsers();
+      fetchData();
     } catch { toast.error('Delete failed.'); }
   };
 
@@ -200,7 +214,7 @@ const EmployeeManagement = () => {
           <MdPeople className="h-6 w-6 text-blue-600" />
           <h1 className="page-title">Employee Management</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {bulkEligible.length > 0 && (
             <button
               onClick={handleBulkSendMail}
@@ -249,9 +263,9 @@ const EmployeeManagement = () => {
                 <th className="th">Name</th>
                 <th className="th">Email</th>
                 <th className="th">Role</th>
-                <th className="th">Auth</th>
                 <th className="th">Status</th>
-                <th className="th text-center">Actions</th>
+                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped forms</th>
+                <th className="th text-center w-16">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -263,7 +277,6 @@ const EmployeeManagement = () => {
                 filtered.map((u) => {
                   const canMail    = u.authProvider === 'local';
                   const mailDone   = u.mailSent;
-                  const isMailing  = mailing.has(u._id);
                   const isSelected = selected.has(u._id);
 
                   return (
@@ -288,38 +301,61 @@ const EmployeeManagement = () => {
                         </span>
                       </td>
                       <td className="td">
-                        <span className={`badge ${u.authProvider === 'outlook' ? 'bg-orange-50 text-orange-700' : 'bg-gray-100 text-gray-600'} capitalize`}>
-                          {u.authProvider}
-                        </span>
-                      </td>
-                      <td className="td">
                         <span className={`badge ${u.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                           {u.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="td">
-                        <div className="flex items-center justify-center gap-2">
-                          {canMail && (
-                            <button
-                              onClick={() => !mailDone && !isMailing && handleSendMail(u)}
-                              disabled={mailDone || isMailing}
-                              title={mailDone ? 'Mail already sent' : 'Send activation email'}
-                              className={`p-1.5 rounded transition
-                                ${mailDone
-                                  ? 'text-green-500 cursor-default opacity-60'
-                                  : isMailing
-                                    ? 'text-gray-400 cursor-wait'
-                                    : 'hover:bg-amber-50 text-amber-600'
-                                }`}
-                            >
-                              {isMailing ? <Spinner size="sm" /> : <MdEmail className="h-4 w-4" />}
-                            </button>
-                          )}
-                          <button onClick={() => setModal(u)} className="p-1.5 rounded hover:bg-blue-50 text-blue-600" title="Edit">
-                            <MdEdit className="h-4 w-4" />
-                          </button>
-                          <button onClick={() => handleDelete(u._id)} className="p-1.5 rounded hover:bg-red-50 text-red-500" title="Delete">
-                            <MdDelete className="h-4 w-4" />
+                      <td className="td align-top max-w-[14rem] lg:max-w-md whitespace-normal">
+                        {(() => {
+                          const um = mappings.filter((m) => String(m.user?._id) === String(u._id));
+                          if (um.length === 0) {
+                            return <span className="text-gray-300">—</span>;
+                          }
+                          return (
+                            <div className="flex flex-col gap-2">
+                              {um.map((m) => (
+                                <div key={m._id} className="text-xs leading-snug">
+                                  <span className="font-semibold text-gray-800">{m.app?.name}</span>
+                                  <span className="text-gray-400">: </span>
+                                  {m.forms?.length === 0 ? (
+                                    <span className="badge bg-green-50 text-green-700">All forms</span>
+                                  ) : (
+                                    <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
+                                      {m.forms.map((f) => (
+                                        <span key={f._id} className="badge bg-blue-50 text-blue-700">
+                                          {f.name}
+                                        </span>
+                                      ))}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </td>
+                      <td className="td w-16">
+                        <div className="flex justify-center">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const target = e.currentTarget;
+                              const r = target.getBoundingClientRect();
+                              setRowMenu((prev) => {
+                                if (prev?.user._id === u._id) return null;
+                                return {
+                                  user: u,
+                                  top: r.bottom + 4,
+                                  right: window.innerWidth - r.right,
+                                };
+                              });
+                            }}
+                            className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100"
+                            title="Actions"
+                            aria-label="Actions menu"
+                          >
+                            <MdMoreVert className="h-5 w-5" />
                           </button>
                         </div>
                       </td>
@@ -332,11 +368,98 @@ const EmployeeManagement = () => {
         </div>
       )}
 
+      {rowMenu &&
+        createPortal(
+          <>
+            <div
+              className="fixed inset-0 z-[55]"
+              aria-hidden
+              onClick={() => setRowMenu(null)}
+            />
+            <div
+              className="fixed z-[60] min-w-[12rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+              style={{ top: rowMenu.top, right: rowMenu.right }}
+              role="menu"
+            >
+              {rowMenu.user.authProvider === 'local' && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={rowMenu.user.mailSent || mailing.has(rowMenu.user._id)}
+                  onClick={() => {
+                    const x = rowMenu.user;
+                    setRowMenu(null);
+                    if (!x.mailSent && !mailing.has(x._id)) handleSendMail(x);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {mailing.has(rowMenu.user._id) ? <Spinner size="sm" /> : <MdEmail className="h-4 w-4 text-amber-600" />}
+                  Send activation email
+                </button>
+              )}
+              {rowMenu.user.role === 'employee' && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    const x = rowMenu.user;
+                    setRowMenu(null);
+                    setMappingUser(x);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <MdGridView className="h-4 w-4 text-blue-600" />
+                  Form mapping
+                </button>
+              )}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const x = rowMenu.user;
+                  setRowMenu(null);
+                  setModal(x);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <MdEdit className="h-4 w-4 text-blue-600" />
+                Edit employee
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const id = rowMenu.user._id;
+                  setRowMenu(null);
+                  handleDelete(id);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                <MdDelete className="h-4 w-4" />
+                Delete
+              </button>
+            </div>
+          </>,
+          document.body
+        )}
+
+      {mappingUser && (
+        <EmployeeFormMappingModal
+          user={mappingUser}
+          mappings={mappings}
+          onClose={() => setMappingUser(null)}
+          onSaved={() => {
+            setMappingUser(null);
+            fetchData();
+          }}
+        />
+      )}
+
       {modal && (
         <UserModal
           initial={modal === 'add' ? null : modal}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); fetchUsers(); }}
+          onSaved={() => { setModal(null); fetchData(); }}
         />
       )}
     </main>
