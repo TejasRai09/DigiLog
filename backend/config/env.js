@@ -19,6 +19,8 @@ module.exports = {
   SMTP_PASS: process.env.SMTP_PASS || '',
   SMTP_FROM: process.env.SMTP_FROM || '',
 
-  // CORS
+  // CORS & public links (emails)
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  /** Optional absolute logo URL for HTML emails; if empty, CLIENT_ORIGIN + /logo.png */
+  APP_LOGO_URL: (process.env.APP_LOGO_URL || '').trim(),
 };
