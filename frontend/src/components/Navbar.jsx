@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MdLogout, MdPeople, MdHome } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
+import ProfileModal from './ProfileModal';
+import { mediaUrl } from '../utils/mediaUrl';
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -8,9 +11,10 @@ const ADVENTZ_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/adventz.png';
 
 const Navbar = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const navLink = (to, label, Icon) => (
     <Link
@@ -77,11 +81,23 @@ const Navbar = () => {
         <div className="flex shrink-0 items-center gap-1.5 pr-1 sm:gap-2 sm:pr-2 md:gap-3 md:pr-3">
           <div className="hidden text-right sm:block">
             <p className="text-sm font-medium leading-tight text-gray-900">{user?.name}</p>
-            <p className="text-xs capitalize text-gray-500">{user?.role}</p>
+            <p className={`text-xs text-gray-500 ${user?.department ? '' : 'capitalize'}`}>
+              {user?.department ? user.department : user?.role}
+            </p>
           </div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold uppercase text-white select-none sm:h-10 sm:w-10">
-            {user?.name?.[0] ?? '?'}
-          </div>
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold uppercase text-white select-none overflow-hidden ring-2 ring-transparent hover:ring-blue-300 transition-shadow sm:h-10 sm:w-10"
+            title="Your profile"
+            aria-label="Open profile"
+          >
+            {user?.avatar ? (
+              <img src={mediaUrl(user.avatar)} alt="" className="h-full w-full object-cover" />
+            ) : (
+              user?.name?.[0] ?? '?'
+            )}
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -111,6 +127,14 @@ const Navbar = () => {
           </a>
         </div>
       </div>
+
+      {profileOpen && (
+        <ProfileModal
+          user={user}
+          onClose={() => setProfileOpen(false)}
+          onAvatarSaved={refreshUser}
+        />
+      )}
     </header>
   );
 };

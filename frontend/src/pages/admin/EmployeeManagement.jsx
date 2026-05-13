@@ -15,10 +15,11 @@ const ROLES = ['employee', 'admin'];
 const UserModal = ({ initial, onClose, onSaved }) => {
   const isEdit = !!initial?._id;
   const [form, setForm]   = useState({
-    name:     initial?.name     || '',
-    email:    initial?.email    || '',
-    role:     initial?.role     || 'employee',
-    isActive: initial?.isActive ?? true,
+    name:       initial?.name       || '',
+    email:      initial?.email      || '',
+    department: initial?.department ?? '',
+    role:       initial?.role       || 'employee',
+    isActive:   initial?.isActive ?? true,
   });
   const [saving, setSaving] = useState(false);
 
@@ -66,6 +67,10 @@ const UserModal = ({ initial, onClose, onSaved }) => {
           <div>
             <label className="label">Email</label>
             <input name="email" type="email" value={form.email} onChange={handleChange} required disabled={isEdit} className="input" placeholder="john@company.com" />
+          </div>
+          <div>
+            <label className="label">Department</label>
+            <input name="department" value={form.department} onChange={handleChange} className="input" placeholder="e.g. Operations" />
           </div>
           <div>
             <label className="label">Role</label>
@@ -171,7 +176,8 @@ const EmployeeManagement = () => {
   const filtered = users.filter(
     (u) =>
       u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
+      u.email.toLowerCase().includes(search.toLowerCase()) ||
+      (u.department && String(u.department).toLowerCase().includes(search.toLowerCase()))
   );
 
   const eligibleIds = filtered
@@ -262,6 +268,7 @@ const EmployeeManagement = () => {
                 </th>
                 <th className="th">Name</th>
                 <th className="th">Email</th>
+                <th className="th">Department</th>
                 <th className="th">Role</th>
                 <th className="th">Status</th>
                 <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped forms</th>
@@ -271,7 +278,7 @@ const EmployeeManagement = () => {
             <tbody className="bg-white divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="td text-center text-gray-400 py-10">No employees found.</td>
+                  <td colSpan={8} className="td text-center text-gray-400 py-10">No employees found.</td>
                 </tr>
               ) : (
                 filtered.map((u) => {
@@ -295,6 +302,9 @@ const EmployeeManagement = () => {
                       </td>
                       <td className="td font-medium text-gray-900">{u.name}</td>
                       <td className="td text-gray-500">{u.email}</td>
+                      <td className="td text-gray-600 max-w-[10rem] truncate" title={u.department || ''}>
+                        {u.department || <span className="text-gray-300">—</span>}
+                      </td>
                       <td className="td">
                         <span className={`badge ${u.role === 'admin' ? 'bg-purple-50 text-purple-700' : 'bg-blue-50 text-blue-700'} capitalize`}>
                           {u.role}

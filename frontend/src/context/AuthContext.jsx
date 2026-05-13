@@ -58,6 +58,18 @@ export const AuthProvider = ({ children }) => {
       .catch((err) => console.error('MSAL redirect error:', err));
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const { data } = await api.get('/auth/me');
+      setUser(data.user);
+    } catch {
+      localStorage.removeItem('token');
+      setUser(null);
+    }
+  }, []);
+
   // ── Manual login ────────────────────────────────────────────
   const loginManual = useCallback(async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
@@ -81,7 +93,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginManual, loginOutlook, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginManual, loginOutlook, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

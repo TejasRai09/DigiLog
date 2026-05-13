@@ -1,2 +1,2 @@
 # Form/logbook schema changes use Prisma Migrate:
-#   cd ../backend && npm run db:migrate:dev
+#   cd ../backend && npm run db:migrate:dev jy
