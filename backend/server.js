@@ -1,3 +1,4 @@
+const path = require('path');
 const { PORT, CLIENT_ORIGIN } = require('./config/env');
 const express   = require('express');
 const cors      = require('cors');
@@ -21,6 +22,7 @@ testMysqlConnection();
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Rate limiting ───────────────────────────────────────────
 const globalLimiter = rateLimit({

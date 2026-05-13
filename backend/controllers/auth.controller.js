@@ -1,21 +1,17 @@
+const fs = require('fs');
 const bcrypt = require('bcryptjs');
-const { pool }                    = require('../config/mysql');
-const { signToken }               = require('../utils/jwt');
+const { pool } = require('../config/mysql');
+const { signToken } = require('../utils/jwt');
 const { getMicrosoftUserProfile } = require('../services/microsoft.service');
+const { toAuthUser } = require('../utils/userPublic');
+const { unlinkStoredAvatar } = require('../utils/avatarFile');
 
 const NO_ACCESS_MSG =
   'You do not have access to use this application. Please contact the administrator.';
 
 const buildTokenResponse = (row) => ({
   token: signToken({ id: row.id, role: row.role }),
-  user: {
-    id:           row.id,
-    _id:          row.id,
-    name:         row.name,
-    email:        row.email,
-    role:         row.role,
-    authProvider: row.auth_provider,
-  },
+  user: toAuthUser(row),
 });
 
 // POST /api/auth/login
@@ -85,4 +81,47 @@ const getMe = async (req, res) => {
   res.json({ user: req.user });
 };
 
-module.exports = { login, outlookLogin, getMe };
+// POST /api/auth/me/avatar — multipart field name: avatar (PNG/JPEG), stored under uploads/avatars
+const uploadMyAvatar = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Image file is required (field name: avatar).' });
+  }
+
+  try {
+    const publicPath = `/uploads/avatars/${req.file.filename}`;
+
+    const [prevRows] = await pool.query('SELECT avatar FROM users WHERE id = ?', [req.user.id]);
+    unlinkStoredAvatar(prevRows[0]?.avatar);
+
+    await pool.query('UPDATE users SET avatar = ? WHERE id = ?', [publicPath, req.user.id]);
+    const [rows] = await pool.query(
+      'SELECT id, name, email, role, is_active, auth_provider, department, avatar FROM users WHERE id = ?',
+      [req.user.id]
+    );
+    res.json({ user: toAuthUser(rows[0]) });
+  } catch (err) {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    console.error('uploadMyAvatar:', err.message);
+    res.status(500).json({ message: 'Could not save profile photo.' });
+  }
+};
+
+// DELETE /api/auth/me/avatar — remove file on disk if path stored
+const deleteMyAvatar = async (req, res) => {
+  try {
+    const [prevRows] = await pool.query('SELECT avatar FROM users WHERE id = ?', [req.user.id]);
+    unlinkStoredAvatar(prevRows[0]?.avatar);
+
+    await pool.query('UPDATE users SET avatar = NULL WHERE id = ?', [req.user.id]);
+    const [rows] = await pool.query(
+      'SELECT id, name, email, role, is_active, auth_provider, department, avatar FROM users WHERE id = ?',
+      [req.user.id]
+    );
+    res.json({ user: toAuthUser(rows[0]) });
+  } catch (err) {
+    console.error('deleteMyAvatar:', err.message);
+    res.status(500).json({ message: 'Could not remove profile photo.' });
+  }
+};
+
+module.exports = { login, outlookLogin, getMe, uploadMyAvatar, deleteMyAvatar };

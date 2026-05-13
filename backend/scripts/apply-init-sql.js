@@ -7,6 +7,8 @@
  *
  * Idempotent on an existing DB (CREATE TABLE IF NOT EXISTS): safe to re-run after pull
  * to add new tables (e.g. pp_*) without wiping data.
+ * After init.sql, ensures users.department / users.avatar exist (idempotent ADD COLUMN;
+ * duplicate-column errors ignored for older DBs and re-runs).
  *
  * For ongoing form DDL, use Prisma from this directory:
  *   npm run db:migrate:dev
@@ -44,6 +46,23 @@ function connectionOptionsNoDatabase(databaseUrl) {
   };
 }
 
+/** CREATE TABLE IF NOT EXISTS does not add columns; ADD COLUMN on re-run errors if present — ignore 1060. */
+async function ensureUserProfileColumns(conn) {
+  const alters = [
+    'ALTER TABLE `users` ADD COLUMN `department` VARCHAR(255) DEFAULT NULL',
+    'ALTER TABLE `users` ADD COLUMN `avatar` MEDIUMTEXT DEFAULT NULL',
+  ];
+  await conn.query('USE `gsmadb`');
+  for (const sql of alters) {
+    try {
+      await conn.query(sql);
+    } catch (err) {
+      if (err.errno === 1060 || err.code === 'ER_DUP_FIELDNAME') continue;
+      throw err;
+    }
+  }
+}
+
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -63,6 +82,7 @@ async function main() {
   try {
     conn = await mysql.createConnection(connectionOptionsNoDatabase(databaseUrl));
     await conn.query(sql);
+    await ensureUserProfileColumns(conn);
     console.log('Done — schema applied (init.sql: gsmadb + forms + mh_* + pp_* + …).');
     console.log('Ensure DATABASE_URL database name matches gsmadb or change init.sql USE line.');
   } catch (err) {

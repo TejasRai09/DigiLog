@@ -1,5 +1,6 @@
 const { verifyToken } = require('../utils/jwt');
 const { pool }        = require('../config/mysql');
+const { toAuthUser }  = require('../utils/userPublic');
 
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -13,7 +14,7 @@ const authenticate = async (req, res, next) => {
     const decoded = verifyToken(token);
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, role, is_active, auth_provider
+      `SELECT id, name, email, role, is_active, auth_provider, department, avatar
        FROM users WHERE id = ?`,
       [decoded.id]
     );
@@ -22,15 +23,7 @@ const authenticate = async (req, res, next) => {
     if (!row)          return res.status(401).json({ message: 'User not found.' });
     if (!row.is_active) return res.status(403).json({ message: 'Account is deactivated.' });
 
-    req.user = {
-      id:           row.id,
-      _id:          row.id,
-      name:         row.name,
-      email:        row.email,
-      role:         row.role,
-      isActive:     !!row.is_active,
-      authProvider: row.auth_provider,
-    };
+    req.user = toAuthUser(row);
 
     next();
   } catch {
