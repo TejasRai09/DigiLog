@@ -21,6 +21,9 @@ coverage/
 # Prisma generated client output (if redirected here)
 /generated/prisma/
 
+# Runtime uploads (avatars — served at /uploads)
+uploads/
+
 # Editor
 .idea/
 *.swp

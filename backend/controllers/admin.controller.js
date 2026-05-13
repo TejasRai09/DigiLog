@@ -9,6 +9,7 @@ const mapUser = (r) => ({
   id:           r.id,
   name:         r.name,
   email:        r.email,
+  department:   r.department != null && r.department !== '' ? r.department : null,
   role:         r.role,
   isActive:     !!r.is_active,
   authProvider: r.auth_provider,
@@ -45,7 +46,7 @@ const getUsers = async (_req, res) => {
 
 // POST /api/admin/users
 const createUser = async (req, res) => {
-  const { name, email, role } = req.body;
+  const { name, email, role, department } = req.body;
 
   if (!name || !email)
     return res.status(400).json({ message: 'Name and email are required.' });
@@ -56,16 +57,25 @@ const createUser = async (req, res) => {
 
   const tempPassword = crypto.randomBytes(6).toString('hex');
   const hashed       = await bcrypt.hash(tempPassword, 12);
+  const dept         = department != null && String(department).trim() !== '' ? String(department).trim() : null;
 
   const [result] = await pool.query(
-    `INSERT INTO users (name, email, password, role, auth_provider, is_active, mail_sent)
-     VALUES (?, ?, ?, ?, 'local', 1, 0)`,
-    [name, email.toLowerCase(), hashed, role || 'employee']
+    `INSERT INTO users (name, department, email, password, role, auth_provider, is_active, mail_sent)
+     VALUES (?, ?, ?, ?, ?, 'local', 1, 0)`,
+    [name, dept, email.toLowerCase(), hashed, role || 'employee']
   );
 
   res.status(201).json({
     message: 'User created. Use "Send Mail" to send login credentials.',
-    user: { _id: result.insertId, id: result.insertId, name, email: email.toLowerCase(), role: role || 'employee', mailSent: false },
+    user: {
+      _id: result.insertId,
+      id: result.insertId,
+      name,
+      email: email.toLowerCase(),
+      department: dept,
+      role: role || 'employee',
+      mailSent: false,
+    },
   });
 };
 
@@ -120,11 +130,16 @@ const sendMailBulk = async (req, res) => {
 
 // PUT /api/admin/users/:id
 const updateUser = async (req, res) => {
-  const { name, role, isActive } = req.body;
+  const { name, role, isActive, department } = req.body;
   const fields = [];
   const vals   = [];
 
   if (name      !== undefined) { fields.push('name = ?');      vals.push(name); }
+  if (department !== undefined) {
+    const dept = department != null && String(department).trim() !== '' ? String(department).trim() : null;
+    fields.push('department = ?');
+    vals.push(dept);
+  }
   if (role      !== undefined) { fields.push('role = ?');      vals.push(role); }
   if (isActive  !== undefined) { fields.push('is_active = ?'); vals.push(isActive ? 1 : 0); }
 
