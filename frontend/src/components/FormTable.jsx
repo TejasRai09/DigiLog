@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
+import { isHubFormKey, hubFormPath } from '../config/hubFormRoutes';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -238,46 +239,52 @@ const FormTable = ({ forms }) => {
                 <td className="td">
                   <div className="flex items-center justify-center gap-2">
 
-                    {/* Open Form */}
+                    {/* Open form or hub module (equipment / EHS) */}
                     <button
-                      onClick={() => navigate(`/forms/${form.formKey}`)}
+                      onClick={() =>
+                        isHubFormKey(form.formKey)
+                          ? navigate(hubFormPath(form.formKey))
+                          : navigate(`/forms/${form.formKey}`)
+                      }
                       className="btn-primary py-1.5 text-xs"
                     >
                       <MdOpenInNew className="h-3.5 w-3.5" />
-                      Open Form
+                      {isHubFormKey(form.formKey) ? 'Open' : 'Open Form'}
                     </button>
 
-                    {/* View Data */}
-                    <button
-                      onClick={() => setViewing(form)}
-                      className="btn-secondary py-1.5 text-xs"
-                    >
-                      <MdTableChart className="h-3.5 w-3.5" />
-                      View Data
-                    </button>
+                    {!isHubFormKey(form.formKey) && (
+                      <>
+                        <button
+                          onClick={() => setViewing(form)}
+                          className="btn-secondary py-1.5 text-xs"
+                        >
+                          <MdTableChart className="h-3.5 w-3.5" />
+                          View Data
+                        </button>
 
-                    {/* Download CSV */}
-                    <button
-                      onClick={async () => {
-                        const tid = toast.loading('Preparing CSV…');
-                        try {
-                          const { data } = await api.get(
-                            `/forms/${form.formKey}/records?page=1&limit=10000`
-                          );
-                          const cols = getDisplayColumns(form.formKey, data.records?.[0] ?? null);
-                          downloadCSV(`${form.formKey}.csv`, data.records, cols);
-                          toast.success('Downloaded!', { id: tid });
-                        } catch {
-                          toast.error('Download failed.', { id: tid });
-                        }
-                      }}
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5
-                                 bg-green-600 text-white text-xs font-medium rounded-lg
-                                 hover:bg-green-700 transition-colors"
-                    >
-                      <MdDownload className="h-3.5 w-3.5" />
-                      CSV
-                    </button>
+                        <button
+                          onClick={async () => {
+                            const tid = toast.loading('Preparing CSV…');
+                            try {
+                              const { data } = await api.get(
+                                `/forms/${form.formKey}/records?page=1&limit=10000`
+                              );
+                              const cols = getDisplayColumns(form.formKey, data.records?.[0] ?? null);
+                              downloadCSV(`${form.formKey}.csv`, data.records, cols);
+                              toast.success('Downloaded!', { id: tid });
+                            } catch {
+                              toast.error('Download failed.', { id: tid });
+                            }
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5
+                                     bg-green-600 text-white text-xs font-medium rounded-lg
+                                     hover:bg-green-700 transition-colors"
+                        >
+                          <MdDownload className="h-3.5 w-3.5" />
+                          CSV
+                        </button>
+                      </>
+                    )}
 
                   </div>
                 </td>
