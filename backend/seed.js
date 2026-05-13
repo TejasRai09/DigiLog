@@ -1,8 +1,8 @@
 /**
  * Seed MySQL with:
  *  - 1 admin user  (admin@gsma.com / Admin@123)
- *  - 4 apps
- *  - 14 forms
+ *  - 7 apps (incl. Mill House / Power / EHS hub modules for employee mapping)
+ *  - 17 forms
  *
  * Run: node seed.js
  */
@@ -42,6 +42,27 @@ const appDefs = [
     color:       '#0D9488',
     sort_order:  4,
   },
+  {
+    name:        'Mill House Equipment History',
+    description: 'Equipment life history cards — specs, OEM schedule and maintenance history',
+    icon:        'MdPrecisionManufacturing',
+    color:       '#7C3AED',
+    sort_order:  5,
+  },
+  {
+    name:        'Power Plant Equipment History',
+    description: 'Electrical, Instrument and control valve history cards for the 30MW power plant',
+    icon:        'MdFlashOn',
+    color:       '#D97706',
+    sort_order:  6,
+  },
+  {
+    name:        'EHS — Environment Health & Safety',
+    description: 'Incident reports, accident register and water dashboard',
+    icon:        'MdSecurity',
+    color:       '#16A34A',
+    sort_order:  7,
+  },
 ];
 
 const formDefs = [
@@ -66,6 +87,11 @@ const formDefs = [
 
   // App 4 – Distillery
   { name: 'GSMA Distillery Operations Form', description: 'Daily operations tracking form for Distillery at GSMA', formKey: 'distillery_ops', app: 'GSMA Distillery Operations', sort_order: 1 },
+
+  // Hub modules (DigiLog routes — not submit-style forms; form_key opens /equipment, /power, /ehs)
+  { name: 'Mill House equipment', description: 'Open equipment life history cards', formKey: 'digilog_hub_mill_equipment', app: 'Mill House Equipment History', sort_order: 1 },
+  { name: 'Power Plant equipment', description: 'Open power plant equipment history cards', formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History', sort_order: 1 },
+  { name: 'EHS home', description: 'Open EHS forms and dashboards', formKey: 'digilog_hub_ehs', app: 'EHS — Environment Health & Safety', sort_order: 1 },
 ];
 
 // ─── Seed ─────────────────────────────────────────────────────

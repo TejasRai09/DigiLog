@@ -1,10 +1,15 @@
 import { useNavigate } from 'react-router-dom';
-import { MdElectricBolt, MdApps, MdChevronRight, MdLocalBar } from 'react-icons/md';
+import { MdElectricBolt, MdApps, MdChevronRight, MdLocalBar, MdPrecisionManufacturing, MdScience, MdPower, MdFlashOn, MdSecurity } from 'react-icons/md';
 
 const ICON_MAP = {
   MdElectricBolt,
   MdApps,
   MdLocalBar,
+  MdPrecisionManufacturing,
+  MdScience,
+  MdPower,
+  MdFlashOn,
+  MdSecurity,
 };
 
 const AppCard = ({ app }) => {
