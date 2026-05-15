@@ -565,6 +565,8 @@ model DistilleryOperations {
   rec_al                    Float?
   trs_qty                   Float?
   ufs_qty                   Float?
+  fsPct                     Float?    @map("FS%")
+  total_mol_in_store_qtls   Float?
   timestamp                 DateTime? @default(now()) @db.Timestamp(0)
 
   @@ignore

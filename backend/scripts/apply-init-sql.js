@@ -7,7 +7,8 @@
  *
  * Idempotent on an existing DB (CREATE TABLE IF NOT EXISTS): safe to re-run after pull
  * to add new tables (e.g. pp_*) without wiping data.
- * After init.sql, ensures users.department / users.avatar exist (idempotent ADD COLUMN;
+ * After init.sql, ensures users.department / users.avatar and distillery_operations
+ * generated columns `FS%`, total_mol_in_store_qtls exist (idempotent ADD COLUMN;
  * duplicate-column errors ignored for older DBs and re-runs).
  *
  * For ongoing form DDL, use Prisma from this directory:
@@ -47,6 +48,45 @@ function connectionOptionsNoDatabase(databaseUrl) {
 }
 
 /** CREATE TABLE IF NOT EXISTS does not add columns; ADD COLUMN on re-run errors if present — ignore 1060. */
+async function ensureDistilleryOperationsCalcColumns(conn) {
+  const fsExpr =
+    'DOUBLE AS (IF(`trs` IS NOT NULL AND `trs` <> 0 AND `fs` IS NOT NULL, `fs` / `trs`, NULL)) STORED';
+  const molExpr =
+    'DOUBLE AS (IF(`total_bh_molasses_qtls` IS NULL AND `total_ch_molasses_qtls` IS NULL, NULL, COALESCE(`total_bh_molasses_qtls`, 0) + COALESCE(`total_ch_molasses_qtls`, 0))) STORED';
+
+  await conn.query('USE `gsmadb`');
+
+  try {
+    await conn.query(
+      `ALTER TABLE \`distillery_operations\` CHANGE COLUMN \`fs_pct\` \`FS%\` ${fsExpr}`,
+    );
+  } catch (err) {
+    if (err.errno !== 1054 && err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+  }
+
+  try {
+    await conn.query(
+      `ALTER TABLE \`distillery_operations\` CHANGE COLUMN \`fs%\` \`FS%\` ${fsExpr}`,
+    );
+  } catch (err) {
+    if (err.errno !== 1054 && err.code !== 'ER_BAD_FIELD_ERROR') throw err;
+  }
+
+  const alters = [
+    `ALTER TABLE \`distillery_operations\` ADD COLUMN \`FS%\` ${fsExpr}`,
+    `ALTER TABLE \`distillery_operations\` ADD COLUMN \`total_mol_in_store_qtls\` ${molExpr}`,
+  ];
+  for (const sql of alters) {
+    try {
+      await conn.query(sql);
+    } catch (err) {
+      if (err.errno === 1060 || err.code === 'ER_DUP_FIELDNAME') continue;
+      throw err;
+    }
+  }
+}
+
+/** CREATE TABLE IF NOT EXISTS does not add columns; ADD COLUMN on re-run errors if present — ignore 1060. */
 async function ensureUserProfileColumns(conn) {
   const alters = [
     'ALTER TABLE `users` ADD COLUMN `department` VARCHAR(255) DEFAULT NULL',
@@ -82,6 +122,7 @@ async function main() {
   try {
     conn = await mysql.createConnection(connectionOptionsNoDatabase(databaseUrl));
     await conn.query(sql);
+    await ensureDistilleryOperationsCalcColumns(conn);
     await ensureUserProfileColumns(conn);
     console.log('Done — schema applied (init.sql: gsmadb + forms + mh_* + pp_* + …).');
     console.log('Ensure DATABASE_URL database name matches gsmadb or change init.sql USE line.');

@@ -3,24 +3,35 @@ import { MdClose, MdSave } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../Spinner';
+import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
 
 /**
  * Map one employee to an app + multiselect forms (app must be chosen first).
  * `mappings` should list current rows for all users (from GET /admin/mappings).
+ *
+ * @param {'forms' | 'dashboards'} variant — `dashboards` limits to BI Control Tower only (separate admin action).
  */
-const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
+const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 'forms' }) => {
   const [appsWithForms, setAppsWithForms] = useState([]);
   const [loadingApps, setLoadingApps] = useState(true);
   const [appId, setAppId] = useState('');
   const [formIds, setFormIds] = useState([]);
   const [saving, setSaving] = useState(false);
 
+  const isDashboardVariant = variant === 'dashboards';
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const { data } = await api.get('/admin/apps-all');
-        if (!cancelled) setAppsWithForms(data);
+        if (!cancelled) {
+          const raw = Array.isArray(data) ? data : [];
+          const filtered = isDashboardVariant
+            ? raw.filter((a) => a.name === BI_CONTROL_TOWER_APP_NAME)
+            : raw.filter((a) => a.name !== BI_CONTROL_TOWER_APP_NAME);
+          setAppsWithForms(filtered);
+        }
       } catch {
         toast.error('Failed to load applications.');
       } finally {
@@ -30,7 +41,13 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isDashboardVariant]);
+
+  useEffect(() => {
+    if (!isDashboardVariant || appsWithForms.length !== 1) return;
+    const onlyId = String(appsWithForms[0]._id);
+    setAppId((prev) => (prev === onlyId ? prev : onlyId));
+  }, [isDashboardVariant, appsWithForms]);
 
   const userMappings = useMemo(
     () => mappings.filter((m) => String(m.user?._id) === String(user._id)),
@@ -55,13 +72,13 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
 
   const handleSave = async () => {
     if (!appId) {
-      toast.error('Select an application first.');
+      toast.error(isDashboardVariant ? 'BI Control Tower is not available.' : 'Select an application first.');
       return;
     }
     setSaving(true);
     try {
       await api.post('/admin/mappings', { userId: user._id, appId, formIds });
-      toast.success('Form mapping saved.');
+      toast.success(isDashboardVariant ? 'Dashboard mapping saved.' : 'Form mapping saved.');
       onSaved();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save mapping.');
@@ -75,10 +92,18 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
       <div className="card w-full max-w-lg shadow-xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">Form mapping</h2>
+            <h2 className="text-base font-semibold text-gray-900">
+              {isDashboardVariant ? 'Dashboard mapping' : 'Form mapping'}
+            </h2>
             <p className="text-xs text-gray-500 mt-0.5">
               {user.name} <span className="text-gray-400">({user.email})</span>
             </p>
+            {isDashboardVariant && (
+              <p className="text-xs text-violet-700/90 mt-2 leading-snug">
+                Assign access to BI Control Tower dashboards only. Use <strong>Form mapping</strong> for
+                operational logbooks and other apps.
+              </p>
+            )}
           </div>
           <button type="button" onClick={onClose} className="p-1 rounded hover:bg-gray-100 text-gray-400" aria-label="Close">
             <MdClose className="h-5 w-5" />
@@ -92,28 +117,39 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
             </div>
           ) : (
             <>
-              <div>
-                <label className="label">1. Application</label>
-                <select
-                  value={appId}
-                  onChange={(e) => setAppId(e.target.value)}
-                  className="input"
-                >
-                  <option value="">— Select application —</option>
-                  {appsWithForms.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!isDashboardVariant && (
+                <div>
+                  <label className="label">1. Application</label>
+                  <select
+                    value={appId}
+                    onChange={(e) => setAppId(e.target.value)}
+                    className="input"
+                  >
+                    <option value="">— Select application —</option>
+                    {appsWithForms.map((a) => (
+                      <option key={a._id} value={a._id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {isDashboardVariant && appsWithForms.length === 0 && !loadingApps && (
+                <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  The <strong>{BI_CONTROL_TOWER_APP_NAME}</strong> app is not in the catalog. Run seed or apply the BI
+                  migration, then refresh.
+                </p>
+              )}
 
               {selectedApp ? (
                 <div>
                   <label className="label">
-                    2. Forms
+                    {isDashboardVariant ? '1. Dashboards' : '2. Forms'}
                     <span className="ml-1 font-normal text-gray-400">
-                      (multiselect; leave all unchecked for access to every form in this app)
+                      {isDashboardVariant
+                        ? '(multiselect; leave all unchecked for every dashboard in BI Control Tower)'
+                        : '(multiselect; leave all unchecked for access to every form in this app)'}
                     </span>
                   </label>
                   <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-60 overflow-y-auto">
@@ -144,9 +180,9 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
                     )}
                   </div>
                 </div>
-              ) : (
+              ) : !isDashboardVariant ? (
                 <p className="text-sm text-gray-400">Choose an application to see its forms.</p>
-              )}
+              ) : null}
             </>
           )}
         </div>
@@ -158,11 +194,11 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved }) => {
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !appId || loadingApps}
+            disabled={saving || !appId || loadingApps || (isDashboardVariant && appsWithForms.length === 0)}
             className="btn-primary"
           >
             {saving ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            {saving ? 'Saving…' : 'Save mapping'}
+            {saving ? 'Saving…' : isDashboardVariant ? 'Save dashboard mapping' : 'Save mapping'}
           </button>
         </div>
       </div>

@@ -5,12 +5,13 @@ import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
-import { computeDistilleryDerived } from '../../../utils/distilleryCalculations';
+import { computeDistilleryDerived, formatDistilleryDerivedNumber } from '../../../utils/distilleryCalculations';
 
 const OPERATION_MODES = ['Syrup', 'B Heavy', 'C Heavy', 'None'];
 
 const DERIVED_ROWS = [
   { key: 'fs', label: 'FS' },
+  { key: 'FS%', label: 'FS%' },
   { key: 'fs_quantity', label: 'FS Quantity' },
   { key: 'theoretical_yield', label: 'Theoretical yield' },
   { key: 'alcohol_prod_fermentation', label: 'Alcohol prod in fermentation' },
@@ -22,22 +23,8 @@ const DERIVED_ROWS = [
   { key: 'rec_al', label: 'REC AL' },
   { key: 'trs_qty', label: 'TRS QTY' },
   { key: 'ufs_qty', label: 'UFS QTY' },
+  { key: 'total_mol_in_store_qtls', label: 'Total mol in store (Qtls)' },
 ];
-
-/** If abs(v) is below 1 (0 before the decimal), up to 6 fractional digits (trimmed); else 2 decimals. */
-function formatDerived(v) {
-  if (v === null || v === undefined) return '';
-  if (typeof v !== 'number' || !Number.isFinite(v)) return '';
-
-  const av = Math.abs(v);
-  if (av === 0) return '0';
-
-  if (av < 1) {
-    return String(Number.parseFloat(Number(v.toFixed(6))));
-  }
-
-  return v.toFixed(2);
-}
 
 const INITIAL = {
   date: '',
@@ -208,7 +195,7 @@ const DistilleryOperations = () => {
                 <input
                   type="text"
                   readOnly
-                  value={formatDerived(derived[key])}
+                  value={formatDistilleryDerivedNumber(derived[key])}
                   className="input bg-gray-50 text-gray-800 cursor-default"
                   tabIndex={-1}
                   aria-readonly="true"

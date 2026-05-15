@@ -9,6 +9,11 @@ const { pool } = require('../config/mysql');
 //   E  →  Date, Time                 (power logbooks)
 //   G  →  Date only                  (daily snapshot forms)
 
+// Columns MySQL computes (GENERATED … STORED); must not appear in INSERT payload
+const GENERATED_INSERT_EXCLUDE = {
+  distillery_ops: new Set(['FS%', 'total_mol_in_store_qtls']),
+};
+
 // tsCol = tie-breaker column when multiple rows share the same operation Date (usually inserted-at timestamp)
 const FORM_CONFIG = {
   // App 1 – Mill Logbook
@@ -125,6 +130,11 @@ const submitForm = async (req, res) => {
   const payload = sanitisePayload(req.body);
   injectDateCols(payload, config.pattern, req.body);
 
+  const skipGenerated = GENERATED_INSERT_EXCLUDE[formKey];
+  if (skipGenerated) {
+    for (const k of skipGenerated) delete payload[k];
+  }
+
   const columns      = Object.keys(payload).map((c) => `\`${c}\``).join(', ');
   const placeholders = Object.keys(payload).map(() => '?').join(', ');
   const values       = Object.values(payload);
@@ -170,4 +180,4 @@ const getRecords = async (req, res) => {
   }
 };
 
-module.exports = { submitForm, getRecords };
+module.exports = { submitForm, getRecords, canAccessForm };

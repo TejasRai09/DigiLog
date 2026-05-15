@@ -9,6 +9,7 @@ import api from '../api/axios';
 import Spinner from './Spinner';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
 import { isHubFormKey, hubFormPath } from '../config/hubFormRoutes';
+import { isBiDashboardFormKey, biDashboardPath } from '../config/biDashboardRoutes';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -18,12 +19,12 @@ const escapeCsvCell = (v) => {
     : s;
 };
 
-const downloadCSV = (filename, rows, columns) => {
+const downloadCSV = (filename, rows, columns, formKey = null) => {
   if (!rows.length) { toast.error('No data to download.'); return; }
   const headerLine = columns.map(headerLabel).map(escapeCsvCell).join(',');
   const dataLines = rows.map((row) =>
     columns.map(({ dbKey }) =>
-      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey])),
+      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey], formKey)),
     ).join(','),
   );
   const csv = [headerLine, ...dataLines].join('\r\n');
@@ -87,7 +88,7 @@ const ViewDataModal = ({ form, onClose }) => {
                     `/forms/${form.formKey}/records?page=1&limit=10000`
                   );
                   const cols = getDisplayColumns(form.formKey, res.records?.[0] ?? null);
-                  downloadCSV(`${form.formKey}.csv`, res.records, cols);
+                  downloadCSV(`${form.formKey}.csv`, res.records, cols, form.formKey);
                   toast.success('Downloaded!', { id: 'csv' });
                 } catch {
                   toast.error('Download failed.', { id: 'csv' });
@@ -146,7 +147,7 @@ const ViewDataModal = ({ form, onClose }) => {
                         {row[col.dbKey] === null || row[col.dbKey] === undefined ? (
                           <span className="text-gray-300">—</span>
                         ) : (
-                          formatRecordCellForDisplay(col.dbKey, row[col.dbKey])
+                          formatRecordCellForDisplay(col.dbKey, row[col.dbKey], form.formKey)
                         )}
                       </td>
                     ))}
@@ -206,14 +207,18 @@ const ViewDataModal = ({ form, onClose }) => {
 };
 
 // ─── Main FormTable ───────────────────────────────────────────
-const FormTable = ({ forms }) => {
+const FormTable = ({
+  forms,
+  nameColumnHeader = 'Form Name',
+  emptyMessage = 'No forms are assigned to you for this app.',
+}) => {
   const navigate            = useNavigate();
   const [viewing, setViewing] = useState(null); // form object being viewed
 
   if (!forms || forms.length === 0) {
     return (
       <div className="text-center py-16 text-gray-500 text-sm">
-        No forms are assigned to you for this app.
+        {emptyMessage}
       </div>
     );
   }
@@ -225,7 +230,7 @@ const FormTable = ({ forms }) => {
           <thead>
             <tr>
               <th className="th">#</th>
-              <th className="th">Form Name</th>
+              <th className="th">{nameColumnHeader}</th>
               <th className="th">Description</th>
               <th className="th text-center">Actions</th>
             </tr>
@@ -241,18 +246,27 @@ const FormTable = ({ forms }) => {
 
                     {/* Open form or hub module (equipment / EHS) */}
                     <button
-                      onClick={() =>
-                        isHubFormKey(form.formKey)
-                          ? navigate(hubFormPath(form.formKey))
-                          : navigate(`/forms/${form.formKey}`)
-                      }
+                      onClick={() => {
+                        if (isBiDashboardFormKey(form.formKey)) {
+                          const path = biDashboardPath(form.formKey);
+                          if (path) navigate(path);
+                          return;
+                        }
+                        if (isHubFormKey(form.formKey)) {
+                          navigate(hubFormPath(form.formKey));
+                          return;
+                        }
+                        navigate(`/forms/${form.formKey}`);
+                      }}
                       className="btn-primary py-1.5 text-xs"
                     >
                       <MdOpenInNew className="h-3.5 w-3.5" />
-                      {isHubFormKey(form.formKey) ? 'Open' : 'Open Form'}
+                      {isHubFormKey(form.formKey) || isBiDashboardFormKey(form.formKey)
+                        ? 'Open'
+                        : 'Open Form'}
                     </button>
 
-                    {!isHubFormKey(form.formKey) && (
+                    {!isHubFormKey(form.formKey) && !isBiDashboardFormKey(form.formKey) && (
                       <>
                         <button
                           onClick={() => setViewing(form)}
@@ -270,7 +284,7 @@ const FormTable = ({ forms }) => {
                                 `/forms/${form.formKey}/records?page=1&limit=10000`
                               );
                               const cols = getDisplayColumns(form.formKey, data.records?.[0] ?? null);
-                              downloadCSV(`${form.formKey}.csv`, data.records, cols);
+                              downloadCSV(`${form.formKey}.csv`, data.records, cols, form.formKey);
                               toast.success('Downloaded!', { id: tid });
                             } catch {
                               toast.error('Download failed.', { id: tid });

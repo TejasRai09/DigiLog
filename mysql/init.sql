@@ -7,7 +7,8 @@
 --    npm run db:migrate:dev        (dev)
 --    npm run db:migrate:deploy     (CI/prod)
 --  Users `department` / `avatar`: included in CREATE below. OLD DBs missing them: run
---  `cd DigiLog/backend && npm run db:schema` (script adds columns idempotently).
+--  `cd DigiLog/backend && npm run db:schema` (script adds columns idempotently: users profile,
+--  distillery_operations `FS%` / total_mol_in_store_qtls if missing).
 --  Prisma: migration 20260512140000_users_department_avatar; if columns already exist from
 --  init/db:schema, use `prisma migrate resolve --applied 20260512140000_users_department_avatar` once.
 --  If you created the DB with this file first, sync migration history:
@@ -658,6 +659,10 @@ CREATE TABLE IF NOT EXISTS `distillery_operations` (
   `rec_al`                    DOUBLE       NULL DEFAULT NULL,
   `trs_qty`                   DOUBLE       NULL DEFAULT NULL,
   `ufs_qty`                   DOUBLE       NULL DEFAULT NULL,
+  /* FS% = fs / trs; null when trs is 0 or operands missing */
+  `FS%`                       DOUBLE       AS (IF(`trs` IS NOT NULL AND `trs` <> 0 AND `fs` IS NOT NULL, `fs` / `trs`, NULL)) STORED,
+  /* Total molasses in store (Qtls) = BH + CH; null when both inputs null */
+  `total_mol_in_store_qtls`   DOUBLE       AS (IF(`total_bh_molasses_qtls` IS NULL AND `total_ch_molasses_qtls` IS NULL, NULL, COALESCE(`total_bh_molasses_qtls`, 0) + COALESCE(`total_ch_molasses_qtls`, 0))) STORED,
   `timestamp`                 TIMESTAMP    NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
