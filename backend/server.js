@@ -12,6 +12,7 @@ const appRoutes       = require('./routes/app.routes');
 const formRoutes      = require('./routes/form.routes');
 const equipmentRoutes = require('./routes/equipment.routes');
 const powerRoutes     = require('./routes/power.routes');
+const biRoutes        = require('./routes/bi.routes');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/apps',       appRoutes);
 app.use('/api/forms',      formRoutes);
 app.use('/api/equipment',  equipmentRoutes);
 app.use('/api/power',      powerRoutes);
+app.use('/api/bi',        biRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

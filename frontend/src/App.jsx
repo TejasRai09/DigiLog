@@ -7,7 +7,10 @@ import Navbar         from './components/Navbar';
 
 import Login              from './pages/Login';
 import AdminLogin         from './pages/admin/AdminLogin';
+import HomeLanding        from './pages/HomeLanding';
 import Dashboard          from './pages/Dashboard';
+import BiControlTower     from './pages/BiControlTower';
+import DistilleryAnalyticsDashboard from './pages/bi/DistilleryAnalyticsDashboard';
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
@@ -63,7 +66,10 @@ const App = () => {
 
         {/* Protected – any authenticated user */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/"             element={<Dashboard />} />
+          <Route path="/"             element={<HomeLanding />} />
+          <Route path="/forms-hub"     element={<Dashboard />} />
+          <Route path="/bi"                      element={<BiControlTower />} />
+          <Route path="/bi/distillery-operations" element={<DistilleryAnalyticsDashboard />} />
           <Route path="/apps/:appId"  element={<AppDetail />} />
 
           {/* Mill Logbook */}

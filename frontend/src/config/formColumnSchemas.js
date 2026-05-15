@@ -3,6 +3,8 @@
  * Order follows each form layout (not INSERT column order unless same).
  */
 
+import { formatDistilleryDerivedNumber } from '../utils/distilleryCalculations';
+
 const push = (arr, dbKey, heading, subheading) => {
   arr.push({ dbKey, heading, subheading });
 };
@@ -15,9 +17,35 @@ export function headerLabel({ heading, subheading }) {
 
 /**
  * VIEW DATA / CSV: show calendar dates as YYYY-MM-DD (not ISO midnight UTC strings).
+ * Distillery calculated numeric columns use a compact decimal format (see formatDistilleryDerivedNumber).
  */
-export function formatRecordCellForDisplay(dbKey, value) {
+export const DISTILLERY_CALCULATED_DB_KEYS = new Set([
+  'fs',
+  'FS%',
+  'fs_quantity',
+  'theoretical_yield',
+  'alcohol_prod_fermentation',
+  'fe',
+  'actual_prod_al',
+  'de',
+  'oe',
+  'rec_bl',
+  'rec_al',
+  'trs_qty',
+  'ufs_qty',
+  'total_mol_in_store_qtls',
+]);
+
+export function formatRecordCellForDisplay(dbKey, value, formKey = null) {
   if (value === null || value === undefined) return '';
+  if (
+    formKey === 'distillery_ops' &&
+    DISTILLERY_CALCULATED_DB_KEYS.has(dbKey) &&
+    (typeof value === 'number' ||
+      (typeof value === 'string' && value !== '' && Number.isFinite(Number(value))))
+  ) {
+    return formatDistilleryDerivedNumber(value);
+  }
   const s = typeof value === 'string' ? value : String(value);
   /* MySQL DATE often arrives as ISO instant from APIs / older responses */
   if (dbKey === 'Date') {
@@ -418,6 +446,7 @@ function schemaDistilleryOps() {
   push(a, 'total_ch_molasses_qtls', 'Storage', 'Total CH Molasses in Storage — Qtls');
   push(a, 'ethanol_storage_bl', 'Storage', 'Ethanol in Storage (BL)');
   push(a, 'fs', 'Calculated', 'FS');
+  push(a, 'FS%', 'Calculated', 'FS%');
   push(a, 'fs_quantity', 'Calculated', 'FS Quantity');
   push(a, 'theoretical_yield', 'Calculated', 'Theoretical yield');
   push(a, 'alcohol_prod_fermentation', 'Calculated', 'Alcohol prod in fermentation');
@@ -429,6 +458,7 @@ function schemaDistilleryOps() {
   push(a, 'rec_al', 'Calculated', 'REC AL');
   push(a, 'trs_qty', 'Calculated', 'TRS QTY');
   push(a, 'ufs_qty', 'Calculated', 'UFS QTY');
+  push(a, 'total_mol_in_store_qtls', 'Calculated', 'Total mol in store (Qtls)');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
 }

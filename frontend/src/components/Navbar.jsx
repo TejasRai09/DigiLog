@@ -16,11 +16,13 @@ const Navbar = () => {
   const { pathname } = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const navLink = (to, label, Icon) => (
+  const navLink = (to, label, Icon) => {
+    const active = pathname === to;
+    return (
     <Link
       to={to}
       className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-        pathname === to
+        active
           ? 'bg-blue-50 text-blue-700'
           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
       }`}
@@ -28,7 +30,8 @@ const Navbar = () => {
       <Icon className="h-4 w-4" />
       {label}
     </Link>
-  );
+    );
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
@@ -72,7 +75,7 @@ const Navbar = () => {
 
         {/* Center: main nav */}
         <nav className="hidden md:flex flex-1 justify-center items-center gap-1 min-w-0">
-          {navLink('/', 'Dashboard', MdHome)}
+          {navLink('/', 'Home', MdHome)}
           {user?.role === 'admin' && navLink('/admin/employees', 'Employees', MdPeople)}
         </nav>
         <div className="flex-1 min-w-0 md:hidden" aria-hidden />

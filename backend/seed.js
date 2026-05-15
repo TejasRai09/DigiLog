@@ -1,8 +1,8 @@
 /**
  * Seed MySQL with:
  *  - 1 admin user  (admin@gsma.com / Admin@123)
- *  - 7 apps (incl. Mill House / Power / EHS hub modules for employee mapping)
- *  - 17 forms
+ *  - 8 apps (incl. Mill House / Power / EHS hub modules and BI Control Tower for employee mapping)
+ *  - 18 forms
  *
  * Run: node seed.js
  */
@@ -63,6 +63,13 @@ const appDefs = [
     color:       '#16A34A',
     sort_order:  7,
   },
+  {
+    name:        'BI Control Tower',
+    description: 'Business intelligence dashboards (employee-mapped)',
+    icon:        'MdInsights',
+    color:       '#6366F1',
+    sort_order:  8,
+  },
 ];
 
 const formDefs = [
@@ -92,6 +99,15 @@ const formDefs = [
   { name: 'Mill House equipment', description: 'Open equipment life history cards', formKey: 'digilog_hub_mill_equipment', app: 'Mill House Equipment History', sort_order: 1 },
   { name: 'Power Plant equipment', description: 'Open power plant equipment history cards', formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History', sort_order: 1 },
   { name: 'EHS home', description: 'Open EHS forms and dashboards', formKey: 'digilog_hub_ehs', app: 'EHS — Environment Health & Safety', sort_order: 1 },
+
+  // BI dashboards (routes under /bi/…; mapped via forms like other apps)
+  {
+    name: 'Distillery Operations — Analytics',
+    description: 'KPIs, trends and daily log from distillery operations data',
+    formKey: 'bi_distillery_operations',
+    app: 'BI Control Tower',
+    sort_order: 1,
+  },
 ];
 
 // ─── Seed ─────────────────────────────────────────────────────

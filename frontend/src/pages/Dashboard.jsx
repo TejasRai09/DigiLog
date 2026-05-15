@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { MdApps, MdRefresh } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
+import { MdApps, MdRefresh, MdArrowBack } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useAuth from '../hooks/useAuth';
@@ -7,6 +8,7 @@ import AppCard from '../components/AppCard';
 import Spinner from '../components/Spinner';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,14 +31,24 @@ const Dashboard = () => {
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <button
+        type="button"
+        onClick={() => navigate('/')}
+        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+      >
+        <MdArrowBack className="h-4 w-4" />
+        Back to homepage
+      </button>
+
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="page-title">
-            Welcome back, {user?.name?.split(' ')[0]} 👋
-          </h1>
+          <h1 className="page-title">Forms Hub</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Select an application to get started
+            Centralized access to digital operational forms.
           </p>
+          {user?.name && (
+            <p className="mt-1 text-xs text-gray-400">Signed in as {user.name}</p>
+          )}
         </div>
         <button type="button" onClick={fetchApps} className="btn-secondary">
           <MdRefresh className="h-4 w-4" />

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import FormTable from '../components/FormTable';
 import Spinner from '../components/Spinner';
+import { BI_CONTROL_TOWER_APP_NAME } from '../config/biDashboardRoutes';
 
 const AppDetail = () => {
   const { appId } = useParams();
@@ -32,6 +33,9 @@ const AppDetail = () => {
   if (loading) return <div className="flex justify-center py-24"><Spinner size="lg" /></div>;
   if (!app)    return null;
 
+  const isBiControlTower = app.name === BI_CONTROL_TOWER_APP_NAME;
+  const n = app.forms?.length ?? 0;
+
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
@@ -40,7 +44,7 @@ const AppDetail = () => {
         className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
       >
         <MdArrowBack className="h-4 w-4" />
-        Back to Dashboard
+        Back to homepage
       </button>
 
       {/* App header */}
@@ -62,13 +66,24 @@ const AppDetail = () => {
       {/* Forms table */}
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-800">Available Forms</h2>
+          <h2 className="text-base font-semibold text-gray-800">
+            {isBiControlTower ? 'Available dashboards' : 'Available Forms'}
+          </h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            {app.forms?.length ?? 0} form{app.forms?.length !== 1 ? 's' : ''} available
+            {n} {isBiControlTower ? 'dashboard' : 'form'}
+            {n !== 1 ? 's' : ''} available
           </p>
         </div>
         <div className="p-0">
-          <FormTable forms={app.forms} />
+          <FormTable
+            forms={app.forms}
+            nameColumnHeader={isBiControlTower ? 'Dashboard name' : 'Form Name'}
+            emptyMessage={
+              isBiControlTower
+                ? 'No dashboards are assigned to you for this app.'
+                : 'No forms are assigned to you for this app.'
+            }
+          />
         </div>
       </div>
     </main>
