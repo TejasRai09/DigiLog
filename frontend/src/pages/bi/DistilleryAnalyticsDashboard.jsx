@@ -30,6 +30,59 @@ import {
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 
+/** Raw table columns — aligned with `mapRowToBiPoint` / `distillery_operations` (BI API). */
+const DISTILLERY_BI_RAW_COLUMNS = [
+  { key: 'dateFull', label: 'Date', kind: 'date' },
+  { key: 'operationModeRaw', label: 'Operation mode', kind: 'text' },
+  { key: 'mode', label: 'Mode class', kind: 'modeBadge' },
+  { key: 'syrupMolConsumed', label: 'Syrup / molasses (Q)', kind: 'num' },
+  { key: 'totalWash', label: 'Wash distilled', kind: 'num' },
+  { key: 'trs', label: 'TRS', kind: 'num' },
+  { key: 'ufs', label: 'UFS', kind: 'num' },
+  { key: 'alcohol', label: 'Alcohol %', kind: 'num' },
+  { key: 'totalProd', label: 'Actual ethanol (BL)', kind: 'num' },
+  { key: 'alBlRatioPct', label: 'Al / BL ratio %', kind: 'num' },
+  { key: 'recovery', label: 'Recovery %', kind: 'num' },
+  { key: 'totalBhMolassesQtls', label: 'Total BH molasses (Q)', kind: 'num' },
+  { key: 'totalChMolassesQtls', label: 'Total CH molasses (Q)', kind: 'num' },
+  { key: 'molInStore', label: 'Mol in store (Q)', kind: 'num' },
+  { key: 'ethInStore', label: 'Ethanol storage (BL)', kind: 'num' },
+  { key: 'fs', label: 'FS', kind: 'num' },
+  { key: 'fermSugar', label: 'Ferm. sugar (calc.)', kind: 'num' },
+  { key: 'feRaw', label: 'FE (stored)', kind: 'num' },
+  { key: 'deRaw', label: 'DE (stored)', kind: 'num' },
+  { key: 'fermEff', label: 'Ferm. eff %', kind: 'num' },
+  { key: 'distEff', label: 'Dist. eff %', kind: 'num' },
+  { key: 'recBl', label: 'Rec (BL)', kind: 'num' },
+  { key: 'bHeavyProd', label: 'B Heavy (BL, alloc.)', kind: 'num' },
+  { key: 'cHeavyProd', label: 'C Heavy (BL, alloc.)', kind: 'num' },
+  { key: 'syrupProd', label: 'Syrup (BL, alloc.)', kind: 'num' },
+  { key: 'recordedAt', label: 'Timestamp', kind: 'ts' },
+];
+
+function formatDistilleryRawScalar(kind, row, key) {
+  const v = row[key];
+  switch (kind) {
+    case 'date':
+      return row.dateFull ?? row.date ?? '';
+    case 'text':
+      return v !== undefined && v !== null && String(v) !== '' ? String(v) : '';
+    case 'num': {
+      if (v === undefined || v === null || Number.isNaN(Number(v))) return null;
+      return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    case 'ts':
+      if (!v) return '';
+      try {
+        return new Date(v).toLocaleString();
+      } catch {
+        return String(v);
+      }
+    default:
+      return '';
+  }
+}
+
 const InfoTooltip = ({ definition }) => (
   <div className="group relative z-10 ml-2 inline-flex cursor-help items-center">
     <MdInfoOutline className="h-3.5 w-3.5 text-slate-400 transition-colors hover:text-blue-500" />
@@ -1077,39 +1130,33 @@ export default function DistilleryAnalyticsDashboard() {
       ) : (
         <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm ${cardClasses}`}>
           <div
-            className={`flex items-center justify-between border-b p-4 ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
+            className={`flex items-center border-b p-4 ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
           >
             <h3 className={`text-sm font-bold ${textClasses.title}`}>
               Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({timeFilter} View)</span>
             </h3>
-            <button
-              type="button"
-              className={`rounded-lg border px-3 py-1.5 text-xs font-bold shadow-sm transition-colors ${
-                isDarkMode
-                  ? 'border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600'
-                  : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              Export CSV
-            </button>
           </div>
 
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left text-sm">
+          <div className="min-w-0 flex-1 overflow-auto">
+            <table className="w-max min-w-full text-left text-sm">
               <thead
-                className={`sticky top-0 z-10 border-b text-xs uppercase backdrop-blur-sm ${
+                className={`sticky top-0 z-10 border-b text-[10px] uppercase tracking-wide backdrop-blur-sm ${
                   isDarkMode
                     ? 'border-slate-700 bg-slate-900/90 text-slate-400'
                     : 'border-slate-200 bg-slate-100/90 text-slate-500'
                 }`}
               >
                 <tr>
-                  <th className="px-6 py-3 font-bold">Date</th>
-                  <th className="px-6 py-3 font-bold">Operation Mode</th>
-                  <th className="px-6 py-3 text-right font-bold">Ethanol Prod (BL)</th>
-                  <th className="px-6 py-3 text-right font-bold">Recovery %</th>
-                  <th className="px-6 py-3 text-right font-bold">Ferm. Eff %</th>
-                  <th className="px-6 py-3 text-right font-bold">Dist. Eff %</th>
+                  {DISTILLERY_BI_RAW_COLUMNS.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`whitespace-nowrap px-3 py-2.5 font-bold ${
+                        col.kind === 'num' ? 'text-right' : 'text-left'
+                      }`}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className={isDarkMode ? 'divide-y divide-slate-800' : 'divide-y divide-slate-100'}>
@@ -1118,49 +1165,59 @@ export default function DistilleryAnalyticsDashboard() {
                     key={idx}
                     className={isDarkMode ? 'transition-colors hover:bg-slate-800/50' : 'transition-colors hover:bg-slate-50'}
                   >
-                    <td className={`px-6 py-3 font-semibold ${textClasses.title}`}>
-                      {row.dateFull ?? row.date}
-                    </td>
-                    <td className="px-6 py-3">
-                      <span
-                        className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-bold tracking-wide ${
-                          row.mode === 'B Heavy'
-                            ? isDarkMode
-                              ? 'bg-blue-500/20 text-blue-400'
-                              : 'bg-blue-100 text-blue-800'
-                            : row.mode === 'C Heavy'
-                              ? isDarkMode
-                                ? 'bg-emerald-500/20 text-emerald-400'
-                                : 'bg-emerald-100 text-emerald-800'
-                              : row.mode === 'Syrup'
-                                ? isDarkMode
-                                  ? 'bg-indigo-500/20 text-indigo-400'
-                                  : 'bg-indigo-100 text-indigo-800'
-                                : isDarkMode
-                                  ? 'bg-purple-500/20 text-purple-400'
-                                  : 'bg-purple-100 text-purple-800'
-                        }`}
-                      >
-                        {row.mode}
-                      </span>
-                    </td>
-                    <td className={`px-6 py-3 text-right font-mono font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {row.totalProd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                    </td>
-                    <td className={`px-6 py-3 text-right font-mono font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {row.recovery.toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-3 text-right font-mono font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {row.fermEff.toFixed(2)}
-                    </td>
-                    <td className={`px-6 py-3 text-right font-mono font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {row.distEff.toFixed(2)}
-                    </td>
+                    {DISTILLERY_BI_RAW_COLUMNS.map((col) => {
+                      if (col.kind === 'modeBadge') {
+                        return (
+                          <td key={col.key} className="px-3 py-2">
+                            <span
+                              className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-bold tracking-wide ${
+                                row.mode === 'B Heavy'
+                                  ? isDarkMode
+                                    ? 'bg-blue-500/20 text-blue-400'
+                                    : 'bg-blue-100 text-blue-800'
+                                  : row.mode === 'C Heavy'
+                                    ? isDarkMode
+                                      ? 'bg-emerald-500/20 text-emerald-400'
+                                      : 'bg-emerald-100 text-emerald-800'
+                                    : row.mode === 'Syrup'
+                                      ? isDarkMode
+                                        ? 'bg-indigo-500/20 text-indigo-400'
+                                        : 'bg-indigo-100 text-indigo-800'
+                                      : isDarkMode
+                                        ? 'bg-purple-500/20 text-purple-400'
+                                        : 'bg-purple-100 text-purple-800'
+                              }`}
+                            >
+                              {row.mode}
+                            </span>
+                          </td>
+                        );
+                      }
+                      const raw = formatDistilleryRawScalar(col.kind, row, col.key);
+                      const display =
+                        raw === null || raw === '' ? '—' : raw;
+                      const isNum = col.kind === 'num';
+                      return (
+                        <td
+                          key={col.key}
+                          className={`whitespace-nowrap px-3 py-2 ${
+                            isNum ? 'text-right font-mono' : 'font-medium'
+                          } ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} ${
+                            col.kind === 'date' ? textClasses.title : ''
+                          }`}
+                        >
+                          {display}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
                 {filteredData.length === 0 && (
                   <tr>
-                    <td colSpan={6} className={`px-6 py-12 text-center font-semibold ${textClasses.muted}`}>
+                    <td
+                      colSpan={DISTILLERY_BI_RAW_COLUMNS.length}
+                      className={`px-6 py-12 text-center font-semibold ${textClasses.muted}`}
+                    >
                       No data available for the selected filters.
                     </td>
                   </tr>

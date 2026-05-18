@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { msalInstance, loginRequest } from '../msalConfig';
 import api from '../api/axios';
 
-const OUTLOOK_DENIED_FALLBACK =
+const SSO_DENIED_FALLBACK =
   'You do not have access to use this application. Please contact the administrator.';
 
 export const AuthContext = createContext(null);
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
         } catch (err) {
           localStorage.removeItem('token');
           const msg =
-            err.response?.data?.message || OUTLOOK_DENIED_FALLBACK;
+            err.response?.data?.message || SSO_DENIED_FALLBACK;
           toast.error(msg);
         }
       })
@@ -83,6 +83,13 @@ export const AuthProvider = ({ children }) => {
     msalInstance.loginRedirect(loginRequest);
   }, []);
 
+  // ── Google login (access token from GIS popup) ──────────────
+  const loginGoogle = useCallback(async (accessToken) => {
+    const { data } = await api.post('/auth/google', { accessToken });
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
+  }, []);
+
   // ── Logout ──────────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem('token');
@@ -93,7 +100,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginManual, loginOutlook, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, loginManual, loginOutlook, loginGoogle, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

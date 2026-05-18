@@ -91,6 +91,7 @@ async function ensureUserProfileColumns(conn) {
   const alters = [
     'ALTER TABLE `users` ADD COLUMN `department` VARCHAR(255) DEFAULT NULL',
     'ALTER TABLE `users` ADD COLUMN `avatar` MEDIUMTEXT DEFAULT NULL',
+    'ALTER TABLE `users` ADD COLUMN `google_id` VARCHAR(200) DEFAULT NULL',
   ];
   await conn.query('USE `gsmadb`');
   for (const sql of alters) {

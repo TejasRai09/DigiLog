@@ -107,6 +107,53 @@ const injectDateCols = (payload, pattern, body) => {
 // ─── Reserved meta keys (not data columns) ───────────────────
 const META_KEYS = new Set(['date', 'shift', 'time', 'startTime', 'endTime', 'samplingTime']);
 
+/** Shown when operational key (date + shift/time etc.) already exists for this form table. */
+const DUPLICATE_OPERATION_MSG =
+  'Duplicate operation: a record already exists for this date, shift, and time. Change those fields or edit the existing entry.';
+
+/**
+ * True if another row exists with the same operational key for this table/pattern.
+ * Uses NULL-safe <=> so null keys match only other nulls.
+ */
+async function hasDuplicateOperationRow(pool, table, pattern, payload) {
+  const parts = [];
+  const vals = [];
+  switch (pattern) {
+    case 'A':
+      parts.push('`Date` <=> ?', '`Shift` <=> ?', '`Time` <=> ?');
+      vals.push(payload.Date ?? null, payload.Shift ?? null, payload.Time ?? null);
+      break;
+    case 'B':
+      parts.push('`Date` <=> ?', '`start_time` <=> ?', '`end_time` <=> ?');
+      vals.push(payload.Date ?? null, payload.start_time ?? null, payload.end_time ?? null);
+      break;
+    case 'C':
+      parts.push('`Date` <=> ?', '`Shift` <=> ?', '`Sampling_time` <=> ?');
+      vals.push(payload.Date ?? null, payload.Shift ?? null, payload.Sampling_time ?? null);
+      break;
+    case 'D':
+      parts.push('`Date` <=> ?', '`Shift` <=> ?');
+      vals.push(payload.Date ?? null, payload.Shift ?? null);
+      break;
+    case 'E':
+      parts.push('`Date` <=> ?', '`Time` <=> ?');
+      vals.push(payload.Date ?? null, payload.Time ?? null);
+      break;
+    case 'G':
+      parts.push('`Date` <=> ?');
+      vals.push(payload.Date ?? null);
+      break;
+    default:
+      return false;
+  }
+
+  const [rows] = await pool.query(
+    `SELECT 1 AS x FROM \`${table}\` WHERE ${parts.join(' AND ')} LIMIT 1`,
+    vals
+  );
+  return rows.length > 0;
+}
+
 // ─── Sanitise & build insert payload ─────────────────────────
 const sanitisePayload = (rawBody) => {
   const result = {};
@@ -142,9 +189,16 @@ const submitForm = async (req, res) => {
   const sql = `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`;
 
   try {
+    const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload);
+    if (dup) {
+      return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
+    }
     await pool.execute(sql, values);
     res.status(201).json({ message: 'Form submitted successfully.' });
   } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
+    }
     console.error('Form submit error:', err.message);
     res.status(500).json({ message: 'Database error: ' + err.message });
   }

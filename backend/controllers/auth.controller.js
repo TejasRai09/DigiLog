@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../config/mysql');
 const { signToken } = require('../utils/jwt');
 const { getMicrosoftUserProfile } = require('../services/microsoft.service');
+const { verifyGoogleIdToken, getGoogleUserProfile } = require('../services/google.service');
 const { toAuthUser } = require('../utils/userPublic');
 const { unlinkStoredAvatar } = require('../utils/avatarFile');
 
@@ -27,7 +28,7 @@ const login = async (req, res) => {
   );
   const user = rows[0];
 
-  if (!user || user.auth_provider === 'outlook')
+  if (!user || user.auth_provider === 'outlook' || user.auth_provider === 'google')
     return res.status(401).json({ message: 'Invalid credentials.' });
 
   if (!user.is_active)
@@ -68,6 +69,47 @@ const outlookLogin = async (req, res) => {
     );
     user.microsoft_id = profile.microsoftId;
     user.auth_provider = 'outlook';
+  }
+  if (!user.is_active) {
+    return res.status(403).json({ message: 'Account is deactivated.' });
+  }
+
+  res.json(buildTokenResponse(user));
+};
+
+// POST /api/auth/google
+const googleLogin = async (req, res) => {
+  const { accessToken, idToken } = req.body;
+
+  if (!accessToken && !idToken)
+    return res.status(400).json({ message: 'Google access token or ID token is required.' });
+
+  let profile;
+  try {
+    profile = idToken
+      ? await verifyGoogleIdToken(idToken)
+      : await getGoogleUserProfile(accessToken);
+  } catch (err) {
+    console.error('googleLogin verify:', err.message);
+    return res.status(401).json({ message: 'Invalid Google sign-in. Please try again.' });
+  }
+
+  const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [
+    profile.email,
+  ]);
+  const user = rows[0];
+
+  if (!user) {
+    return res.status(403).json({ message: NO_ACCESS_MSG });
+  }
+
+  if (!user.google_id) {
+    await pool.query(
+      'UPDATE users SET google_id = ?, auth_provider = ? WHERE id = ?',
+      [profile.googleId, 'google', user.id]
+    );
+    user.google_id = profile.googleId;
+    user.auth_provider = 'google';
   }
   if (!user.is_active) {
     return res.status(403).json({ message: 'Account is deactivated.' });
@@ -124,4 +166,4 @@ const deleteMyAvatar = async (req, res) => {
   }
 };
 
-module.exports = { login, outlookLogin, getMe, uploadMyAvatar, deleteMyAvatar };
+module.exports = { login, outlookLogin, googleLogin, getMe, uploadMyAvatar, deleteMyAvatar };

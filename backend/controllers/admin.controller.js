@@ -86,7 +86,7 @@ const sendMailToUser = async (req, res) => {
 
   if (!user) return res.status(404).json({ message: 'User not found.' });
   if (user.auth_provider !== 'local')
-    return res.status(400).json({ message: 'Cannot send mail to Outlook users.' });
+    return res.status(400).json({ message: 'Cannot send mail to SSO users (Microsoft/Google).' });
 
   const tempPassword = crypto.randomBytes(6).toString('hex');
   const hashed       = await bcrypt.hash(tempPassword, 12);

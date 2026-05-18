@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MdArrowBack, MdSave } from 'react-icons/md';
+import { MdSave } from 'react-icons/md';
+import BackToFormsHub from '../../../components/BackToFormsHub';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -15,7 +15,6 @@ const INITIAL = {
 };
 
 const MillStoppages = () => {
-  const navigate = useNavigate();
   const [form, setForm] = useState(INITIAL);
   const [submitting, setSubmitting] = useState(false);
 
@@ -41,9 +40,7 @@ const MillStoppages = () => {
 
   return (
     <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors">
-        <MdArrowBack className="h-4 w-4" /> Back
-      </button>
+      <BackToFormsHub />
       <h1 className="page-title mb-6">GSMA Milling - Stoppages</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
