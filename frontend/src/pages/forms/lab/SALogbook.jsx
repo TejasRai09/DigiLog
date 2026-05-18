@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
+import { buildSALogbookReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const SHIFTS = ['A', 'B', 'C', 'G'];
 
@@ -34,31 +38,37 @@ const INITIAL = buildInitial();
 
 const SALogbook = () => {
   const [form, setForm] = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date || !form.shift) { toast.error('Date and Shift are required.'); return; }
-    setSubmitting(true);
-    try {
-      await api.post('/forms/sa_logbook', form);
-      toast.success('Special Analysis Logbook submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date || !form.shift) {
+        toast.error('Date and Shift are required.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/sa_logbook', form),
+        'Special Analysis Logbook submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildSALogbookReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
       <BackToFormsHub />
       <h1 className="page-title mb-6">GSMA Logbook - Special Analysis</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={openReview} className="space-y-4">
         <div className="form-section">
           <div className="form-row flex-wrap gap-4">
             <div>
@@ -141,6 +151,16 @@ const SALogbook = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

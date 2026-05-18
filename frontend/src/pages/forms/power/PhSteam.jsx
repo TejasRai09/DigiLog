@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
 import ReportDateFields from '../../../components/ReportDateFields';
+import { buildPhSteamReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const BoilerTitle = ({ children }) => (
   <h2 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-1 mt-6 first:mt-0">{children}</h2>
@@ -35,25 +39,31 @@ const INITIAL = {
 };
 
 const PhSteam = () => {
-  const [form, setForm]       = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSubmitting(true);
-    try {
-      await api.post('/forms/ph_steam', form);
-      toast.success('Steam Details submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) {
+        toast.error('Date is required.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ph_steam', form),
+        'Steam Details submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildPhSteamReview(form) : null),
+    [reviewOpen, form],
+  );
 
   const F = LegacyNumField;
 
@@ -62,7 +72,7 @@ const PhSteam = () => {
       <BackToFormsHub />
       <h1 className="page-title mb-6">GSMA Power Logbook</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={openReview} className="space-y-4">
         <div className="form-section space-y-3">
           <div className="form-row flex-wrap justify-center sm:justify-start">
             <ReportDateFields
@@ -172,6 +182,16 @@ const PhSteam = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

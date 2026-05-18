@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildLabStoppageReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 import { LAB_STOPPAGE_REASON_OPTIONS } from './labStoppageReasonOptions';
 
 const INITIAL = {
@@ -13,34 +17,37 @@ const INITIAL = {
 
 const StoppageLogbook = () => {
   const [form, setForm] = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date || !form.startTime || !form.endTime) {
-      toast.error('Date, Start Time and End Time are required.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await api.post('/forms/stoppage_logbook', form);
-      toast.success('Stoppage submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date || !form.startTime || !form.endTime) {
+        toast.error('Date, Start Time and End Time are required.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/stoppage_logbook', form),
+        'Stoppage submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildLabStoppageReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
       <BackToFormsHub />
       <h1 className="page-title mb-6">GSMA Logbook - Stoppages</h1>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={openReview} className="space-y-4">
         <div className="form-section space-y-4">
           <div>
             <label className="label">Report Date:<span className="text-red-500 ml-0.5">*</span></label>
@@ -78,6 +85,16 @@ const StoppageLogbook = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };
