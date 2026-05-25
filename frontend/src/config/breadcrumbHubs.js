@@ -3,6 +3,7 @@ export const HUB_MODULE_LABELS = {
   '/ehs': 'EHS',
   '/equipment': 'Mill House Equipment',
   '/power': 'Power Plant',
+  '/production': 'Production',
 };
 
 /** Form keys that live under the EHS hub (not direct `/forms` children of an app list). */
