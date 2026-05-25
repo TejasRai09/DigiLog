@@ -24,7 +24,10 @@ const GoogleIcon = () => (
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
-const GoogleSignInButton = ({ onAccessToken, disabled }) => {
+const defaultBtnClass =
+  'btn-secondary w-full py-2.5 inline-flex items-center justify-center gap-3 font-semibold text-sm';
+
+const GoogleSignInButton = ({ onAccessToken, disabled, className }) => {
   const googleLogin = useGoogleLogin({
     scope: 'openid email profile',
     onSuccess: (res) => onAccessToken(res.access_token),
@@ -38,7 +41,7 @@ const GoogleSignInButton = ({ onAccessToken, disabled }) => {
       type="button"
       onClick={() => googleLogin()}
       disabled={disabled}
-      className="btn-secondary w-full mt-3 py-2.5"
+      className={className ?? defaultBtnClass}
     >
       <GoogleIcon />
       Sign in with Google

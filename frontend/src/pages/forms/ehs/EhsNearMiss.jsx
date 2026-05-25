@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -52,8 +52,11 @@ const EhsNearMiss = () => {
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
-      <h1 className="page-title mb-6">Near Miss / Incident / Accident Report</h1>
+      <FormPageHeader
+        formKey="ehs_near_miss"
+        fallbackTitle="Near Miss / Incident / Accident Report"
+        fallbackDescription="Log workplace near misses, incidents and accidents for investigation"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
 

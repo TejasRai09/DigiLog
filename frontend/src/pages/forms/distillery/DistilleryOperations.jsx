@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -82,14 +82,14 @@ const DistilleryOperations = () => {
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
 
-      <div className="mb-8">
-        <h1 className="page-title">GSMA Distillery Operations Form</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Daily operations tracking form for Distillery at GSMA
-        </p>
-      </div>
+      <FormPageHeader
+        formKey="distillery_ops"
+        fallbackTitle="Distillery Operations Form"
+        fallbackDescription="Daily operations tracking form for the distillery"
+        showDescription
+        className="mb-8"
+      />
 
       <form onSubmit={openReview} className="space-y-6">
         <div className="form-section">

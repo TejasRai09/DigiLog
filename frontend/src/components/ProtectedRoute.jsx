@@ -5,7 +5,7 @@ const ProtectedRoute = ({ requiredRole }) => {
   const { user } = useAuth();
 
   if (!user) {
-    const dest = requiredRole === 'admin' ? '/admin/login' : '/login';
+    const dest = requiredRole === 'admin' ? '/admin/login' : '/?login=1';
     return <Navigate to={dest} replace />;
   }
 

@@ -12,23 +12,27 @@ import {
   MdLightMode,
   MdFilterList,
   MdExpandMore,
+  MdArrowBack,
 } from 'react-icons/md';
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  LineChart,
-  AreaChart,
-  Line,
-  Area,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-} from 'recharts';
+import { ResponsiveContainer, LineChart, AreaChart, Line, Area, YAxis } from 'recharts';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
+import {
+  formatDMYShort,
+  getPresetDateRange,
+  computePriorPeriodRange,
+  getSeasonComparisonLabels,
+  isSeasonComparisonType,
+  alignSeasonCompareRange,
+  seasonLabelForComparisonType,
+} from '../../utils/distilleryBiDateRange';
+import {
+  aggregateKpisFromRows,
+  buildSeasonHistoricalByDay,
+  filterSeasonCompareRowsBySeason,
+  overlayPriorMetrics,
+} from '../../utils/distilleryBiComparison';
+import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
 
 /** Raw table columns — aligned with `mapRowToBiPoint` / `distillery_operations` (BI API). */
 const DISTILLERY_BI_RAW_COLUMNS = [
@@ -316,10 +320,28 @@ const ChartTitle = ({
   );
 };
 
+function rowDateIso(row) {
+  if (row.dateIso && String(row.dateIso).length >= 10) return String(row.dateIso).slice(0, 10);
+  if (row.dateFull) {
+    const d = new Date(String(row.dateFull));
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+  }
+  return null;
+}
+
 export default function DistilleryAnalyticsDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [timeFilter, setTimeFilter] = useState('MTD');
-  const [comparisonType, setComparisonType] = useState('PY');
+  const initialRange = () => getPresetDateRange('MTD');
+  const [rangePreset, setRangePreset] = useState('MTD');
+  const [fromDate, setFromDate] = useState(() => initialRange().from);
+  const [toDate, setToDate] = useState(() => initialRange().to);
+  const [comparisonType, setComparisonType] = useState('PP');
+  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const availableModes = ['B Heavy', 'C Heavy', 'Syrup', 'Mixed'];
@@ -340,8 +362,14 @@ export default function DistilleryAnalyticsDashboard() {
       try {
         setLoadError(null);
         setLoading(true);
-        const { data } = await api.get('/bi/distillery-operations');
-        if (!cancelled) setRawData(Array.isArray(data?.records) ? data.records : []);
+        const [opsRes, settingsRes] = await Promise.all([
+          api.get('/bi/distillery-operations'),
+          api.get('/bi/settings').catch(() => ({ data: { thirdSeasonCompareEnabled: false } })),
+        ]);
+        if (!cancelled) {
+          setRawData(Array.isArray(opsRes.data?.records) ? opsRes.data.records : []);
+          setThirdSeasonEnabled(Boolean(settingsRes.data?.thirdSeasonCompareEnabled));
+        }
       } catch (e) {
         if (!cancelled) {
           setRawData([]);
@@ -356,12 +384,36 @@ export default function DistilleryAnalyticsDashboard() {
     };
   }, []);
 
-  const filteredData = useMemo(() => {
-    let daysToKeep = 90;
-    if (timeFilter === 'MTD') daysToKeep = 14;
-    if (timeFilter === 'QTD') daysToKeep = 45;
+  useEffect(() => {
+    if (!thirdSeasonEnabled && comparisonType === 'S3') {
+      setComparisonType('PP');
+    }
+  }, [thirdSeasonEnabled, comparisonType]);
 
-    let data = rawData.slice(-daysToKeep);
+  const dataBounds = useMemo(() => {
+    const isos = rawData.map(rowDateIso).filter(Boolean).sort();
+    return { min: isos[0] || null, max: isos[isos.length - 1] || null };
+  }, [rawData]);
+
+  useEffect(() => {
+    if (!dataBounds.max) return;
+    const ref = new Date(`${dataBounds.max}T12:00:00`);
+    if (rangePreset !== 'Custom') {
+      const { from, to } = getPresetDateRange(rangePreset, ref);
+      setFromDate(from);
+      setToDate(to);
+    }
+  }, [dataBounds.max, rangePreset]);
+
+  const filteredData = useMemo(() => {
+    const from = fromDate <= toDate ? fromDate : toDate;
+    const to = fromDate <= toDate ? toDate : fromDate;
+
+    let data = rawData.filter((row) => {
+      const iso = rowDateIso(row);
+      if (!iso) return false;
+      return iso >= from && iso <= to;
+    });
 
     if (selectedModes.length > 0) {
       data = data.filter((row) => selectedModes.includes(row.mode));
@@ -370,47 +422,150 @@ export default function DistilleryAnalyticsDashboard() {
     }
 
     return data;
-  }, [rawData, timeFilter, selectedModes]);
+  }, [rawData, fromDate, toDate, selectedModes]);
 
-  const comparisonLabels = {
-    PY: '2024-2025',
-    P2Y: '2023-2024',
+  const applyRangePreset = (preset) => {
+    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
+    const { from, to } = getPresetDateRange(preset, ref);
+    setRangePreset(preset);
+    setFromDate(from);
+    setToDate(to);
   };
+
+  const selectCustomPreset = () => setRangePreset('Custom');
+
+  const handleFromDateChange = (e) => {
+    let v = e.target.value;
+    let nextTo = toDate;
+    if (v && nextTo && v > nextTo) nextTo = v;
+    setFromDate(v);
+    if (nextTo !== toDate) setToDate(nextTo);
+    if (rangePreset !== 'Custom') {
+      const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
+      const c = getPresetDateRange(rangePreset, ref);
+      if (v !== c.from || nextTo !== c.to) setRangePreset('Custom');
+    }
+  };
+
+  const handleToDateChange = (e) => {
+    let v = e.target.value;
+    let nextFrom = fromDate;
+    if (v && nextFrom && v < nextFrom) nextFrom = v;
+    setToDate(v);
+    if (nextFrom !== fromDate) setFromDate(nextFrom);
+    if (rangePreset !== 'Custom') {
+      const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
+      const c = getPresetDateRange(rangePreset, ref);
+      if (nextFrom !== c.from || v !== c.to) setRangePreset('Custom');
+    }
+  };
+
+  const timeFilterLabel =
+    rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} – ${formatDMYShort(toDate)}` : rangePreset;
+  const periodLabel = rangePreset === 'Custom' ? 'Custom' : rangePreset;
+
+  const dynamicPPLabel = useMemo(() => {
+    if (rangePreset === 'MTD') return 'Prev. Month';
+    if (rangePreset === 'QTD') return 'Prev. Quarter';
+    if (rangePreset === 'YTD') return 'Prev. Year';
+    return 'Prev. Period';
+  }, [rangePreset]);
+
+  const seasonLabels = useMemo(() => {
+    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
+    return getSeasonComparisonLabels(ref);
+  }, [dataBounds.max]);
+
+  const comparisonOptions = useMemo(() => {
+    const opts = [
+      { id: 'PP', label: dynamicPPLabel },
+      { id: 'S1', label: seasonLabels.season1 },
+      { id: 'S2', label: seasonLabels.season2 },
+    ];
+    if (thirdSeasonEnabled) {
+      opts.push({ id: 'S3', label: seasonLabels.season3 });
+    }
+    return opts;
+  }, [dynamicPPLabel, seasonLabels, thirdSeasonEnabled]);
+
+  const priorPeriodRange = useMemo(
+    () => computePriorPeriodRange(fromDate, toDate, rangePreset),
+    [fromDate, toDate, rangePreset],
+  );
+
+  const comparisonLabel = useMemo(() => {
+    const fOpt = { month: 'short', day: 'numeric' };
+    const formatDateFriendly = (dStr) => {
+      const d = new Date(`${dStr}T12:00:00`);
+      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', fOpt);
+    };
+
+    if (comparisonType === 'PP') {
+      return `${priorPeriodRange.label} (${formatDateFriendly(priorPeriodRange.start)} - ${formatDateFriendly(priorPeriodRange.end)})`;
+    }
+
+    if (!isSeasonComparisonType(comparisonType)) return '';
+
+    const seasonLabel = seasonLabelForComparisonType(comparisonType, seasonLabels);
+    if (!seasonLabel) return '';
+
+    const from = fromDate <= toDate ? fromDate : toDate;
+    const to = fromDate <= toDate ? toDate : fromDate;
+    const { start, end } = alignSeasonCompareRange(from, to, seasonLabel);
+    return `${seasonLabel} (${formatDateFriendly(start)} - ${formatDateFriendly(end)})`;
+  }, [fromDate, toDate, comparisonType, rangePreset, priorPeriodRange, seasonLabels]);
+
+  const priorDataSlice = useMemo(() => {
+    let slice = rawData.filter((row) => {
+      const iso = rowDateIso(row);
+      return iso && iso >= priorPeriodRange.start && iso <= priorPeriodRange.end;
+    });
+    if (selectedModes.length > 0) {
+      slice = slice.filter((row) => selectedModes.includes(row.mode));
+    }
+    return slice;
+  }, [rawData, priorPeriodRange, selectedModes]);
+
+  const activeSeasonLabel = useMemo(
+    () => (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
+    [comparisonType, seasonLabels],
+  );
+
+  const seasonCompareSlice = useMemo(() => {
+    if (!activeSeasonLabel) return [];
+    const from = fromDate <= toDate ? fromDate : toDate;
+    const to = fromDate <= toDate ? toDate : fromDate;
+    return filterSeasonCompareRowsBySeason(rawData, from, to, activeSeasonLabel, rowDateIso, selectedModes);
+  }, [rawData, fromDate, toDate, activeSeasonLabel, selectedModes]);
 
   const historicalData = useMemo(() => {
-    const shiftMultiplier = comparisonType === 'PY' ? 0.95 : 0.9;
-    return filteredData.map((item) => ({
-      ...item,
-      totalProd: item.totalProd * shiftMultiplier,
-      totalWash: item.totalWash * shiftMultiplier,
-      syrupMolConsumed: item.syrupMolConsumed * shiftMultiplier,
-      recovery: item.recovery * (shiftMultiplier + 0.04),
-      fermEff: item.fermEff * (shiftMultiplier + 0.04),
-      distEff: item.distEff * (shiftMultiplier + 0.04),
-      fermSugar: item.fermSugar * shiftMultiplier,
-      alcohol: item.alcohol * shiftMultiplier,
-      molInStore: item.molInStore * (comparisonType === 'PY' ? 1.05 : 1.1),
-      ethInStore: item.ethInStore * (comparisonType === 'PY' ? 0.95 : 0.85),
-    }));
-  }, [filteredData, comparisonType]);
+    if (comparisonType === 'PP') {
+      const priorByIso = new Map(priorDataSlice.map((r) => [rowDateIso(r), r]));
+      return filteredData.map((item, idx) => {
+        const iso = rowDateIso(item);
+        const pmItem = (iso && priorByIso.get(iso)) || priorDataSlice[idx];
+        return overlayPriorMetrics(item, pmItem);
+      });
+    }
 
-  const currentKPIs = {
-    ethanolProd: filteredData.reduce((sum, item) => sum + item.totalProd, 0),
-    syrupMol: filteredData.reduce((sum, item) => sum + item.syrupMolConsumed, 0),
-    fermEff: filteredData.length ? filteredData.reduce((sum, item) => sum + item.fermEff, 0) / filteredData.length : 0,
-    distEff: filteredData.length ? filteredData.reduce((sum, item) => sum + item.distEff, 0) / filteredData.length : 0,
-  };
+    if (activeSeasonLabel) {
+      return buildSeasonHistoricalByDay(filteredData, seasonCompareSlice, activeSeasonLabel, rowDateIso);
+    }
 
-  const pyKPIs = {
-    ethanolProd: historicalData.reduce((sum, item) => sum + item.totalProd, 0),
-    syrupMol: historicalData.reduce((sum, item) => sum + item.syrupMolConsumed, 0),
-    fermEff: historicalData.length
-      ? historicalData.reduce((sum, item) => sum + item.fermEff, 0) / historicalData.length
-      : 0,
-    distEff: historicalData.length
-      ? historicalData.reduce((sum, item) => sum + item.distEff, 0) / historicalData.length
-      : 0,
-  };
+    return filteredData;
+  }, [filteredData, comparisonType, priorDataSlice, seasonCompareSlice, activeSeasonLabel]);
+
+  const currentKPIs = useMemo(() => aggregateKpisFromRows(filteredData), [filteredData]);
+
+  const pyKPIs = useMemo(() => {
+    if (comparisonType === 'PP') {
+      return aggregateKpisFromRows(priorDataSlice);
+    }
+    if (isSeasonComparisonType(comparisonType)) {
+      return aggregateKpisFromRows(seasonCompareSlice);
+    }
+    return aggregateKpisFromRows(historicalData);
+  }, [comparisonType, priorDataSlice, seasonCompareSlice, historicalData]);
 
   const formatMetric = (val) => {
     if (val > 1000000) return `${(val / 1000000).toFixed(2)}M`;
@@ -453,8 +608,8 @@ export default function DistilleryAnalyticsDashboard() {
   };
 
   const modePanelClass = isDarkMode
-    ? 'absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-700 bg-slate-800 p-2 shadow-xl'
-    : 'absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
+    ? 'absolute right-0 top-full z-[320] mt-2 w-48 rounded-xl border border-slate-700 bg-slate-800 p-2 shadow-xl'
+    : 'absolute right-0 top-full z-[320] mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
   const modeLabelHover = isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50';
 
   if (loading) {
@@ -481,31 +636,56 @@ export default function DistilleryAnalyticsDashboard() {
           {loadError}
         </div>
       ) : null}
-      <div className="mb-3 flex shrink-0 flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <Link
-              to="/bi"
-              className={`text-[10px] font-black uppercase tracking-wide transition-colors ${
-                isDarkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-800'
-              }`}
+      <div className="mb-2 flex shrink-0 flex-col gap-2 md:mb-2">
+        <Link
+          to="/bi"
+          className={`inline-flex w-fit items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
+            isDarkMode
+              ? 'border-slate-600 bg-slate-800 text-blue-400 hover:bg-slate-700'
+              : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
+          }`}
+        >
+          <MdArrowBack className="h-3.5 w-3.5" />
+          BI Control Tower
+        </Link>
+
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <div className="grid grid-cols-[1fr_auto] items-stretch gap-x-3 gap-y-0.5">
+            <h1
+              className={`col-start-1 row-start-1 self-center text-xl font-black tracking-tight sm:text-2xl ${headerClasses}`}
             >
-              ← BI Control Tower
-            </Link>
-            <h1 className={`text-xl font-black tracking-tight sm:text-2xl ${headerClasses}`}>Distillery Operations</h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-            <p className={`text-[11px] font-bold ${subheadClasses}`}>Enterprise Analytics & PoP Performance</p>
+              Distillery Operations
+            </h1>
+            <p
+              className={`col-start-1 row-start-2 self-center text-[11px] font-bold leading-snug ${subheadClasses}`}
+            >
+              Enterprise Analytics & PoP Performance
+            </p>
             <div
-              className={`rounded px-2 py-0.5 text-[10px] font-bold ${isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-200 text-slate-600'}`}
+              className={`col-start-2 row-start-1 row-span-2 flex w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center sm:w-[4.75rem] ${
+                isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-300 bg-slate-100'
+              }`}
+              title={`${filteredData.length} operating days — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
             >
-              {filteredData.length} Operating Days ({timeFilter})
+              <span
+                className={`text-3xl font-black leading-none tabular-nums sm:text-4xl ${
+                  isDarkMode ? 'text-slate-100' : 'text-slate-900'
+                }`}
+              >
+                {filteredData.length}
+              </span>
+              <span className={`mt-1 text-[8px] font-bold leading-tight ${subheadClasses}`}>Operating Days</span>
+              <span className={`max-w-full truncate text-[7px] font-semibold leading-tight ${textClasses.muted}`}>
+                {rangePreset === 'Custom' ? 'Custom' : rangePreset}
+              </span>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 lg:items-end">
-          <div className="flex gap-4">
+          <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+            <div className="flex gap-4">
             <button
               type="button"
               onClick={() => setActiveTab('dashboard')}
@@ -530,10 +710,11 @@ export default function DistilleryAnalyticsDashboard() {
               <MdTableChart className="h-3.5 w-3.5" />
               Raw Data Table
             </button>
+            </div>
           </div>
 
           <div
-            className={`flex flex-wrap items-center gap-3 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md sm:gap-4 ${
+            className={`relative z-[200] flex flex-wrap items-center gap-3 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md sm:gap-4 ${
               isDarkMode
                 ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
                 : 'border-purple-200 bg-white/80 shadow-purple-100/50'
@@ -551,7 +732,7 @@ export default function DistilleryAnalyticsDashboard() {
               {isDarkMode ? <MdLightMode className="h-4 w-4" /> : <MdDarkMode className="h-4 w-4" />}
             </button>
 
-            <div className="relative z-50">
+            <div className="relative z-[310]">
               <button
                 type="button"
                 onClick={() => setIsModeOpen(!isModeOpen)}
@@ -567,7 +748,7 @@ export default function DistilleryAnalyticsDashboard() {
                   <button
                     type="button"
                     aria-label="Close menu"
-                    className="fixed inset-0 z-40 cursor-default bg-transparent"
+                    className="fixed inset-0 z-[300] cursor-default bg-transparent"
                     onClick={() => setIsModeOpen(false)}
                   />
                   <div className={modePanelClass}>
@@ -595,68 +776,116 @@ export default function DistilleryAnalyticsDashboard() {
               )}
             </div>
 
-            <div className={`flex items-center gap-3 rounded-xl border p-1.5 ${cardClasses}`}>
-              <MdCalendarMonth className={`ml-2 h-4 w-4 ${textClasses.muted}`} />
-              <div className="flex gap-1">
-                {['MTD', 'QTD', 'YTD'].map((filter) => (
+            <div className={`flex flex-wrap items-center gap-2 rounded-xl border p-1.5 sm:gap-3 ${cardClasses}`}>
+              <MdCalendarMonth className={`ml-1 h-4 w-4 shrink-0 sm:ml-2 ${textClasses.muted}`} />
+              <div className="flex flex-wrap gap-1">
+                {['MTD', 'QTD', 'YTD'].map((preset) => (
                   <button
-                    key={filter}
+                    key={preset}
                     type="button"
-                    onClick={() => setTimeFilter(filter)}
+                    onClick={() => applyRangePreset(preset)}
                     className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${
-                      timeFilter === filter
+                      rangePreset === preset
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                         : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                     }`}
                   >
-                    {filter}
+                    {preset}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={selectCustomPreset}
+                  className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${
+                    rangePreset === 'Custom'
+                      ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                      : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
             </div>
 
-            <div className={`mx-1 h-6 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+            <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            <div className="flex items-center gap-2 pr-2">
-              <span className={`text-[10px] font-bold uppercase tracking-widest ${textClasses.muted}`}>Compare:</span>
-              <div className={`flex gap-1 rounded-lg border p-1 ${cardClasses}`}>
-                {[
-                  { id: 'PY', label: '2024-2025' },
-                  { id: 'P2Y', label: '2023-2024' },
-                ].map((comp) => (
-                  <button
-                    key={comp.id}
-                    type="button"
-                    onClick={() => setComparisonType(comp.id)}
-                    className={`rounded px-3 py-1 text-[10px] font-black transition-all ${
-                      comparisonType === comp.id
-                        ? isDarkMode
-                          ? 'bg-slate-700 text-slate-100 shadow-sm'
-                          : 'bg-slate-800 text-white shadow-sm'
-                        : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
-                    }`}
-                  >
-                    {comp.label}
-                  </button>
-                ))}
+            <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+              <div className="flex flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
+                <input
+                  type="date"
+                  value={fromDate}
+                  min={dataBounds.min || undefined}
+                  max={toDate}
+                  onChange={handleFromDateChange}
+                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                    isDarkMode
+                      ? 'border-slate-600 bg-slate-900 text-slate-100'
+                      : 'border-slate-200 bg-white text-slate-800'
+                  }`}
+                />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>To</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  max={dataBounds.max || undefined}
+                  onChange={handleToDateChange}
+                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                    isDarkMode
+                      ? 'border-slate-600 bg-slate-900 text-slate-100'
+                      : 'border-slate-200 bg-white text-slate-800'
+                  }`}
+                />
               </div>
             </div>
+
+            {activeTab === 'dashboard' && (
+              <>
+                <div className={`mx-1 h-6 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+                <div className="flex items-center gap-2 pr-2">
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${textClasses.muted}`}>Compare:</span>
+                  <div className={`flex flex-wrap gap-1 rounded-lg border p-1 ${cardClasses}`}>
+                    {comparisonOptions.map((comp) => (
+                      <button
+                        key={comp.id}
+                        type="button"
+                        onClick={() => setComparisonType(comp.id)}
+                        className={`rounded px-3 py-1 text-[10px] font-black transition-all whitespace-nowrap ${
+                          comparisonType === comp.id
+                            ? isDarkMode
+                              ? 'bg-slate-700 text-slate-100 shadow-sm'
+                              : 'bg-slate-800 text-white shadow-sm'
+                            : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                        }`}
+                      >
+                        {comp.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+        </div>
         </div>
       </div>
 
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto max-md:pb-1 md:flex md:flex-col md:overflow-y-hidden">
       {activeTab === 'dashboard' ? (
-        <div className="flex min-h-0 flex-1 flex-col gap-3">
-          <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2 md:overflow-hidden">
+          <div className="grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
             <MetricCard
               title="Total Ethanol Produced"
               value={currentKPIs.ethanolProd}
               pyValue={pyKPIs.ethanolProd}
               unit="BL"
               definition="Total Bulk Liters of Ethanol produced."
-              timeFilter={timeFilter}
+              timeFilter={periodLabel}
               isDarkMode={isDarkMode}
-              comparisonLabel={comparisonLabels[comparisonType]}
+              comparisonLabel={comparisonLabel}
               chartData={filteredData}
               dataKey="totalProd"
               chartType="area"
@@ -668,10 +897,10 @@ export default function DistilleryAnalyticsDashboard() {
               pyValue={pyKPIs.syrupMol}
               unit="Q"
               definition="Sum of syrup/molasses consumed (quintals) from daily distillery operations records."
-              timeFilter={timeFilter}
+              timeFilter={periodLabel}
               inverseColor
               isDarkMode={isDarkMode}
-              comparisonLabel={comparisonLabels[comparisonType]}
+              comparisonLabel={comparisonLabel}
               chartData={filteredData}
               dataKey="syrupMolConsumed"
               chartType="area"
@@ -683,9 +912,9 @@ export default function DistilleryAnalyticsDashboard() {
               pyValue={pyKPIs.fermEff}
               unit="%"
               definition="Yield based on sugar."
-              timeFilter={timeFilter}
+              timeFilter={periodLabel}
               isDarkMode={isDarkMode}
-              comparisonLabel={comparisonLabels[comparisonType]}
+              comparisonLabel={comparisonLabel}
               chartData={filteredData}
               dataKey="fermEff"
               chartType="line"
@@ -697,9 +926,9 @@ export default function DistilleryAnalyticsDashboard() {
               pyValue={pyKPIs.distEff}
               unit="%"
               definition="Recovery of alcohol."
-              timeFilter={timeFilter}
+              timeFilter={periodLabel}
               isDarkMode={isDarkMode}
-              comparisonLabel={comparisonLabels[comparisonType]}
+              comparisonLabel={comparisonLabel}
               chartData={filteredData}
               dataKey="distEff"
               chartType="line"
@@ -707,425 +936,21 @@ export default function DistilleryAnalyticsDashboard() {
             />
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3 xl:grid-rows-2">
-            <div className={`flex h-full min-h-[280px] flex-col rounded-2xl border p-4 ${cardClasses}`}>
-              <ChartTitle
-                title="Ethanol Vol"
-                definition="Total accumulated volume of Ethanol produced, segmented by raw material mode, alongside overall recovery percentage."
-                dataKey="totalProd"
-                data={filteredData}
-                pyData={historicalData}
-                timeFilter={timeFilter}
-                isDarkMode={isDarkMode}
-                comparisonLabel={comparisonLabels[comparisonType]}
-              />
-              <div className="mb-2 flex flex-wrap gap-4">
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Total Vol:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('totalProd', true))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('totalProd', true, historicalData))}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg Recovery:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('recovery', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('recovery', false, historicalData))}
-                  </span>
-                </div>
-              </div>
-              <div className="relative mt-2 min-h-0 flex-1">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={filteredData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid {...gridStyle} vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        dy={10}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        tickFormatter={(value) => `${value / 1000}k`}
-                      />
-                      <YAxis
-                        yAxisId="right"
-                        orientation="right"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        domain={['dataMin - 1', 'dataMax + 1']}
-                        tickFormatter={(value) => `${value.toFixed(0)}%`}
-                      />
-                      <RechartsTooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                      <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} iconType="circle" />
-                      <Bar yAxisId="left" dataKey="bHeavyProd" stackId="a" name="B Heavy (BL)" fill="#60a5fa" />
-                      <Bar yAxisId="left" dataKey="cHeavyProd" stackId="a" name="C Heavy (BL)" fill="#34d399" />
-                      <Bar yAxisId="left" dataKey="syrupProd" stackId="a" name="Syrup (BL)" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                      <Line
-                        yAxisId="right"
-                        type="monotone"
-                        dataKey="recovery"
-                        name="Recovery %"
-                        stroke="#22c55e"
-                        strokeWidth={2.5}
-                        dot={false}
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
+          <DistilleryChartsGrid
+            ChartTitle={ChartTitle}
+            filteredData={filteredData}
+            historicalData={historicalData}
+            periodLabel={periodLabel}
+            comparisonLabel={comparisonLabel}
+            isDarkMode={isDarkMode}
+            cardClasses={cardClasses}
+            textClasses={textClasses}
+            axisStyle={axisStyle}
+            gridStyle={gridStyle}
+            formatMetric={formatMetric}
+            getChartMetric={getChartMetric}
+          />
 
-            <div className={`flex h-full min-h-[280px] flex-col rounded-2xl border p-4 ${cardClasses}`}>
-              <ChartTitle
-                title="Ferm. Sugar"
-                definition="Tracks the percentage of fermentable sugar relative to the resulting alcohol percentage in the wash over time."
-                dataKey="fermSugar"
-                data={filteredData}
-                pyData={historicalData}
-                timeFilter={timeFilter}
-                isDarkMode={isDarkMode}
-                comparisonLabel={comparisonLabels[comparisonType]}
-              />
-              <div className="mb-2 flex flex-wrap gap-4">
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg Ferm. Sugar:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('fermSugar', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('fermSugar', false, historicalData))}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg Alcohol:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('alcohol', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('alcohol', false, historicalData))}
-                  </span>
-                </div>
-              </div>
-              <div className="relative mt-2 min-h-0 flex-1">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={filteredData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid {...gridStyle} vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        dy={10}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        yAxisId="left"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        domain={['dataMin - 1', 'dataMax + 1']}
-                        tickFormatter={(value) => `${value.toFixed(2)}%`}
-                      />
-                      <RechartsTooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                      <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} iconType="circle" />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="fermSugar"
-                        name="Ferm. Sugar %"
-                        stroke="#a855f7"
-                        strokeWidth={2.5}
-                        dot={false}
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="alcohol"
-                        name="Alcohol %"
-                        stroke="#d97706"
-                        strokeWidth={2.5}
-                        strokeDasharray="4 4"
-                        dot={{ r: 2, fill: '#d97706' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            <div className={`flex h-full min-h-[280px] flex-col rounded-2xl border p-4 ${cardClasses}`}>
-              <ChartTitle
-                title="Overall Efficiency"
-                definition="Side-by-side comparison of Fermentation Efficiency (yield based on sugar) and Distillation Efficiency (alcohol recovery)."
-                dataKey="fermEff"
-                data={filteredData}
-                pyData={historicalData}
-                timeFilter={timeFilter}
-                isDarkMode={isDarkMode}
-                comparisonLabel={comparisonLabels[comparisonType]}
-              />
-              <div className="mb-2 flex flex-wrap gap-4">
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg FE: <span className={textClasses.title}>{formatMetric(getChartMetric('fermEff', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('fermEff', false, historicalData))}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg DE: <span className={textClasses.title}>{formatMetric(getChartMetric('distEff', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('distEff', false, historicalData))}
-                  </span>
-                </div>
-              </div>
-              <div className="relative mt-2 min-h-0 flex-1">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={filteredData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <CartesianGrid {...gridStyle} vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        dy={10}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        domain={['dataMin - 2', 100]}
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        tickFormatter={(value) => `${value.toFixed(0)}%`}
-                      />
-                      <RechartsTooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                      <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', paddingTop: '10px' }} iconType="circle" />
-                      <Line type="monotone" dataKey="fermEff" name="Ferm. Efficiency" stroke="#eab308" strokeWidth={2.5} dot={false} />
-                      <Line type="monotone" dataKey="distEff" name="Dist. Efficiency" stroke="#22c55e" strokeWidth={2.5} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            <div className={`flex h-full min-h-[280px] flex-col rounded-2xl border p-4 ${cardClasses}`}>
-              <ChartTitle
-                title="Wash Distilled"
-                definition="Total volume of wash processed through the distillation system during the selected time period."
-                dataKey="totalWash"
-                data={filteredData}
-                pyData={historicalData}
-                timeFilter={timeFilter}
-                isDarkMode={isDarkMode}
-                comparisonLabel={comparisonLabels[comparisonType]}
-              />
-              <div className="mb-2 flex flex-wrap gap-4">
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Total Wash:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('totalWash', true))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('totalWash', true, historicalData))}
-                  </span>
-                </div>
-              </div>
-              <div className="relative mt-2 min-h-0 flex-1">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={filteredData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorWash" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid {...gridStyle} vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        dy={10}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
-                      />
-                      <RechartsTooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                      <Area
-                        type="monotone"
-                        dataKey="totalWash"
-                        name="Wash Volume"
-                        stroke="#ea580c"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#colorWash)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            <div className={`flex h-full min-h-[280px] flex-col rounded-2xl border p-4 ${cardClasses}`}>
-              <ChartTitle
-                title="Molasses Stock"
-                definition="Current inventory levels of Molasses raw material holding in storage tanks."
-                dataKey="molInStore"
-                data={filteredData}
-                pyData={historicalData}
-                timeFilter={timeFilter}
-                higherIsBetter={false}
-                isDarkMode={isDarkMode}
-                comparisonLabel={comparisonLabels[comparisonType]}
-              />
-              <div className="mb-2 flex flex-wrap gap-4">
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg Stock:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('molInStore', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('molInStore', false, historicalData))}
-                  </span>
-                </div>
-              </div>
-              <div className="relative mt-2 min-h-0 flex-1">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={filteredData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorMol" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid {...gridStyle} vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        dy={10}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                      />
-                      <RechartsTooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                      <Area
-                        type="monotone"
-                        dataKey="molInStore"
-                        name="Molasses Stock"
-                        stroke="#0284c7"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#colorMol)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            <div className={`flex h-full min-h-[280px] flex-col rounded-2xl border p-4 ${cardClasses}`}>
-              <ChartTitle
-                title="Ethanol Stock"
-                definition="Current inventory levels of finished Ethanol product holding in storage tanks awaiting dispatch."
-                dataKey="ethInStore"
-                data={filteredData}
-                pyData={historicalData}
-                timeFilter={timeFilter}
-                higherIsBetter={false}
-                isDarkMode={isDarkMode}
-                comparisonLabel={comparisonLabels[comparisonType]}
-              />
-              <div className="mb-2 flex flex-wrap gap-4">
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-bold ${textClasses.muted}`}>
-                    Avg Stock:{' '}
-                    <span className={textClasses.title}>{formatMetric(getChartMetric('ethInStore', false))}</span>
-                  </span>
-                  <span className="text-[8px] font-semibold text-slate-400">
-                    | vs {comparisonLabels[comparisonType]}:{' '}
-                    {formatMetric(getChartMetric('ethInStore', false, historicalData))}
-                  </span>
-                </div>
-              </div>
-              <div className="relative mt-2 min-h-0 flex-1">
-                <div className="absolute inset-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={filteredData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorEth" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid {...gridStyle} vertical={false} />
-                      <XAxis
-                        dataKey="date"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        dy={10}
-                        minTickGap={30}
-                      />
-                      <YAxis
-                        axisLine={false}
-                        tickLine={false}
-                        tick={axisStyle}
-                        tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                      />
-                      <RechartsTooltip content={<CustomTooltip isDarkMode={isDarkMode} />} />
-                      <Area
-                        type="monotone"
-                        dataKey="ethInStore"
-                        name="Ethanol Stock"
-                        stroke="#dc2626"
-                        strokeWidth={2}
-                        fillOpacity={1}
-                        fill="url(#colorEth)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       ) : (
         <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm ${cardClasses}`}>
@@ -1133,7 +958,7 @@ export default function DistilleryAnalyticsDashboard() {
             className={`flex items-center border-b p-4 ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
           >
             <h3 className={`text-sm font-bold ${textClasses.title}`}>
-              Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({timeFilter} View)</span>
+              Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({periodLabel} View)</span>
             </h3>
           </div>
 
@@ -1227,6 +1052,7 @@ export default function DistilleryAnalyticsDashboard() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -13,6 +13,18 @@ const {
   deleteMapping,
   getAllAppsWithForms,
 } = require('../controllers/admin.controller');
+const {
+  getAdminHomepageCards,
+  upsertUserHomepageCards,
+} = require('../controllers/homepageCards.controller');
+const {
+  getAdminBiSettings,
+  updateAdminBiSettings,
+} = require('../controllers/biSettings.controller');
+const {
+  getAdminDataUploadAccess,
+  upsertAdminDataUploadAccess,
+} = require('../controllers/dataUpload.controller');
 
 // All admin routes require authentication + admin role
 router.use(authenticate, requireRole('admin'));
@@ -29,5 +41,14 @@ router.post('/mappings',     upsertMapping);
 router.delete('/mappings/:id', deleteMapping);
 
 router.get('/apps-all',      getAllAppsWithForms);
+
+router.get('/homepage-cards',  getAdminHomepageCards);
+router.put('/homepage-cards',  upsertUserHomepageCards);
+
+router.get('/bi-settings',  getAdminBiSettings);
+router.put('/bi-settings',  updateAdminBiSettings);
+
+router.get('/data-upload-access',  getAdminDataUploadAccess);
+router.put('/data-upload-access',  upsertAdminDataUploadAccess);
 
 module.exports = router;

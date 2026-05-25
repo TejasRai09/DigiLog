@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -54,8 +54,11 @@ const EhsWaterCpu = () => {
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
-      <h1 className="page-title mb-6">Water Dashboard — CPU Water Recycle</h1>
+      <FormPageHeader
+        formKey="ehs_water_cpu"
+        fallbackTitle="Water Dashboard — CPU Water Recycle"
+        fallbackDescription="CPU inlet/outlet daily report with quality parameters"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
 

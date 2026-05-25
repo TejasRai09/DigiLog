@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdApps, MdRefresh, MdArrowBack } from 'react-icons/md';
+import { MdApps, MdRefresh } from 'react-icons/md';
+import AppBreadcrumb from '../components/AppBreadcrumb';
+import { buildFormsHubTrail } from '../utils/breadcrumbTrail';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useAuth from '../hooks/useAuth';
@@ -35,19 +37,11 @@ const Dashboard = () => {
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        type="button"
-        onClick={() => navigate('/')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" />
-        Back to homepage
-      </button>
+      <AppBreadcrumb items={buildFormsHubTrail()} />
 
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="page-title">Forms Hub</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             Centralized access to digital operational forms.
           </p>
           {user?.name && (
@@ -84,7 +78,7 @@ const Dashboard = () => {
                 BI Control Tower is not listed in Forms Hub. Use{' '}
                 <button
                   type="button"
-                  onClick={() => navigate('/')}
+                  onClick={() => navigate('/dashboard')}
                   className="font-medium text-blue-600 hover:underline"
                 >
                   Back to homepage

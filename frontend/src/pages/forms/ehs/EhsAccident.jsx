@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -38,8 +38,7 @@ const EhsAccident = () => {
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
-      <h1 className="page-title mb-6">Accident Data Register</h1>
+      <FormPageHeader formKey="ehs_accident" fallbackTitle="Accident Data Register" />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="form-section space-y-4">

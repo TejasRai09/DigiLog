@@ -1,14 +1,15 @@
-import { Link } from 'react-router-dom';
-import { MdArrowBack } from 'react-icons/md';
+import FormPageBreadcrumb from './FormPageBreadcrumb';
 
-const BackToFormsHub = ({ className = 'mb-6' }) => (
-  <Link
-    to="/forms-hub"
-    className={`flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors ${className}`}
-  >
-    <MdArrowBack className="h-4 w-4" />
-    Back to Forms Hub
-  </Link>
+/**
+ * @deprecated Prefer `FormPageHeader` (includes breadcrumb) or `FormPageBreadcrumb` directly.
+ */
+const BackToFormsHub = ({ formKey, fallbackTitle = '', subformLabel, className = 'mb-6' }) => (
+  <FormPageBreadcrumb
+    formKey={formKey}
+    fallbackTitle={fallbackTitle}
+    subformLabel={subformLabel}
+    className={className}
+  />
 );
 
 export default BackToFormsHub;

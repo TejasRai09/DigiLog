@@ -1,6 +1,9 @@
-import { useNavigate } from 'react-router-dom';
-import { MdArrowBack } from 'react-icons/md';
+import { useLocation } from 'react-router-dom';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
 import FormTable from '../../components/FormTable';
+import AppFormsHeader from '../../components/AppFormsHeader';
+import { MdSecurity } from 'react-icons/md';
+import { buildEhsHubTrail } from '../../utils/breadcrumbTrail';
 
 const EHS_FORMS = [
   {
@@ -30,25 +33,22 @@ const EHS_FORMS = [
 ];
 
 const EhsLanding = () => {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const appId = location.state?.appId;
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        onClick={() => navigate('/')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" /> Back to Dashboard
-      </button>
+      <AppBreadcrumb items={buildEhsHubTrail()} />
 
-      <div className="mb-6">
-        <h1 className="page-title">EHS — Environment Health &amp; Safety</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Incident reporting, accident register and water dashboard
-        </p>
-      </div>
+      <AppFormsHeader
+        name="EHS"
+        description="Incident reporting, accident register and water dashboard"
+        icon={MdSecurity}
+        color="#059669"
+        className="mb-6"
+      />
 
-      <FormTable forms={EHS_FORMS} />
+      <FormTable forms={EHS_FORMS} returnTo="/ehs" appId={appId} />
     </main>
   );
 };

@@ -1,6 +1,26 @@
 import { useEffect } from 'react';
-import { MdCheck, MdClose, MdSwapHoriz } from 'react-icons/md';
+import { MdCheck, MdClose, MdInfoOutline, MdSwapHoriz } from 'react-icons/md';
 import Spinner from './Spinner';
+
+const ConfirmationPolicyNotice = () => (
+  <div
+    className="flex gap-3 rounded-xl border border-amber-200/80 bg-amber-50 px-4 py-3.5 sm:px-5"
+    role="note"
+  >
+    <MdInfoOutline
+      className="mt-0.5 h-5 w-5 shrink-0 text-amber-800"
+      aria-hidden
+    />
+    <div>
+      <p className="text-sm font-bold text-amber-900">Confirmation Policy Notice</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-amber-900/90">
+        By pressing <span className="font-bold">Confirm &amp; Commit</span>, you certify that these
+        measurements are accurate representations of today&apos;s plant production. This entry will be
+        permanently appended to the operations register database.
+      </p>
+    </div>
+  </div>
+);
 
 const FormReviewModal = ({
   open,
@@ -132,6 +152,10 @@ const FormReviewModal = ({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="shrink-0 border-t border-gray-100 px-6 py-4 sm:px-8">
+          <ConfirmationPolicyNotice />
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 sm:px-8">

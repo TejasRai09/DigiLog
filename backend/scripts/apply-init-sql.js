@@ -1,7 +1,7 @@
 /**
  * Applies mysql/init.sql using DATABASE_URL from backend/.env (server connection).
  * Ensures gsmadb exists and defines:
- *   system tables (users, apps, forms, mappings), form/logbook tables,
+ *   system tables (users, apps, forms, mappings, portal_settings), form/logbook tables,
  *   distillery_operations, mh_* Mill House cards, and pp_* Power Plant equipment
  *   (pp_equipment, pp_specs, pp_oem_schedule, pp_history — used by /api/power).
  *

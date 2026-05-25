@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -86,8 +86,7 @@ const DSLogbook = () => {
 
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
-      <h1 className="page-title mb-6">GSMA Logbook - DS</h1>
+      <FormPageHeader formKey="ds_logbook" fallbackTitle="DS Logbook" />
 
       <form onSubmit={openReview} className="space-y-4">
         <div className="form-section space-y-4">

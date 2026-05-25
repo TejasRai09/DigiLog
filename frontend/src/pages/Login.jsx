@@ -33,7 +33,7 @@ const Login = () => {
     setLoading(true);
     try {
       await loginManual(form.email, form.password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed.');
     } finally {
@@ -53,7 +53,7 @@ const Login = () => {
     setLoading(true);
     try {
       await loginGoogle(accessToken);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Google sign-in failed.');
     } finally {

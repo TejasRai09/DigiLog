@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -44,8 +44,7 @@ const StoppageLogbook = () => {
 
   return (
     <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
-      <h1 className="page-title mb-6">GSMA Logbook - Stoppages</h1>
+      <FormPageHeader formKey="stoppage_logbook" fallbackTitle="Stoppage Logbook" />
 
       <form onSubmit={openReview} className="space-y-4">
         <div className="form-section space-y-4">

@@ -8,8 +8,11 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
-import { isHubFormKey, hubFormPath } from '../config/hubFormRoutes';
+import { isHubFormKey, hubFormPath, hubNavState } from '../config/hubFormRoutes';
 import { isBiDashboardFormKey, biDashboardPath } from '../config/biDashboardRoutes';
+import { isPowerDeptFormKey, powerDeptPath } from '../config/powerDeptRoutes';
+import { ehsHubForFormKey } from '../config/breadcrumbHubs';
+import { withoutGsmaLabel } from '../utils/displayLabels';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -74,7 +77,7 @@ const ViewDataModal = ({ form, onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">{form.name} — Records</h2>
+            <h2 className="text-base font-semibold text-gray-900">{withoutGsmaLabel(form.name)} — Records</h2>
             {data && (
               <p className="text-xs text-gray-400 mt-0.5">{data.total} total row{data.total !== 1 ? 's' : ''}</p>
             )}
@@ -211,6 +214,8 @@ const FormTable = ({
   forms,
   nameColumnHeader = 'Form Name',
   emptyMessage = 'No forms are assigned to you for this app.',
+  appId = null,
+  returnTo = null,
 }) => {
   const navigate            = useNavigate();
   const [viewing, setViewing] = useState(null); // form object being viewed
@@ -239,7 +244,7 @@ const FormTable = ({
             {forms.map((form, idx) => (
               <tr key={form._id} className="hover:bg-gray-50 transition-colors">
                 <td className="td text-gray-400">{idx + 1}</td>
-                <td className="td font-medium text-gray-900">{form.name}</td>
+                <td className="td font-medium text-gray-900">{withoutGsmaLabel(form.name)}</td>
                 <td className="td text-gray-500">{form.description || '—'}</td>
                 <td className="td">
                   <div className="flex items-center justify-center gap-2">
@@ -247,26 +252,62 @@ const FormTable = ({
                     {/* Open form or hub module (equipment / EHS) */}
                     <button
                       onClick={() => {
+                        const baseState = {};
+                        if (appId != null && appId !== '') baseState.appId = String(appId);
+                        if (returnTo) baseState.returnTo = returnTo;
+                        else if (appId != null && appId !== '') baseState.returnTo = `/apps/${appId}`;
+
+                        if (isPowerDeptFormKey(form.formKey)) {
+                          const path = powerDeptPath(form.formKey);
+                          if (path) {
+                            const navState = { ...baseState, returnTo: returnTo || '/power' };
+                            navigate(path, {
+                              state: Object.keys(navState).length ? navState : undefined,
+                            });
+                          }
+                          return;
+                        }
                         if (isBiDashboardFormKey(form.formKey)) {
                           const path = biDashboardPath(form.formKey);
-                          if (path) navigate(path);
+                          if (path) {
+                            navigate(path, {
+                              state: Object.keys(baseState).length ? baseState : undefined,
+                            });
+                          }
                           return;
                         }
                         if (isHubFormKey(form.formKey)) {
-                          navigate(hubFormPath(form.formKey));
+                          const path = hubFormPath(form.formKey);
+                          const hubState = hubNavState(form.formKey, { appId, returnTo });
+                          navigate(path, {
+                            state: { ...baseState, ...hubState },
+                          });
                           return;
                         }
-                        navigate(`/forms/${form.formKey}`);
+                        const ehsHub = ehsHubForFormKey(form.formKey);
+                        const navState = { ...baseState };
+                        if (ehsHub) {
+                          navState.hubPath = ehsHub.path;
+                          navState.hubLabel = ehsHub.label;
+                          if (!navState.returnTo) navState.returnTo = ehsHub.path;
+                        }
+                        navigate(`/forms/${form.formKey}`, {
+                          state: Object.keys(navState).length ? navState : undefined,
+                        });
                       }}
                       className="btn-primary py-1.5 text-xs"
                     >
                       <MdOpenInNew className="h-3.5 w-3.5" />
-                      {isHubFormKey(form.formKey) || isBiDashboardFormKey(form.formKey)
+                      {isHubFormKey(form.formKey) ||
+                      isBiDashboardFormKey(form.formKey) ||
+                      isPowerDeptFormKey(form.formKey)
                         ? 'Open'
                         : 'Open Form'}
                     </button>
 
-                    {!isHubFormKey(form.formKey) && !isBiDashboardFormKey(form.formKey) && (
+                    {!isHubFormKey(form.formKey) &&
+                      !isBiDashboardFormKey(form.formKey) &&
+                      !isPowerDeptFormKey(form.formKey) && (
                       <>
                         <button
                           onClick={() => setViewing(form)}

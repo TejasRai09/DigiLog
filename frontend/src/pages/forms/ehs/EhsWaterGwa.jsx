@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MdSave } from 'react-icons/md';
-import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormPageHeader from '../../../components/FormPageHeader';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -48,8 +48,11 @@ const EhsWaterGwa = () => {
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <BackToFormsHub />
-      <h1 className="page-title mb-6">Water Dashboard — Ground Water Abstraction</h1>
+      <FormPageHeader
+        formKey="ehs_water_gwa"
+        fallbackTitle="Water Dashboard — Ground Water Abstraction"
+        fallbackDescription="Daily bore well extraction and usage report"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
 

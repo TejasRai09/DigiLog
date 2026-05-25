@@ -8,6 +8,14 @@
   }
 }
 
+@layer utilities {
+  /* Marketing hero: off-white + soft mint glow top-left (DigiLog green theme) */
+  .bg-mesh {
+    background-color: #fafaf9;
+    background-image: radial-gradient(ellipse 85% 70% at 0% 0%, rgb(220 252 231 / 0.85) 0%, rgb(240 253 244 / 0.35) 42%, transparent 68%);
+  }
+}
+
 @layer components {
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2

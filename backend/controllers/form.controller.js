@@ -204,6 +204,26 @@ const submitForm = async (req, res) => {
   }
 };
 
+// ─── GET /api/forms/:formKey ──────────────────────────────────
+const getFormMeta = async (req, res) => {
+  const { formKey } = req.params;
+
+  const [[row]] = await pool.query(
+    'SELECT name, description, form_key FROM forms WHERE form_key = ? AND is_active = 1',
+    [formKey],
+  );
+  if (!row) return res.status(404).json({ message: 'Form not found.' });
+
+  const allowed = await canAccessForm(req.user, formKey);
+  if (!allowed) return res.status(403).json({ message: 'Access denied to this form.' });
+
+  res.json({
+    name: row.name,
+    description: row.description,
+    formKey: row.form_key,
+  });
+};
+
 // ─── GET /api/forms/:formKey/records?page=1&limit=20 ─────────
 const getRecords = async (req, res) => {
   const { formKey } = req.params;
@@ -234,4 +254,4 @@ const getRecords = async (req, res) => {
   }
 };
 
-module.exports = { submitForm, getRecords, canAccessForm };
+module.exports = { submitForm, getRecords, getFormMeta, canAccessForm };

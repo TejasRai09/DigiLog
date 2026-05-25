@@ -72,6 +72,7 @@ function mapRowToBiPoint(r) {
   const dateFull = Number.isNaN(dateObj.getTime())
     ? String(d)
     : dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const dateIso = dateKey(r.Date);
 
   let mode = (r.operation_mode || '').trim();
   if (mode === 'None' || mode === '') mode = 'Mixed';
@@ -100,6 +101,7 @@ function mapRowToBiPoint(r) {
   return {
     date: dateLabel,
     dateFull,
+    dateIso,
     mode,
     operationModeRaw: (r.operation_mode || '').trim(),
     bHeavyProd,

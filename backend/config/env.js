@@ -26,4 +26,7 @@ module.exports = {
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   /** Optional absolute logo URL for HTML emails; if empty, CLIENT_ORIGIN + /logo.png */
   APP_LOGO_URL: (process.env.APP_LOGO_URL || '').trim(),
+
+  /** Max bytes for Data Upload CSV/Excel (default 25 MB). */
+  DATA_UPLOAD_MAX_BYTES: parseInt(process.env.DATA_UPLOAD_MAX_BYTES || '26214400', 10) || 26214400,
 };
