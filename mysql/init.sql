@@ -90,6 +90,30 @@ INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
 VALUES ('bi_third_season_compare', '0')
 ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
 
+-- Homepage big-card access (Forms Hub / BI Control Tower on `/`).
+CREATE TABLE IF NOT EXISTS `user_homepage_cards` (
+  `user_id`    INT          NOT NULL,
+  `card_key`   VARCHAR(32)  NOT NULL,
+  `created_at` TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`, `card_key`),
+  INDEX `user_homepage_cards_user_id_idx` (`user_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Backfill: give forms_hub to everyone with a non-BI mapping,
+--           give bi_control_tower to everyone mapped to the BI app.
+INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
+  SELECT DISTINCT m.user_id, 'forms_hub'
+  FROM `mappings` m
+  JOIN `apps` a ON a.id = m.app_id
+  WHERE a.name <> 'BI Control Tower';
+
+INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
+  SELECT DISTINCT m.user_id, 'bi_control_tower'
+  FROM `mappings` m
+  JOIN `apps` a ON a.id = m.app_id
+  WHERE a.name = 'BI Control Tower';
+
 -- Data Upload tab access (admin grants per employee).
 CREATE TABLE IF NOT EXISTS `user_data_upload_access` (
   `user_id`     INT NOT NULL,

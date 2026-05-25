@@ -10,35 +10,45 @@ const getMyHomepageCards = async (req, res) => {
     return res.json({ cardKeys: ['forms_hub', 'bi_control_tower'] });
   }
 
-  const [rows] = await pool.query(
-    'SELECT card_key FROM user_homepage_cards WHERE user_id = ? ORDER BY card_key',
-    [user.id],
-  );
-  res.json({ cardKeys: rows.map((r) => r.card_key) });
+  try {
+    const [rows] = await pool.query(
+      'SELECT card_key FROM user_homepage_cards WHERE user_id = ? ORDER BY card_key',
+      [user.id],
+    );
+    res.json({ cardKeys: rows.map((r) => r.card_key) });
+  } catch (err) {
+    console.error('getMyHomepageCards:', err.message);
+    res.status(500).json({ message: 'Failed to load homepage cards.' });
+  }
 };
 
 /** GET /api/admin/homepage-cards — all employee assignments */
 const getAdminHomepageCards = async (_req, res) => {
-  const [rows] = await pool.query(
-    `SELECT uhc.user_id, uhc.card_key, u.name AS u_name, u.email AS u_email
-     FROM user_homepage_cards uhc
-     JOIN users u ON u.id = uhc.user_id
-     ORDER BY uhc.user_id, uhc.card_key`,
-  );
+  try {
+    const [rows] = await pool.query(
+      `SELECT uhc.user_id, uhc.card_key, u.name AS u_name, u.email AS u_email
+       FROM user_homepage_cards uhc
+       JOIN users u ON u.id = uhc.user_id
+       ORDER BY uhc.user_id, uhc.card_key`,
+    );
 
-  const byUser = new Map();
-  for (const r of rows) {
-    const uid = r.user_id;
-    if (!byUser.has(uid)) {
-      byUser.set(uid, {
-        user: { _id: uid, id: uid, name: r.u_name, email: r.u_email },
-        cardKeys: [],
-      });
+    const byUser = new Map();
+    for (const r of rows) {
+      const uid = r.user_id;
+      if (!byUser.has(uid)) {
+        byUser.set(uid, {
+          user: { _id: uid, id: uid, name: r.u_name, email: r.u_email },
+          cardKeys: [],
+        });
+      }
+      byUser.get(uid).cardKeys.push(r.card_key);
     }
-    byUser.get(uid).cardKeys.push(r.card_key);
-  }
 
-  res.json(Array.from(byUser.values()));
+    res.json(Array.from(byUser.values()));
+  } catch (err) {
+    console.error('getAdminHomepageCards:', err.message);
+    res.status(500).json({ message: 'Failed to load homepage card assignments.' });
+  }
 };
 
 /** PUT /api/admin/homepage-cards — replace cards for one user */
@@ -73,7 +83,8 @@ const upsertUserHomepageCards = async (req, res) => {
     res.json({ message: 'Homepage cards saved.', cardKeys: normalized });
   } catch (err) {
     await conn.rollback();
-    throw err;
+    console.error('upsertUserHomepageCards:', err.message);
+    res.status(500).json({ message: 'Failed to save homepage cards.' });
   } finally {
     conn.release();
   }
