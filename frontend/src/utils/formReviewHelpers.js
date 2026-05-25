@@ -35,7 +35,7 @@ export function displayValue(v, opts = {}) {
 }
 
 /** @param {Record<string, unknown>} form @param {{ key: string, label: string, date?: boolean, dateTime?: boolean, percent?: boolean, suffix?: string }[]} defs */
-export function fieldsFromDefs(form, defs, { onlyFilled = true } = {}) {
+export function fieldsFromDefs(form, defs, { onlyFilled = false } = {}) {
   const fields = defs.map((d) => ({
     label: d.label,
     value: displayValue(form[d.key], d),
@@ -45,10 +45,10 @@ export function fieldsFromDefs(form, defs, { onlyFilled = true } = {}) {
 
 export function labSummary(form, extra = []) {
   const items = [{ label: 'Report Date', value: formatDate(form.date) }];
-  if (hasValue(form.shift)) items.push({ label: 'Shift', value: form.shift, badge: true });
-  if (hasValue(form.op_mode)) items.push({ label: 'Mode of Operation', value: form.op_mode, badge: true });
-  if (hasValue(form.samplingTime)) items.push({ label: 'Sampling Time', value: form.samplingTime });
-  if (hasValue(form.time)) items.push({ label: 'Time', value: form.time });
+  if ('shift' in form)        items.push({ label: 'Shift',               value: hasValue(form.shift)       ? form.shift       : EMPTY, badge: true });
+  if ('op_mode' in form)      items.push({ label: 'Mode of Operation',   value: hasValue(form.op_mode)     ? form.op_mode     : EMPTY, badge: true });
+  if ('samplingTime' in form) items.push({ label: 'Sampling Time',       value: hasValue(form.samplingTime) ? form.samplingTime : EMPTY });
+  if ('time' in form)         items.push({ label: 'Time',                value: hasValue(form.time)        ? form.time        : EMPTY });
   return [...items, ...extra];
 }
 

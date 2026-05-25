@@ -64,11 +64,18 @@ const appDefs = [
     sort_order:  7,
   },
   {
+    name:        'Production',
+    description: 'Pan boiling, clarification, decanter and centrifugal shift logs',
+    icon:        'MdFactory',
+    color:       '#D97706',
+    sort_order:  8,
+  },
+  {
     name:        'BI Control Tower',
     description: 'Business intelligence dashboards (employee-mapped)',
     icon:        'MdInsights',
     color:       '#6366F1',
-    sort_order:  8,
+    sort_order:  9,
   },
 ];
 
@@ -95,10 +102,22 @@ const formDefs = [
   // App 4 – Distillery
   { name: 'Distillery Operations Form', description: 'Daily operations tracking form for the distillery', formKey: 'distillery_ops', app: 'Distillery Operations', sort_order: 1 },
 
-  // Hub modules (DigiLog routes — not submit-style forms; form_key opens /equipment, /power, /ehs)
-  { name: 'Mill House equipment', description: 'Open equipment life history cards', formKey: 'digilog_hub_mill_equipment', app: 'Mill House Equipment History', sort_order: 1 },
-  { name: 'Power Plant equipment', description: 'Open power plant equipment history cards', formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History', sort_order: 1 },
-  { name: 'EHS home', description: 'Open EHS forms and dashboards', formKey: 'digilog_hub_ehs', app: 'EHS — Environment Health & Safety', sort_order: 1 },
+  // Hub modules — equipment history cards (single hub entry, opens card-browser)
+  { name: 'Mill House equipment',  description: 'Open equipment life history cards',            formKey: 'digilog_hub_mill_equipment',  app: 'Mill House Equipment History',    sort_order: 1 },
+  { name: 'Power Plant equipment', description: 'Open power plant equipment history cards',     formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History',   sort_order: 1 },
+
+  // EHS — individual submit forms
+  { name: 'Near Miss / Incident / Accident Report',    description: 'Log workplace near misses, incidents and accidents for investigation', formKey: 'ehs_near_miss',  app: 'EHS — Environment Health & Safety', sort_order: 1 },
+  { name: 'Water Dashboard — Ground Water Abstraction', description: 'Daily bore well extraction and usage report',                         formKey: 'ehs_water_gwa', app: 'EHS — Environment Health & Safety', sort_order: 2 },
+  { name: 'Water Dashboard — ETP Working',              description: 'Effluent Treatment Plant daily quantity and quality report',          formKey: 'ehs_water_etp', app: 'EHS — Environment Health & Safety', sort_order: 3 },
+  { name: 'Water Dashboard — CPU Water Recycle',        description: 'CPU inlet/outlet daily report with quality parameters',              formKey: 'ehs_water_cpu', app: 'EHS — Environment Health & Safety', sort_order: 4 },
+
+  // Production — individual submit forms
+  { name: 'Shift Chemist Job Log Book',              description: 'Log jobs done and pending tasks for each shift chemist',                      formKey: 'prod_shift_chemist',  app: 'Production', sort_order: 1 },
+  { name: 'A-Centrifugal Machine Stoppage Log Book', description: 'Machine run/stoppage details and thermodynamic parameters per shift',         formKey: 'prod_centrifugal',    app: 'Production', sort_order: 2 },
+  { name: 'Pan Log Book',                            description: 'Boiling operation details by massecuite grade with lab analysis',             formKey: 'prod_pan_logbook',    app: 'Production', sort_order: 3 },
+  { name: 'Decanter Log Book',                       description: 'Hourly 1st and 2nd stage decanter readings per shift',                       formKey: 'prod_decanter',       app: 'Production', sort_order: 4 },
+  { name: 'Clarification Log Book',                  description: 'Hourly juice clarification readings and process parameters',                 formKey: 'prod_clarification',  app: 'Production', sort_order: 5 },
 
   // BI dashboards (routes under /bi/…; mapped via forms like other apps)
   {
@@ -148,12 +167,29 @@ async function mergeRenamedApps(pool) {
   }
 }
 
+/**
+ * Remove stale hub-entry forms that were replaced with individual forms.
+ * These keys are no longer meaningful in the forms registry.
+ */
+const STALE_HUB_KEYS = ['digilog_hub_ehs', 'digilog_hub_production'];
+
+async function removeStaleHubForms(pool) {
+  for (const key of STALE_HUB_KEYS) {
+    const [[row]] = await pool.query('SELECT id FROM forms WHERE form_key = ? LIMIT 1', [key]);
+    if (row) {
+      await pool.query('DELETE FROM forms WHERE form_key = ?', [key]);
+      console.log(`  🗑️   Removed stale hub form: ${key}`);
+    }
+  }
+}
+
 // ─── Seed ─────────────────────────────────────────────────────
 
 const seed = async () => {
   console.log('🌱  Seeding MySQL...');
 
   await mergeRenamedApps(pool);
+  await removeStaleHubForms(pool);
 
   // 1. Admin user
   const adminHash = await bcrypt.hash('Admin@123', 12);

@@ -107,7 +107,7 @@ export function buildDistilleryReview(form, derived) {
   const derivedFields = DISTILLERY_DERIVED.map((d) => ({
     label: d.label,
     value: displayValue(formatDistilleryDerivedNumber(derived[d.key]), { percent: d.percent }),
-  })).filter((f) => f.value !== '—');
+  }));
 
   return reviewMeta(
     'Review Distillery Operations',

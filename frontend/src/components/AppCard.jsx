@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { MdElectricBolt, MdApps, MdChevronRight, MdLocalBar, MdPrecisionManufacturing, MdScience, MdPower, MdFlashOn, MdSecurity, MdInsights } from 'react-icons/md';
+import { MdElectricBolt, MdApps, MdChevronRight, MdLocalBar, MdPrecisionManufacturing, MdScience, MdPower, MdFlashOn, MdSecurity, MdInsights, MdFactory } from 'react-icons/md';
 import { getSingleHubRoute, hubNavState } from '../config/hubFormRoutes';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 
@@ -13,6 +13,7 @@ const ICON_MAP = {
   MdFlashOn,
   MdSecurity,
   MdInsights,
+  MdFactory,
 };
 
 const AppCard = ({ app }) => {
