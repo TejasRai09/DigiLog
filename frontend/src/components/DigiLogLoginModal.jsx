@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import Spinner from './Spinner';
 import GoogleSignInButton from './GoogleSignInButton';
+import { validateLoginForm, getLoginErrorMessage } from '../utils/loginValidation';
+import { msalInstance } from '../msalConfig';
 
 const MicrosoftIcon = () => (
   <svg viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-auto shrink-0" aria-hidden>
@@ -55,27 +57,33 @@ export default function DigiLogLoginModal({ open, onClose }) {
 
   const handleManualLogin = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
-      toast.error('Please enter email and password.');
+    const check = validateLoginForm(form.email, form.password);
+    if (!check.ok) {
+      toast.error(check.message);
       return;
     }
     setLoading(true);
     try {
-      await loginManual(form.email, form.password);
+      await loginManual(check.email, form.password);
+      toast.success('Signed in successfully.');
       navigate('/dashboard');
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed.');
+      toast.error(getLoginErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   const handleOutlookLogin = () => {
+    if (!msalInstance) {
+      toast.error('Microsoft sign-in requires a secure (HTTPS) connection.');
+      return;
+    }
     try {
       loginOutlook();
     } catch {
-      toast.error('Could not initiate Microsoft login.');
+      toast.error('Could not start Microsoft sign-in. Please try again.');
     }
   };
 
@@ -83,10 +91,11 @@ export default function DigiLogLoginModal({ open, onClose }) {
     setLoading(true);
     try {
       await loginGoogle(accessToken);
+      toast.success('Signed in successfully.');
       navigate('/dashboard');
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Google sign-in failed.');
+      toast.error(getLoginErrorMessage(err, 'Google sign-in failed. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -157,7 +166,7 @@ export default function DigiLogLoginModal({ open, onClose }) {
               <div className="flex-grow border-t border-slate-100" />
             </div>
 
-            <form onSubmit={handleManualLogin} className="space-y-4">
+            <form onSubmit={handleManualLogin} className="space-y-4" noValidate>
               <div>
                 <label htmlFor="modal-login-email" className="mb-1.5 block text-xs font-bold text-slate-500">
                   Username or corporate email
