@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch, MdPeople,
   MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdHome, MdUpload,
+  MdSupervisorAccount,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -10,6 +11,7 @@ import Spinner from '../../components/Spinner';
 import EmployeeFormMappingModal from '../../components/admin/EmployeeFormMappingModal';
 import EmployeeHomepageMappingModal from '../../components/admin/EmployeeHomepageMappingModal';
 import EmployeeDataUploadAccessModal from '../../components/admin/EmployeeDataUploadAccessModal';
+import AssignManagerModal from '../../components/admin/AssignManagerModal';
 import BiDashboardSettings from '../../components/admin/BiDashboardSettings';
 import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
 import { homepageCardLabel } from '../../config/homepageCards';
@@ -116,6 +118,7 @@ const EmployeeManagement = () => {
   const [mappingModal, setMappingModal] = useState(null); // { user, variant: 'forms' | 'dashboards' }
   const [homepageModal, setHomepageModal] = useState(null);
   const [dataUploadModal, setDataUploadModal] = useState(null);
+  const [managerModal, setManagerModal] = useState(null); // user object
   const [mappings, setMappings]   = useState([]);
   const [homepageAssignments, setHomepageAssignments] = useState([]);
   const [dataUploadAssignments, setDataUploadAssignments] = useState([]);
@@ -287,9 +290,7 @@ const EmployeeManagement = () => {
                 <th className="th">Department</th>
                 <th className="th">Role</th>
                 <th className="th">Status</th>
-                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped forms</th>
-                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped dashboards</th>
-                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Homepage cards</th>
+                <th className="th min-w-[8rem]">Manager</th>
                 <th className="th min-w-[6rem] whitespace-normal">Data upload</th>
                 <th className="th text-center w-16">Actions</th>
               </tr>
@@ -297,7 +298,7 @@ const EmployeeManagement = () => {
             <tbody className="bg-white divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="td text-center text-gray-400 py-10">No employees found.</td>
+                  <td colSpan={8} className="td text-center text-gray-400 py-10">No employees found.</td>
                 </tr>
               ) : (
                 filtered.map((u) => {
@@ -334,82 +335,10 @@ const EmployeeManagement = () => {
                           {u.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="td align-top max-w-[14rem] lg:max-w-md whitespace-normal">
-                        {(() => {
-                          const um = mappings.filter((m) => String(m.user?._id) === String(u._id));
-                          const formMappings = um.filter((m) => m.app?.name !== BI_CONTROL_TOWER_APP_NAME);
-                          if (formMappings.length === 0) {
-                            return <span className="text-gray-300">—</span>;
-                          }
-                          return (
-                            <div className="flex flex-col gap-2">
-                              {formMappings.map((m) => (
-                                <div key={m._id} className="text-xs leading-snug">
-                                  <span className="font-semibold text-gray-800">{withoutGsmaLabel(m.app?.name)}</span>
-                                  <span className="text-gray-400">: </span>
-                                  {m.forms?.length === 0 ? (
-                                    <span className="badge bg-green-50 text-green-700">All forms</span>
-                                  ) : (
-                                    <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
-                                      {m.forms.map((f) => (
-                                        <span key={f._id} className="badge bg-blue-50 text-blue-700">
-                                          {withoutGsmaLabel(f.name)}
-                                        </span>
-                                      ))}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="td align-top max-w-[14rem] lg:max-w-md whitespace-normal">
-                        {(() => {
-                          const um = mappings.filter((m) => String(m.user?._id) === String(u._id));
-                          const dashMappings = um.filter((m) => m.app?.name === BI_CONTROL_TOWER_APP_NAME);
-                          if (dashMappings.length === 0) {
-                            return <span className="text-gray-300">—</span>;
-                          }
-                          return (
-                            <div className="flex flex-col gap-2">
-                              {dashMappings.map((m) => (
-                                <div key={m._id} className="text-xs leading-snug">
-                                  <span className="font-semibold text-gray-800">{withoutGsmaLabel(m.app?.name)}</span>
-                                  <span className="text-gray-400">: </span>
-                                  {m.forms?.length === 0 ? (
-                                    <span className="badge bg-violet-50 text-violet-800">All dashboards</span>
-                                  ) : (
-                                    <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
-                                      {m.forms.map((f) => (
-                                        <span key={f._id} className="badge bg-violet-50 text-violet-800">
-                                          {withoutGsmaLabel(f.name)}
-                                        </span>
-                                      ))}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="td align-top max-w-[12rem] whitespace-normal">
-                        {(() => {
-                          const row = homepageAssignments.find((a) => String(a.user?._id) === String(u._id));
-                          if (!row?.cardKeys?.length) {
-                            return <span className="text-gray-300">—</span>;
-                          }
-                          return (
-                            <span className="inline-flex flex-wrap gap-1">
-                              {row.cardKeys.map((key) => (
-                                <span key={key} className="badge bg-slate-100 text-slate-700">
-                                  {homepageCardLabel(key)}
-                                </span>
-                              ))}
-                            </span>
-                          );
-                        })()}
+                      <td className="td text-sm text-gray-700 max-w-[10rem] truncate" title={u.managerName || ''}>
+                        {u.managerName
+                          ? <span>{u.managerName}</span>
+                          : <span className="text-gray-300">—</span>}
                       </td>
                       <td className="td align-top">
                         {u.role === 'employee' ? (
@@ -554,6 +483,19 @@ const EmployeeManagement = () => {
                 onClick={() => {
                   const x = rowMenu.user;
                   setRowMenu(null);
+                  setManagerModal(x);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <MdSupervisorAccount className="h-4 w-4 text-indigo-600" />
+                Assign manager
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const x = rowMenu.user;
+                  setRowMenu(null);
                   setModal(x);
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -624,6 +566,16 @@ const EmployeeManagement = () => {
           initial={modal === 'add' ? null : modal}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); fetchData(); }}
+        />
+      )}
+
+      {managerModal && (
+        <AssignManagerModal
+          key={`manager-${managerModal._id}`}
+          user={managerModal}
+          allUsers={users}
+          onClose={() => setManagerModal(null)}
+          onSaved={() => { setManagerModal(null); fetchData(); }}
         />
       )}
     </main>

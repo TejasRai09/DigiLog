@@ -104,6 +104,39 @@ async function ensureUserProfileColumns(conn) {
   }
 }
 
+/**
+ * Add users.manager_id column and its self-referencing FK idempotently.
+ * MySQL does not support ADD CONSTRAINT IF NOT EXISTS, so we check
+ * information_schema before attempting the ALTER.
+ */
+async function ensureManagerColumn(conn) {
+  await conn.query('USE `gsmadb`');
+
+  // 1. Add the column (ignore if already present)
+  try {
+    await conn.query('ALTER TABLE `users` ADD COLUMN `manager_id` INT NULL DEFAULT NULL');
+  } catch (err) {
+    if (err.errno !== 1060 && err.code !== 'ER_DUP_FIELDNAME') throw err;
+  }
+
+  // 2. Add the FK only if it doesn't already exist
+  const [[row]] = await conn.query(`
+    SELECT 1 AS exists_flag
+    FROM information_schema.KEY_COLUMN_USAGE
+    WHERE TABLE_SCHEMA    = DATABASE()
+      AND TABLE_NAME      = 'users'
+      AND CONSTRAINT_NAME = 'users_manager_id_fkey'
+    LIMIT 1
+  `);
+  if (!row) {
+    await conn.query(`
+      ALTER TABLE \`users\` ADD CONSTRAINT \`users_manager_id_fkey\`
+        FOREIGN KEY (\`manager_id\`) REFERENCES \`users\`(\`id\`)
+        ON DELETE SET NULL ON UPDATE CASCADE
+    `);
+  }
+}
+
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -125,6 +158,7 @@ async function main() {
     await conn.query(sql);
     await ensureDistilleryOperationsCalcColumns(conn);
     await ensureUserProfileColumns(conn);
+    await ensureManagerColumn(conn);
     console.log('Done — schema applied (init.sql: gsmadb + forms + mh_* + pp_* + …).');
     console.log('Ensure DATABASE_URL database name matches gsmadb or change init.sql USE line.');
   } catch (err) {

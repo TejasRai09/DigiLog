@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "seed": "node seed.js",
     "seed:cleanup-duplicates": "node scripts/cleanup-duplicate-gsma-apps.js",
+    "db:rename-form": "node scripts/rename-form.js",
     "db:schema": "node scripts/apply-init-sql.js",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",

@@ -15,6 +15,8 @@ const mapUser = (r) => ({
   authProvider: r.auth_provider,
   mailSent:     !!r.mail_sent,
   createdAt:    r.created_at,
+  managerId:    r.manager_id ?? null,
+  managerName:  r.manager_name ?? null,
 });
 
 const mapApp = (r) => ({
@@ -40,7 +42,12 @@ const mapForm = (r) => ({
 
 // GET /api/admin/users
 const getUsers = async (_req, res) => {
-  const [rows] = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+  const [rows] = await pool.query(`
+    SELECT u.*, m.name AS manager_name
+    FROM users u
+    LEFT JOIN users m ON m.id = u.manager_id
+    ORDER BY u.created_at DESC
+  `);
   res.json(rows.map(mapUser));
 };
 
@@ -160,6 +167,34 @@ const deleteUser = async (req, res) => {
   res.json({ message: 'User deleted.' });
 };
 
+// PUT /api/admin/users/:id/manager  — assign or clear manager
+const assignManager = async (req, res) => {
+  const targetId  = Number(req.params.id);
+  const managerId = req.body.managerId != null ? Number(req.body.managerId) : null;
+
+  const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId]);
+  if (!target) return res.status(404).json({ message: 'User not found.' });
+
+  if (managerId !== null) {
+    if (managerId === targetId)
+      return res.status(400).json({ message: 'A user cannot be their own manager.' });
+
+    const [[mgr]] = await pool.query('SELECT id FROM users WHERE id = ?', [managerId]);
+    if (!mgr) return res.status(404).json({ message: 'Manager user not found.' });
+  }
+
+  await pool.query('UPDATE users SET manager_id = ? WHERE id = ?', [managerId, targetId]);
+
+  const [[updated]] = await pool.query(`
+    SELECT u.*, m.name AS manager_name
+    FROM users u
+    LEFT JOIN users m ON m.id = u.manager_id
+    WHERE u.id = ?
+  `, [targetId]);
+
+  res.json(mapUser(updated));
+};
+
 // ─── Mapping management ──────────────────────────────────────
 
 // GET /api/admin/mappings
@@ -255,6 +290,7 @@ module.exports = {
   createUser,
   updateUser,
   deleteUser,
+  assignManager,
   sendMailToUser,
   sendMailBulk,
   getMappings,
