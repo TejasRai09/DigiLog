@@ -42,6 +42,13 @@ const FORM_CONFIG = {
   ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'E', tsCol: 'timestamp' },
   ehs_water_etp:    { table: 'ehs_water_etp',    pattern: 'E', tsCol: 'timestamp' },
   ehs_water_cpu:    { table: 'ehs_water_cpu',    pattern: 'E', tsCol: 'timestamp' },
+
+  // Production Forms
+  prod_shift_chemist: { table: 'prod_shift_chemist', pattern: 'G', tsCol: 'timestamp' },
+  prod_centrifugal:   { table: 'prod_centrifugal',   pattern: 'H', tsCol: 'timestamp' },
+  prod_pan_logbook:   { table: 'prod_pan_logbook',   pattern: 'G', tsCol: 'timestamp' },
+  prod_decanter:      { table: 'prod_decanter',      pattern: 'G', tsCol: 'timestamp' },
+  prod_clarification: { table: 'prod_clarification', pattern: 'G', tsCol: 'timestamp' },
 };
 
 // ─── Access guard ─────────────────────────────────────────────
@@ -99,6 +106,10 @@ const injectDateCols = (payload, pattern, body) => {
     case 'G':
       payload.Date = body.date ?? null;
       break;
+    case 'H':
+      payload.Date  = body.date  ?? null;
+      payload.Shift = body.shift ?? null;
+      break;
     default:
       break;
   }
@@ -142,6 +153,10 @@ async function hasDuplicateOperationRow(pool, table, pattern, payload) {
     case 'G':
       parts.push('`Date` <=> ?');
       vals.push(payload.Date ?? null);
+      break;
+    case 'H':
+      parts.push('`Date` <=> ?', '`Shift` <=> ?');
+      vals.push(payload.Date ?? null, payload.Shift ?? null);
       break;
     default:
       return false;
@@ -254,4 +269,38 @@ const getRecords = async (req, res) => {
   }
 };
 
-module.exports = { submitForm, getRecords, getFormMeta, canAccessForm };
+// ─── POST /api/forms/:formKey/batch ──────────────────────────
+// Accepts { rows: [...] } — inserts multiple rows at once (pan, decanter, clarification).
+const submitBatch = async (req, res) => {
+  const { formKey } = req.params;
+  const config = FORM_CONFIG[formKey];
+
+  if (!config) return res.status(400).json({ message: 'Unknown form.' });
+
+  const allowed = await canAccessForm(req.user, formKey);
+  if (!allowed) return res.status(403).json({ message: 'Access denied to this form.' });
+
+  const { rows } = req.body;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return res.status(400).json({ message: 'rows must be a non-empty array.' });
+  }
+
+  try {
+    for (const row of rows) {
+      const payload = sanitisePayload(row);
+      injectDateCols(payload, config.pattern, row);
+      const columns      = Object.keys(payload).map((c) => `\`${c}\``).join(', ');
+      const placeholders = Object.keys(payload).map(() => '?').join(', ');
+      await pool.execute(
+        `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`,
+        Object.values(payload)
+      );
+    }
+    res.status(201).json({ message: `${rows.length} rows inserted.` });
+  } catch (err) {
+    console.error('Batch submit error:', err.message);
+    res.status(500).json({ message: 'Database error: ' + err.message });
+  }
+};
+
+module.exports = { submitForm, submitBatch, getRecords, getFormMeta, canAccessForm };

@@ -623,6 +623,131 @@ function schemaEhsWaterCpu() {
   return a;
 }
 
+// ─── prod_shift_chemist ─────────────────────────────────────────
+function schemaProdShiftChemist() {
+  const a = [];
+  push(a, 'Date',                 'General',        'Date');
+  push(a, 'season',               'General',        'Season');
+  push(a, 'instructions',         'General',        'Instructions / Remarks');
+  push(a, 'shift8_4_jobs_done',   'Shift 8–4',      'Jobs Done');
+  push(a, 'shift8_4_jobs_todo',   'Shift 8–4',      'Jobs To Be Done');
+  push(a, 'shift8_4_sign',        'Shift 8–4',      'Chemist Sign');
+  push(a, 'shift4_12_jobs_done',  'Shift 4–12',     'Jobs Done');
+  push(a, 'shift4_12_jobs_todo',  'Shift 4–12',     'Jobs To Be Done');
+  push(a, 'shift4_12_sign',       'Shift 4–12',     'Chemist Sign');
+  push(a, 'shift12_8_jobs_done',  'Shift 12–8',     'Jobs Done');
+  push(a, 'shift12_8_jobs_todo',  'Shift 12–8',     'Jobs To Be Done');
+  push(a, 'shift12_8_sign',       'Shift 12–8',     'Chemist Sign');
+  push(a, 'timestamp',            'System',         'Recorded at');
+  return a;
+}
+
+// ─── prod_centrifugal ──────────────────────────────────────────
+function schemaProdCentrifugal() {
+  const a = [];
+  push(a, 'Date',               'General',      'Date');
+  push(a, 'Shift',              'General',      'Shift');
+  push(a, 'shw_temp',           'Parameters',   'S.H.W. Temp (°C)');
+  push(a, 'shw_pressure',       'Parameters',   'S.H.W. Pressure (Kg/cm²)');
+  push(a, 'air_pressure',       'Parameters',   'Air Pressure (Kg/cm²)');
+  ['m1','m2','m3','m4'].forEach((m) => {
+    const label = { m1:'No.1', m2:'No.2', m3:'No.3 NHEC', m4:'No.4 WB' }[m];
+    push(a, `${m}_basket_cleaning`,  label, 'Basket Cleaning');
+    push(a, `${m}_screen_condition`, label, 'Screen Condition');
+    push(a, `${m}_from`,             label, 'From');
+    push(a, `${m}_to`,               label, 'To');
+    push(a, `${m}_duration`,         label, 'Duration');
+    push(a, `${m}_reasons`,          label, 'Reasons');
+    push(a, `${m}_separator`,        label, 'Separator');
+    push(a, `${m}_remarks`,          label, 'Remarks');
+  });
+  push(a, 'operator_sign',      'Sign-off',     'Operator');
+  push(a, 'chemist_sign',       'Sign-off',     'Chemist');
+  push(a, 'section_head_sign',  'Sign-off',     'Section Head');
+  push(a, 'timestamp',          'System',       'Recorded at');
+  return a;
+}
+
+// ─── prod_pan_logbook ──────────────────────────────────────────
+function schemaProdPanLogbook() {
+  const a = [];
+  push(a, 'Date',          'General',   'Date');
+  push(a, 'season',        'General',   'Season');
+  push(a, 'grade',         'Strike',    'Massecuite Grade');
+  push(a, 'strike_no',     'Strike',    'Strike No.');
+  push(a, 'pan_no',        'Strike',    'Pan No.');
+  push(a, 'start_time',    'Strike',    'Start Time');
+  push(a, 'drop_time',     'Strike',    'Drop Time');
+  push(a, 'boil_time',     'Strike',    'Boiling Time (Hrs)');
+  push(a, 'down_time',     'Strike',    'Down Time (Mins)');
+  push(a, 'qty',           'Strike',    'Massecuite Qty');
+  push(a, 'cry_no',        'Strike',    'Cry No.');
+  push(a, 'sample_purity', 'Lab',       'Key Sample Purity (%)');
+  push(a, 'brix',          'Lab',       'Massecuite Brix (%)');
+  push(a, 'purity',        'Lab',       'Massecuite Purity (%)');
+  push(a, 'remarks',       'Remarks',   'Remarks');
+  push(a, 'timestamp',     'System',    'Recorded at');
+  return a;
+}
+
+// ─── prod_decanter ─────────────────────────────────────────────
+function schemaProdDecanter() {
+  const a = [];
+  push(a, 'Date',             'General',          'Date');
+  push(a, 'season',           'General',          'Season');
+  push(a, 'crop_day',         'General',          'Crop Day');
+  push(a, 'time_slot',        'General',          'Time Slot');
+  push(a, 'st1_mud',          '1st Stage',        'Mud (m³/h)');
+  push(a, 'st1_centrate',     '1st Stage',        'Centrate (m³/h)');
+  push(a, 'st1_floc',         '1st Stage',        'Floc (PPM)');
+  push(a, 'st1_water',        '1st Stage',        'Water (m³/h)');
+  push(a, 'st1_load',         '1st Stage',        'Load (A)');
+  push(a, 'st1_torque',       '1st Stage',        'Torque (%)');
+  push(a, 'st1_vib',          '1st Stage',        'Vib (mm/s)');
+  push(a, 'st1_diff_speed',   '1st Stage',        'Diff Speed (rpm)');
+  push(a, 'st2_mud',          '2nd Stage',        'Mud (m³/h)');
+  push(a, 'st2_centrate',     '2nd Stage',        'Centrate (m³/h)');
+  push(a, 'st2_floc',         '2nd Stage',        'Floc (PPM)');
+  push(a, 'st2_water',        '2nd Stage',        'Water (m³/h)');
+  push(a, 'st2_load',         '2nd Stage',        'Load (A)');
+  push(a, 'st2_torque',       '2nd Stage',        'Torque (%)');
+  push(a, 'st2_vib',          '2nd Stage',        'Vib (mm/s)');
+  push(a, 'st2_diff_speed',   '2nd Stage',        'Diff Speed (rpm)');
+  push(a, 'timestamp',        'System',           'Recorded at');
+  return a;
+}
+
+// ─── prod_clarification ────────────────────────────────────────
+function schemaProdClarification() {
+  const a = [];
+  push(a, 'Date',                 'General',       'Date');
+  push(a, 'season',               'General',       'Season');
+  push(a, 'crop_day',             'General',       'Crop Day');
+  push(a, 'inst_hod',             'Instructions',  'HOD');
+  push(a, 'inst_dy_hod',          'Instructions',  'Dy HOD');
+  push(a, 'inst_sectional_head',  'Instructions',  'Sectional Head');
+  push(a, 'time_slot',            'Hourly',        'Time Slot');
+  push(a, 'juice_flow',           'Hourly',        'Juice Flow (T/Hr)');
+  push(a, 'mol_dose',             'Hourly',        'MOL Dose (L/Min)');
+  push(a, 'mol_set_be',           'MOL',           'Set Be');
+  push(a, 'mol_std_wt',           'MOL',           'Std Wt');
+  push(a, 'mol_meas_be',          'MOL',           'Meas Be');
+  push(a, 'mol_meas_wt',          'MOL',           'Meas Wt');
+  push(a, 'vessel_std_time',      'Vessel',        'Std Time (min)');
+  push(a, 'vessel_meas_time',     'Vessel',        'Meas Time (min)');
+  push(a, 'ph_pre',               'pH',            'Pre');
+  push(a, 'ph_shock',             'pH',            'Shock');
+  push(a, 'ph_sulphured',         'pH',            'Sulphured');
+  push(a, 'sulphur_temp',         'Temperatures',  'Sulphur (°C)');
+  push(a, 'boiler_temp',          'Temperatures',  'Boiler (°C)');
+  push(a, 'boiler_press',         'Temperatures',  'Boiler Press');
+  push(a, 'op_sign',              'Sign-off',      'Operator');
+  push(a, 'chem_sign',            'Sign-off',      'Chemist');
+  push(a, 'remarks',              'Remarks',       'Remarks');
+  push(a, 'timestamp',            'System',        'Recorded at');
+  return a;
+}
+
 const BUILDERS = {
   mill_logbook1: schemaMillLogbook1,
   mill_logbook2: schemaMillLogbook2,
@@ -642,6 +767,11 @@ const BUILDERS = {
   ehs_water_gwa:   schemaEhsWaterGwa,
   ehs_water_etp:   schemaEhsWaterEtp,
   ehs_water_cpu:   schemaEhsWaterCpu,
+  prod_shift_chemist:  schemaProdShiftChemist,
+  prod_centrifugal:    schemaProdCentrifugal,
+  prod_pan_logbook:    schemaProdPanLogbook,
+  prod_decanter:       schemaProdDecanter,
+  prod_clarification:  schemaProdClarification,
 };
 
 export function getColumnDescriptors(formKey) {

@@ -103,6 +103,11 @@ export function buildEhsHubTrail() {
   return [DASHBOARD_CRUMB, FORMS_HUB_CRUMB, { label: HUB_MODULE_LABELS['/ehs'] }];
 }
 
+/** Production module hub. */
+export function buildProductionHubTrail() {
+  return [DASHBOARD_CRUMB, FORMS_HUB_CRUMB, { label: HUB_MODULE_LABELS['/production'] }];
+}
+
 /** Mill equipment list */
 export function buildEquipmentListTrail({ appId, appName } = {}) {
   const items = [DASHBOARD_CRUMB, FORMS_HUB_CRUMB];
