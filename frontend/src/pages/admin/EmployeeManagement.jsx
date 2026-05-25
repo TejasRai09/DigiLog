@@ -287,9 +287,6 @@ const EmployeeManagement = () => {
                 <th className="th">Department</th>
                 <th className="th">Role</th>
                 <th className="th">Status</th>
-                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped forms</th>
-                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped dashboards</th>
-                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Homepage cards</th>
                 <th className="th min-w-[6rem] whitespace-normal">Data upload</th>
                 <th className="th text-center w-16">Actions</th>
               </tr>
@@ -297,7 +294,7 @@ const EmployeeManagement = () => {
             <tbody className="bg-white divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="td text-center text-gray-400 py-10">No employees found.</td>
+                  <td colSpan={7} className="td text-center text-gray-400 py-10">No employees found.</td>
                 </tr>
               ) : (
                 filtered.map((u) => {
@@ -333,83 +330,6 @@ const EmployeeManagement = () => {
                         <span className={`badge ${u.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                           {u.isActive ? 'Active' : 'Inactive'}
                         </span>
-                      </td>
-                      <td className="td align-top max-w-[14rem] lg:max-w-md whitespace-normal">
-                        {(() => {
-                          const um = mappings.filter((m) => String(m.user?._id) === String(u._id));
-                          const formMappings = um.filter((m) => m.app?.name !== BI_CONTROL_TOWER_APP_NAME);
-                          if (formMappings.length === 0) {
-                            return <span className="text-gray-300">—</span>;
-                          }
-                          return (
-                            <div className="flex flex-col gap-2">
-                              {formMappings.map((m) => (
-                                <div key={m._id} className="text-xs leading-snug">
-                                  <span className="font-semibold text-gray-800">{withoutGsmaLabel(m.app?.name)}</span>
-                                  <span className="text-gray-400">: </span>
-                                  {m.forms?.length === 0 ? (
-                                    <span className="badge bg-green-50 text-green-700">All forms</span>
-                                  ) : (
-                                    <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
-                                      {m.forms.map((f) => (
-                                        <span key={f._id} className="badge bg-blue-50 text-blue-700">
-                                          {withoutGsmaLabel(f.name)}
-                                        </span>
-                                      ))}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="td align-top max-w-[14rem] lg:max-w-md whitespace-normal">
-                        {(() => {
-                          const um = mappings.filter((m) => String(m.user?._id) === String(u._id));
-                          const dashMappings = um.filter((m) => m.app?.name === BI_CONTROL_TOWER_APP_NAME);
-                          if (dashMappings.length === 0) {
-                            return <span className="text-gray-300">—</span>;
-                          }
-                          return (
-                            <div className="flex flex-col gap-2">
-                              {dashMappings.map((m) => (
-                                <div key={m._id} className="text-xs leading-snug">
-                                  <span className="font-semibold text-gray-800">{withoutGsmaLabel(m.app?.name)}</span>
-                                  <span className="text-gray-400">: </span>
-                                  {m.forms?.length === 0 ? (
-                                    <span className="badge bg-violet-50 text-violet-800">All dashboards</span>
-                                  ) : (
-                                    <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
-                                      {m.forms.map((f) => (
-                                        <span key={f._id} className="badge bg-violet-50 text-violet-800">
-                                          {withoutGsmaLabel(f.name)}
-                                        </span>
-                                      ))}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </td>
-                      <td className="td align-top max-w-[12rem] whitespace-normal">
-                        {(() => {
-                          const row = homepageAssignments.find((a) => String(a.user?._id) === String(u._id));
-                          if (!row?.cardKeys?.length) {
-                            return <span className="text-gray-300">—</span>;
-                          }
-                          return (
-                            <span className="inline-flex flex-wrap gap-1">
-                              {row.cardKeys.map((key) => (
-                                <span key={key} className="badge bg-slate-100 text-slate-700">
-                                  {homepageCardLabel(key)}
-                                </span>
-                              ))}
-                            </span>
-                          );
-                        })()}
                       </td>
                       <td className="td align-top">
                         {u.role === 'employee' ? (
