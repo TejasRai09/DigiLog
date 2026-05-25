@@ -4,6 +4,7 @@ import { MdEmail, MdLock, MdLogin } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import Spinner from '../../components/Spinner';
+import { validateLoginForm, getLoginErrorMessage } from '../../utils/loginValidation';
 
 const AdminLogin = () => {
   const { user, loginManual, logout } = useAuth();
@@ -19,21 +20,23 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
-      toast.error('Please enter email and password.');
+    const check = validateLoginForm(form.email, form.password);
+    if (!check.ok) {
+      toast.error(check.message);
       return;
     }
     setLoading(true);
     try {
-      await loginManual(form.email, form.password);
+      const data = await loginManual(check.email, form.password);
+      if (data?.user?.role !== 'admin') {
+        logout();
+        toast.error('This account is not an administrator.');
+        return;
+      }
+      toast.success('Signed in successfully.');
       navigate('/admin/employees', { replace: true });
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed.';
-      if (msg.toLowerCase().includes('deactivated')) {
-        toast.error('Account is deactivated. Contact your administrator.');
-      } else {
-        toast.error(msg);
-      }
+      toast.error(getLoginErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -59,7 +62,7 @@ const AdminLogin = () => {
 
         {/* Card */}
         <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-1">
                 Email address

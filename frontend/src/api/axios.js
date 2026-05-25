@@ -25,11 +25,23 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/** Do not redirect when login/SSO failed — caller shows a toast instead. */
+function isAuthAttempt(url) {
+  if (!url) return false;
+  const path = String(url).replace(/^.*\/api/, '');
+  return (
+    path === '/auth/login' ||
+    path.startsWith('/auth/login?') ||
+    path === '/auth/outlook' ||
+    path === '/auth/google'
+  );
+}
+
 // Global response error handler
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if (err.response?.status === 401 && !isAuthAttempt(err.config?.url)) {
       localStorage.removeItem('token');
       window.location.href = '/?login=1';
     }

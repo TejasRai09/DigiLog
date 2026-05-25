@@ -10,6 +10,10 @@ const { unlinkStoredAvatar } = require('../utils/avatarFile');
 const NO_ACCESS_MSG =
   'You do not have access to use this application. Please contact the administrator.';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
+
 const buildTokenResponse = (row) => ({
   token: signToken({ id: row.id, role: row.role }),
   user: toAuthUser(row),
@@ -17,26 +21,44 @@ const buildTokenResponse = (row) => ({
 
 // POST /api/auth/login
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  const emailRaw = req.body?.email;
+  const password = req.body?.password;
 
-  if (!email || !password)
+  if (!String(emailRaw ?? '').trim() || !password)
     return res.status(400).json({ message: 'Email and password are required.' });
+
+  const email = normalizeEmail(emailRaw);
+  if (!EMAIL_RE.test(email))
+    return res.status(400).json({ message: 'Please enter a valid email address.' });
 
   const [rows] = await pool.query(
     'SELECT * FROM users WHERE email = ?',
-    [email.toLowerCase()]
+    [email]
   );
   const user = rows[0];
 
-  if (!user || user.auth_provider === 'outlook' || user.auth_provider === 'google')
-    return res.status(401).json({ message: 'Invalid credentials.' });
+  if (!user)
+    return res.status(401).json({ message: 'Invalid email or password.' });
+
+  if (user.auth_provider === 'outlook')
+    return res.status(401).json({
+      message: 'This account uses Microsoft sign-in. Please use Sign in with Microsoft.',
+    });
+
+  if (user.auth_provider === 'google')
+    return res.status(401).json({
+      message: 'This account uses Google sign-in. Please use Sign in with Google.',
+    });
 
   if (!user.is_active)
-    return res.status(403).json({ message: 'Account is deactivated.' });
+    return res.status(403).json({ message: 'Your account is deactivated. Contact your administrator.' });
+
+  if (!user.password)
+    return res.status(401).json({ message: 'Invalid email or password.' });
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch)
-    return res.status(401).json({ message: 'Invalid credentials.' });
+    return res.status(401).json({ message: 'Invalid email or password.' });
 
   res.json(buildTokenResponse(user));
 };
