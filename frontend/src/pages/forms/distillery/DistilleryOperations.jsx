@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MdArrowBack, MdSave } from 'react-icons/md';
+import { MdSave } from 'react-icons/md';
+import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
+import { buildDistilleryReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { computeDistilleryDerived, formatDistilleryDerivedNumber } from '../../../utils/distilleryCalculations';
 
 const OPERATION_MODES = ['Syrup', 'B Heavy', 'C Heavy', 'None'];
@@ -42,9 +45,7 @@ const INITIAL = {
 };
 
 const DistilleryOperations = () => {
-  const navigate           = useNavigate();
-  const [form, setForm]    = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const derived = useMemo(() => computeDistilleryDerived(form), [form]);
 
@@ -53,43 +54,44 @@ const DistilleryOperations = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) {
-      toast.error('Operation Date is required.');
-      return;
-    }
-    setSubmitting(true);
-    const payload = { ...form, ...derived };
-    try {
-      await api.post('/forms/distillery_ops', payload);
-      toast.success('Distillery operations saved.');
-      setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) {
+        toast.error('Operation Date is required.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      const payload = { ...form, ...derived };
+      try {
+        await api.post('/forms/distillery_ops', payload);
+        toast.success('Distillery operations saved.');
+        setForm(INITIAL);
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Submission failed.');
+        throw err;
+      }
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildDistilleryReview(form, derived) : null),
+    [reviewOpen, form, derived],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" /> Back
-      </button>
 
-      <div className="mb-8">
-        <h1 className="page-title">GSMA Distillery Operations Form</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Daily operations tracking form for Distillery at GSMA
-        </p>
-      </div>
+      <FormPageHeader
+        formKey="distillery_ops"
+        fallbackTitle="Distillery Operations Form"
+        fallbackDescription="Daily operations tracking form for the distillery"
+        showDescription
+        className="mb-8"
+      />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
         <div className="form-section">
           <label className="label" htmlFor="op-date">
             Operation Date<span className="text-red-500 ml-0.5">*</span>
@@ -215,6 +217,16 @@ const DistilleryOperations = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

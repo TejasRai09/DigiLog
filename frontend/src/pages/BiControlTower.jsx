@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { MdArrowBack, MdInsights, MdApps } from 'react-icons/md';
+import { Link } from 'react-router-dom';
+import { MdInsights, MdApps } from 'react-icons/md';
+import AppBreadcrumb from '../components/AppBreadcrumb';
+import { buildBiTowerTrail } from '../utils/breadcrumbTrail';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import FormTable from '../components/FormTable';
+import AppFormsHeader from '../components/AppFormsHeader';
 import Spinner from '../components/Spinner';
 import { BI_CONTROL_TOWER_APP_NAME } from '../config/biDashboardRoutes';
 
 const BiControlTower = () => {
-  const navigate = useNavigate();
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,33 +42,22 @@ const BiControlTower = () => {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        type="button"
-        onClick={() => navigate('/')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" />
-        Back to homepage
-      </button>
+      <AppBreadcrumb items={buildBiTowerTrail()} />
 
-      <div className="flex items-center gap-4 mb-8">
-        <div
-          className="h-14 w-14 rounded-2xl flex items-center justify-center text-white shadow-md flex-shrink-0"
-          style={{ backgroundColor: '#6366f1' }}
-        >
-          <MdInsights className="h-7 w-7" />
-        </div>
-        <div>
-          <h1 className="page-title">{BI_CONTROL_TOWER_APP_NAME}</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+      <AppFormsHeader
+        name={BI_CONTROL_TOWER_APP_NAME}
+        description={
+          <>
             Analytics dashboards you are mapped to—same employee access as{' '}
             <Link to="/forms-hub" className="text-blue-600 hover:underline font-medium">
               Forms Hub
             </Link>
             . Pick a row to open a dashboard.
-          </p>
-        </div>
-      </div>
+          </>
+        }
+        icon={MdInsights}
+        color="#6366f1"
+      />
 
       {!app || !app.forms?.length ? (
         <div className="card flex flex-col items-center justify-center py-24 text-center">
@@ -88,6 +79,7 @@ const BiControlTower = () => {
           <div className="p-0">
             <FormTable
               forms={app.forms}
+              appId={app._id ?? app.id}
               nameColumnHeader="Dashboard name"
               emptyMessage="No dashboards are assigned to you for this app."
             />

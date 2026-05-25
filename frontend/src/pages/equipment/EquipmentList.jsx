@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { buildEquipmentListTrail } from '../../utils/breadcrumbTrail';
+import { useAppName } from '../../hooks/useAppName';
 import { MdSearch, MdArrowForward } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -9,6 +12,9 @@ const LIMIT = 50;
 
 const EquipmentList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const appId = location.state?.appId;
+  const appName = useAppName(appId);
   const [equipment, setEquipment] = useState([]);
   const [total, setTotal]         = useState(0);
   const [page, setPage]           = useState(1);
@@ -42,9 +48,9 @@ const EquipmentList = () => {
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <AppBreadcrumb items={buildEquipmentListTrail({ appId, appName })} />
       <div className="mb-6">
-        <h1 className="page-title">Mill House — Equipment History Cards</h1>
-        <p className="text-sm text-gray-500 mt-1">{total} equipment records</p>
+        <p className="text-sm text-gray-500">{total} equipment records</p>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-6">
@@ -97,7 +103,7 @@ const EquipmentList = () => {
                   <tr
                     key={eq.id}
                     className="hover:bg-blue-50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/equipment/${eq.id}`)}
+                    onClick={() => navigate(`/equipment/${eq.id}`, { state: location.state })}
                   >
                     <td className="td text-gray-400">{(page - 1) * LIMIT + idx + 1}</td>
                     <td className="td font-mono font-semibold text-blue-700">{eq.equip_no}</td>

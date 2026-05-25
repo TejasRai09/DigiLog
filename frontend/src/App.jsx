@@ -5,7 +5,8 @@ import Spinner        from './components/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar         from './components/Navbar';
 
-import Login              from './pages/Login';
+import MarketingLanding   from './pages/MarketingLanding';
+import MarketingDashboard from './pages/MarketingDashboard';
 import AdminLogin         from './pages/admin/AdminLogin';
 import HomeLanding        from './pages/HomeLanding';
 import Dashboard          from './pages/Dashboard';
@@ -14,6 +15,7 @@ import DistilleryAnalyticsDashboard from './pages/bi/DistilleryAnalyticsDashboar
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
+import DataIngestionCenter from './pages/DataIngestionCenter';
 // Mill Logbook forms
 import EquipmentTemp  from './pages/forms/mill/EquipmentTemp';
 import ShreddarOTG    from './pages/forms/mill/ShreddarOTG';
@@ -61,12 +63,14 @@ const App = () => {
       {user && <Navbar />}
       <Routes>
         {/* Public */}
-        <Route path="/login"       element={user ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/login" element={<Navigate to="/?login=1" replace />} />
+        <Route path="/dashbaord" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/operations-desk" element={<MarketingDashboard />} />
+        <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <MarketingLanding />} />
         <Route path="/admin/login" element={<AdminLogin />} />
-
-        {/* Protected – any authenticated user */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/"             element={<HomeLanding />} />
+          <Route path="/dashboard" element={<HomeLanding />} />
+          <Route path="/data-upload" element={<DataIngestionCenter />} />
           <Route path="/forms-hub"     element={<Dashboard />} />
           <Route path="/bi"                      element={<BiControlTower />} />
           <Route path="/bi/distillery-operations" element={<DistilleryAnalyticsDashboard />} />

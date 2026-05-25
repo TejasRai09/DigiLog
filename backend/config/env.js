@@ -19,8 +19,14 @@ module.exports = {
   SMTP_PASS: process.env.SMTP_PASS || '',
   SMTP_FROM: process.env.SMTP_FROM || '',
 
+  // Google OAuth (Sign in with Google)
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+
   // CORS & public links (emails)
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
   /** Optional absolute logo URL for HTML emails; if empty, CLIENT_ORIGIN + /logo.png */
   APP_LOGO_URL: (process.env.APP_LOGO_URL || '').trim(),
+
+  /** Max bytes for Data Upload CSV/Excel (default 25 MB). */
+  DATA_UPLOAD_MAX_BYTES: parseInt(process.env.DATA_UPLOAD_MAX_BYTES || '26214400', 10) || 26214400,
 };

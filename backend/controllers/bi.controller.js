@@ -72,6 +72,7 @@ function mapRowToBiPoint(r) {
   const dateFull = Number.isNaN(dateObj.getTime())
     ? String(d)
     : dateObj.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  const dateIso = dateKey(r.Date);
 
   let mode = (r.operation_mode || '').trim();
   if (mode === 'None' || mode === '') mode = 'Mixed';
@@ -100,7 +101,9 @@ function mapRowToBiPoint(r) {
   return {
     date: dateLabel,
     dateFull,
+    dateIso,
     mode,
+    operationModeRaw: (r.operation_mode || '').trim(),
     bHeavyProd,
     cHeavyProd,
     syrupProd,
@@ -114,6 +117,21 @@ function mapRowToBiPoint(r) {
     alcohol: num(r.alcohol_pct),
     molInStore: molInStoreFromRow(r),
     ethInStore: num(r.ethanol_storage_bl),
+    trs: num(r.trs),
+    ufs: num(r.ufs),
+    alBlRatioPct: num(r.al_bl_ratio_pct),
+    totalBhMolassesQtls: num(r.total_bh_molasses_qtls),
+    totalChMolassesQtls: num(r.total_ch_molasses_qtls),
+    fs: num(r.fs),
+    feRaw: num(r.fe),
+    deRaw: num(r.de),
+    recBl: num(r.rec_bl),
+    recordedAt: (() => {
+      const t = r.timestamp;
+      if (t == null || t === '') return '';
+      const dt = t instanceof Date ? t : new Date(t);
+      return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
+    })(),
   };
 }
 

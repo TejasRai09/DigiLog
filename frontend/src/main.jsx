@@ -2,12 +2,15 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { MsalProvider } from '@azure/msal-react';
+import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Toaster } from 'react-hot-toast';
 
 import { msalInstance } from './msalConfig';
 import { AuthProvider } from './context/AuthContext';
 import App from './App';
 import './index.css';
+
+const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const app = (
   <React.StrictMode>
@@ -23,10 +26,12 @@ const app = (
   </React.StrictMode>
 );
 
+const withGoogle = (node) =>
+  googleClientId ? <GoogleOAuthProvider clientId={googleClientId}>{node}</GoogleOAuthProvider> : node;
+
 const render = () => {
-  ReactDOM.createRoot(document.getElementById('root')).render(
-    msalInstance ? <MsalProvider instance={msalInstance}>{app}</MsalProvider> : app
-  );
+  const tree = msalInstance ? <MsalProvider instance={msalInstance}>{app}</MsalProvider> : app;
+  ReactDOM.createRoot(document.getElementById('root')).render(withGoogle(tree));
 };
 
 // MSAL v3 requires initialize() before use; skip entirely on HTTP (no crypto)

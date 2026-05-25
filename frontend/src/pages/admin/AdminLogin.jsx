@@ -121,7 +121,7 @@ const AdminLogin = () => {
 
           <div className="mt-6 pt-5 border-t border-slate-700 text-center">
             <a
-              href="/login"
+              href="/?login=1"
               className="text-xs text-slate-500 hover:text-slate-300 transition"
             >
               ← Back to employee login

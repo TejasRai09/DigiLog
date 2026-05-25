@@ -2,13 +2,18 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch, MdPeople,
-  MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights,
+  MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdHome, MdUpload,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import EmployeeFormMappingModal from '../../components/admin/EmployeeFormMappingModal';
+import EmployeeHomepageMappingModal from '../../components/admin/EmployeeHomepageMappingModal';
+import EmployeeDataUploadAccessModal from '../../components/admin/EmployeeDataUploadAccessModal';
+import BiDashboardSettings from '../../components/admin/BiDashboardSettings';
 import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
+import { homepageCardLabel } from '../../config/homepageCards';
+import { withoutGsmaLabel } from '../../utils/displayLabels';
 
 const ROLES = ['employee', 'admin'];
 
@@ -109,17 +114,25 @@ const EmployeeManagement = () => {
   const [mailing, setMailing]     = useState(new Set());
   const [rowMenu, setRowMenu]     = useState(null);
   const [mappingModal, setMappingModal] = useState(null); // { user, variant: 'forms' | 'dashboards' }
+  const [homepageModal, setHomepageModal] = useState(null);
+  const [dataUploadModal, setDataUploadModal] = useState(null);
   const [mappings, setMappings]   = useState([]);
+  const [homepageAssignments, setHomepageAssignments] = useState([]);
+  const [dataUploadAssignments, setDataUploadAssignments] = useState([]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [uRes, mRes] = await Promise.all([
+      const [uRes, mRes, hRes, dRes] = await Promise.all([
         api.get('/admin/users'),
         api.get('/admin/mappings'),
+        api.get('/admin/homepage-cards'),
+        api.get('/admin/data-upload-access'),
       ]);
       setUsers(uRes.data);
       setMappings(mRes.data);
+      setHomepageAssignments(hRes.data);
+      setDataUploadAssignments(dRes.data.assignments || []);
     } catch {
       toast.error('Failed to load data.');
     } finally {
@@ -238,6 +251,8 @@ const EmployeeManagement = () => {
         </div>
       </div>
 
+      <BiDashboardSettings />
+
       {/* Search */}
       <div className="relative mb-4 max-w-xs">
         <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -274,13 +289,15 @@ const EmployeeManagement = () => {
                 <th className="th">Status</th>
                 <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped forms</th>
                 <th className="th min-w-[8rem] max-w-xs whitespace-normal">Mapped dashboards</th>
+                <th className="th min-w-[8rem] max-w-xs whitespace-normal">Homepage cards</th>
+                <th className="th min-w-[6rem] whitespace-normal">Data upload</th>
                 <th className="th text-center w-16">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="td text-center text-gray-400 py-10">No employees found.</td>
+                  <td colSpan={10} className="td text-center text-gray-400 py-10">No employees found.</td>
                 </tr>
               ) : (
                 filtered.map((u) => {
@@ -328,7 +345,7 @@ const EmployeeManagement = () => {
                             <div className="flex flex-col gap-2">
                               {formMappings.map((m) => (
                                 <div key={m._id} className="text-xs leading-snug">
-                                  <span className="font-semibold text-gray-800">{m.app?.name}</span>
+                                  <span className="font-semibold text-gray-800">{withoutGsmaLabel(m.app?.name)}</span>
                                   <span className="text-gray-400">: </span>
                                   {m.forms?.length === 0 ? (
                                     <span className="badge bg-green-50 text-green-700">All forms</span>
@@ -336,7 +353,7 @@ const EmployeeManagement = () => {
                                     <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
                                       {m.forms.map((f) => (
                                         <span key={f._id} className="badge bg-blue-50 text-blue-700">
-                                          {f.name}
+                                          {withoutGsmaLabel(f.name)}
                                         </span>
                                       ))}
                                     </span>
@@ -358,7 +375,7 @@ const EmployeeManagement = () => {
                             <div className="flex flex-col gap-2">
                               {dashMappings.map((m) => (
                                 <div key={m._id} className="text-xs leading-snug">
-                                  <span className="font-semibold text-gray-800">{m.app?.name}</span>
+                                  <span className="font-semibold text-gray-800">{withoutGsmaLabel(m.app?.name)}</span>
                                   <span className="text-gray-400">: </span>
                                   {m.forms?.length === 0 ? (
                                     <span className="badge bg-violet-50 text-violet-800">All dashboards</span>
@@ -366,7 +383,7 @@ const EmployeeManagement = () => {
                                     <span className="mt-0.5 inline-flex flex-wrap gap-1 align-middle">
                                       {m.forms.map((f) => (
                                         <span key={f._id} className="badge bg-violet-50 text-violet-800">
-                                          {f.name}
+                                          {withoutGsmaLabel(f.name)}
                                         </span>
                                       ))}
                                     </span>
@@ -376,6 +393,37 @@ const EmployeeManagement = () => {
                             </div>
                           );
                         })()}
+                      </td>
+                      <td className="td align-top max-w-[12rem] whitespace-normal">
+                        {(() => {
+                          const row = homepageAssignments.find((a) => String(a.user?._id) === String(u._id));
+                          if (!row?.cardKeys?.length) {
+                            return <span className="text-gray-300">—</span>;
+                          }
+                          return (
+                            <span className="inline-flex flex-wrap gap-1">
+                              {row.cardKeys.map((key) => (
+                                <span key={key} className="badge bg-slate-100 text-slate-700">
+                                  {homepageCardLabel(key)}
+                                </span>
+                              ))}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="td align-top">
+                        {u.role === 'employee' ? (
+                          (() => {
+                            const row = dataUploadAssignments.find((a) => String(a.user?._id) === String(u._id));
+                            return row?.enabled ? (
+                              <span className="badge bg-emerald-50 text-emerald-800">Yes</span>
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            );
+                          })()
+                        ) : (
+                          <span className="badge bg-purple-50 text-purple-700">Admin</span>
+                        )}
                       </td>
                       <td className="td w-16">
                         <div className="flex justify-center">
@@ -470,6 +518,36 @@ const EmployeeManagement = () => {
                   Dashboard mapping
                 </button>
               )}
+              {rowMenu.user.role === 'employee' && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    const x = rowMenu.user;
+                    setRowMenu(null);
+                    setHomepageModal(x);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <MdHome className="h-4 w-4 text-slate-600" />
+                  Homepage cards
+                </button>
+              )}
+              {rowMenu.user.role === 'employee' && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    const x = rowMenu.user;
+                    setRowMenu(null);
+                    setDataUploadModal(x);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <MdUpload className="h-4 w-4 text-emerald-600" />
+                  Data upload access
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"
@@ -500,6 +578,32 @@ const EmployeeManagement = () => {
           </>,
           document.body
         )}
+
+      {homepageModal && (
+        <EmployeeHomepageMappingModal
+          key={`homepage-${homepageModal._id}`}
+          user={homepageModal}
+          homepageAssignments={homepageAssignments}
+          onClose={() => setHomepageModal(null)}
+          onSaved={() => {
+            setHomepageModal(null);
+            fetchData();
+          }}
+        />
+      )}
+
+      {dataUploadModal && (
+        <EmployeeDataUploadAccessModal
+          key={`data-upload-${dataUploadModal._id}`}
+          user={dataUploadModal}
+          assignments={dataUploadAssignments}
+          onClose={() => setDataUploadModal(null)}
+          onSaved={() => {
+            setDataUploadModal(null);
+            fetchData();
+          }}
+        />
+      )}
 
       {mappingModal && (
         <EmployeeFormMappingModal

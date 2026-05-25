@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdApps, MdRefresh, MdArrowBack } from 'react-icons/md';
+import { MdApps, MdRefresh } from 'react-icons/md';
+import AppBreadcrumb from '../components/AppBreadcrumb';
+import { buildFormsHubTrail } from '../utils/breadcrumbTrail';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import useAuth from '../hooks/useAuth';
 import AppCard from '../components/AppCard';
 import Spinner from '../components/Spinner';
+import { BI_CONTROL_TOWER_APP_NAME } from '../config/biDashboardRoutes';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -29,21 +32,16 @@ const Dashboard = () => {
     fetchApps();
   }, []);
 
+  const formsHubApps = apps.filter((a) => a.name !== BI_CONTROL_TOWER_APP_NAME);
+  const onlyBiAssigned = apps.length > 0 && formsHubApps.length === 0;
+
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        type="button"
-        onClick={() => navigate('/')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" />
-        Back to homepage
-      </button>
+      <AppBreadcrumb items={buildFormsHubTrail()} />
 
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="page-title">Forms Hub</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             Centralized access to digital operational forms.
           </p>
           {user?.name && (
@@ -62,14 +60,31 @@ const Dashboard = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {apps.map((app) => (
+          {formsHubApps.map((app) => (
             <AppCard key={app._id ?? app.id} app={app} />
           ))}
-          {apps.length === 0 && (
+          {formsHubApps.length === 0 && !onlyBiAssigned && (
             <div className="col-span-full card flex flex-col items-center justify-center py-24 text-center">
               <MdApps className="h-12 w-12 text-gray-300 mb-3" />
               <p className="text-gray-500 font-medium">No applications assigned</p>
               <p className="text-sm text-gray-400 mt-1">Contact your admin to get access.</p>
+            </div>
+          )}
+          {onlyBiAssigned && (
+            <div className="col-span-full card flex flex-col items-center justify-center py-24 text-center">
+              <MdApps className="h-12 w-12 text-gray-300 mb-3" />
+              <p className="text-gray-500 font-medium">No operational forms assigned here</p>
+              <p className="text-sm text-gray-400 mt-1 max-w-md">
+                BI Control Tower is not listed in Forms Hub. Use{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard')}
+                  className="font-medium text-blue-600 hover:underline"
+                >
+                  Back to homepage
+                </button>{' '}
+                to open BI Control Tower.
+              </p>
             </div>
           )}
         </div>

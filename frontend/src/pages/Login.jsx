@@ -4,6 +4,7 @@ import { MdEmail, MdLock, MdLogin } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 const MicrosoftIcon = () => (
   <svg viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-4 w-4">
@@ -15,7 +16,7 @@ const MicrosoftIcon = () => (
 );
 
 const Login = () => {
-  const { loginManual, loginOutlook } = useAuth();
+  const { loginManual, loginOutlook, loginGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm]       = useState({ email: '', password: '' });
@@ -32,7 +33,7 @@ const Login = () => {
     setLoading(true);
     try {
       await loginManual(form.email, form.password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Login failed.');
     } finally {
@@ -43,15 +44,26 @@ const Login = () => {
   const handleOutlookLogin = () => {
     try {
       loginOutlook();
-    } catch (err) {
+    } catch {
       toast.error('Could not initiate Microsoft login.');
+    }
+  };
+
+  const handleGoogleAccessToken = async (accessToken) => {
+    setLoading(true);
+    try {
+      await loginGoogle(accessToken);
+      navigate('/dashboard');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Google sign-in failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <img
             src="/logo.png"
@@ -65,16 +77,19 @@ const Login = () => {
         </div>
 
         <div className="card p-8 shadow-lg">
-          {/* Outlook login */}
           <button
+            type="button"
             onClick={handleOutlookLogin}
-            className="btn-secondary w-full mb-6 py-2.5"
+            disabled={loading}
+            className="btn-secondary w-full py-2.5"
           >
             <MicrosoftIcon />
             Sign in with Microsoft
           </button>
 
-          <div className="relative mb-6">
+          <GoogleSignInButton onAccessToken={handleGoogleAccessToken} disabled={loading} />
+
+          <div className="relative mb-6 mt-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200" />
             </div>
@@ -85,7 +100,6 @@ const Login = () => {
             </div>
           </div>
 
-          {/* Manual login */}
           <form onSubmit={handleManualLogin} className="space-y-4">
             <div>
               <label htmlFor="email" className="label">Email address</label>

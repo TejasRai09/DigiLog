@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `auth_provider` VARCHAR(20)  NOT NULL DEFAULT 'local',
   `mail_sent`     TINYINT(1)   NOT NULL DEFAULT 0,
   `microsoft_id`  VARCHAR(200) DEFAULT NULL,
+  `google_id`     VARCHAR(200) DEFAULT NULL,
   `created_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -75,6 +76,43 @@ CREATE TABLE IF NOT EXISTS `mapping_forms` (
   PRIMARY KEY (`mapping_id`, `form_id`),
   FOREIGN KEY (`mapping_id`) REFERENCES `mappings`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`form_id`)    REFERENCES `forms`(`id`)    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Portal-wide settings (admin toggles, e.g. BI third season compare).
+CREATE TABLE IF NOT EXISTS `portal_settings` (
+  `setting_key`   VARCHAR(64)  NOT NULL,
+  `setting_value` VARCHAR(255) NOT NULL,
+  `updated_at`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`setting_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('bi_third_season_compare', '0')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
+-- Data Upload tab access (admin grants per employee).
+CREATE TABLE IF NOT EXISTS `user_data_upload_access` (
+  `user_id`     INT NOT NULL,
+  `granted_by`  INT DEFAULT NULL,
+  `created_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`granted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Uploaded telemetry / log files (disk path + uploader audit).
+CREATE TABLE IF NOT EXISTS `data_upload_files` (
+  `id`                 INT AUTO_INCREMENT PRIMARY KEY,
+  `user_id`            INT NOT NULL,
+  `category`           VARCHAR(200) NOT NULL,
+  `original_filename`  VARCHAR(255) NOT NULL,
+  `stored_filename`    VARCHAR(255) NOT NULL,
+  `mime_type`          VARCHAR(128) DEFAULT NULL,
+  `file_size_bytes`    BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  `created_at`         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uq_stored_filename` (`stored_filename`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  INDEX `idx_data_upload_created` (`created_at` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ── App 1: GSMA Mill Logbook ──────────────────────────────

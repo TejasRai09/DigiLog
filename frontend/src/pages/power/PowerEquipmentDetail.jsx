@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
-  MdArrowBack, MdSave, MdEdit, MdDelete, MdAdd, MdClose,
+  MdSave, MdEdit, MdDelete, MdAdd, MdClose,
   MdExpandMore, MdExpandLess, MdCameraAlt, MdBadge,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { buildPowerEquipmentTrail } from '../../utils/breadcrumbTrail';
+import { useAppName } from '../../hooks/useAppName';
 
 const resizeImage = (file) =>
   new Promise((resolve) => {
@@ -123,6 +126,9 @@ const HIST_LIMIT = 20;
 const PowerEquipmentDetail = () => {
   const { id, dept } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const appId = location.state?.appId;
+  const appName = useAppName(appId);
 
   const [eq,        setEq]        = useState(null);
   const [specs,     setSpecs]     = useState([]);
@@ -344,16 +350,17 @@ const PowerEquipmentDetail = () => {
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        onClick={() => navigate(`/power/${dept}`)}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" /> Back to {DEPT_LABELS[dept] || 'Power Plant'}
-      </button>
+      <AppBreadcrumb
+        items={buildPowerEquipmentTrail({
+          appId,
+          appName,
+          dept,
+          equipmentName: eq?.name,
+        })}
+      />
 
       <div className="mb-6">
-        <h1 className="page-title">{eq.name}</h1>
-        <p className="text-sm text-gray-500 mt-1 font-mono">
+        <p className="text-sm text-gray-500 font-mono">
           {eq.equip_no} · Power Plant · {DEPT_LABELS[dept] || dept}
         </p>
       </div>

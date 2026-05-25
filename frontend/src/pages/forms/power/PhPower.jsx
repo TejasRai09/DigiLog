@@ -1,11 +1,15 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MdArrowBack, MdSave } from 'react-icons/md';
+import { useMemo, useState } from 'react';
+import { MdSave } from 'react-icons/md';
+import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
 import ReportDateFields from '../../../components/ReportDateFields';
+import { buildPhPowerReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const PowerRow = ({ rowLabel, children }) => (
   <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
@@ -31,35 +35,37 @@ const INITIAL = {
 };
 
 const PhPower = () => {
-  const navigate = useNavigate();
-  const [form, setForm]       = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSubmitting(true);
-    try {
-      await api.post('/forms/ph_power', form);
-      toast.success('Power Details submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) {
+        toast.error('Date is required.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ph_power', form),
+        'Power Details submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildPhPowerReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors">
-        <MdArrowBack className="h-4 w-4" /> Back
-      </button>
-      <h1 className="page-title mb-6">GSMA Power Logbook</h1>
+      <FormPageHeader formKey="ph_power" fallbackTitle="Power Details" />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={openReview} className="space-y-4">
         <div className="form-section space-y-3">
           <div className="form-row flex-wrap justify-center sm:justify-start">
             <ReportDateFields
@@ -148,6 +154,16 @@ const PhPower = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

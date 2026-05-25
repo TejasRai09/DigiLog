@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MdLogout, MdPeople, MdHome } from 'react-icons/md';
+import { MdLogout, MdPeople, MdHome, MdUpload } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
+import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import ProfileModal from './ProfileModal';
 import { mediaUrl } from '../utils/mediaUrl';
 
@@ -12,6 +13,7 @@ const ADVENTZ_LOGO_URL =
 
 const Navbar = () => {
   const { user, logout, refreshUser } = useAuth();
+  const { enabled: dataUploadEnabled } = useDataUploadAccess();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -75,7 +77,8 @@ const Navbar = () => {
 
         {/* Center: main nav */}
         <nav className="hidden md:flex flex-1 justify-center items-center gap-1 min-w-0">
-          {navLink('/', 'Home', MdHome)}
+          {navLink('/dashboard', 'Home', MdHome)}
+          {dataUploadEnabled && navLink('/data-upload', 'Data Upload', MdUpload)}
           {user?.role === 'admin' && navLink('/admin/employees', 'Employees', MdPeople)}
         </nav>
         <div className="flex-1 min-w-0 md:hidden" aria-hidden />
@@ -105,7 +108,7 @@ const Navbar = () => {
             type="button"
             onClick={() => {
               logout();
-              navigate('/login');
+              navigate('/?login=1');
             }}
             className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
             title="Logout"

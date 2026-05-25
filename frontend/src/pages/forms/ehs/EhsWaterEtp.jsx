@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MdArrowBack, MdSave } from 'react-icons/md';
+import { MdSave } from 'react-icons/md';
+import FormPageHeader from '../../../components/FormPageHeader';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -31,7 +31,6 @@ const Txt = ({ label, name, value, onChange }) => (
 );
 
 const EhsWaterEtp = () => {
-  const navigate            = useNavigate();
   const [form, setForm]     = useState(INITIAL);
   const [submitting, setSub] = useState(false);
 
@@ -54,10 +53,11 @@ const EhsWaterEtp = () => {
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors">
-        <MdArrowBack className="h-4 w-4" /> Back
-      </button>
-      <h1 className="page-title mb-6">Water Dashboard — ETP Working</h1>
+      <FormPageHeader
+        formKey="ehs_water_etp"
+        fallbackTitle="Water Dashboard — ETP Working"
+        fallbackDescription="Effluent Treatment Plant daily quantity and quality report"
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
 

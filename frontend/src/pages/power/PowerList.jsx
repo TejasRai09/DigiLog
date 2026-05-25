@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { MdSearch, MdArrowForward, MdArrowBack } from 'react-icons/md';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { MdSearch, MdArrowForward } from 'react-icons/md';
+import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { buildPowerDeptTrail } from '../../utils/breadcrumbTrail';
+import { useAppName } from '../../hooks/useAppName';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
@@ -16,6 +19,9 @@ const LIMIT = 100;
 const PowerList = () => {
   const { dept } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const appId = location.state?.appId;
+  const appName = useAppName(appId);
   const [equipment, setEquipment] = useState([]);
   const [total,     setTotal]     = useState(0);
   const [page,      setPage]      = useState(1);
@@ -58,16 +64,10 @@ const PowerList = () => {
 
   return (
     <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      <button
-        onClick={() => navigate('/power')}
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
-      >
-        <MdArrowBack className="h-4 w-4" /> Back to Power Plant
-      </button>
+      <AppBreadcrumb items={buildPowerDeptTrail({ appId, appName, dept })} />
 
       <div className="mb-6">
-        <h1 className="page-title">Power Plant — {deptLabel}</h1>
-        <p className="text-sm text-gray-500 mt-1">{total} equipment records</p>
+        <p className="text-sm text-gray-500">{total} equipment records</p>
       </div>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-6">
@@ -119,7 +119,7 @@ const PowerList = () => {
                   <tr
                     key={eq.id}
                     className="hover:bg-blue-50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/power/${dept}/${eq.id}`)}
+                    onClick={() => navigate(`/power/${dept}/${eq.id}`, { state: location.state })}
                   >
                     <td className="td text-gray-400">{(page - 1) * LIMIT + idx + 1}</td>
                     <td className="td font-mono font-semibold text-blue-700">{eq.equip_no || '—'}</td>

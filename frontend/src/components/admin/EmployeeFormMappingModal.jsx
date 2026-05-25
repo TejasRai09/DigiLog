@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../Spinner';
 import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
+import { withoutGsmaLabel } from '../../utils/displayLabels';
 
 /**
  * Map one employee to an app + multiselect forms (app must be chosen first).
@@ -128,7 +129,7 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
                     <option value="">— Select application —</option>
                     {appsWithForms.map((a) => (
                       <option key={a._id} value={a._id}>
-                        {a.name}
+                        {withoutGsmaLabel(a.name)}
                       </option>
                     ))}
                   </select>
@@ -169,7 +170,7 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
                               className="h-4 w-4 rounded text-blue-600 shrink-0"
                             />
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-gray-800">{f.name}</p>
+                              <p className="text-sm font-medium text-gray-800">{withoutGsmaLabel(f.name)}</p>
                               <p className="text-xs text-gray-400 truncate">{f.formKey}</p>
                             </div>
                           </label>

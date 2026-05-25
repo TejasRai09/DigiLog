@@ -1,0 +1,97 @@
+﻿
+=== line 38 StrReplace ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "old_string": "import api from '../../api/axios';\nimport Spinner from '../../components/Spinner';",
+  "new_string": "import api from '../../api/axios';\nimport Spinner from '../../components/Spinner';\nimport { formatDMYShort, getPresetDateRange } from '../../utils/distilleryBiDateRange';"
+}
+
+=== line 38 StrReplace ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "old_string": "export default function DistilleryAnalyticsDashboard() {\n  const [activeTab, setActiveTab] = useState('dashboard');\n  const [timeFilter, setTimeFilter] = useState('MTD');\n  const [comparisonType, setComparisonType] = useState('PY');\n  const [isDarkMode, setIsDarkMode] = useState(false);",
+  "new_string": "function rowDateIso(row) {\n  if (row.dateIso && String(row.dateIso).length >= 10) return String(row.dateIso).slice(0, 10);\n  return null;\n}\n\nexport default function DistilleryAnalyticsDashboard() {\n  const [activeTab, setActiveTab] = useState('dashboard');\n  const initialRange = () => getPresetDateRange('MTD');\n  const [rangePreset, setRangePreset] = useState('MTD');\n  const [fromDate, setFromDate] = useState(() => initialRange().from);\n  const [toDate, setToDate] = useState(() => initialRange().to);\n  const [comparisonType, setComparisonType] = useState('PY');\n  const [isDarkMode, setIsDarkMode] = useState(false);\n\n  const timeFilterLabel =\n    rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} ΓÇô ${formatDMYShort(toDate)}` : rangePreset;"
+}
+
+=== line 38 StrReplace ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "old_string": "  const filteredData = useMemo(() => {\n    let daysToKeep = 90;\n    if (timeFilter === 'MTD') daysToKeep = 14;\n    if (timeFilter === 'QTD') daysToKeep = 45;\n\n    let data = rawData.slice(-daysToKeep);\n\n    if (selectedModes.length > 0) {\n      data = data.filter((row) => selectedModes.includes(row.mode));\n    } else {\n      data = [];\n    }\n\n    return data;\n  }, [rawData, timeFilter, selectedModes]);",
+  "new_string": "  const filteredData = useMemo(() => {\n    const from = fromDate <= toDate ? fromDate : toDate;\n    const to = fromDate <= toDate ? toDate : fromDate;\n\n    let data = rawData.filter((row) => {\n      const iso = rowDateIso(row);\n      if (!iso) return false;\n      return iso >= from && iso <= to;\n    });\n\n    if (selectedModes.length > 0) {\n      data = data.filter((row) => selectedModes.includes(row.mode));\n    } else {\n      data = [];\n    }\n\n    return data;\n  }, [rawData, fromDate, toDate, selectedModes]);\n\n  const applyRangePreset = (preset) => {\n    const { from, to } = getPresetDateRange(preset);\n    setRangePreset(preset);\n    setFromDate(from);\n    setToDate(to);\n  };\n\n  const selectCustomPreset = () => {\n    setRangePreset('Custom');\n  };\n\n  const handleFromDateChange = (e) => {\n    const v = e.target.value;\n    setFromDate(v);\n    if (rangePreset !== 'Custom') {\n      const c = getPresetDateRange(rangePreset);\n      if (v !== c.from || toDate !== c.to) setRangePreset('Custom');\n    }\n  };\n\n  const handleToDateChange = (e) => {\n    const v = e.target.value;\n    setToDate(v);\n    if (rangePreset !== 'Custom') {\n      const c = getPresetDateRange(rangePreset);\n      if (fromDate !== c.from || v !== c.to) setRangePreset('Custom');\n    }\n  };"
+}
+
+=== line 38 StrReplace ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "old_string": "              {filteredData.length} Operating Days ({timeFilter})",
+  "new_string": "              {filteredData.length} Operating Days (\n              {rangePreset === 'Custom' ? timeFilterLabel : rangePreset})"
+}
+
+=== line 38 StrReplace ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "old_string": "            <div className={`flex items-center gap-3 rounded-xl border p-1.5 ${cardClasses}`}>\n              <MdCalendarMonth className={`ml-2 h-4 w-4 ${textClasses.muted}`} />\n              <div className=\"flex gap-1\">\n                {['MTD', 'QTD', 'YTD'].map((filter) => (\n                  <button\n                    key={filter}\n                    type=\"button\"\n                    onClick={() => setTimeFilter(filter)}\n                    className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${\n                      timeFilter === filter\n                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'\n                        : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`\n                    }`}\n                  >\n                    {filter}\n                  </button>\n                ))}\n              </div>\n            </div>\n\n            <div className={`mx-1 h-6 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />",
+  "new_string": "            <div className={`flex flex-wrap items-center gap-2 rounded-xl border p-1.5 sm:gap-3 ${cardClasses}`}>\n              <MdCalendarMonth className={`ml-1 h-4 w-4 shrink-0 sm:ml-2 ${textClasses.muted}`} />\n              <div className=\"flex flex-wrap gap-1\">\n                {(['MTD', 'QTD', 'YTD']).map((preset) => (\n                  <button\n                    key={preset}\n                    type=\"button\"\n                    onClick={() => applyRangePreset(preset)}\n                    className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${\n                      rangePreset === preset\n                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'\n                        : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`\n                    }`}\n                  >\n                    {preset}\n                  </button>\n                ))}\n                <button\n                  type=\"button\"\n                  onClick={selectCustomPreset}\n                  className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${\n                    rangePreset === 'Custom'\n                      ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'\n                      : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`\n                  }`}\n                >\n                  Custom\n                </button>\n              </div>\n            </div>\n\n            <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />\n\n            <div className=\"flex flex-wrap items-end gap-2 sm:gap-3\">\n              <div className=\"flex flex-col gap-0.5\">\n                <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>\n                <input\n                  type=\"date\"\n                  value={fromDate}\n                  onChange={handleFromDateChange}\n                  max={toDate}\n                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${\n                    isDarkMode\n                      ? 'border-slate-600 bg-slate-900 text-slate-100'\n                      : 'border-slate-200 bg-white text-slate-800'\n                  }`}\n                />\n              </div>\n              <div className=\"flex flex-col gap-0.5\">\n                <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>To</span>\n                <input\n                  type=\"date\"\n                  value={toDate}\n                  onChange={handleToDateChange}\n                  min={fromDate}\n                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${\n                    isDarkMode\n                      ? 'border-slate-600 bg-slate-900 text-slate-100'\n                      : 'border-slate-200 bg-white text-slate-800'\n                  }`}\n                />\n              </div>\n            </div>\n\n            <div className={`mx-1 h-6 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />"
+}
+
+=== line 39 Grep ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "pattern": "timeFilter"
+}
+
+=== line 40 Read ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "offset": 318,
+  "limit": 30
+}
+
+=== line 40 Read ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "offset": 618,
+  "limit": 120
+}
+
+=== line 41 StrReplace ===
+{
+  "new_string": "  const timeFilterLabel =\n    rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} ΓÇô ${formatDMYShort(toDate)}` : rangePreset;\n  const periodLabel = rangePreset === 'Custom' ? 'Custom' : rangePreset;",
+  "old_string": "  const timeFilterLabel =\n    rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} ΓÇô ${formatDMYShort(toDate)}` : rangePreset;",
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx"
+}
+
+=== line 41 StrReplace ===
+{
+  "new_string": "timeFilter={periodLabel}",
+  "old_string": "timeFilter={timeFilter}",
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "replace_all": true
+}
+
+=== line 41 StrReplace ===
+{
+  "new_string": "              Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({periodLabel} View)</span>",
+  "old_string": "              Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({timeFilter} View)</span>",
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx"
+}
+
+=== line 42 Grep ===
+{
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx",
+  "pattern": "timeFilter"
+}
+
+=== line 43 StrReplace ===
+{
+  "new_string": "function rowDateIso(row) {\n  if (row.dateIso && String(row.dateIso).length >= 10) return String(row.dateIso).slice(0, 10);\n  if (row.dateFull) {\n    const d = new Date(String(row.dateFull));\n    if (!Number.isNaN(d.getTime())) {\n      const y = d.getFullYear();\n      const m = String(d.getMonth() + 1).padStart(2, '0');\n      const day = String(d.getDate()).padStart(2, '0');\n      return `${y}-${m}-${day}`;\n    }\n  }\n  return null;\n}",
+  "old_string": "function rowDateIso(row) {\n  if (row.dateIso && String(row.dateIso).length >= 10) return String(row.dateIso).slice(0, 10);\n  return null;\n}",
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx"
+}
+
+=== line 43 StrReplace ===
+{
+  "new_string": "  const handleFromDateChange = (e) => {\n    let v = e.target.value;\n    let nextTo = toDate;\n    if (v && nextTo && v > nextTo) nextTo = v;\n    setFromDate(v);\n    if (nextTo !== toDate) setToDate(nextTo);\n    if (rangePreset !== 'Custom') {\n      const c = getPresetDateRange(rangePreset);\n      if (v !== c.from || nextTo !== c.to) setRangePreset('Custom');\n    }\n  };\n\n  const handleToDateChange = (e) => {\n    let v = e.target.value;\n    let nextFrom = fromDate;\n    if (v && nextFrom && v < nextFrom) nextFrom = v;\n    setToDate(v);\n    if (nextFrom !== fromDate) setFromDate(nextFrom);\n    if (rangePreset !== 'Custom') {\n      const c = getPresetDateRange(rangePreset);\n      if (nextFrom !== c.from || v !== c.to) setRangePreset('Custom');\n    }\n  };",
+  "old_string": "  const handleFromDateChange = (e) => {\n    const v = e.target.value;\n    setFromDate(v);\n    if (rangePreset !== 'Custom') {\n      const c = getPresetDateRange(rangePreset);\n      if (v !== c.from || toDate !== c.to) setRangePreset('Custom');\n    }\n  };\n\n  const handleToDateChange = (e) => {\n    const v = e.target.value;\n    setToDate(v);\n    if (rangePreset !== 'Custom') {\n      const c = getPresetDateRange(rangePreset);\n      if (fromDate !== c.from || v !== c.to) setRangePreset('Custom');\n    }\n  };",
+  "path": "c:\\vivek\\PLANT\\DigiLog\\frontend\\src\\pages\\bi\\DistilleryAnalyticsDashboard.jsx"
+}

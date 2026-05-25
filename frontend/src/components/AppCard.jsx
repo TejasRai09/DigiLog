@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { MdElectricBolt, MdApps, MdChevronRight, MdLocalBar, MdPrecisionManufacturing, MdScience, MdPower, MdFlashOn, MdSecurity, MdInsights } from 'react-icons/md';
+import { getSingleHubRoute, hubNavState } from '../config/hubFormRoutes';
+import { withoutGsmaLabel } from '../utils/displayLabels';
 
 const ICON_MAP = {
   MdElectricBolt,
@@ -17,10 +19,20 @@ const AppCard = ({ app }) => {
   const navigate = useNavigate();
   const Icon = ICON_MAP[app.icon] || MdApps;
   const formCount = app.forms?.length ?? 0;
+  const singleHub = getSingleHubRoute(app.forms);
+  const appId = String(app._id ?? app.id);
+
+  const openApp = () => {
+    if (singleHub) {
+      navigate(singleHub.path, { state: hubNavState(singleHub.formKey, { appId }) });
+      return;
+    }
+    navigate(`/apps/${appId}`);
+  };
 
   return (
     <button
-      onClick={() => navigate(`/apps/${String(app._id)}`)}
+      onClick={openApp}
       className="card p-6 text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <div className="flex items-start justify-between mb-4">
@@ -33,9 +45,9 @@ const AppCard = ({ app }) => {
         <MdChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors mt-1" />
       </div>
 
-      <h3 className="text-base font-semibold text-gray-900 mb-1">{app.name}</h3>
+      <h3 className="text-base font-semibold text-gray-900 mb-1">{withoutGsmaLabel(app.name)}</h3>
       {app.description && (
-        <p className="text-sm text-gray-500 line-clamp-2 mb-3">{app.description}</p>
+        <p className="text-sm text-gray-500 line-clamp-2 mb-3">{withoutGsmaLabel(app.description)}</p>
       )}
 
       <div className="flex items-center gap-1.5">
