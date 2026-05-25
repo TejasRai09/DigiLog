@@ -6,6 +6,7 @@ const {
   createUser,
   updateUser,
   deleteUser,
+  assignManager,
   sendMailToUser,
   sendMailBulk,
   getMappings,
@@ -33,6 +34,7 @@ router.get('/users',                    getUsers);
 router.post('/users',                   createUser);
 router.put('/users/:id',                updateUser);
 router.delete('/users/:id',             deleteUser);
+router.put('/users/:id/manager',        assignManager);
 router.post('/users/:id/send-mail',     sendMailToUser);
 router.post('/users/send-mail-bulk',    sendMailBulk);
 

@@ -33,9 +33,13 @@ CREATE TABLE IF NOT EXISTS `users` (
   `mail_sent`     TINYINT(1)   NOT NULL DEFAULT 0,
   `microsoft_id`  VARCHAR(200) DEFAULT NULL,
   `google_id`     VARCHAR(200) DEFAULT NULL,
+  `manager_id`    INT          DEFAULT NULL,
   `created_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- manager_id FK is added idempotently by apply-init-sql.js (ensureManagerColumn),
+-- not inline here, because MySQL does not support ADD CONSTRAINT IF NOT EXISTS.
 
 CREATE TABLE IF NOT EXISTS `apps` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,

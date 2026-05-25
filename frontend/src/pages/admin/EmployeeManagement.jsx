@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch, MdPeople,
   MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdHome, MdUpload,
+  MdSupervisorAccount,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -10,6 +11,7 @@ import Spinner from '../../components/Spinner';
 import EmployeeFormMappingModal from '../../components/admin/EmployeeFormMappingModal';
 import EmployeeHomepageMappingModal from '../../components/admin/EmployeeHomepageMappingModal';
 import EmployeeDataUploadAccessModal from '../../components/admin/EmployeeDataUploadAccessModal';
+import AssignManagerModal from '../../components/admin/AssignManagerModal';
 import BiDashboardSettings from '../../components/admin/BiDashboardSettings';
 import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
 import { homepageCardLabel } from '../../config/homepageCards';
@@ -116,6 +118,7 @@ const EmployeeManagement = () => {
   const [mappingModal, setMappingModal] = useState(null); // { user, variant: 'forms' | 'dashboards' }
   const [homepageModal, setHomepageModal] = useState(null);
   const [dataUploadModal, setDataUploadModal] = useState(null);
+  const [managerModal, setManagerModal] = useState(null); // user object
   const [mappings, setMappings]   = useState([]);
   const [homepageAssignments, setHomepageAssignments] = useState([]);
   const [dataUploadAssignments, setDataUploadAssignments] = useState([]);
@@ -287,6 +290,7 @@ const EmployeeManagement = () => {
                 <th className="th">Department</th>
                 <th className="th">Role</th>
                 <th className="th">Status</th>
+                <th className="th min-w-[8rem]">Manager</th>
                 <th className="th min-w-[6rem] whitespace-normal">Data upload</th>
                 <th className="th text-center w-16">Actions</th>
               </tr>
@@ -294,7 +298,7 @@ const EmployeeManagement = () => {
             <tbody className="bg-white divide-y divide-gray-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="td text-center text-gray-400 py-10">No employees found.</td>
+                  <td colSpan={8} className="td text-center text-gray-400 py-10">No employees found.</td>
                 </tr>
               ) : (
                 filtered.map((u) => {
@@ -330,6 +334,11 @@ const EmployeeManagement = () => {
                         <span className={`badge ${u.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                           {u.isActive ? 'Active' : 'Inactive'}
                         </span>
+                      </td>
+                      <td className="td text-sm text-gray-700 max-w-[10rem] truncate" title={u.managerName || ''}>
+                        {u.managerName
+                          ? <span>{u.managerName}</span>
+                          : <span className="text-gray-300">—</span>}
                       </td>
                       <td className="td align-top">
                         {u.role === 'employee' ? (
@@ -474,6 +483,19 @@ const EmployeeManagement = () => {
                 onClick={() => {
                   const x = rowMenu.user;
                   setRowMenu(null);
+                  setManagerModal(x);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <MdSupervisorAccount className="h-4 w-4 text-indigo-600" />
+                Assign manager
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const x = rowMenu.user;
+                  setRowMenu(null);
                   setModal(x);
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -544,6 +566,16 @@ const EmployeeManagement = () => {
           initial={modal === 'add' ? null : modal}
           onClose={() => setModal(null)}
           onSaved={() => { setModal(null); fetchData(); }}
+        />
+      )}
+
+      {managerModal && (
+        <AssignManagerModal
+          key={`manager-${managerModal._id}`}
+          user={managerModal}
+          allUsers={users}
+          onClose={() => setManagerModal(null)}
+          onSaved={() => { setManagerModal(null); fetchData(); }}
         />
       )}
     </main>
