@@ -12,6 +12,7 @@ import HomeLanding        from './pages/HomeLanding';
 import Dashboard          from './pages/Dashboard';
 import BiControlTower     from './pages/BiControlTower';
 import DistilleryAnalyticsDashboard from './pages/bi/DistilleryAnalyticsDashboard';
+import MillingOperationsDashboard from './pages/bi/MillingOperationsDashboard';
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
@@ -82,6 +83,7 @@ const App = () => {
           <Route path="/forms-hub"     element={<Dashboard />} />
           <Route path="/bi"                      element={<BiControlTower />} />
           <Route path="/bi/distillery-operations" element={<DistilleryAnalyticsDashboard />} />
+          <Route path="/bi/milling-operations" element={<MillingOperationsDashboard />} />
           <Route path="/apps/:appId"  element={<AppDetail />} />
 
           {/* Mill Logbook */}

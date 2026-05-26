@@ -127,6 +127,13 @@ const formDefs = [
     app: 'BI Control Tower',
     sort_order: 1,
   },
+  {
+    name: 'Milling Division Cockpit',
+    description: 'Mill outages, equipment temperature and lube oil analytics from the milling division',
+    formKey: 'bi_milling_operations',
+    app: 'BI Control Tower',
+    sort_order: 2,
+  },
 ];
 
 // Renamed apps (re-seed used to INSERT new rows because `name` is unique).

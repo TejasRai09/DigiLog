@@ -181,4 +181,91 @@ async function getDistilleryOperationsBi(req, res) {
   }
 }
 
-module.exports = { getDistilleryOperationsBi };
+/**
+ * Map a `mill_stoppages` DB row → milling-cockpit BI point.
+ * `hours` is computed from start_time/end_time, falling back to 0 when either is missing.
+ */
+function mapMillStoppageRow(r) {
+  const dateIso = dateKey(r.Date);
+
+  const dateObj =
+    r.Date instanceof Date
+      ? r.Date
+      : new Date(typeof r.Date === 'string' ? `${r.Date}T12:00:00` : r.Date);
+  const dateLabel = Number.isNaN(dateObj.getTime())
+    ? String(r.Date || '')
+    : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  const toIso = (v) => {
+    if (v == null || v === '') return '';
+    const dt = v instanceof Date ? v : new Date(v);
+    return Number.isNaN(dt.getTime()) ? '' : dt.toISOString();
+  };
+
+  const toClock = (v) => {
+    if (v == null || v === '') return '';
+    const dt = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(dt.getTime())) return '';
+    return dt.toLocaleTimeString('en-GB', { hour12: false }); // HH:MM:SS
+  };
+
+  let hours = 0;
+  if (r.start_time && r.end_time) {
+    const s = r.start_time instanceof Date ? r.start_time : new Date(r.start_time);
+    const e = r.end_time instanceof Date ? r.end_time : new Date(r.end_time);
+    if (!Number.isNaN(s.getTime()) && !Number.isNaN(e.getTime()) && e >= s) {
+      hours = (e.getTime() - s.getTime()) / (1000 * 60 * 60);
+    }
+  }
+
+  return {
+    dateIso,
+    dateLabel,
+    startTimeIso: toIso(r.start_time),
+    endTimeIso: toIso(r.end_time),
+    startTime: toClock(r.start_time),
+    endTime: toClock(r.end_time),
+    hours: Math.max(0, Number(hours.toFixed(4))),
+    section: (r.section || '').trim(),
+    machinery: (r.machinery || '').trim(),
+    remarks: (r.remarks || '').toString(),
+    recordedAt: toIso(r.timestamp),
+  };
+}
+
+/** GET /api/bi/milling-operations — same access as the BI dashboard form. */
+async function getMillingStoppagesBi(req, res) {
+  try {
+    const allowed = await canAccessForm(req.user, 'bi_milling_operations');
+    if (!allowed) {
+      return res.status(403).json({ message: 'Access denied to milling analytics.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT
+        \`Date\`,
+        \`start_time\`,
+        \`end_time\`,
+        \`section\`,
+        \`machinery\`,
+        \`remarks\`,
+        \`timestamp\`
+      FROM mill_stoppages
+      WHERE \`Date\` IS NOT NULL
+      ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC`,
+    );
+
+    const records = rows.map(mapMillStoppageRow);
+
+    return res.json({
+      source: 'mill_stoppages',
+      recordCount: records.length,
+      records,
+    });
+  } catch (err) {
+    console.error('BI milling error:', err.message);
+    return res.status(500).json({ message: 'Database error: ' + err.message });
+  }
+}
+
+module.exports = { getDistilleryOperationsBi, getMillingStoppagesBi };
