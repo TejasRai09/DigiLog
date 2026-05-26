@@ -4,6 +4,7 @@ export const BI_CONTROL_TOWER_APP_NAME = 'BI Control Tower';
 /** BI dashboard `form_key` → SPA path (employee-mapped like other forms; not `/forms/:key`). */
 export const BI_DASHBOARD_PATH = {
   bi_distillery_operations: '/bi/distillery-operations',
+  bi_milling_operations: '/bi/milling-operations',
 };
 
 export function isBiDashboardFormKey(formKey) {
