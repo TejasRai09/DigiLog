@@ -5,6 +5,7 @@ const {
   absolutePathForStored,
   unlinkStoredFile,
 } = require('../utils/dataUploadFile');
+const { syncIfMillMappingFile } = require('../utils/millMappingSync');
 
 async function hasDataUploadAccess(user) {
   if (!user) return false;
@@ -104,7 +105,23 @@ async function uploadFile(req, res) {
       [result.insertId],
     );
 
-    res.status(201).json({ file: mapFileRow(row) });
+    // Auto-sync mill thermal-report reference tables when the uploaded file is
+    // one of the recognized mapping spreadsheets (Data_Mill, DataShredder_Names,
+    // DataLube_Names). Best-effort: a sync failure must not fail the upload.
+    let millMappingSync = null;
+    try {
+      const abs = absolutePathForStored(storedFilename);
+      millMappingSync = await syncIfMillMappingFile(originalFilename, abs);
+      if (millMappingSync) {
+        console.log(
+          `Mill mapping auto-sync: ${millMappingSync.table} → ${millMappingSync.status} (${millMappingSync.rows} rows)`,
+        );
+      }
+    } catch (syncErr) {
+      console.error('Mill mapping auto-sync failed:', syncErr.message);
+    }
+
+    res.status(201).json({ file: mapFileRow(row), millMappingSync });
   } catch (err) {
     unlinkStoredFile(storedFilename);
     console.error('uploadFile:', err.message);

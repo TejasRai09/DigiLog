@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   MdArrowBack,
@@ -36,8 +36,10 @@ import Spinner from '../../components/Spinner';
 import {
   computePriorPeriodRange,
   formatDMYShort,
+  formatYMD,
   getPresetDateRange,
 } from '../../utils/distilleryBiDateRange';
+import MillThermalReportsTab from './MillThermalReportsTab';
 
 /** Section → bar/badge color (matches the milling stoppage option list). */
 const SECTION_COLORS = {
@@ -60,7 +62,7 @@ const sectionColor = (sec) => SECTION_COLORS[sec] || '#94a3b8';
 
 const NAV_TABS = [
   { id: 'outages', label: 'Mill Outage', icon: MdWarning, enabled: true },
-  { id: 'equip-temp', label: 'Summary - Equipment Temp', icon: MdThermostat, enabled: false },
+  { id: 'thermal', label: 'Equipment Temperature', icon: MdThermostat, enabled: true },
   { id: 'lube-press', label: 'Lube & Roller Temp', icon: MdOpacity, enabled: false },
 ];
 
@@ -270,34 +272,61 @@ export default function MillingOperationsDashboard() {
   }, []);
 
   /**
-   * Data bounds anchor presets to the latest record in mill_stoppages so the dashboard
-   * always lands on visible data. (Distillery cockpit uses the same convention.)
-   * Q1 Apr–Jun, Q2 Jul–Sep, Q3 Oct–Dec, Q4 Jan–Mar are based on the Indian fiscal year.
+   * Data bounds are kept for display hints (e.g. "Data available: Mar 2023 – Mar 2026")
+   * but presets anchor to *today* so QTD/MTD/YTD mean the current Indian FY window,
+   * matching how users (and ERP reports) read those acronyms.
+   * Q1 Apr–Jun, Q2 Jul–Sep, Q3 Oct–Dec, Q4 Jan–Mar.
    */
   const dataBounds = useMemo(() => {
     const isos = rawData.map((r) => r.dateIso).filter(Boolean).sort();
     return { min: isos[0] || null, max: isos[isos.length - 1] || null };
   }, [rawData]);
 
+  // Presets re-pin to today whenever the user switches preset (no data-anchor side-effect).
   useEffect(() => {
-    if (!dataBounds.max) return;
     if (rangePreset === 'Custom') return;
-    const ref = new Date(`${dataBounds.max}T12:00:00`);
-    const { from, to } = getPresetDateRange(rangePreset, ref);
+    const { from, to } = getPresetDateRange(rangePreset, new Date());
     setFromDate(from);
     setToDate(to);
-  }, [dataBounds.max, rangePreset]);
+  }, [rangePreset]);
+
+  /**
+   * Auto-fallback on first load: if the default MTD window (today's month) has no
+   * stoppage records but data exists somewhere else, jump to the latest data range
+   * so the dashboard never opens with an empty cockpit. The user can switch back to
+   * a calendar preset any time — it will then resolve relative to today.
+   */
+  const initialFallbackRef = useRef(false);
+  useEffect(() => {
+    if (initialFallbackRef.current) return;
+    if (loading) return;
+    if (!dataBounds.max) return;
+    initialFallbackRef.current = true;
+    const mtd = getPresetDateRange('MTD', new Date());
+    const hasInMtd = rawData.some((r) => r.dateIso && r.dateIso >= mtd.from && r.dateIso <= mtd.to);
+    if (!hasInMtd) {
+      setRangePreset('Custom');
+      setFromDate(dataBounds.min || dataBounds.max);
+      setToDate(dataBounds.max);
+    }
+  }, [loading, dataBounds.max, dataBounds.min, rawData]);
 
   const toggleSection = (sec) => {
     setSelectedSections((prev) => (prev.includes(sec) ? prev.filter((s) => s !== sec) : [...prev, sec]));
   };
 
   const applyPreset = (preset) => {
-    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-    const { from, to } = getPresetDateRange(preset, ref);
+    const { from, to } = getPresetDateRange(preset, new Date());
     setRangePreset(preset);
     setFromDate(from);
     setToDate(to);
+  };
+
+  const jumpToLatestData = () => {
+    if (!dataBounds.max) return;
+    setRangePreset('Custom');
+    setFromDate(dataBounds.min || dataBounds.max);
+    setToDate(dataBounds.max);
   };
 
   const selectCustomPreset = () => setRangePreset('Custom');
@@ -528,22 +557,10 @@ export default function MillingOperationsDashboard() {
                 Milling Division Cockpit
               </h1>
               <p className={`col-start-1 row-start-2 self-center text-[11px] font-bold leading-snug ${subheadClasses}`}>
-                Mill stoppage analytics · Outage telemetry
+                {activeTab === 'thermal'
+                  ? 'Equipment temperature analytics · Reference: Data_Mill'
+                  : 'Mill stoppage analytics · Outage telemetry'}
               </p>
-              <div
-                className={`col-start-2 row-start-1 row-span-2 flex w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center sm:w-[4.75rem] ${
-                  isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-300 bg-slate-100'
-                }`}
-                title={`${filteredData.length} stoppage events — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
-              >
-                <span className={`text-3xl font-black leading-none tabular-nums sm:text-4xl ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                  {filteredData.length}
-                </span>
-                <span className={`mt-1 text-[8px] font-bold leading-tight ${subheadClasses}`}>Stoppage Events</span>
-                <span className={`max-w-full truncate text-[7px] font-semibold leading-tight ${textClasses.muted}`}>
-                  {rangePreset === 'Custom' ? 'Custom' : rangePreset}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -606,8 +623,8 @@ export default function MillingOperationsDashboard() {
                 {isDarkMode ? <MdLightMode className="h-4 w-4" /> : <MdDarkMode className="h-4 w-4" />}
               </button>
 
-              {/* Section multi-select */}
-              <div className="relative z-[310]">
+              {/* Section multi-select (mill-stoppage only) */}
+              <div className={`relative z-[310] ${activeTab === 'outages' ? '' : 'hidden'}`}>
                 <button
                   type="button"
                   onClick={() => setIsSectionOpen(!isSectionOpen)}
@@ -716,7 +733,6 @@ export default function MillingOperationsDashboard() {
                   <input
                     type="date"
                     value={fromDate}
-                    min={dataBounds.min || undefined}
                     max={toDate}
                     onChange={handleFromChange}
                     className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
@@ -730,15 +746,41 @@ export default function MillingOperationsDashboard() {
                     type="date"
                     value={toDate}
                     min={fromDate}
-                    max={dataBounds.max || undefined}
                     onChange={handleToChange}
                     className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                     }`}
                   />
                 </div>
+                {dataBounds.max ? (
+                  <button
+                    type="button"
+                    onClick={jumpToLatestData}
+                    title={`Jump to data range ${formatDMYShort(dataBounds.min)} – ${formatDMYShort(dataBounds.max)}`}
+                    className={`mb-px self-end rounded-lg border px-2 py-1.5 text-[10px] font-bold transition-colors ${
+                      isDarkMode
+                        ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Latest Data
+                  </button>
+                ) : null}
               </div>
             </div>
+
+            {/* Calendar/data context hint so the user can see at a glance how 'today' aligns with available records. */}
+            {dataBounds.max ? (
+              <div className={`flex flex-wrap items-center justify-end gap-2 text-[10px] font-bold ${textClasses.muted}`}>
+                <span>
+                  Today: {formatDMYShort(formatYMD(new Date()))}
+                </span>
+                <span className={isDarkMode ? 'text-slate-600' : 'text-slate-300'}>·</span>
+                <span>
+                  Data available: {formatDMYShort(dataBounds.min)} – {formatDMYShort(dataBounds.max)}
+                </span>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -760,6 +802,17 @@ export default function MillingOperationsDashboard() {
             textClasses={textClasses}
             axisStyle={axisStyle}
             gridStyle={gridStyle}
+          />
+        ) : activeTab === 'thermal' ? (
+          <MillThermalReportsTab
+            fromDate={fromDate}
+            toDate={toDate}
+            isDarkMode={isDarkMode}
+            cardClasses={cardClasses}
+            textClasses={textClasses}
+            axisStyle={axisStyle}
+            gridStyle={gridStyle}
+            periodLabel={periodLabel}
           />
         ) : (
           <ComingSoonTab tab={activeTab} cardClasses={cardClasses} textClasses={textClasses} />
@@ -1089,7 +1142,7 @@ function MillOutageTab({
  * ──────────────────────────────────────────────────────────── */
 function ComingSoonTab({ tab, cardClasses, textClasses }) {
   const titleByTab = {
-    'equip-temp': 'Summary - Equipment Temp',
+    'thermal': 'Thermal Reports',
     'lube-press': 'Lube & Roller Temp',
   };
   return (
