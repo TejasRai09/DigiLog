@@ -268,4 +268,102 @@ async function getMillingStoppagesBi(req, res) {
   }
 }
 
-module.exports = { getDistilleryOperationsBi, getMillingStoppagesBi };
+/**
+ * GET /api/bi/milling-equipment-temp
+ * Returns the Data_Mill variable→machine→equipment mapping plus the time-series
+ * temperature readings from `mill_logbook1`. Both feed the "Thermal Reports →
+ * Summary - Equipment Temp" view on the milling cockpit.
+ *
+ * Same access gate as the Milling Division Cockpit (bi_milling_operations).
+ */
+async function getMillingEquipmentTempBi(req, res) {
+  try {
+    const allowed = await canAccessForm(req.user, 'bi_milling_operations');
+    if (!allowed) {
+      return res.status(403).json({ message: 'Access denied to milling analytics.' });
+    }
+
+    const [mappingRows] = await pool.query(
+      `SELECT
+         \`variable\`,
+         \`machine\`,
+         \`equipment_name\`,
+         \`sort_order\`
+       FROM data_mill_mapping
+       ORDER BY \`sort_order\` ASC, \`machine\` ASC, \`equipment_name\` ASC`,
+    );
+
+    const mapping = mappingRows.map((r) => ({
+      variable: String(r.variable || '').trim(),
+      machine: String(r.machine || '').trim(),
+      equipmentName: String(r.equipment_name || '').trim(),
+      sortOrder: Number(r.sort_order) || 0,
+    }));
+
+    // Pull all mill_logbook1 columns referenced by the mapping (variable column
+    // names match the table column names). Guarding against arbitrary input by
+    // intersecting with information_schema for the table.
+    const [columnRows] = await pool.query(
+      `SELECT COLUMN_NAME AS name
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'mill_logbook1'`,
+    );
+    const tableColumns = new Set(columnRows.map((r) => r.name));
+
+    const variableSet = new Set();
+    for (const m of mapping) {
+      if (m.variable && tableColumns.has(m.variable)) variableSet.add(m.variable);
+    }
+    const variableColumns = Array.from(variableSet);
+
+    let series = [];
+    if (variableColumns.length > 0) {
+      const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const [rows] = await pool.query(
+        `SELECT ${selectCols}
+         FROM mill_logbook1
+         WHERE \`Date\` IS NOT NULL
+         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+      );
+
+      series = rows.map((r) => {
+        const dateIso = dateKey(r.Date);
+        const time = r.Time;
+        let timeIso = '';
+        if (time != null && time !== '') {
+          const t = time instanceof Date ? time : new Date(time);
+          if (!Number.isNaN(t.getTime())) timeIso = t.toISOString();
+        }
+        const values = {};
+        for (const col of variableColumns) {
+          const v = r[col];
+          values[col] = v == null || v === '' ? null : Number(v);
+        }
+        return {
+          dateIso,
+          shift: (r.Shift || '').toString().trim(),
+          timeIso,
+          values,
+        };
+      });
+    }
+
+    return res.json({
+      source: 'mill_logbook1+data_mill_mapping',
+      mapping,
+      series,
+      mappingCount: mapping.length,
+      seriesCount: series.length,
+    });
+  } catch (err) {
+    console.error('BI milling equipment-temp error:', err.message);
+    return res.status(500).json({ message: 'Database error: ' + err.message });
+  }
+}
+
+module.exports = {
+  getDistilleryOperationsBi,
+  getMillingStoppagesBi,
+  getMillingEquipmentTempBi,
+};

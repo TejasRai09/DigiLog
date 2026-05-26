@@ -907,6 +907,37 @@ CREATE TABLE IF NOT EXISTS `prod_decanter` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Mill thermal-report reference tables (rebuilt from Data_Mill/DataShredder_Names/DataLube_Names .xlsx) ──
+CREATE TABLE IF NOT EXISTS `data_mill_mapping` (
+  `variable`        VARCHAR(80)  NOT NULL,
+  `machine`         VARCHAR(100) NOT NULL,
+  `equipment_name`  VARCHAR(150) NOT NULL,
+  `sort_order`      INT          NOT NULL DEFAULT 0,
+  `updated_at`      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`variable`),
+  KEY `idx_data_mill_machine` (`machine`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `data_shredder_mapping` (
+  `variable`       VARCHAR(80)  NOT NULL,
+  `machinery`      VARCHAR(100) NOT NULL,
+  `variable_name`  VARCHAR(150) NOT NULL,
+  `sort_order`     INT          NOT NULL DEFAULT 0,
+  `updated_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`variable`),
+  KEY `idx_data_shredder_machinery` (`machinery`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `data_lube_mapping` (
+  `variable`       VARCHAR(80)  NOT NULL,
+  `machinery`      VARCHAR(100) NOT NULL,
+  `variable_name`  VARCHAR(150) NOT NULL,
+  `sort_order`     INT          NOT NULL DEFAULT 0,
+  `updated_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`variable`),
+  KEY `idx_data_lube_machinery` (`machinery`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS `prod_clarification` (
   `id`                    INT           NOT NULL AUTO_INCREMENT,
   `Date`                  DATE              DEFAULT NULL,
