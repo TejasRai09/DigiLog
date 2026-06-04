@@ -71,8 +71,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ── Manual login ────────────────────────────────────────────
-  const loginManual = useCallback(async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+  const loginManual = useCallback(async (email, password, options = {}) => {
+    const { data } = await api.post('/auth/login', {
+      email,
+      password,
+      adminPortal: Boolean(options.adminPortal),
+    });
     localStorage.setItem('token', data.token);
     setUser(data.user);
     return data;
@@ -85,10 +89,14 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // ── Google login (access token from GIS popup) ──────────────
-  const loginGoogle = useCallback(async (accessToken) => {
-    const { data } = await api.post('/auth/google', { accessToken });
+  const loginGoogle = useCallback(async (accessToken, options = {}) => {
+    const { data } = await api.post('/auth/google', {
+      accessToken,
+      adminPortal: Boolean(options.adminPortal),
+    });
     localStorage.setItem('token', data.token);
     setUser(data.user);
+    return data;
   }, []);
 
   // ── Logout ──────────────────────────────────────────────────

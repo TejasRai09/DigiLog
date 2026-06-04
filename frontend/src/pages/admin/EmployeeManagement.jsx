@@ -257,7 +257,7 @@ const EmployeeManagement = () => {
       <BiDashboardSettings />
 
       {/* Search */}
-      <div className="relative mb-4 max-w-xs">
+      <div className="relative mb-4 w-full max-w-xs">
         <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
         <input
           value={search}
@@ -364,10 +364,17 @@ const EmployeeManagement = () => {
                               const r = target.getBoundingClientRect();
                               setRowMenu((prev) => {
                                 if (prev?.user._id === u._id) return null;
+                                const menuH = 220;
+                                let top = r.bottom + 4;
+                                if (top + menuH > window.innerHeight - 8) {
+                                  top = Math.max(8, r.top - menuH - 4);
+                                }
+                                const useLeft = window.innerWidth < 640;
                                 return {
                                   user: u,
-                                  top: r.bottom + 4,
-                                  right: window.innerWidth - r.right,
+                                  top,
+                                  left: useLeft ? Math.max(8, Math.min(r.left, window.innerWidth - 200)) : undefined,
+                                  right: useLeft ? undefined : window.innerWidth - r.right,
                                 };
                               });
                             }}

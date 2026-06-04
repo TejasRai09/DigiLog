@@ -5,7 +5,11 @@ import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 import GoogleSignInButton from '../components/GoogleSignInButton';
-import { validateLoginForm, getLoginErrorMessage } from '../utils/loginValidation';
+import {
+  validateLoginForm,
+  getLoginErrorMessage,
+  HOME_PORTAL_DENIED_MSG,
+} from '../utils/loginValidation';
 import { msalInstance } from '../msalConfig';
 
 const MicrosoftIcon = () => (
@@ -35,11 +39,16 @@ const Login = () => {
     }
     setLoading(true);
     try {
-      await loginManual(check.email, form.password);
+      const data = await loginManual(check.email, form.password, { adminPortal: false });
+      if (data?.user?.role === 'admin') {
+        logout();
+        toast.error(ADMIN_HOME_LOGIN_MSG);
+        return;
+      }
       toast.success('Signed in successfully.');
       navigate('/dashboard');
     } catch (err) {
-      toast.error(getLoginErrorMessage(err));
+      toast.error(getLoginErrorMessage(err, ADMIN_HOME_LOGIN_MSG));
     } finally {
       setLoading(false);
     }
@@ -60,11 +69,11 @@ const Login = () => {
   const handleGoogleAccessToken = async (accessToken) => {
     setLoading(true);
     try {
-      await loginGoogle(accessToken);
+      await loginGoogle(accessToken, { adminPortal: false });
       toast.success('Signed in successfully.');
       navigate('/dashboard');
     } catch (err) {
-      toast.error(getLoginErrorMessage(err, 'Google sign-in failed. Please try again.'));
+      toast.error(getLoginErrorMessage(err, HOME_PORTAL_DENIED_MSG));
     } finally {
       setLoading(false);
     }

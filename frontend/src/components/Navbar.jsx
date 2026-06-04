@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MdLogout, MdPeople, MdHome, MdUpload } from 'react-icons/md';
+import { MdLogout, MdPeople, MdHome, MdUpload, MdMenu, MdClose } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import ProfileModal from './ProfileModal';
@@ -17,28 +17,51 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
-  const navLink = (to, label, Icon) => {
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
+
+  const navItems = [
+    { to: '/dashboard', label: 'Home', Icon: MdHome, show: true },
+    { to: '/data-upload', label: 'Data Upload', Icon: MdUpload, show: dataUploadEnabled },
+    { to: '/admin/employees', label: 'Employees', Icon: MdPeople, show: user?.role === 'admin' },
+  ].filter((item) => item.show);
+
+  const navLinkClass = (active) =>
+    `flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+      active
+        ? 'bg-blue-50 text-blue-700'
+        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+    }`;
+
+  const renderNavLink = (to, label, Icon, onNavigate) => {
     const active = pathname === to;
     return (
-    <Link
-      to={to}
-      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-        active
-          ? 'bg-blue-50 text-blue-700'
-          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-      }`}
-    >
-      <Icon className="h-4 w-4" />
-      {label}
-    </Link>
+      <Link
+        to={to}
+        onClick={onNavigate}
+        className={navLinkClass(active)}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        {label}
+      </Link>
     );
   };
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
       <div className="flex w-full min-h-[3.75rem] sm:min-h-16 items-center gap-2 py-2 sm:gap-3">
-        {/* Left: Zuari + DigiLog (app branding beside Zuari) */}
         <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:gap-4 pl-1 sm:pl-2 md:pl-3 min-w-0">
           <a
             href="https://www.zuariindustries.in/"
@@ -75,26 +98,36 @@ const Navbar = () => {
           </Link>
         </div>
 
-        {/* Center: main nav */}
         <nav className="hidden md:flex flex-1 justify-center items-center gap-1 min-w-0">
-          {navLink('/dashboard', 'Home', MdHome)}
-          {dataUploadEnabled && navLink('/data-upload', 'Data Upload', MdUpload)}
-          {user?.role === 'admin' && navLink('/admin/employees', 'Employees', MdPeople)}
+          {navItems.map(({ to, label, Icon }) => renderNavLink(to, label, Icon))}
         </nav>
+
         <div className="flex-1 min-w-0 md:hidden" aria-hidden />
 
-        {/* Right: user + Adventz */}
-        <div className="flex shrink-0 items-center gap-1.5 pr-1 sm:gap-2 sm:pr-2 md:gap-3 md:pr-3">
+        <div className="flex shrink-0 items-center gap-1 pr-1 sm:gap-2 sm:pr-2 md:gap-3 md:pr-3">
+          <button
+            type="button"
+            onClick={() => setMobileOpen((o) => !o)}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 md:hidden"
+            aria-expanded={mobileOpen}
+            aria-controls="app-mobile-nav"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileOpen ? <MdClose className="h-6 w-6" /> : <MdMenu className="h-6 w-6" />}
+          </button>
+
           <div className="hidden text-right sm:block">
-            <p className="text-sm font-medium leading-tight text-gray-900">{user?.name}</p>
-            <p className={`text-xs text-gray-500 ${user?.department ? '' : 'capitalize'}`}>
+            <p className="text-sm font-medium leading-tight text-gray-900 max-w-[8rem] truncate lg:max-w-none">
+              {user?.name}
+            </p>
+            <p className={`text-xs text-gray-500 truncate max-w-[8rem] lg:max-w-none ${user?.department ? '' : 'capitalize'}`}>
               {user?.department ? user.department : user?.role}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold uppercase text-white select-none overflow-hidden ring-2 ring-transparent hover:ring-blue-300 transition-shadow sm:h-10 sm:w-10"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold uppercase text-white select-none overflow-hidden ring-2 ring-transparent hover:ring-blue-300 transition-shadow sm:h-10 sm:w-10 touch-manipulation"
             title="Your profile"
             aria-label="Open profile"
           >
@@ -110,8 +143,9 @@ const Navbar = () => {
               logout();
               navigate('/?login=1');
             }}
-            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+            className="rounded-lg p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 touch-manipulation"
             title="Logout"
+            aria-label="Logout"
           >
             <MdLogout className="h-5 w-5" />
           </button>
@@ -120,7 +154,7 @@ const Navbar = () => {
             href="https://www.adventz.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="ml-0.5 shrink-0 rounded-md border-l border-gray-200 pl-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:pl-2"
+            className="ml-0.5 hidden shrink-0 rounded-md border-l border-gray-200 pl-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:block sm:pl-2"
             aria-label="Adventz"
           >
             <img
@@ -133,6 +167,33 @@ const Navbar = () => {
           </a>
         </div>
       </div>
+
+      {mobileOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-30 bg-black/40 md:hidden"
+            aria-label="Close menu"
+            onClick={() => setMobileOpen(false)}
+          />
+          <nav
+            id="app-mobile-nav"
+            className="absolute left-0 right-0 top-full z-40 border-b border-gray-200 bg-white px-3 py-3 shadow-lg md:hidden"
+          >
+            <div className="mb-3 rounded-lg bg-gray-50 px-3 py-2 sm:hidden">
+              <p className="text-sm font-semibold text-gray-900">{user?.name}</p>
+              <p className="text-xs text-gray-500 capitalize">
+                {user?.department || user?.role}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1">
+              {navItems.map(({ to, label, Icon }) =>
+                renderNavLink(to, label, Icon, () => setMobileOpen(false),
+              ))}
+            </div>
+          </nav>
+        </>
+      )}
 
       {profileOpen && (
         <ProfileModal

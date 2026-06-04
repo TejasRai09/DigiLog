@@ -33,14 +33,14 @@ const HomeLanding = () => {
   const showBi = cardKeys?.includes(HOMEPAGE_CARD_KEYS.BI_CONTROL_TOWER);
 
   const cardBase =
-    'group relative flex h-full min-h-[30rem] sm:min-h-[32rem] lg:min-h-[35rem] flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-0 ' +
+    'group relative flex h-full min-h-[22rem] sm:min-h-[30rem] lg:min-h-[35rem] flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-0 ' +
     'shadow-[0_22px_48px_-12px_rgba(15,23,42,0.14),0_10px_22px_-12px_rgba(15,23,42,0.08)] ' +
     'ring-1 ring-slate-900/[0.04] transition-all duration-300 ease-out ' +
     'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ' +
     'hover:-translate-y-1.5';
 
   return (
-    <main className="mx-auto min-h-[calc(100vh-4rem)] max-w-6xl px-4 sm:px-6 lg:px-10 py-10 sm:py-12 lg:py-16 bg-slate-50/60">
+    <main className="page-shell min-h-[calc(100vh-4rem)] bg-slate-50/60 lg:py-16">
       <div className="mb-10 sm:mb-12 lg:mb-14 max-w-3xl">
         <Link
           to="/"

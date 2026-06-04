@@ -7,7 +7,7 @@ import Spinner from '../../components/Spinner';
 import { validateLoginForm, getLoginErrorMessage } from '../../utils/loginValidation';
 
 const AdminLogin = () => {
-  const { user, loginManual, logout } = useAuth();
+  const { user, loginManual } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm]       = useState({ email: '', password: '' });
@@ -27,12 +27,7 @@ const AdminLogin = () => {
     }
     setLoading(true);
     try {
-      const data = await loginManual(check.email, form.password);
-      if (data?.user?.role !== 'admin') {
-        logout();
-        toast.error('This account is not an administrator.');
-        return;
-      }
+      await loginManual(check.email, form.password, { adminPortal: true });
       toast.success('Signed in successfully.');
       navigate('/admin/employees', { replace: true });
     } catch (err) {

@@ -114,8 +114,8 @@ const ProdClarification = () => {
         </div>
 
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[1300px]">
+          <div className="table-wrapper">
+            <table className="w-full min-w-[1300px] border-collapse text-left text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b text-[9px] font-bold uppercase text-gray-500">
                   <th className="py-2 px-3 border-r w-28">Time</th>

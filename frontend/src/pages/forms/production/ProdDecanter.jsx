@@ -125,8 +125,8 @@ const ProdDecanter = () => {
         </div>
 
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[1100px]">
+          <div className="table-wrapper">
+            <table className="w-full min-w-[1100px] border-collapse text-left text-xs">
               <thead>
                 <tr className="bg-gray-100 border-b text-center font-bold uppercase text-[10px] text-gray-600">
                   <th className="py-2 px-3 border-r text-left w-28" rowSpan={2}>Time</th>

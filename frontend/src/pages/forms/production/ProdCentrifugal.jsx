@@ -91,8 +91,8 @@ const ProdCentrifugal = () => {
 
         <div className="form-section space-y-3">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Machine Run & Stoppage Details</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse min-w-[900px]">
+          <div className="table-wrapper">
+            <table className="w-full min-w-[900px] border-collapse text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b text-gray-500 font-semibold uppercase tracking-wider text-[10px]">
                   <th className="py-2 px-3 text-left w-44">Machine</th>
