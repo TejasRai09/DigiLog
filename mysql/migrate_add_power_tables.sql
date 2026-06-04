@@ -1,5 +1,6 @@
 -- Same DDL is included in mysql/init.sql (npm run db:schema). This file is optional on its own.
-USE gsmadb;
+-- Apply: cd backend && node scripts/apply-sql-file.js ../mysql/migrate_add_power_tables.sql
+USE `__MYSQL_DATABASE__`;
 
 CREATE TABLE IF NOT EXISTS `pp_equipment` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,

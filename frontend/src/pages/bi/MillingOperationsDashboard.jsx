@@ -144,7 +144,7 @@ const KpiCard = ({
     ((v) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
   return (
-    <div className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-4 transition-shadow hover:shadow-md sm:overflow-visible ${cardClasses}`}>
+    <div className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-2.5 transition-shadow hover:shadow-md sm:overflow-visible sm:p-3 ${cardClasses}`}>
       <div className="mb-2 flex items-start justify-between overflow-visible">
         <div className={`flex min-w-0 items-center text-xs font-bold ${t.title}`}>
           {title}
@@ -562,7 +562,7 @@ export default function MillingOperationsDashboard() {
     : 'absolute right-0 top-full z-[320] mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
 
   return (
-    <div className={`flex h-[calc(100vh-3.75rem)] min-h-0 w-full flex-col overflow-hidden p-2 font-sans transition-colors duration-300 sm:p-3 ${appClasses}`}>
+    <div className={`flex h-[calc(100dvh-3.75rem)] min-h-0 w-full flex-col overflow-hidden p-1.5 font-sans transition-colors duration-300 sm:p-2 ${appClasses}`}>
       {loadError ? (
         <div
           className={`mb-3 shrink-0 rounded-xl border px-4 py-3 text-sm font-semibold ${
@@ -574,8 +574,8 @@ export default function MillingOperationsDashboard() {
         </div>
       ) : null}
 
-      <div className="mb-0 flex shrink-0 flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-2 flex shrink-0 flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <Link
             to="/bi"
             className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
@@ -616,19 +616,19 @@ export default function MillingOperationsDashboard() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-          <div className="min-w-0">
-            <h1 className={`text-xl font-black tracking-tight sm:text-2xl ${headerClasses}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 shrink-0 px-0.5">
+            <h1 className={`text-lg font-black tracking-tight sm:text-xl ${headerClasses}`}>
               Milling Division Cockpit
             </h1>
-            <p className={`mt-0.5 text-[11px] font-bold leading-snug ${subheadClasses}`}>
+            <p className={`mt-0.5 text-[10px] font-bold leading-snug sm:text-[11px] ${subheadClasses}`}>
               {headerSubtitle}
             </p>
           </div>
 
-          <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:items-end">
+          <div className="flex w-full min-w-0 flex-col gap-2 px-0.5 py-1 lg:min-w-0 lg:max-w-full lg:flex-1 lg:items-end lg:py-1.5">
             <div
-              className={`relative z-[200] flex w-full max-w-full flex-wrap items-center gap-2 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md sm:gap-3 md:gap-4 ${
+              className={`mill-cockpit-filter-bar relative z-[200] flex w-full min-w-0 max-w-full flex-wrap items-center gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:gap-2.5 sm:p-2.5 ${
                 isDarkMode
                   ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
                   : 'border-purple-200 bg-white/80 shadow-purple-100/50'
@@ -637,7 +637,7 @@ export default function MillingOperationsDashboard() {
               <button
                 type="button"
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                className={`rounded-xl border p-2 transition-colors ${
+                className={`shrink-0 rounded-xl border p-1.5 transition-colors sm:p-2 ${
                   isDarkMode
                     ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700'
                     : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'
@@ -649,7 +649,7 @@ export default function MillingOperationsDashboard() {
 
               <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-              <div className={`flex flex-wrap items-center gap-1 rounded-xl border p-1 ${cardClasses}`}>
+              <div className={`flex shrink-0 flex-nowrap items-center gap-0.5 rounded-xl border p-0.5 ${cardClasses}`}>
                 {NAV_TABS.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -661,7 +661,7 @@ export default function MillingOperationsDashboard() {
                       disabled={disabled}
                       title={disabled ? 'Coming soon' : undefined}
                       onClick={() => (disabled ? null : setActiveTab(tab.id))}
-                      className={`rounded-lg px-2.5 py-1 text-[10px] font-black transition-all sm:px-3 sm:py-1.5 sm:text-[11px] ${
+                      className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:text-[11px] ${
                         isActive
                           ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                           : disabled
@@ -669,8 +669,8 @@ export default function MillingOperationsDashboard() {
                             : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                       }`}
                     >
-                      <span className="flex items-center gap-1">
-                        <Icon className="hidden h-3.5 w-3.5 sm:inline" />
+                      <span className="flex items-center gap-1 whitespace-nowrap">
+                        <Icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
                         {tab.label}
                       </span>
                     </button>
@@ -679,11 +679,11 @@ export default function MillingOperationsDashboard() {
               </div>
 
               {/* Section multi-select (mill-stoppage only) */}
-              <div className={`relative z-[310] ${activeTab === 'outages' ? '' : 'hidden'}`}>
+              <div className={`relative z-[310] shrink-0 ${activeTab === 'outages' ? '' : 'hidden'}`}>
                 <button
                   type="button"
                   onClick={() => setIsSectionOpen(!isSectionOpen)}
-                  className={`flex items-center gap-2 rounded-xl border p-1.5 px-3 text-xs font-bold transition-colors ${cardClasses} ${textClasses.muted} ${
+                  className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border p-1.5 px-2 text-[10px] font-bold transition-colors sm:gap-2 sm:px-3 sm:text-xs ${cardClasses} ${textClasses.muted} ${
                     isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
                   }`}
                 >
@@ -748,15 +748,15 @@ export default function MillingOperationsDashboard() {
               </div>
 
               {/* Preset chips */}
-              <div className={`flex flex-wrap items-center gap-2 rounded-xl border p-1.5 sm:gap-3 ${cardClasses}`}>
-                <MdCalendarMonth className={`ml-1 h-4 w-4 shrink-0 sm:ml-2 ${textClasses.muted}`} />
-                <div className="flex flex-wrap gap-1">
+              <div className={`flex shrink-0 flex-nowrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
+                <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
+                <div className="flex shrink-0 flex-nowrap gap-0.5 sm:gap-1">
                   {['MTD', 'QTD', 'YTD'].map((preset) => (
                     <button
                       key={preset}
                       type="button"
                       onClick={() => applyPreset(preset)}
-                      className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${
+                      className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                         rangePreset === preset
                           ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                           : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -768,7 +768,7 @@ export default function MillingOperationsDashboard() {
                   <button
                     type="button"
                     onClick={selectCustomPreset}
-                    className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                       rangePreset === 'Custom'
                         ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
                         : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -779,10 +779,10 @@ export default function MillingOperationsDashboard() {
                 </div>
               </div>
 
-              <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+              <div className={`mx-0.5 hidden h-5 w-px shrink-0 sm:mx-1 sm:block sm:h-6 ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
               {/* From / To + Compare — single nowrap row */}
-              <div className="flex max-w-full shrink-0 flex-nowrap items-end gap-2 overflow-x-auto sm:gap-3">
+              <div className="flex min-w-0 shrink-0 flex-nowrap items-end gap-1.5 sm:gap-2">
                 <div className="flex shrink-0 flex-col gap-0.5">
                   <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
                   <input
@@ -790,7 +790,7 @@ export default function MillingOperationsDashboard() {
                     value={fromDate}
                     max={toDate}
                     onChange={handleFromChange}
-                    className={`w-[7.25rem] rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-auto ${
+                    className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                     }`}
                   />
@@ -802,7 +802,7 @@ export default function MillingOperationsDashboard() {
                     value={toDate}
                     min={fromDate}
                     onChange={handleToChange}
-                    className={`w-[7.25rem] rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-auto ${
+                    className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                     }`}
                   />
@@ -811,8 +811,8 @@ export default function MillingOperationsDashboard() {
                 {viewMode === 'dashboard' && activeTab === 'outages' && (
                   <>
                     <div className={`mx-0.5 h-6 w-px shrink-0 self-center ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-                    <div className="flex shrink-0 flex-nowrap items-center gap-1.5 pr-1">
-                      <span className={`shrink-0 text-[10px] font-bold uppercase tracking-widest ${textClasses.muted}`}>
+                    <div className="flex shrink-0 flex-nowrap items-center gap-1 pr-0.5 sm:gap-1.5 sm:pr-1">
+                      <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
                         Compare:
                       </span>
                       <div className={`flex shrink-0 flex-nowrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
@@ -821,7 +821,7 @@ export default function MillingOperationsDashboard() {
                             key={comp.id}
                             type="button"
                             onClick={() => setComparisonType(comp.id)}
-                            className={`shrink-0 whitespace-nowrap rounded px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 ${
+                            className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
                               comparisonType === comp.id
                                 ? isDarkMode
                                   ? 'bg-slate-700 text-slate-100 shadow-sm'
@@ -845,9 +845,9 @@ export default function MillingOperationsDashboard() {
       {/* ─── BODY (Distillery-style scroll: KPI row stays outside scroll on md+) ─── */}
       <div
         className={`min-h-0 min-w-0 flex-1 max-md:pb-1 ${
-          viewMode === 'table' || activeTab === 'thermal' || activeTab === 'lube-press'
+          viewMode === 'table'
             ? 'flex flex-col overflow-hidden'
-            : 'overflow-x-hidden overflow-y-auto md:flex md:flex-col md:overflow-y-hidden'
+            : 'flex flex-col overflow-hidden'
         }`}
       >
         {activeTab === 'outages' ? (
@@ -934,9 +934,9 @@ function MillOutageTab({
   const tooltipRender = (props) => <ChartTooltip {...props} isDarkMode={isDarkMode} unit="h" />;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2 md:overflow-hidden">
-      {/* KPI ROW — shrink-0 so tooltips are not clipped by chart scroll area */}
-      <div className="mt-2 grid min-w-0 shrink-0 grid-cols-1 gap-2 overflow-visible sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+      {/* KPI ROW */}
+      <div className="grid min-w-0 shrink-0 grid-cols-2 gap-1.5 overflow-visible xl:grid-cols-4">
         <KpiCard
           title="Total Stoppage Hours"
           value={kpis.cur.totalHrs}

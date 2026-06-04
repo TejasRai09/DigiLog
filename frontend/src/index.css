@@ -17,6 +17,14 @@
 }
 
 @layer components {
+  /* Milling cockpit: wrap filter groups to extra rows — no horizontal scroll on the bar. */
+  .mill-cockpit-filter-bar {
+    flex-wrap: wrap;
+    overflow-x: hidden;
+    row-gap: 0.625rem;
+    column-gap: 0.5rem;
+  }
+
   .btn-primary {
     @apply inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 px-4 py-2
            bg-blue-600 text-white text-sm font-medium rounded-lg

@@ -1,5 +1,8 @@
 -- EHS (Environment Health & Safety) tables
--- Run this on the gsmadb database
+-- Apply: cd backend && node scripts/apply-sql-file.js ../mysql/migrate_ehs_tables.sql
+-- Database: __MYSQL_DATABASE__ from MYSQL_DATABASE / DATABASE_URL in backend/.env
+
+USE `__MYSQL_DATABASE__`;
 
 CREATE TABLE IF NOT EXISTS `ehs_near_miss` (
   `id`               INT          NOT NULL AUTO_INCREMENT,

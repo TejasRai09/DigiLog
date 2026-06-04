@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
---  GSMA Portal – MySQL schema (gsmadb)
---  Run once: Get-Content mysql\init.sql | mysql -u root -p
+--  GSMA Portal – MySQL schema
+--  Database name: __MYSQL_DATABASE__ (from MYSQL_DATABASE or DATABASE_URL in backend/.env)
+--  Apply via: cd backend && npm run db:schema
+--  (Do not pipe this file raw to mysql — the placeholder must be substituted.)
 --
 --  Forward schema changes for form/logbook tables (Mill, Lab, Power,
 --  Distillery) are managed with Prisma Migrate from DigiLog/backend:
@@ -15,8 +17,8 @@
 --    cd backend && npm run db:migrate:resolve-baseline
 -- ═══════════════════════════════════════════════════════════
 
-CREATE DATABASE IF NOT EXISTS gsmadb CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-USE gsmadb; 
+CREATE DATABASE IF NOT EXISTS `__MYSQL_DATABASE__` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE `__MYSQL_DATABASE__`;
 
 -- ── System tables (users, apps, forms, mappings) ──────────
 

@@ -253,9 +253,9 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
   );
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Unit slicer row */}
-      <div className={`flex flex-wrap items-center gap-1.5 rounded-2xl border px-3 py-2 ${cardClasses}`}>
+      <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-2xl border px-3 py-2 ${cardClasses}`}>
         <span className={`shrink-0 pr-2 text-[10px] font-black uppercase tracking-widest ${textClasses.muted}`}>Unit Slicer:</span>
         {UNIT_SLICERS.map((unit) => (
           <button
@@ -277,11 +277,11 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
         ))}
       </div>
 
-      {/* Main layout: col-4 param card + col-8 chart */}
-      <div className="grid h-[420px] grid-cols-12 items-stretch gap-3">
+      {/* Main layout: col-4 param card + col-8 chart — fill remaining viewport height */}
+      <div className="grid min-h-0 flex-1 grid-cols-12 gap-3">
         {/* LHS: click-to-filter param card */}
-        <div className={`col-span-12 flex lg:col-span-4`}>
-          <div className={`flex h-full w-full flex-col rounded-2xl border p-4 ${cardClasses}`}>
+        <div className="col-span-12 flex min-h-0 lg:col-span-4">
+          <div className={`flex h-full min-h-0 w-full flex-col rounded-2xl border p-4 ${cardClasses}`}>
             {/* Header */}
             <div className={`mb-2 shrink-0 border-b pb-3 ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}>
               <div className="flex items-center justify-between">
@@ -298,7 +298,7 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
             </div>
 
             {/* Selectable params */}
-            <div className="flex flex-1 flex-col justify-between gap-1.5 py-1">
+            <div className="flex min-h-0 flex-1 flex-col justify-between gap-1.5 overflow-y-auto py-1">
               {paramItems.map((item) => (
                 <button
                   key={item.key}
@@ -406,7 +406,8 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
   );
 
   return (
-    <div className="grid grid-cols-12 gap-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-12 gap-3">
       {GRID_PANELS.map((panel) => {
         const chartData = loading ? [] : filteredSeries
           .filter((row) => panel.lines.some(({ variable }) => {
@@ -424,7 +425,7 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
           .sort((a, b) => (a.timeIso || '').localeCompare(b.timeIso || ''));
 
         return (
-          <div key={panel.key} className={`col-span-12 md:col-span-6 flex flex-col rounded-2xl border p-4 ${cardClasses}`} style={{ height: 280 }}>
+          <div key={panel.key} className={`col-span-12 flex min-h-0 flex-col rounded-2xl border p-4 md:col-span-6 ${cardClasses}`}>
             {/* Header */}
             <div className="mb-2 flex shrink-0 items-center justify-between">
               <h3 className={`text-[10px] font-black uppercase tracking-wider ${textClasses.muted}`}>{panel.title}</h3>
@@ -475,6 +476,7 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -523,7 +525,7 @@ export default function MillLubeRollerTab({
   );
 
   return (
-    <div className="flex h-full min-w-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">
       {/* Sub-nav strip */}
       <div className={`flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border px-3 py-2 ${cardClasses}`}>
         <div className="flex flex-wrap gap-4">
@@ -569,9 +571,7 @@ export default function MillLubeRollerTab({
       </div>
 
       {/* Content */}
-      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-        viewMode === 'table' || activeSubTab === 'summary' ? 'overflow-hidden' : 'overflow-y-auto'
-      }`}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {viewMode === 'table' ? (
           error ? (
             <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${

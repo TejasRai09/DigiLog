@@ -1,7 +1,7 @@
 -- BI Control Tower app + distillery analytics dashboard form (employee mapping via mappings / mapping_forms).
--- Run if you use init.sql only: mysql -u ... gsmadb < mysql/migrate_add_bi_control_tower.sql
+-- Apply: cd backend && node scripts/apply-sql-file.js ../mysql/migrate_add_bi_control_tower.sql
 
-USE gsmadb;
+USE `__MYSQL_DATABASE__`;
 
 INSERT INTO `apps` (`name`, `description`, `icon`, `color`, `sort_order`, `is_active`)
 VALUES

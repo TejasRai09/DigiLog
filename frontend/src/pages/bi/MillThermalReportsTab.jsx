@@ -368,9 +368,17 @@ export default function MillThermalReportsTab({
         </button>
       </div>
 
-      <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-        viewMode === 'table' || activeSubTab === 'shredder-temp' ? 'overflow-hidden' : 'overflow-y-auto'
-      }`}>
+      <div
+        className={`flex min-h-0 min-w-0 flex-1 flex-col ${
+          viewMode === 'table'
+          || activeSubTab === 'shredder-temp'
+          || activeSubTab === 'summary-temp'
+          || activeSubTab === 'equip-temp-1'
+          || activeSubTab === 'otg-temp'
+            ? 'overflow-hidden'
+            : 'overflow-y-auto'
+        }`}
+      >
       {viewMode === 'table' ? (
         rawTableConfig?.error ? (
           <div
@@ -626,9 +634,9 @@ function SummaryEquipmentTempView({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       {/* Unit slicer */}
-      <div className={`rounded-2xl border p-3 ${cardClasses}`}>
+      <div className={`shrink-0 rounded-2xl border p-3 ${cardClasses}`}>
         <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center">
             <h3 className={`text-xs font-black uppercase tracking-wider ${textClasses.muted}`}>Unit Slicer</h3>
@@ -661,11 +669,11 @@ function SummaryEquipmentTempView({
         </div>
       </div>
 
-      {/* Readings + chart */}
-      <div className="grid grid-cols-12 gap-3">
+      {/* Readings + chart — fill remaining viewport height */}
+      <div className="grid min-h-0 flex-1 grid-cols-12 gap-3">
         {/* Readings list */}
-        <div className={`col-span-12 flex flex-col rounded-2xl border p-4 lg:col-span-5 ${cardClasses}`}>
-          <div className="mb-3 flex items-center justify-between">
+        <div className={`col-span-12 flex min-h-0 flex-col rounded-2xl border p-4 lg:col-span-5 ${cardClasses}`}>
+          <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center">
               <h3 className={`text-sm font-black ${textClasses.title}`}>{selectedMachine} Reading Equipments</h3>
               <InfoTooltip definition="Latest, average, min and max temperature for every variable mapped to the selected machine inside the active period." />
@@ -676,9 +684,9 @@ function SummaryEquipmentTempView({
               {readingRows.length} variables
             </span>
           </div>
-          <div className={`flex-1 overflow-y-auto rounded-xl border ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`} style={{ maxHeight: 420 }}>
+          <div className={`min-h-0 flex-1 overflow-y-auto rounded-xl border ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
             {loading ? (
-              <div className="flex h-[200px] items-center justify-center">
+              <div className="flex h-full min-h-[200px] items-center justify-center">
                 <Spinner size="md" />
               </div>
             ) : (
@@ -747,8 +755,8 @@ function SummaryEquipmentTempView({
         </div>
 
         {/* Daily temp curve chart */}
-        <div className={`col-span-12 flex flex-col rounded-2xl border p-4 lg:col-span-7 ${cardClasses}`}>
-          <div className="mb-3 flex items-center justify-between">
+        <div className={`col-span-12 flex min-h-0 flex-col rounded-2xl border p-4 lg:col-span-7 ${cardClasses}`}>
+          <div className="mb-3 flex shrink-0 items-center justify-between">
             <div className="flex items-center">
               <h3 className={`text-sm font-black ${textClasses.title}`}>Daily Temp Curve</h3>
               <InfoTooltip definition="Time-series temperature readings for the selected machine. One line per variable. Readings are pulled from the Equipment Temperature form (mill_logbook1)." />
@@ -769,9 +777,9 @@ function SummaryEquipmentTempView({
               />
             </div>
           </div>
-          <div className="h-[420px] w-full">
+          <div className="min-h-0 w-full flex-1">
             {loading ? (
-              <div className="flex h-full items-center justify-center">
+              <div className="flex h-full min-h-[200px] items-center justify-center">
                 <Spinner size="lg" />
               </div>
             ) : dailyCurve.length === 0 ? (
@@ -817,7 +825,7 @@ function SummaryEquipmentTempView({
               </ResponsiveContainer>
             )}
           </div>
-          <p className={`mt-2 text-[10px] font-semibold ${textClasses.muted}`}>
+          <p className={`mt-2 shrink-0 text-[10px] font-semibold ${textClasses.muted}`}>
             Equipment column from <code>Data_Mill</code> · values from Equipment Temperature form (<code>mill_logbook1</code>).
           </p>
         </div>
@@ -860,7 +868,8 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
   }, [series, fromDate, toDate]);
 
   return (
-    <div className="grid grid-cols-12 gap-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-12 gap-3">
       {EQUIP_TEMP1_PANELS.map((panel) => {
         const vars = TEMP1_LINES.map((t) => ({ ...t, variable: `${panel.key}_${t.suffix}` }));
 
@@ -886,11 +895,10 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
         return (
           <div
             key={panel.key}
-            className={`col-span-12 md:col-span-6 lg:col-span-4 flex flex-col rounded-2xl border p-4 ${cardClasses}`}
-            style={{ height: 280 }}
+            className={`col-span-12 flex min-h-0 flex-col rounded-2xl border p-4 md:col-span-6 lg:col-span-4 ${cardClasses}`}
           >
             {/* Panel header */}
-            <div className="mb-2 flex items-center justify-between shrink-0">
+            <div className="mb-2 flex shrink-0 items-center justify-between">
               <h3 className={`text-[10px] font-black uppercase tracking-wider ${textClasses.muted}`}>
                 {panel.title}
               </h3>
@@ -973,6 +981,7 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
@@ -1491,7 +1500,8 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
   }
 
   return (
-    <div className="grid grid-cols-12 gap-3">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-12 gap-3">
       {panels.map((panel) => {
         const chartData = loading ? [] : filteredSeries
           .filter((row) => panel.lines.some(({ variable }) => {
@@ -1514,11 +1524,10 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
         return (
           <div
             key={panel.key}
-            className={`${panel.col} flex flex-col rounded-2xl border p-4 ${cardClasses}`}
-            style={{ height: 280 }}
+            className={`${panel.col} flex min-h-0 flex-col rounded-2xl border p-4 ${cardClasses}`}
           >
             {/* Header */}
-            <div className="mb-2 flex items-center justify-between shrink-0">
+            <div className="mb-2 flex shrink-0 items-center justify-between">
               <h3 className={`text-[10px] font-black uppercase tracking-wider ${textClasses.muted}`}>
                 {panel.title}
               </h3>
@@ -1598,6 +1607,7 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
