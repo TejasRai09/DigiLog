@@ -71,11 +71,11 @@ const ViewDataModal = ({ form, onClose }) => {
   const columns     = getDisplayColumns(form.formKey, sample);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-xl flex flex-col w-full max-w-6xl max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col rounded-t-2xl bg-white shadow-xl sm:max-h-[90vh] sm:rounded-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <h2 className="text-base font-semibold text-gray-900">{withoutGsmaLabel(form.name)} — Records</h2>
             {data && (
@@ -109,13 +109,13 @@ const ViewDataModal = ({ form, onClose }) => {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-20"><Spinner size="lg" /></div>
           ) : !data?.records?.length ? (
             <div className="text-center py-20 text-gray-400 text-sm">No records found.</div>
           ) : (
-            <table className="min-w-full text-xs">
+            <table className="w-max min-w-full text-xs">
               <thead className="sticky top-0 bg-gray-50 z-10">
                 <tr className="border-b border-gray-200">
                   {headingRuns(columns).map((run) => (
@@ -163,7 +163,7 @@ const ViewDataModal = ({ form, onClose }) => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 flex-shrink-0">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 sm:px-6">
             <p className="text-xs text-gray-400">
               Page {page} of {totalPages}
             </p>

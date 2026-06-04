@@ -1,3 +1,6 @@
+/** Shown when an admin attempts employee/home sign-in (API 403). */
+export const HOME_PORTAL_DENIED_MSG = 'You do not have permission to sign in on this page.';
+
 /** Practical email check (not exhaustive RFC). */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 

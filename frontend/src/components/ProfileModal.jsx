@@ -113,8 +113,8 @@ const ProfileModal = ({ user, onClose, onAvatarSaved }) => {
   const avatarSrc = mediaUrl(user?.avatar);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-      <div className="card w-full max-w-md shadow-xl relative">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="card relative w-full max-w-md rounded-t-2xl shadow-xl sm:rounded-xl">
         <button
           type="button"
           onClick={handleOverlayClose}

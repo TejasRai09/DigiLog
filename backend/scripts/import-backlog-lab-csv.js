@@ -17,13 +17,14 @@
  *
  * npm: backlog:import-lab | backlog:import | backlog:import-lab:truncate
  *
- * Requires DATABASE_URL in .env (same as the API).
+ * Requires DATABASE_URL or MYSQL_DATABASE + MYSQL_* in backend/.env (same as the API).
  */
 
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
+const { DATABASE_URL } = require('../config/env');
 const { pool } = require('../config/mysql');
 
 const BACKLOG_DIR = path.join(__dirname, '..', 'backlog-data');
@@ -444,8 +445,8 @@ async function importFile(conn, entry, opts, columnCache) {
 async function main() {
   const opts = parseArgs();
 
-  if (!process.env.DATABASE_URL) {
-    console.error('DATABASE_URL is not set. Add it to backend/.env');
+  if (!DATABASE_URL) {
+    console.error('DATABASE_URL or MYSQL_DATABASE + MYSQL_* is not set. Add them to backend/.env');
     process.exit(1);
   }
 

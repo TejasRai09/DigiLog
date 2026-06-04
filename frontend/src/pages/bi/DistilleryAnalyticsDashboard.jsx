@@ -127,17 +127,17 @@ const MetricCard = ({
 
   return (
     <div
-      className={`flex flex-col justify-between rounded-2xl border p-4 transition-shadow hover:shadow-md ${cardClasses}`}
+      className={`flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-4 transition-shadow hover:shadow-md ${cardClasses}`}
     >
-      <div className="mb-2 flex items-start justify-between">
-        <div className={`flex items-center text-xs font-bold ${textClasses.title}`}>
+      <div className="mb-2 flex min-w-0 items-start justify-between">
+        <div className={`flex min-w-0 items-center text-xs font-bold ${textClasses.title}`}>
           {title}
           <InfoTooltip definition={definition} />
         </div>
       </div>
 
-      <div className="flex w-full items-end justify-between">
-        <div className="z-10 shrink-0">
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="z-10 min-w-0 shrink-0">
           <div className="flex items-baseline gap-1">
             <span className={`text-2xl font-black ${textClasses.value}`}>
               {value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -170,14 +170,14 @@ const MetricCard = ({
               )}
               {Math.abs(delta).toFixed(1)}%
             </div>
-            <span className={`whitespace-nowrap text-[10px] font-bold ${textClasses.vs}`}>
+            <span className={`text-[10px] font-bold sm:whitespace-nowrap ${textClasses.vs}`}>
               vs {comparisonLabel} {timeFilter}
             </span>
           </div>
         </div>
 
         {chartData && chartData.length > 0 && (
-          <div className="relative -mb-2 -mr-1 ml-4 h-16 min-w-[120px] max-w-[55%] flex-1 opacity-90">
+          <div className="relative h-14 w-full min-w-0 opacity-90 sm:-mb-2 sm:-mr-1 sm:ml-4 sm:h-16 sm:max-w-[55%] sm:flex-1 sm:min-w-[100px]">
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'area' ? (
                 <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
@@ -636,18 +636,47 @@ export default function DistilleryAnalyticsDashboard() {
           {loadError}
         </div>
       ) : null}
-      <div className="mb-2 flex shrink-0 flex-col gap-2 md:mb-2">
-        <Link
-          to="/bi"
-          className={`inline-flex w-fit items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
-            isDarkMode
-              ? 'border-slate-600 bg-slate-800 text-blue-400 hover:bg-slate-700'
-              : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
-          }`}
-        >
-          <MdArrowBack className="h-3.5 w-3.5" />
-          BI Control Tower
-        </Link>
+      <div className="mb-0 flex shrink-0 flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link
+            to="/bi"
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
+              isDarkMode
+                ? 'border-slate-600 bg-slate-800 text-blue-400 hover:bg-slate-700'
+                : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
+            }`}
+          >
+            <MdArrowBack className="h-3.5 w-3.5" />
+            BI Control Tower
+          </Link>
+
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
+                activeTab === 'dashboard'
+                  ? 'border-blue-500 text-blue-500'
+                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
+              }`}
+            >
+              <MdDashboard className="h-3.5 w-3.5" />
+              Visual Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('table')}
+              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
+                activeTab === 'table'
+                  ? 'border-blue-500 text-blue-500'
+                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
+              }`}
+            >
+              <MdTableChart className="h-3.5 w-3.5" />
+              Raw Data Table
+            </button>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
@@ -683,38 +712,9 @@ export default function DistilleryAnalyticsDashboard() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 lg:items-end">
-          <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-            <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdDashboard className="h-3.5 w-3.5" />
-              Visual Dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('table')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                activeTab === 'table'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdTableChart className="h-3.5 w-3.5" />
-              Raw Data Table
-            </button>
-            </div>
-          </div>
-
+        <div className="flex w-full min-w-0 flex-col gap-3 lg:w-auto lg:items-end">
           <div
-            className={`relative z-[200] flex flex-wrap items-center gap-3 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md sm:gap-4 ${
+            className={`relative z-[200] flex w-full max-w-full flex-wrap items-center gap-2 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md sm:gap-3 md:gap-4 ${
               isDarkMode
                 ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
                 : 'border-purple-200 bg-white/80 shadow-purple-100/50'
@@ -809,8 +809,8 @@ export default function DistilleryAnalyticsDashboard() {
 
             <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-              <div className="flex flex-col gap-0.5">
+            <div className="flex max-w-full shrink-0 flex-nowrap items-end gap-2 overflow-x-auto sm:gap-3">
+              <div className="flex shrink-0 flex-col gap-0.5">
                 <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
                 <input
                   type="date"
@@ -818,14 +818,14 @@ export default function DistilleryAnalyticsDashboard() {
                   min={dataBounds.min || undefined}
                   max={toDate}
                   onChange={handleFromDateChange}
-                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                  className={`w-[7.25rem] rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-auto ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
                   }`}
                 />
               </div>
-              <div className="flex flex-col gap-0.5">
+              <div className="flex shrink-0 flex-col gap-0.5">
                 <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>To</span>
                 <input
                   type="date"
@@ -833,41 +833,43 @@ export default function DistilleryAnalyticsDashboard() {
                   min={fromDate}
                   max={dataBounds.max || undefined}
                   onChange={handleToDateChange}
-                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                  className={`w-[7.25rem] rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-auto ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
                   }`}
                 />
               </div>
-            </div>
 
-            {activeTab === 'dashboard' && (
-              <>
-                <div className={`mx-1 h-6 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-                <div className="flex items-center gap-2 pr-2">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${textClasses.muted}`}>Compare:</span>
-                  <div className={`flex flex-wrap gap-1 rounded-lg border p-1 ${cardClasses}`}>
-                    {comparisonOptions.map((comp) => (
-                      <button
-                        key={comp.id}
-                        type="button"
-                        onClick={() => setComparisonType(comp.id)}
-                        className={`rounded px-3 py-1 text-[10px] font-black transition-all whitespace-nowrap ${
-                          comparisonType === comp.id
-                            ? isDarkMode
-                              ? 'bg-slate-700 text-slate-100 shadow-sm'
-                              : 'bg-slate-800 text-white shadow-sm'
-                            : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
-                        }`}
-                      >
-                        {comp.label}
-                      </button>
-                    ))}
+              {activeTab === 'dashboard' && (
+                <>
+                  <div className={`mx-0.5 h-6 w-px shrink-0 self-center ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+                  <div className="flex shrink-0 flex-nowrap items-center gap-1.5 pr-1">
+                    <span className={`shrink-0 text-[10px] font-bold uppercase tracking-widest ${textClasses.muted}`}>
+                      Compare:
+                    </span>
+                    <div className={`flex shrink-0 flex-nowrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
+                      {comparisonOptions.map((comp) => (
+                        <button
+                          key={comp.id}
+                          type="button"
+                          onClick={() => setComparisonType(comp.id)}
+                          className={`shrink-0 whitespace-nowrap rounded px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 ${
+                            comparisonType === comp.id
+                              ? isDarkMode
+                                ? 'bg-slate-700 text-slate-100 shadow-sm'
+                                : 'bg-slate-800 text-white shadow-sm'
+                              : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                          }`}
+                        >
+                          {comp.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
         </div>
         </div>
@@ -876,7 +878,7 @@ export default function DistilleryAnalyticsDashboard() {
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto max-md:pb-1 md:flex md:flex-col md:overflow-y-hidden">
       {activeTab === 'dashboard' ? (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2 md:overflow-hidden">
-          <div className="grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
+          <div className="mt-2 grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
             <MetricCard
               title="Total Ethanol Produced"
               value={currentKPIs.ethanolProd}

@@ -10,7 +10,22 @@ const { unlinkStoredAvatar } = require('../utils/avatarFile');
 const NO_ACCESS_MSG =
   'You do not have access to use this application. Please contact the administrator.';
 
+const HOME_PORTAL_DENIED_MSG = 'You do not have permission to sign in on this page.';
+
+const NOT_ADMIN_MSG = 'You do not have permission to sign in on this page.';
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+/** @returns {{ ok: true } | { ok: false, status: number, message: string }} */
+const enforceAdminPortalRules = (user, adminPortal) => {
+  const isAdmin = user.role === 'admin';
+  if (adminPortal) {
+    if (!isAdmin) return { ok: false, status: 403, message: NOT_ADMIN_MSG };
+  } else if (isAdmin) {
+    return { ok: false, status: 403, message: HOME_PORTAL_DENIED_MSG };
+  }
+  return { ok: true };
+};
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 
@@ -60,6 +75,10 @@ const login = async (req, res) => {
   if (!isMatch)
     return res.status(401).json({ message: 'Invalid email or password.' });
 
+  const portalCheck = enforceAdminPortalRules(user, Boolean(req.body?.adminPortal));
+  if (!portalCheck.ok)
+    return res.status(portalCheck.status).json({ message: portalCheck.message });
+
   res.json(buildTokenResponse(user));
 };
 
@@ -95,6 +114,10 @@ const outlookLogin = async (req, res) => {
   if (!user.is_active) {
     return res.status(403).json({ message: 'Account is deactivated.' });
   }
+
+  const portalCheck = enforceAdminPortalRules(user, Boolean(req.body?.adminPortal));
+  if (!portalCheck.ok)
+    return res.status(portalCheck.status).json({ message: portalCheck.message });
 
   res.json(buildTokenResponse(user));
 };
@@ -136,6 +159,10 @@ const googleLogin = async (req, res) => {
   if (!user.is_active) {
     return res.status(403).json({ message: 'Account is deactivated.' });
   }
+
+  const portalCheck = enforceAdminPortalRules(user, Boolean(req.body?.adminPortal));
+  if (!portalCheck.ok)
+    return res.status(portalCheck.status).json({ message: portalCheck.message });
 
   res.json(buildTokenResponse(user));
 };

@@ -57,7 +57,7 @@ const FormReviewModal = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+      className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4 md:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="form-review-title"
@@ -69,8 +69,8 @@ const FormReviewModal = ({
         onClick={confirming ? undefined : onClose}
       />
 
-      <div className="relative flex max-h-[min(92vh,880px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-6 py-5 sm:px-8">
+      <div className="relative flex max-h-[min(92vh,880px)] w-full max-w-4xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 px-4 py-4 sm:px-6 sm:py-5 md:px-8">
           <div>
             <h2 id="form-review-title" className="text-xl font-bold text-[#0f4c5c] sm:text-2xl">
               {title}
@@ -109,7 +109,7 @@ const FormReviewModal = ({
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 sm:px-8">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 md:px-8">
           <div
             className={
               twoColumn ? 'grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8' : 'max-w-3xl'
@@ -154,16 +154,16 @@ const FormReviewModal = ({
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-gray-100 px-6 py-4 sm:px-8">
+        <div className="shrink-0 border-t border-gray-100 px-4 py-3 sm:px-6 sm:py-4 md:px-8">
           <ConfirmationPolicyNotice />
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 sm:px-8">
+        <div className="flex flex-col-reverse gap-2 border-t border-gray-100 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:px-6 sm:py-4 md:px-8">
           <button
             type="button"
             onClick={onClose}
             disabled={confirming}
-            className="btn-secondary min-w-[9rem]"
+            className="btn-secondary w-full sm:min-w-[9rem] sm:w-auto"
           >
             <MdSwapHoriz className="h-4 w-4" />
             Back to Edit
@@ -172,7 +172,7 @@ const FormReviewModal = ({
             type="button"
             onClick={onConfirm}
             disabled={confirming}
-            className="btn-primary min-w-[11rem] bg-[#1e40af] hover:bg-[#1e3a8a]"
+            className="btn-primary w-full bg-[#1e40af] hover:bg-[#1e3a8a] sm:min-w-[11rem] sm:w-auto"
           >
             {confirming ? <Spinner size="sm" /> : <MdCheck className="h-4 w-4" />}
             {confirming ? 'Committing…' : 'Confirm & Commit'}

@@ -362,8 +362,194 @@ async function getMillingEquipmentTempBi(req, res) {
   }
 }
 
+/**
+ * GET /api/bi/milling-shredder
+ * Returns the DataShredder_Names variable→machinery mapping plus the time-series
+ * readings from `mill_logbook2` (Shredder Right/Left + OTG M1–M4 juice temps).
+ */
+async function getMillingShredderBi(req, res) {
+  try {
+    const allowed = await canAccessForm(req.user, 'bi_milling_operations');
+    if (!allowed) {
+      return res.status(403).json({ message: 'Access denied to milling analytics.' });
+    }
+
+    const [mappingRows] = await pool.query(
+      `SELECT
+         \`variable\`,
+         \`machinery\`,
+         \`variable_name\`,
+         \`sort_order\`
+       FROM data_shredder_mapping
+       ORDER BY \`sort_order\` ASC, \`machinery\` ASC`,
+    );
+
+    const mapping = mappingRows.map((r) => ({
+      variable: String(r.variable || '').trim(),
+      machinery: String(r.machinery || '').trim(),
+      variableName: String(r.variable_name || '').trim(),
+      sortOrder: Number(r.sort_order) || 0,
+    }));
+
+    // Intersect with actual mill_logbook2 columns to guard against schema drift.
+    const [columnRows] = await pool.query(
+      `SELECT COLUMN_NAME AS name
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'mill_logbook2'`,
+    );
+    const tableColumns = new Set(columnRows.map((r) => r.name));
+
+    const variableSet = new Set();
+    for (const m of mapping) {
+      if (m.variable && tableColumns.has(m.variable)) variableSet.add(m.variable);
+    }
+
+    // Also always include any logbook2 column that matches hard-coded prefixes so
+    // the OTG mill data is available even if the mapping xlsx was never uploaded.
+    for (const col of tableColumns) {
+      if (
+        col.startsWith('shredR_') ||
+        col.startsWith('shredL_') ||
+        /^M[0-9]+_/.test(col)
+      ) {
+        variableSet.add(col);
+      }
+    }
+
+    const variableColumns = Array.from(variableSet);
+
+    let series = [];
+    if (variableColumns.length > 0) {
+      const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const [rows] = await pool.query(
+        `SELECT ${selectCols}
+         FROM mill_logbook2
+         WHERE \`Date\` IS NOT NULL
+         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+      );
+
+      series = rows.map((r) => {
+        const dateIso = dateKey(r.Date);
+        const time = r.Time;
+        let timeIso = '';
+        if (time != null && time !== '') {
+          const t = time instanceof Date ? time : new Date(time);
+          if (!Number.isNaN(t.getTime())) timeIso = t.toISOString();
+        }
+        const values = {};
+        for (const col of variableColumns) {
+          const v = r[col];
+          values[col] = v == null || v === '' ? null : Number(v);
+        }
+        return { dateIso, shift: (r.Shift || '').toString().trim(), timeIso, values };
+      });
+    }
+
+    return res.json({
+      source: 'mill_logbook2+data_shredder_mapping',
+      mapping,
+      series,
+      mappingCount: mapping.length,
+      seriesCount: series.length,
+    });
+  } catch (err) {
+    console.error('BI milling shredder error:', err.message);
+    return res.status(500).json({ message: 'Database error: ' + err.message });
+  }
+}
+
+/**
+ * GET /api/bi/milling-lube-roller
+ * Returns data_lube_mapping reference + time-series readings from mill_logbook3
+ * (Lube Pressures for ACC/MCC/Shred/M0  +  Roller Temps gs/ps for M0–M4).
+ */
+async function getMillingLubeRollerBi(req, res) {
+  try {
+    const allowed = await canAccessForm(req.user, 'bi_milling_operations');
+    if (!allowed) {
+      return res.status(403).json({ message: 'Access denied to milling analytics.' });
+    }
+
+    const [mappingRows] = await pool.query(
+      `SELECT \`variable\`, \`machinery\`, \`variable_name\`, \`sort_order\`
+       FROM data_lube_mapping
+       ORDER BY \`sort_order\` ASC, \`machinery\` ASC`,
+    );
+
+    const mapping = mappingRows.map((r) => ({
+      variable: String(r.variable || '').trim(),
+      machinery: String(r.machinery || '').trim(),
+      variableName: String(r.variable_name || '').trim(),
+      sortOrder: Number(r.sort_order) || 0,
+    }));
+
+    const [columnRows] = await pool.query(
+      `SELECT COLUMN_NAME AS name
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'mill_logbook3'`,
+    );
+    const tableColumns = new Set(columnRows.map((r) => r.name));
+
+    const variableSet = new Set();
+    // Include mapping variables
+    for (const m of mapping) {
+      if (m.variable && tableColumns.has(m.variable)) variableSet.add(m.variable);
+    }
+    // Always include all known lube/roller columns even if mapping xlsx not uploaded
+    for (const col of tableColumns) {
+      if (col.startsWith('LubePressure_') || /^M[0-9]+_(gs|ps)/.test(col)) {
+        variableSet.add(col);
+      }
+    }
+
+    const variableColumns = Array.from(variableSet);
+    let series = [];
+
+    if (variableColumns.length > 0) {
+      const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const [rows] = await pool.query(
+        `SELECT ${selectCols}
+         FROM mill_logbook3
+         WHERE \`Date\` IS NOT NULL
+         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+      );
+
+      series = rows.map((r) => {
+        const dateIso = dateKey(r.Date);
+        const time = r.Time;
+        let timeIso = '';
+        if (time != null && time !== '') {
+          const t = time instanceof Date ? time : new Date(time);
+          if (!Number.isNaN(t.getTime())) timeIso = t.toISOString();
+        }
+        const values = {};
+        for (const col of variableColumns) {
+          const v = r[col];
+          values[col] = v == null || v === '' ? null : Number(v);
+        }
+        return { dateIso, shift: (r.Shift || '').toString().trim(), timeIso, values };
+      });
+    }
+
+    return res.json({
+      source: 'mill_logbook3+data_lube_mapping',
+      mapping,
+      series,
+      mappingCount: mapping.length,
+      seriesCount: series.length,
+    });
+  } catch (err) {
+    console.error('BI milling lube-roller error:', err.message);
+    return res.status(500).json({ message: 'Database error: ' + err.message });
+  }
+}
+
 module.exports = {
   getDistilleryOperationsBi,
   getMillingStoppagesBi,
   getMillingEquipmentTempBi,
+  getMillingShredderBi,
+  getMillingLubeRollerBi,
 };

@@ -19,14 +19,14 @@ export default function ReportDateFields({
         Report Date:
         {needsStar ? <span className="text-red-500 ml-0.5">*</span> : null}
       </label>
-      <div className="flex flex-wrap gap-3 justify-center">
+      <div className="flex w-full max-w-md flex-col gap-3 sm:mx-auto sm:flex-row sm:flex-wrap sm:justify-center">
         <input
           type="date"
           name={dateName}
           value={dateValue}
           onChange={onChange}
           required={dateRequired}
-          className="input min-w-[11rem]"
+          className="input w-full min-w-0 sm:min-w-[11rem] sm:w-auto"
         />
         <input
           type="datetime-local"
@@ -34,7 +34,7 @@ export default function ReportDateFields({
           value={timeValue}
           onChange={onChange}
           required={timeRequired}
-          className="input min-w-[13rem]"
+          className="input w-full min-w-0 sm:min-w-[13rem] sm:w-auto"
         />
       </div>
     </div>
