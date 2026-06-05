@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildEhsWaterEtpReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const INITIAL = {
   date: '',
@@ -31,25 +35,28 @@ const Txt = ({ label, name, value, onChange }) => (
 );
 
 const EhsWaterEtp = () => {
-  const [form, setForm]     = useState(INITIAL);
-  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handle = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
-      await api.post('/forms/ehs_water_etp', form);
-      toast.success('ETP report submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ehs_water_etp', form),
+        'ETP report submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildEhsWaterEtpReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
@@ -59,7 +66,7 @@ const EhsWaterEtp = () => {
         fallbackDescription="Effluent Treatment Plant daily quantity and quality report"
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
 
         <div className="form-section space-y-4">
           <div>
@@ -121,6 +128,16 @@ const EhsWaterEtp = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

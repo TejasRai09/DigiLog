@@ -526,6 +526,7 @@ function SummaryEquipmentTempView({
   }, [mapping]);
 
   const [selectedMachine, setSelectedMachine] = useState('');
+  const [selectedVars, setSelectedVars] = useState(() => new Set());
 
   useEffect(() => {
     if (!selectedMachine && machines.length > 0) {
@@ -542,6 +543,25 @@ function SummaryEquipmentTempView({
       .filter((m) => m.machine === selectedMachine)
       .map((m) => ({ variable: m.variable, label: m.equipmentName }));
   }, [mapping, selectedMachine]);
+
+  useEffect(() => {
+    setSelectedVars(new Set(machineVariables.map((m) => m.variable)));
+  }, [selectedMachine, machineVariables]);
+
+  const toggleVar = (variable) =>
+    setSelectedVars((prev) => {
+      const next = new Set(prev);
+      if (next.has(variable)) next.delete(variable);
+      else next.add(variable);
+      return next;
+    });
+
+  const toggleAllVars = () =>
+    setSelectedVars((prev) => {
+      const allVars = machineVariables.map((m) => m.variable);
+      const allSelected = allVars.length > 0 && allVars.every((v) => prev.has(v));
+      return allSelected ? new Set() : new Set(allVars);
+    });
 
   /** mill_logbook1 rows that fall inside the date range (inclusive). */
   const filteredSeries = useMemo(() => {
@@ -589,11 +609,19 @@ function SummaryEquipmentTempView({
     });
   }, [machineVariables, filteredSeries]);
 
+  const activeReadingRows = useMemo(
+    () => readingRows.filter((row) => selectedVars.has(row.variable)),
+    [readingRows, selectedVars],
+  );
+
+  const allVarsSelected = readingRows.length > 0 && readingRows.every((r) => selectedVars.has(r.variable));
+
   /** Chart points: one entry per source row (only when at least one var has a value). */
   const dailyCurve = useMemo(() => {
-    if (machineVariables.length === 0) return [];
+    if (activeReadingRows.length === 0) return [];
+    const vars = activeReadingRows.map((r) => r.variable);
     return filteredSeries
-      .filter((row) => machineVariables.some(({ variable }) => {
+      .filter((row) => vars.some((variable) => {
         const v = row.values?.[variable];
         return v != null && Number.isFinite(v);
       }))
@@ -604,7 +632,7 @@ function SummaryEquipmentTempView({
           timeIso: row.timeIso,
           shift: row.shift,
         };
-        for (const { variable } of machineVariables) {
+        for (const variable of vars) {
           const v = row.values?.[variable];
           point[variable] = v == null || !Number.isFinite(v) ? null : Number(v);
         }
@@ -615,7 +643,7 @@ function SummaryEquipmentTempView({
         const kb = b.timeIso || b.dateIso || '';
         return ka.localeCompare(kb);
       });
-  }, [machineVariables, filteredSeries]);
+  }, [activeReadingRows, filteredSeries]);
 
   if (machines.length === 0) {
     return (
@@ -673,17 +701,33 @@ function SummaryEquipmentTempView({
       <div className="grid min-h-0 flex-1 grid-cols-12 gap-3">
         {/* Readings list */}
         <div className={`col-span-12 flex min-h-0 flex-col rounded-2xl border p-4 lg:col-span-5 ${cardClasses}`}>
-          <div className="mb-3 flex shrink-0 items-center justify-between">
-            <div className="flex items-center">
-              <h3 className={`text-sm font-black ${textClasses.title}`}>{selectedMachine} Reading Equipments</h3>
-              <InfoTooltip definition="Latest, average, min and max temperature for every variable mapped to the selected machine inside the active period." />
+          <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center">
+              <h3 className={`truncate text-sm font-black ${textClasses.title}`}>{selectedMachine} Reading Equipments</h3>
+              <InfoTooltip definition="Click equipment rows to show or hide lines on the daily temp curve. Latest, average, and max are for the active period." />
             </div>
-            <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-              isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
-            }`}>
-              {readingRows.length} variables
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleAllVars}
+                className={`text-[9px] font-black uppercase tracking-wider transition-colors ${
+                  isDarkMode ? 'text-slate-500 hover:text-blue-400' : 'text-slate-400 hover:text-blue-600'
+                }`}
+              >
+                {allVarsSelected ? 'Clear all' : 'Select all'}
+              </button>
+              <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+              }`}>
+                {selectedVars.size}/{readingRows.length} shown
+              </span>
+            </div>
           </div>
+          <p className={`mb-2 shrink-0 text-[9px] font-black uppercase tracking-wider ${
+            isDarkMode ? 'text-blue-400' : 'text-blue-500'
+          }`}>
+            Click to filter chart
+          </p>
           <div className={`min-h-0 flex-1 overflow-y-auto rounded-xl border ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
             {loading ? (
               <div className="flex h-full min-h-[200px] items-center justify-center">
@@ -713,16 +757,37 @@ function SummaryEquipmentTempView({
                 ) : (
                   readingRows.map((row) => {
                     const isHot = row.latest != null && row.latest >= 70;
+                    const selected = selectedVars.has(row.variable);
                     return (
                       <tr
                         key={row.variable}
-                        className={isDarkMode ? 'transition-colors hover:bg-slate-800/50' : 'transition-colors hover:bg-slate-50'}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleVar(row.variable)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            toggleVar(row.variable);
+                          }
+                        }}
+                        className={`cursor-pointer transition-all ${
+                          selected
+                            ? isDarkMode
+                              ? 'bg-slate-800/40 hover:bg-slate-800/60'
+                              : 'bg-slate-50 hover:bg-slate-100'
+                            : isDarkMode
+                              ? 'opacity-40 hover:opacity-55'
+                              : 'opacity-45 hover:opacity-65'
+                        }`}
                       >
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
-                            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: row.color }} />
+                            <span
+                              className={`h-2 w-2 shrink-0 rounded-full transition-opacity ${selected ? '' : 'opacity-30'}`}
+                              style={{ backgroundColor: row.color }}
+                            />
                             <div>
-                              <div className={`font-bold ${textClasses.title}`}>{row.label}</div>
+                              <div className={`font-bold ${selected ? textClasses.title : textClasses.muted}`}>{row.label}</div>
                               <div className={`mt-0.5 text-[9px] font-bold uppercase tracking-wider ${textClasses.muted}`}>
                                 {row.variable}
                               </div>
@@ -731,7 +796,7 @@ function SummaryEquipmentTempView({
                         </td>
                         <td
                           className={`whitespace-nowrap px-3 py-2 text-right font-mono font-black ${
-                            row.latest == null ? textClasses.muted : isHot ? 'text-rose-500' : isDarkMode ? 'text-slate-100' : 'text-slate-800'
+                            row.latest == null ? textClasses.muted : isHot ? 'text-rose-500' : selected ? (isDarkMode ? 'text-slate-100' : 'text-slate-800') : textClasses.muted
                           }`}
                         >
                           {row.latest == null ? '—' : `${row.latest.toFixed(1)}°`}
@@ -771,7 +836,7 @@ function SummaryEquipmentTempView({
                 isDarkMode={isDarkMode}
                 onExpand={() => onExpand?.({
                   title: `${selectedMachine} — Daily Temp Curve`,
-                  lines: readingRows.map((r) => ({ variable: r.variable, label: r.label, color: r.color })),
+                  lines: activeReadingRows.map((r) => ({ variable: r.variable, label: r.label, color: r.color })),
                   chartData: dailyCurve,
                 })}
               />
@@ -783,7 +848,11 @@ function SummaryEquipmentTempView({
                 <Spinner size="lg" />
               </div>
             ) : dailyCurve.length === 0 ? (
-              <CurveEmptyState isDarkMode={isDarkMode} textClasses={textClasses} />
+              <CurveEmptyState
+                isDarkMode={isDarkMode}
+                textClasses={textClasses}
+                message={selectedVars.size === 0 ? 'Select at least one equipment row to plot.' : undefined}
+              />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={dailyCurve} margin={{ top: 8, right: 16, left: -18, bottom: 24 }}>
@@ -804,10 +873,10 @@ function SummaryEquipmentTempView({
                     unit="°"
                   />
                   <Tooltip
-                    content={(props) => <CurveTooltip {...props} readingRows={readingRows} isDarkMode={isDarkMode} />}
+                    content={(props) => <CurveTooltip {...props} readingRows={activeReadingRows} isDarkMode={isDarkMode} />}
                   />
                   <Legend wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} iconType="circle" />
-                  {readingRows.map((r) => (
+                  {activeReadingRows.map((r) => (
                     <Line
                       key={r.variable}
                       type="monotone"
@@ -1707,17 +1776,19 @@ function CurveTooltip({ active, payload, label, readingRows, isDarkMode }) {
   );
 }
 
-function CurveEmptyState({ isDarkMode, textClasses }) {
+function CurveEmptyState({ isDarkMode, textClasses, message }) {
   return (
     <div
       className={`flex h-full w-full flex-col items-center justify-center rounded-xl border border-dashed text-xs font-semibold ${
         isDarkMode ? 'border-slate-700 text-slate-500' : 'border-slate-200 text-slate-400'
       }`}
     >
-      <span>No equipment temperature data in this window.</span>
-      <span className={`mt-1 text-[10px] font-semibold ${textClasses.muted}`}>
-        Try widening the date range or submitting an Equipment Temperature entry.
-      </span>
+      <span>{message || 'No equipment temperature data in this window.'}</span>
+      {!message ? (
+        <span className={`mt-1 text-[10px] font-semibold ${textClasses.muted}`}>
+          Try widening the date range or submitting an Equipment Temperature entry.
+        </span>
+      ) : null}
     </div>
   );
 }

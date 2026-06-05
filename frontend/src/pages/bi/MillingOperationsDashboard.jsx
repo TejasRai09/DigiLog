@@ -574,6 +574,7 @@ export default function MillingOperationsDashboard() {
         </div>
       ) : null}
 
+      {/* Fixed header: back link, title, filters */}
       <div className="mb-2 flex shrink-0 flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
           <Link
@@ -628,7 +629,7 @@ export default function MillingOperationsDashboard() {
 
           <div className="flex w-full min-w-0 flex-col gap-2 px-0.5 py-1 lg:min-w-0 lg:max-w-full lg:flex-1 lg:items-end lg:py-1.5">
             <div
-              className={`mill-cockpit-filter-bar relative z-[200] flex w-full min-w-0 max-w-full flex-wrap items-center gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:gap-2.5 sm:p-2.5 ${
+              className={`mill-cockpit-filter-bar relative z-[200] flex w-full min-w-0 max-w-full flex-wrap items-start gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:items-center sm:gap-2.5 sm:p-2.5 ${
                 isDarkMode
                   ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
                   : 'border-purple-200 bg-white/80 shadow-purple-100/50'
@@ -649,7 +650,7 @@ export default function MillingOperationsDashboard() {
 
               <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-              <div className={`flex shrink-0 flex-nowrap items-center gap-0.5 rounded-xl border p-0.5 ${cardClasses}`}>
+              <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${cardClasses}`}>
                 {NAV_TABS.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
@@ -748,9 +749,9 @@ export default function MillingOperationsDashboard() {
               </div>
 
               {/* Preset chips */}
-              <div className={`flex shrink-0 flex-nowrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
+              <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
                 <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
-                <div className="flex shrink-0 flex-nowrap gap-0.5 sm:gap-1">
+                <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
                   {['MTD', 'QTD', 'YTD'].map((preset) => (
                     <button
                       key={preset}
@@ -781,8 +782,8 @@ export default function MillingOperationsDashboard() {
 
               <div className={`mx-0.5 hidden h-5 w-px shrink-0 sm:mx-1 sm:block sm:h-6 ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-              {/* From / To + Compare — single nowrap row */}
-              <div className="flex min-w-0 shrink-0 flex-nowrap items-end gap-1.5 sm:gap-2">
+              {/* From / To */}
+              <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
                 <div className="flex shrink-0 flex-col gap-0.5">
                   <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
                   <input
@@ -807,49 +808,53 @@ export default function MillingOperationsDashboard() {
                     }`}
                   />
                 </div>
-
-                {viewMode === 'dashboard' && activeTab === 'outages' && (
-                  <>
-                    <div className={`mx-0.5 h-6 w-px shrink-0 self-center ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-                    <div className="flex shrink-0 flex-nowrap items-center gap-1 pr-0.5 sm:gap-1.5 sm:pr-1">
-                      <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
-                        Compare:
-                      </span>
-                      <div className={`flex shrink-0 flex-nowrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
-                        {comparisonOptions.map((comp) => (
-                          <button
-                            key={comp.id}
-                            type="button"
-                            onClick={() => setComparisonType(comp.id)}
-                            className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
-                              comparisonType === comp.id
-                                ? isDarkMode
-                                  ? 'bg-slate-700 text-slate-100 shadow-sm'
-                                  : 'bg-slate-800 text-white shadow-sm'
-                                : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
-                            }`}
-                          >
-                            {comp.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
+
+              {viewMode === 'dashboard' && activeTab === 'outages' && (
+                <div className="flex w-full min-w-0 basis-full flex-wrap items-center gap-1.5 sm:basis-auto sm:gap-2 lg:w-auto">
+                  <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
+                    Compare:
+                  </span>
+                  <div className={`flex min-w-0 flex-wrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
+                    {comparisonOptions.map((comp) => (
+                      <button
+                        key={comp.id}
+                        type="button"
+                        onClick={() => setComparisonType(comp.id)}
+                        className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
+                          comparisonType === comp.id
+                            ? isDarkMode
+                              ? 'bg-slate-700 text-slate-100 shadow-sm'
+                              : 'bg-slate-800 text-white shadow-sm'
+                            : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                        }`}
+                      >
+                        {comp.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* ─── BODY (Distillery-style scroll: KPI row stays outside scroll on md+) ─── */}
+      {/* Scrollable body — KPIs, charts, tables */}
       <div
-        className={`min-h-0 min-w-0 flex-1 max-md:pb-1 ${
-          viewMode === 'table'
-            ? 'flex flex-col overflow-hidden'
+        className={`min-h-0 min-w-0 flex-1 overflow-x-hidden pr-0.5 ${
+          activeTab === 'outages' && viewMode === 'dashboard'
+            ? 'overflow-y-auto'
             : 'flex flex-col overflow-hidden'
         }`}
       >
+        <div
+          className={`min-w-0 pb-1 ${
+            activeTab === 'outages' && viewMode === 'dashboard'
+              ? ''
+              : 'flex min-h-0 flex-1 flex-col overflow-hidden'
+          }`}
+        >
         {activeTab === 'outages' ? (
           viewMode === 'table' ? (
             <MillRawDataTable
@@ -863,7 +868,7 @@ export default function MillingOperationsDashboard() {
               textClasses={textClasses}
             />
           ) : (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:overflow-hidden">
+            <div className="flex min-w-0 flex-col gap-2">
               <MillOutageTab
                 kpis={kpis}
                 periodLabel={periodLabel}
@@ -908,6 +913,7 @@ export default function MillingOperationsDashboard() {
         ) : (
           <ComingSoonTab tab={activeTab} cardClasses={cardClasses} textClasses={textClasses} />
         )}
+        </div>
       </div>
     </div>
   );
@@ -934,9 +940,9 @@ function MillOutageTab({
   const tooltipRender = (props) => <ChartTooltip {...props} isDarkMode={isDarkMode} unit="h" />;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-      {/* KPI ROW */}
-      <div className="grid min-w-0 shrink-0 grid-cols-2 gap-1.5 overflow-visible xl:grid-cols-4">
+    <div className="flex flex-col gap-1.5">
+      {/* KPI ROW — scrolls with charts (filters stay fixed above) */}
+      <div className="grid min-w-0 grid-cols-2 gap-1.5 overflow-visible xl:grid-cols-4">
         <KpiCard
           title="Total Stoppage Hours"
           value={kpis.cur.totalHrs}
@@ -999,7 +1005,7 @@ function MillOutageTab({
         />
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-0.5">
+      <div className="space-y-3">
       {/* DAILY TREND */}
       <div className={`rounded-2xl border p-4 ${cardClasses}`}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

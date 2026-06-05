@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildProdCentrifugalReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const MACHINES = [
   { key: 'm1', name: 'No.1 (1 Ton)' },
@@ -25,45 +29,52 @@ const INITIAL = {
   m4: makeMachine('No.4 (1750 Kg/Chg) WB'),
 };
 
+const buildCentrifugalBody = (form) => {
+  const body = {
+    date: form.date, shift: form.shift,
+    shw_temp: form.shw_temp, shw_pressure: form.shw_pressure, air_pressure: form.air_pressure,
+    operator_sign: form.operator_sign, chemist_sign: form.chemist_sign, section_head_sign: form.section_head_sign,
+  };
+  MACHINES.forEach(({ key }) => {
+    const m = form[key];
+    body[`${key}_basket_cleaning`]  = m.basket_cleaning ? 1 : 0;
+    body[`${key}_screen_condition`] = m.screen_condition;
+    body[`${key}_from`]             = m.from;
+    body[`${key}_to`]               = m.to;
+    body[`${key}_duration`]         = m.duration;
+    body[`${key}_reasons`]          = m.reasons;
+    body[`${key}_separator`]        = m.separator ? 1 : 0;
+    body[`${key}_remarks`]          = m.remarks;
+  });
+  return body;
+};
+
 const ProdCentrifugal = () => {
   const navigate = useNavigate();
-  const [form, setForm]      = useState(INITIAL);
-  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handleMeta = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   const handleMachine = (key, field, val) =>
     setForm((p) => ({ ...p, [key]: { ...p[key], [field]: val } }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
-      const body = {
-        date: form.date, shift: form.shift,
-        shw_temp: form.shw_temp, shw_pressure: form.shw_pressure, air_pressure: form.air_pressure,
-        operator_sign: form.operator_sign, chemist_sign: form.chemist_sign, section_head_sign: form.section_head_sign,
-      };
-      MACHINES.forEach(({ key }) => {
-        const m = form[key];
-        body[`${key}_basket_cleaning`]  = m.basket_cleaning ? 1 : 0;
-        body[`${key}_screen_condition`] = m.screen_condition;
-        body[`${key}_from`]             = m.from;
-        body[`${key}_to`]               = m.to;
-        body[`${key}_duration`]         = m.duration;
-        body[`${key}_reasons`]          = m.reasons;
-        body[`${key}_separator`]        = m.separator ? 1 : 0;
-        body[`${key}_remarks`]          = m.remarks;
-      });
-      await api.post('/forms/prod_centrifugal', body);
-      toast.success('Centrifugal log submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/prod_centrifugal', buildCentrifugalBody(form)),
+        'Centrifugal log submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildProdCentrifugalReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
@@ -73,7 +84,7 @@ const ProdCentrifugal = () => {
       <h1 className="page-title mb-1">A-Centrifugal Machine Stoppage Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill</p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-2 gap-4">
           <div>
             <label className="label">Date <span className="text-red-500">*</span></label>
@@ -173,6 +184,16 @@ const ProdCentrifugal = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

@@ -17,12 +17,19 @@
 }
 
 @layer components {
-  /* Milling cockpit: wrap filter groups to extra rows — no horizontal scroll on the bar. */
-  .mill-cockpit-filter-bar {
+  /* BI dashboards: wrap filter groups to extra rows — no horizontal scroll on the bar. */
+  .mill-cockpit-filter-bar,
+  .distillery-filter-bar {
     flex-wrap: wrap;
     overflow-x: hidden;
+    overflow-y: visible;
     row-gap: 0.625rem;
     column-gap: 0.5rem;
+  }
+
+  .mill-cockpit-filter-bar > *,
+  .distillery-filter-bar > * {
+    max-width: 100%;
   }
 
   .btn-primary {

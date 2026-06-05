@@ -108,7 +108,7 @@ export default function DigiLogLoginModal({ open, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-4" role="dialog" aria-modal="true">
       <button
         type="button"
         className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity duration-300"
@@ -116,7 +116,7 @@ export default function DigiLogLoginModal({ open, onClose }) {
         onClick={onClose}
       />
 
-      <div className="relative flex w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-slate-100 bg-white shadow-2xl sm:rounded-2xl">
+      <div className="relative my-auto flex w-full max-w-md max-h-[calc(100dvh-2rem)] flex-col overflow-y-auto rounded-2xl border border-slate-100 bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 pb-4 pt-6">
           <div className="flex items-center gap-2">
             <img

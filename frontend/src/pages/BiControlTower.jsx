@@ -6,6 +6,7 @@ import { buildBiTowerTrail } from '../utils/breadcrumbTrail';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import FormTable from '../components/FormTable';
+import BiDashboardCardList from '../components/bi/BiDashboardCardList';
 import AppFormsHeader from '../components/AppFormsHeader';
 import Spinner from '../components/Spinner';
 import { BI_CONTROL_TOWER_APP_NAME } from '../config/biDashboardRoutes';
@@ -52,7 +53,7 @@ const BiControlTower = () => {
             <Link to="/forms-hub" className="text-blue-600 hover:underline font-medium">
               Forms Hub
             </Link>
-            . Pick a row to open a dashboard.
+            . Pick a dashboard below to open it.
           </>
         }
         icon={MdInsights}
@@ -76,7 +77,10 @@ const BiControlTower = () => {
               {app.forms.length} dashboard{app.forms.length !== 1 ? 's' : ''} available
             </p>
           </div>
-          <div className="p-0">
+          <div className="md:hidden">
+            <BiDashboardCardList forms={app.forms} appId={app._id ?? app.id} />
+          </div>
+          <div className="hidden p-0 md:block">
             <FormTable
               forms={app.forms}
               appId={app._id ?? app.id}
