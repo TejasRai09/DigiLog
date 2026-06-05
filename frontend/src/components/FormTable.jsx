@@ -8,11 +8,9 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
-import { isHubFormKey, hubFormPath, hubNavState } from '../config/hubFormRoutes';
-import { isBiDashboardFormKey, biDashboardPath } from '../config/biDashboardRoutes';
-import { isPowerDeptFormKey, powerDeptPath } from '../config/powerDeptRoutes';
-import { ehsHubForFormKey } from '../config/breadcrumbHubs';
 import { withoutGsmaLabel } from '../utils/displayLabels';
+import { isSimpleOpenForm, openFormTarget } from '../utils/formTableNav';
+import FormCardList from './FormCardList';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -66,18 +64,45 @@ const ViewDataModal = ({ form, onClose }) => {
   // Load first page on mount
   useEffect(() => { fetchPage(1); }, []);
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0;
   const sample      = data?.records?.[0] ?? null;
   const columns     = getDisplayColumns(form.formKey, sample);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[92vh] w-full max-w-6xl flex-col rounded-t-2xl bg-white shadow-xl sm:max-h-[90vh] sm:rounded-xl">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-3 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="view-data-modal-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+        aria-label="Close records"
+        onClick={onClose}
+      />
+
+      <div className="relative my-auto flex w-full max-w-6xl max-h-[min(calc(100dvh-1.5rem),90vh)] min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
 
         {/* Header */}
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">{withoutGsmaLabel(form.name)} — Records</h2>
+          <div className="min-w-0">
+            <h2 id="view-data-modal-title" className="text-base font-semibold leading-snug text-gray-900 sm:text-lg">
+              {withoutGsmaLabel(form.name)} — Records
+            </h2>
             {data && (
               <p className="text-xs text-gray-400 mt-0.5">{data.total} total row{data.total !== 1 ? 's' : ''}</p>
             )}
@@ -102,7 +127,12 @@ const ViewDataModal = ({ form, onClose }) => {
               <MdDownload className="h-3.5 w-3.5" />
               Download CSV
             </button>
-            <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 text-gray-400">
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label="Close"
+            >
               <MdClose className="h-5 w-5" />
             </button>
           </div>
@@ -230,7 +260,17 @@ const FormTable = ({
 
   return (
     <>
-      <div className="table-wrapper">
+      <div className="md:hidden">
+        <FormCardList
+          forms={forms}
+          navigate={navigate}
+          appId={appId}
+          returnTo={returnTo}
+          onViewData={setViewing}
+        />
+      </div>
+
+      <div className="table-wrapper hidden md:block">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
@@ -251,63 +291,14 @@ const FormTable = ({
 
                     {/* Open form or hub module (equipment / EHS) */}
                     <button
-                      onClick={() => {
-                        const baseState = {};
-                        if (appId != null && appId !== '') baseState.appId = String(appId);
-                        if (returnTo) baseState.returnTo = returnTo;
-                        else if (appId != null && appId !== '') baseState.returnTo = `/apps/${appId}`;
-
-                        if (isPowerDeptFormKey(form.formKey)) {
-                          const path = powerDeptPath(form.formKey);
-                          if (path) {
-                            const navState = { ...baseState, returnTo: returnTo || '/power' };
-                            navigate(path, {
-                              state: Object.keys(navState).length ? navState : undefined,
-                            });
-                          }
-                          return;
-                        }
-                        if (isBiDashboardFormKey(form.formKey)) {
-                          const path = biDashboardPath(form.formKey);
-                          if (path) {
-                            navigate(path, {
-                              state: Object.keys(baseState).length ? baseState : undefined,
-                            });
-                          }
-                          return;
-                        }
-                        if (isHubFormKey(form.formKey)) {
-                          const path = hubFormPath(form.formKey);
-                          const hubState = hubNavState(form.formKey, { appId, returnTo });
-                          navigate(path, {
-                            state: { ...baseState, ...hubState },
-                          });
-                          return;
-                        }
-                        const ehsHub = ehsHubForFormKey(form.formKey);
-                        const navState = { ...baseState };
-                        if (ehsHub) {
-                          navState.hubPath = ehsHub.path;
-                          navState.hubLabel = ehsHub.label;
-                          if (!navState.returnTo) navState.returnTo = ehsHub.path;
-                        }
-                        navigate(`/forms/${form.formKey}`, {
-                          state: Object.keys(navState).length ? navState : undefined,
-                        });
-                      }}
+                      onClick={() => openFormTarget(navigate, form, { appId, returnTo })}
                       className="btn-primary py-1.5 text-xs"
                     >
                       <MdOpenInNew className="h-3.5 w-3.5" />
-                      {isHubFormKey(form.formKey) ||
-                      isBiDashboardFormKey(form.formKey) ||
-                      isPowerDeptFormKey(form.formKey)
-                        ? 'Open'
-                        : 'Open Form'}
+                      {isSimpleOpenForm(form) ? 'Open' : 'Open Form'}
                     </button>
 
-                    {!isHubFormKey(form.formKey) &&
-                      !isBiDashboardFormKey(form.formKey) &&
-                      !isPowerDeptFormKey(form.formKey) && (
+                    {!isSimpleOpenForm(form) && (
                       <>
                         <button
                           onClick={() => setViewing(form)}

@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildProdClarificationReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const SHIFTS = [
   { key: 'shift8_4',  label: 'Shift 8–4 (Morning)',  range: [0, 8] },
@@ -28,45 +32,54 @@ const INITIAL = { date:'', season:'2025-26', crop_day:'', inst_hod:'', inst_dy_h
 
 const safef = (v) => { const n=parseFloat(v); return isNaN(n)?null:n; };
 
+const buildClarificationRows = (form) =>
+  form.hours
+    .filter((r) => Object.entries(r).some(([k, v]) => k !== 'time_slot' && v !== ''))
+    .map((r) => ({
+      date: form.date, season: form.season, crop_day: form.crop_day,
+      inst_hod: form.inst_hod, inst_dy_hod: form.inst_dy_hod, inst_sectional_head: form.inst_sectional_head,
+      time_slot: r.time_slot,
+      juice_flow: safef(r.juice_flow), mol_dose: safef(r.mol_dose),
+      mol_set_be: safef(r.mol_set_be), mol_std_wt: safef(r.mol_std_wt),
+      mol_meas_be: safef(r.mol_meas_be), mol_meas_wt: safef(r.mol_meas_wt),
+      vessel_std_time: safef(r.vessel_std_time), vessel_meas_time: safef(r.vessel_meas_time),
+      ph_pre: safef(r.ph_pre), ph_shock: safef(r.ph_shock), ph_sulphured: safef(r.ph_sulphured),
+      sulphur_temp: safef(r.sulphur_temp), boiler_temp: safef(r.boiler_temp), boiler_press: safef(r.boiler_press),
+      op_sign: r.op_sign, chem_sign: r.chem_sign, remarks: r.remarks,
+    }));
+
 const ProdClarification = () => {
   const navigate = useNavigate();
-  const [form, setForm]        = useState(INITIAL);
+  const [form, setForm] = useState(INITIAL);
   const [activeShift, setShift] = useState('shift8_4');
-  const [submitting, setSub]   = useState(false);
 
   const handleMeta = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   const handleHour = (idx, field, val) =>
     setForm((p) => { const h=[...p.hours]; h[idx]={...h[idx],[field]:val}; return {...p,hours:h}; });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
-      const rows = form.hours
-        .filter((r) => Object.entries(r).some(([k,v]) => k!=='time_slot' && v!==''))
-        .map((r) => ({
-          date:form.date, season:form.season, crop_day:form.crop_day,
-          inst_hod:form.inst_hod, inst_dy_hod:form.inst_dy_hod, inst_sectional_head:form.inst_sectional_head,
-          time_slot:r.time_slot,
-          juice_flow:safef(r.juice_flow), mol_dose:safef(r.mol_dose),
-          mol_set_be:safef(r.mol_set_be), mol_std_wt:safef(r.mol_std_wt),
-          mol_meas_be:safef(r.mol_meas_be), mol_meas_wt:safef(r.mol_meas_wt),
-          vessel_std_time:safef(r.vessel_std_time), vessel_meas_time:safef(r.vessel_meas_time),
-          ph_pre:safef(r.ph_pre), ph_shock:safef(r.ph_shock), ph_sulphured:safef(r.ph_sulphured),
-          sulphur_temp:safef(r.sulphur_temp), boiler_temp:safef(r.boiler_temp), boiler_press:safef(r.boiler_press),
-          op_sign:r.op_sign, chem_sign:r.chem_sign, remarks:r.remarks,
-        }));
-      if (rows.length===0) { toast.error('Fill at least one hourly row.'); setSub(false); return; }
-      await api.post('/forms/prod_clarification/batch', { rows });
-      toast.success('Clarification Log submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      if (buildClarificationRows(form).length === 0) {
+        toast.error('Fill at least one hourly row.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      const rows = buildClarificationRows(form);
+      await gsmaSubmitRequest(
+        () => api.post('/forms/prod_clarification/batch', { rows }),
+        'Clarification Log submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildProdClarificationReview(form) : null),
+    [reviewOpen, form],
+  );
 
   const shiftObj = SHIFTS.find((s) => s.key===activeShift);
   const [start, end] = shiftObj.range;
@@ -85,7 +98,7 @@ const ProdClarification = () => {
       <h1 className="page-title mb-1">Clarification Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill · ISO 9001</p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-3 gap-4">
           <div><label className="label">Operation Date <span className="text-red-500">*</span></label><input type="date" name="date" value={form.date} onChange={handleMeta} required className="input" /></div>
           <div><label className="label">Season</label><input type="text" name="season" value={form.season} onChange={handleMeta} className="input" /></div>
@@ -166,6 +179,16 @@ const ProdClarification = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

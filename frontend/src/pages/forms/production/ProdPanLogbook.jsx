@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildProdPanLogbookReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const GRADES = ['A-Massecuite', 'A1-Massecuite', 'B-Massecuite', 'C-Massecuite', 'C1-Massecuite'];
 
@@ -16,9 +20,8 @@ const INITIAL = {
 
 const ProdPanLogbook = () => {
   const navigate = useNavigate();
-  const [form, setForm]         = useState(INITIAL);
+  const [form, setForm] = useState(INITIAL);
   const [activeGrade, setActiveGrade] = useState(GRADES[0]);
-  const [submitting, setSub]    = useState(false);
 
   const handleMeta = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   const handleStrike = (grade, field, val) =>
@@ -27,22 +30,26 @@ const ProdPanLogbook = () => {
       strikes: p.strikes.map((s) => s.grade === grade ? { ...s, [field]: val } : s),
     }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
       const rows = form.strikes.map((s) => ({ date: form.date, season: form.season, ...s }));
-      await api.post('/forms/prod_pan_logbook/batch', { rows });
-      toast.success('Pan Log Book submitted!');
+      await gsmaSubmitRequest(
+        () => api.post('/forms/prod_pan_logbook/batch', { rows }),
+        'Pan Log Book submitted!',
+      );
       setForm(INITIAL);
       setActiveGrade(GRADES[0]);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildProdPanLogbookReview(form) : null),
+    [reviewOpen, form],
+  );
 
   const activeStrike = form.strikes.find((s) => s.grade === activeGrade);
 
@@ -54,7 +61,7 @@ const ProdPanLogbook = () => {
       <h1 className="page-title mb-1">Pan Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill</p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-2 gap-4">
           <div>
             <label className="label">Boiling Operation Date <span className="text-red-500">*</span></label>
@@ -121,6 +128,16 @@ const ProdPanLogbook = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

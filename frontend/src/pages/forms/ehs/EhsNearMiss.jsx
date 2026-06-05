@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildEhsNearMissReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const SEVERITY_OPTIONS  = ['', 'Fatal', 'Serious Harm', 'Minor Harm', 'No Harm / Near Miss'];
 const TREATMENT_OPTIONS = ['', 'Nil', 'First Aid', 'Doctor', 'Hospital'];
@@ -21,27 +25,30 @@ const INITIAL = {
 };
 
 const EhsNearMiss = () => {
-  const [form, setForm]         = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handle = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    if (!form.name) { toast.error('Person name is required.'); return; }
-    if (!form.severity) { toast.error('Severity is required.'); return; }
-    setSubmitting(true);
-    try {
-      await api.post('/forms/ehs_near_miss', form);
-      toast.success('Report submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      if (!form.name) { toast.error('Person name is required.'); return false; }
+      if (!form.severity) { toast.error('Severity is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ehs_near_miss', form),
+        'Report submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildEhsNearMissReview(form) : null),
+    [reviewOpen, form],
+  );
 
   const S = (name, label, required = false) => (
     <div>
@@ -58,7 +65,7 @@ const EhsNearMiss = () => {
         fallbackDescription="Log workplace near misses, incidents and accidents for investigation"
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
 
         {/* Section 1 – Date & Time */}
         <div className="form-section space-y-4">
@@ -160,6 +167,16 @@ const EhsNearMiss = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

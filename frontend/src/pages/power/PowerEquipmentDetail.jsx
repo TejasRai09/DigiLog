@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   MdSave, MdEdit, MdDelete, MdAdd, MdClose,
@@ -7,7 +7,9 @@ import {
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
+import FormReviewModal from '../../components/FormReviewModal';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import { buildEquipmentHistoryReview } from '../../config/gsmaFormReviewBuilders';
 import { buildPowerEquipmentTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 
@@ -151,6 +153,8 @@ const PowerEquipmentDetail = () => {
   const [schedForm, setSchedForm] = useState([]);
 
   const [histModal, setHistModal] = useState(null);
+  const [histReviewOpen, setHistReviewOpen] = useState(false);
+  const [histConfirming, setHistConfirming] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -297,9 +301,21 @@ const PowerEquipmentDetail = () => {
   const setHistField = (key, val) =>
     setHistModal(m => ({ ...m, data: { ...m.data, [key]: val } }));
 
-  const saveHist = async () => {
+  const requestSaveHist = () => {
+    if (!histModal?.data.obs?.trim()) {
+      toast.error('Observation is required.');
+      return;
+    }
+    setHistReviewOpen(true);
+  };
+
+  const closeHistReview = () => {
+    if (!histConfirming) setHistReviewOpen(false);
+  };
+
+  const confirmSaveHist = async () => {
     const { mode, data } = histModal;
-    if (!data.obs?.trim()) { toast.error('Observation is required.'); return; }
+    setHistConfirming(true);
     setSaving(true);
     try {
       if (mode === 'add') {
@@ -309,14 +325,25 @@ const PowerEquipmentDetail = () => {
         await api.put(`/power/${id}/history/${data.id}`, data);
         toast.success('Record updated.');
       }
+      setHistReviewOpen(false);
       setHistModal(null);
       await loadHistory(1);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
     } finally {
+      setHistConfirming(false);
       setSaving(false);
     }
   };
+
+  const histReviewConfig = useMemo(() => {
+    if (!histReviewOpen || !histModal) return null;
+    return buildEquipmentHistoryReview(histModal.data, {
+      mode: histModal.mode,
+      equipmentName: eq?.name,
+      equipNo: eq?.equip_no,
+    });
+  }, [histReviewOpen, histModal, eq?.name, eq?.equip_no]);
 
   const deleteHist = async (hid) => {
     if (!confirm('Delete this history record?')) return;
@@ -776,14 +803,22 @@ const PowerEquipmentDetail = () => {
       {histModal && (
         <div
           className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-          onClick={(e) => e.target === e.currentTarget && setHistModal(null)}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setHistReviewOpen(false);
+              setHistModal(null);
+            }
+          }}
         >
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="font-semibold text-gray-900">
                 {histModal.mode === 'add' ? 'Add History Record' : 'Edit History Record'}
               </h2>
-              <button onClick={() => setHistModal(null)} className="text-gray-400 hover:text-gray-700">
+              <button
+                onClick={() => { setHistReviewOpen(false); setHistModal(null); }}
+                className="text-gray-400 hover:text-gray-700"
+              >
                 <MdClose className="h-5 w-5" />
               </button>
             </div>
@@ -923,8 +958,13 @@ const PowerEquipmentDetail = () => {
             </div>
 
             <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200">
-              <button onClick={() => setHistModal(null)} className="btn-secondary">Cancel</button>
-              <button onClick={saveHist} disabled={saving} className="btn-primary">
+              <button
+                onClick={() => { setHistReviewOpen(false); setHistModal(null); }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button onClick={requestSaveHist} disabled={saving || histConfirming} className="btn-primary">
                 {saving ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
                 {histModal.mode === 'add' ? 'Add Record' : 'Save Changes'}
               </button>
@@ -932,6 +972,16 @@ const PowerEquipmentDetail = () => {
           </div>
         </div>
       )}
+
+      {histReviewConfig ? (
+        <FormReviewModal
+          open={histReviewOpen}
+          onClose={closeHistReview}
+          onConfirm={confirmSaveHist}
+          confirming={histConfirming}
+          {...histReviewConfig}
+        />
+      ) : null}
     </main>
   );
 };
