@@ -43,9 +43,10 @@ import EquipmentList   from './pages/equipment/EquipmentList';
 import EquipmentDetail from './pages/equipment/EquipmentDetail';
 
 // Power Plant History Cards
-import PowerLanding          from './pages/power/PowerLanding';
-import PowerList             from './pages/power/PowerList';
-import PowerEquipmentDetail  from './pages/power/PowerEquipmentDetail';
+import PowerLanding              from './pages/power/PowerLanding';
+import PowerList                 from './pages/power/PowerList';
+import PowerEquipmentDetail      from './pages/power/PowerEquipmentDetail';
+import PowerPlantEquipmentNew    from './pages/power/PowerPlantEquipmentNew';
 
 // EHS Forms
 import EhsLanding   from './pages/ehs/EhsLanding';
@@ -114,9 +115,10 @@ const App = () => {
           <Route path="/equipment/:id" element={<EquipmentDetail />} />
 
           {/* Power Plant Equipment History Cards */}
-          <Route path="/power"                 element={<PowerLanding />} />
-          <Route path="/power/:dept"           element={<PowerList />} />
-          <Route path="/power/:dept/:id"       element={<PowerEquipmentDetail />} />
+          <Route path="/power"                      element={<PowerLanding />} />
+          <Route path="/power/:dept"                element={<PowerList />} />
+          <Route path="/power/:dept/:id"            element={<PowerEquipmentDetail />} />
+          <Route path="/power-plant-equipment-new"  element={<PowerPlantEquipmentNew />} />
 
           {/* EHS Forms */}
           <Route path="/ehs"                       element={<EhsLanding />} />

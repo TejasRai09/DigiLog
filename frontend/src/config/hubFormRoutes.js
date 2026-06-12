@@ -4,6 +4,7 @@ import { HUB_MODULE_LABELS } from './breadcrumbHubs';
 export const HUB_FORM_PATH = {
   digilog_hub_mill_equipment: '/equipment',
   digilog_hub_power_equipment: '/power',
+  digilog_hub_power_equipment_new: '/power-plant-equipment-new',
 };
 
 export function hubNavState(formKey, { appId, returnTo } = {}) {

@@ -39,9 +39,10 @@ const FORM_CONFIG = {
   distillery_ops:   { table: 'distillery_operations', pattern: 'G', tsCol: 'timestamp' },
   // EHS – Environment Health & Safety
   ehs_near_miss:    { table: 'ehs_near_miss',    pattern: 'E', tsCol: 'timestamp' },
-  ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'E', tsCol: 'timestamp' },
-  ehs_water_etp:    { table: 'ehs_water_etp',    pattern: 'E', tsCol: 'timestamp' },
-  ehs_water_cpu:    { table: 'ehs_water_cpu',    pattern: 'E', tsCol: 'timestamp' },
+  ehs_accident:     { table: 'ehs_accident',     pattern: 'E', tsCol: 'timestamp' },
+  ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'G', tsCol: 'timestamp' },
+  ehs_water_etp:    { table: 'ehs_water_etp',    pattern: 'G', tsCol: 'timestamp' },
+  ehs_water_cpu:    { table: 'ehs_water_cpu',    pattern: 'G', tsCol: 'timestamp' },
 
   // Production Forms
   prod_shift_chemist: { table: 'prod_shift_chemist', pattern: 'G', tsCol: 'timestamp' },
@@ -118,6 +119,47 @@ const injectDateCols = (payload, pattern, body) => {
 // ─── Reserved meta keys (not data columns) ───────────────────
 const META_KEYS = new Set(['date', 'shift', 'time', 'startTime', 'endTime', 'samplingTime']);
 
+const PH_FIELD_LABELS = {
+  inlet_ph_a: 'Inlet pH — A Shift',
+  inlet_ph_b: 'Inlet pH — B Shift',
+  inlet_ph_c: 'Inlet pH — C Shift',
+  outlet_ph: 'Outlet pH',
+  ph_g_shift: 'pH (G Shift)',
+};
+
+/** pH must be 0–14; rejects cane-crush-scale values accidentally entered in pH fields. */
+function validatePhFields(payload, keys) {
+  for (const key of keys) {
+    if (!(key in payload)) continue;
+    const raw = payload[key];
+    if (raw === null || raw === '') {
+      payload[key] = null;
+      continue;
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0 || n > 14) {
+      const label = PH_FIELD_LABELS[key] || key;
+      return {
+        ok: false,
+        message: `${label} must be a number between 0 and 14 (e.g. 7.2).`,
+      };
+    }
+    payload[key] = Math.round(n * 10000) / 10000;
+  }
+  return { ok: true };
+}
+
+function validateFormPayload(formKey, payload) {
+  switch (formKey) {
+    case 'ehs_water_cpu':
+      return validatePhFields(payload, ['inlet_ph_a', 'inlet_ph_b', 'inlet_ph_c', 'outlet_ph']);
+    case 'ehs_water_etp':
+      return validatePhFields(payload, ['ph_g_shift']);
+    default:
+      return { ok: true };
+  }
+}
+
 /** Shown when operational key (date + shift/time etc.) already exists for this form table. */
 const DUPLICATE_OPERATION_MSG =
   'Duplicate operation: a record already exists for this date, shift, and time. Change those fields or edit the existing entry.';
@@ -191,6 +233,11 @@ const submitForm = async (req, res) => {
 
   const payload = sanitisePayload(req.body);
   injectDateCols(payload, config.pattern, req.body);
+
+  const fieldCheck = validateFormPayload(formKey, payload);
+  if (!fieldCheck.ok) {
+    return res.status(400).json({ message: fieldCheck.message });
+  }
 
   const skipGenerated = GENERATED_INSERT_EXCLUDE[formKey];
   if (skipGenerated) {

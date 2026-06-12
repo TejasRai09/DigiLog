@@ -10,7 +10,7 @@ import Spinner from '../../components/Spinner';
 import FormReviewModal from '../../components/FormReviewModal';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { buildEquipmentHistoryReview } from '../../config/gsmaFormReviewBuilders';
-import { buildPowerEquipmentTrail } from '../../utils/breadcrumbTrail';
+import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 
 const resizeImage = (file) =>
@@ -130,6 +130,8 @@ const PowerEquipmentDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const appId = location.state?.appId;
+  const fromHierarchy = Boolean(location.state?.fromHierarchy);
+  const returnTo = location.state?.returnTo || '/power-plant-equipment-new';
   const appName = useAppName(appId);
 
   const [eq,        setEq]        = useState(null);
@@ -378,12 +380,23 @@ const PowerEquipmentDetail = () => {
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
       <AppBreadcrumb
-        items={buildPowerEquipmentTrail({
-          appId,
-          appName,
-          dept,
-          equipmentName: eq?.name,
-        })}
+        items={
+          fromHierarchy
+            ? [
+                ...buildPowerPlantEquipmentNewTrail({ appId, appName }).map((item, i, arr) => (
+                  i === arr.length - 1 && item.label
+                    ? { ...item, to: returnTo, state: location.state }
+                    : item
+                )),
+                { label: eq?.name || 'Equipment' },
+              ]
+            : buildPowerEquipmentTrail({
+                appId,
+                appName,
+                dept,
+                equipmentName: eq?.name,
+              })
+        }
       />
 
       <div className="mb-6">
