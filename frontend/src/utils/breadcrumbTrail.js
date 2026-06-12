@@ -153,3 +153,13 @@ export function buildPowerEquipmentTrail({ appId, appName, dept, equipmentName }
   items.push({ label: equipmentName || 'Equipment' });
   return items;
 }
+
+export function buildPowerPlantEquipmentNewTrail({ appId, appName } = {}) {
+  const items = [DASHBOARD_CRUMB, FORMS_HUB_CRUMB];
+  items.push(hubListCrumb({
+    appId,
+    appName,
+    fallbackLabel: HUB_MODULE_LABELS['/power-plant-equipment-new'],
+  }));
+  return items;
+}

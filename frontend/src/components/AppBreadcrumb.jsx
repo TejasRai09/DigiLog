@@ -4,7 +4,7 @@ import { withoutGsmaLabel } from '../utils/displayLabels';
 
 /**
  * Horizontal breadcrumb trail. Last item is the current page (not linked).
- * @param {{ label: string, to?: string }[]} items
+ * @param {{ label: string, to?: string, state?: object }[]} items
  */
 const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
   if (!items?.length) return null;
@@ -25,6 +25,7 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
               {showLink ? (
                 <Link
                   to={item.to}
+                  state={item.state}
                   className="hover:text-gray-900 transition-colors truncate max-w-[10rem] sm:max-w-xs md:max-w-none"
                 >
                   {index === 0 ? (

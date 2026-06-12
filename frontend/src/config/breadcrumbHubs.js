@@ -3,6 +3,7 @@ export const HUB_MODULE_LABELS = {
   '/ehs': 'EHS',
   '/equipment': 'Mill House Equipment',
   '/power': 'Power Plant',
+  '/power-plant-equipment-new': 'Power Plant Equipment',
   '/production': 'Production',
 };
 

@@ -5,6 +5,41 @@ const getEq = async (id) => {
   return eq || null;
 };
 
+// GET /api/power/lookup?equip_no=...&name=...  (hierarchy browser — tag + optional canonical name)
+const lookupEquipment = async (req, res) => {
+  try {
+    const equipNo = String(req.query.equip_no || '').trim();
+    const name = String(req.query.name || '').trim();
+
+    if (!equipNo && !name) {
+      return res.status(400).json({ message: 'equip_no or name is required.' });
+    }
+
+    const conditions = [];
+    const params = [];
+    if (equipNo) {
+      conditions.push('equip_no = ?');
+      params.push(equipNo);
+    }
+    if (name) {
+      conditions.push('name = ?');
+      params.push(name);
+    }
+
+    const [rows] = await pool.query(
+      `SELECT id, dept, equip_no, name, location, commissioned, drive, sort_order
+       FROM pp_equipment WHERE ${conditions.join(' AND ')}
+       ORDER BY sort_order ASC, id ASC LIMIT 1`,
+      params,
+    );
+    if (!rows.length) return res.status(404).json({ message: 'Equipment not found.' });
+    res.json({ equipment: rows[0] });
+  } catch (err) {
+    console.error('power.lookupEquipment:', err.message);
+    res.status(500).json({ message: 'Database error: ' + err.message });
+  }
+};
+
 // GET /api/power  (?dept=electrical|instrument|instrument2)
 const listEquipment = async (req, res) => {
   try {
@@ -264,7 +299,7 @@ const deleteHistory = async (req, res) => {
 };
 
 module.exports = {
-  listEquipment, getEquipment, updateEquipment,
+  lookupEquipment, listEquipment, getEquipment, updateEquipment,
   uploadImage, deleteImage,
   updateSpecs, updateSchedule,
   getHistory, addHistory, updateHistory, deleteHistory,

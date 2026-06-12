@@ -1,8 +1,8 @@
 /**
  * Seed MySQL with:
  *  - 1 admin user  (admin@gsma.com / Admin@123)
- *  - 8 apps (incl. Mill House / Power / EHS hub modules and BI Control Tower for employee mapping)
- *  - 18 forms
+ *  - 10 apps (incl. Mill House / Power / EHS hub modules and BI Control Tower for employee mapping)
+ *  - 20 forms
  *
  * Run: node seed.js
  */
@@ -57,6 +57,13 @@ const appDefs = [
     sort_order:  6,
   },
   {
+    name:        'Power Plant Equipment History (new)',
+    description: 'Boiler, turbine and WTP equipment hierarchy — browse by cards or tree',
+    icon:        'MdFlashOn',
+    color:       '#EA580C',
+    sort_order:  10,
+  },
+  {
     name:        'EHS — Environment Health & Safety',
     description: 'Incident reports, accident register and water dashboard',
     icon:        'MdSecurity',
@@ -105,6 +112,7 @@ const formDefs = [
   // Hub modules — equipment history cards (single hub entry, opens card-browser)
   { name: 'Mill House equipment',  description: 'Open equipment life history cards',            formKey: 'digilog_hub_mill_equipment',  app: 'Mill House Equipment History',    sort_order: 1 },
   { name: 'Power Plant equipment', description: 'Open power plant equipment history cards',     formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History',   sort_order: 1 },
+  { name: 'Power Plant equipment hierarchy', description: 'Browse 150TPH/70TPH boilers, STG and WTP equipment', formKey: 'digilog_hub_power_equipment_new', app: 'Power Plant Equipment History (new)', sort_order: 1 },
 
   // EHS — individual submit forms
   { name: 'Near Miss / Incident / Accident Report',    description: 'Log workplace near misses, incidents and accidents for investigation', formKey: 'ehs_near_miss',  app: 'EHS — Environment Health & Safety', sort_order: 1 },
