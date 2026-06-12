@@ -1,4 +1,4 @@
-_-- Power Plant Equipment History (new) — hub app + hierarchy browser form
+-- Power Plant Equipment History (new) — hub app + hierarchy browser form
 -- Apply: cd backend && npm run db:apply-sql -- ../mysql/migrate_power_plant_equipment_new_hub.sql
 
 USE `__MYSQL_DATABASE__`;
