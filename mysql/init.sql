@@ -659,6 +659,8 @@ CREATE TABLE IF NOT EXISTS `pp_equipment` (
 CREATE TABLE IF NOT EXISTS `pp_specs` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
   `lbl`         VARCHAR(300) NOT NULL,
   `val`         TEXT         DEFAULT NULL,
   `sort_order`  INT          NOT NULL DEFAULT 0,

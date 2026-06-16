@@ -149,6 +149,8 @@ const deleteImage = async (req, res) => {
 };
 
 // PUT /api/power/:id/specs
+const META_SUBSECTIONS_LBL = '__subsections__';
+
 const updateSpecs = async (req, res) => {
   const conn = await pool.getConnection();
   try {
@@ -158,10 +160,26 @@ const updateSpecs = async (req, res) => {
     await conn.execute('DELETE FROM pp_specs WHERE equip_id = ?', [id]);
     for (let i = 0; i < specs.length; i++) {
       const s = specs[i];
-      if (!s.lbl) continue;
+      const lbl = s.lbl ?? '';
+      if (!lbl) continue;
+
+      const section = s.section ?? null;
+      const subSection = s.sub_section ?? s.subSection ?? null;
+      const sortOrder = s.sort_order ?? i;
+
+      if (lbl === META_SUBSECTIONS_LBL) {
+        await conn.execute(
+          'INSERT INTO pp_specs (equip_id, section, sub_section, lbl, val, sort_order) VALUES (?, NULL, NULL, ?, ?, ?)',
+          [id, lbl, s.val ?? '{}', sortOrder]
+        );
+        continue;
+      }
+
+      if (!lbl.trim()) continue;
+
       await conn.execute(
-        'INSERT INTO pp_specs (equip_id, lbl, val, sort_order) VALUES (?, ?, ?, ?)',
-        [id, s.lbl, s.val ?? '', i]
+        'INSERT INTO pp_specs (equip_id, section, sub_section, lbl, val, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, section, subSection, lbl.trim(), s.val ?? '', sortOrder]
       );
     }
     await conn.commit();

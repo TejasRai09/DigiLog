@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   MdSave, MdEdit, MdDelete, MdAdd, MdClose,
-  MdExpandMore, MdExpandLess, MdCameraAlt, MdBadge,
+  MdCameraAlt,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -12,64 +12,19 @@ import AppBreadcrumb from '../../components/AppBreadcrumb';
 import { buildEquipmentHistoryReview } from '../../config/gsmaFormReviewBuilders';
 import { buildEquipmentDetailTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
-
-// ── Resize image to max 900px JPEG 75% ───────────────────────
-const resizeImage = (file) =>
-  new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width: w, height: h } = img;
-        if (w > 900 || h > 900) {
-          if (w > h) { h = Math.round(h * 900 / w); w = 900; }
-          else       { w = Math.round(w * 900 / h); h = 900; }
-        }
-        const c = document.createElement('canvas');
-        c.width = w; c.height = h;
-        c.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(c.toDataURL('image/jpeg', 0.75));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
+import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
+import EquipmentSectionShell from '../../components/equipment/EquipmentSectionShell';
+import OemMaintenanceScheduleHub from '../../components/equipment/OemMaintenanceScheduleHub';
+import { serializeScheduleForApi } from '../../utils/equipmentScheduleModel';
+import { resizeImage } from '../../utils/resizeImage';
 
 const EMPTY_HIST = {
   season: '', year: '', date_start: '', date_finish: '',
-  obs: '', act: '', cost: '', svc: '', provider: '', resp: '', rem: '',
+  obs: '', act: '', cost: '', svc: '', resp: '', rem: '',
   img_before: null, img_after: null,
 };
 
-const IV_LABELS = {
-  iv_W: 'Weekly', iv_M: 'Monthly', iv_Q: 'Quarterly',
-  iv_H: 'Half-Yearly', iv_Y: 'Yearly', iv_T: '2-Years',
-};
-const IV_KEYS = Object.keys(IV_LABELS);
 
-// ── Accordion section ─────────────────────────────────────────
-const Section = ({ title, open, onToggle, badge, children }) => (
-  <div className="card mb-3 overflow-hidden">
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-    >
-      <div className="flex items-center gap-2">
-        <span className="font-semibold text-gray-800">{title}</span>
-        {badge != null && (
-          <span className="badge bg-blue-100 text-blue-700">{badge}</span>
-        )}
-      </div>
-      {open
-        ? <MdExpandLess className="h-5 w-5 text-gray-400" />
-        : <MdExpandMore className="h-5 w-5 text-gray-400" />}
-    </button>
-    {open && <div className="border-t border-gray-100">{children}</div>}
-  </div>
-);
-
-// ── Inline image zone for history modal ──────────────────────
 const HistImgZone = ({ label, value, onChange }) => (
   <div className="flex-1">
     <span className="text-xs font-semibold text-gray-600 mb-1 block">{label}</span>
@@ -102,31 +57,6 @@ const HistImgZone = ({ label, value, onChange }) => (
   </div>
 );
 
-// ── Image upload zone ─────────────────────────────────────────
-const ImageZone = ({ src, label, Icon, onUpload, onRemove, saving }) => (
-  <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</span>
-    {src ? (
-      <div className="relative group rounded-lg overflow-hidden border border-gray-200 h-44 bg-gray-50">
-        <img src={src} alt={label} className="w-full h-full object-contain" />
-        <button
-          onClick={onRemove}
-          disabled={saving}
-          className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
-        >
-          <MdClose className="h-3 w-3" />
-        </button>
-      </div>
-    ) : (
-      <label className="flex flex-col items-center justify-center h-44 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors">
-        <Icon className="h-8 w-8 text-gray-400 mb-1" />
-        <span className="text-xs text-gray-500">Click to upload</span>
-        <input type="file" accept="image/*" className="sr-only" onChange={onUpload} disabled={saving} />
-      </label>
-    )}
-  </div>
-);
-
 // ─────────────────────────────────────────────────────────────
 const HIST_LIMIT = 20;
 
@@ -146,16 +76,12 @@ const EquipmentDetail = () => {
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
 
-  const [open, setOpen] = useState({ id: true, spec: false, oem: false, hist: true });
+  const [open, setOpen] = useState({ spec: false, oem: false, hist: false });
   const toggle = (s) => setOpen(o => ({ ...o, [s]: !o[s] }));
 
-  const [editId,    setEditId]    = useState(false);
   const [editSpecs, setEditSpecs] = useState(false);
-  const [editSched, setEditSched] = useState(false);
 
-  const [idForm,    setIdForm]    = useState({});
   const [specsForm, setSpecsForm] = useState([]);
-  const [schedForm, setSchedForm] = useState([]);
 
   const [histModal, setHistModal] = useState(null); // null | { mode, data }
   const [histReviewOpen, setHistReviewOpen] = useState(false);
@@ -193,25 +119,15 @@ const EquipmentDetail = () => {
 
   useEffect(() => { load(); }, [id]);
 
-  // ── ID Card edit ────────────────────────────────────────────
-  const startEditId = () => {
-    setIdForm({
-      name: eq.name, equip_no: eq.equip_no,
-      location: eq.location || '', commissioned: eq.commissioned || '',
-      drive: eq.drive || '',
-    });
-    setEditId(true);
-  };
-
-  const saveId = async () => {
+  const saveLifeHistory = async (fields) => {
     setSaving(true);
     try {
-      await api.put(`/equipment/${id}`, idForm);
-      setEq(e => ({ ...e, ...idForm }));
-      setEditId(false);
-      toast.success('Equipment details saved.');
+      await api.put(`/equipment/${id}`, fields);
+      setEq((e) => ({ ...e, ...fields }));
+      toast.success('Equipment history details updated successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
+      throw err;
     } finally {
       setSaving(false);
     }
@@ -272,29 +188,21 @@ const EquipmentDetail = () => {
   const updateSpecRow = (i, key, val) =>
     setSpecsForm(f => f.map((x, j) => j === i ? { ...x, [key]: val } : x));
 
-  // ── Schedule edit ───────────────────────────────────────────
-  const startEditSched = () => {
-    setSchedForm(schedule.map(s => ({ ...s })));
-    setEditSched(true);
-  };
-
-  const saveSched = async () => {
+  const saveHubSchedule = async (structuredSchedule) => {
     setSaving(true);
     try {
-      await api.put(`/equipment/${id}/schedule`, { schedule: schedForm });
+      const payload = serializeScheduleForApi(structuredSchedule);
+      await api.put(`/equipment/${id}/schedule`, { schedule: payload });
       const { data } = await api.get(`/equipment/${id}`);
       setSchedule(data.schedule);
-      setEditSched(false);
-      toast.success('Schedule saved.');
+      toast.success('OEM schedule saved.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
+      throw err;
     } finally {
       setSaving(false);
     }
   };
-
-  const updateSchedRow = (i, key, val) =>
-    setSchedForm(f => f.map((x, j) => j === i ? { ...x, [key]: val } : x));
 
   // ── History ─────────────────────────────────────────────────
   const openAddHist  = () => setHistModal({ mode: 'add', data: { ...EMPTY_HIST } });
@@ -373,18 +281,9 @@ const EquipmentDetail = () => {
   if (!eq)     return <p className="text-center py-20 text-gray-400">Equipment not found.</p>;
 
   const histPages = Math.ceil(histTotal / HIST_LIMIT);
-  const usedIv    = IV_KEYS.filter(k => schedule.some(s => s[k] !== null));
-
-  const ID_FIELDS = [
-    { key: 'equip_no',     label: 'Equipment No.' },
-    { key: 'name',         label: 'Name of Equipment' },
-    { key: 'location',     label: 'Location' },
-    { key: 'commissioned', label: 'Date of Commissioning' },
-    { key: 'drive',        label: 'Drive' },
-  ];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       {/* Header */}
       <AppBreadcrumb
         items={buildEquipmentDetailTrail({
@@ -398,75 +297,20 @@ const EquipmentDetail = () => {
         <p className="text-sm text-gray-500 font-mono">{eq.equip_no} · {eq.plant}</p>
       </div>
 
-      {/* ── Section 1: ID Card ── */}
-      <Section title="Equipment Life History Card" open={open.id} onToggle={() => toggle('id')}>
-        <div className="p-5">
-          {/* Images */}
-          <div className="flex gap-4 mb-6">
-            <ImageZone
-              src={eq.photo}
-              label="Equipment Photo"
-              Icon={MdCameraAlt}
-              onUpload={(e) => uploadImg(e, 'photo')}
-              onRemove={() => removeImg('photo')}
-              saving={saving}
-            />
-            <ImageZone
-              src={eq.plate}
-              label="Nameplate / Tag"
-              Icon={MdBadge}
-              onUpload={(e) => uploadImg(e, 'plate')}
-              onRemove={() => removeImg('plate')}
-              saving={saving}
-            />
-          </div>
-
-          {editId ? (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                {ID_FIELDS.map(({ key, label }) => (
-                  <div key={key}>
-                    <label className="label">{label}</label>
-                    <input
-                      type="text"
-                      className="input"
-                      value={idForm[key] || ''}
-                      onChange={(e) => setIdForm(f => ({ ...f, [key]: e.target.value }))}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <button onClick={saveId} disabled={saving} className="btn-primary">
-                  {saving ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />} Save
-                </button>
-                <button onClick={() => setEditId(false)} className="btn-secondary">Cancel</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                {ID_FIELDS.map(({ key, label }) => (
-                  <div key={key} className="bg-gray-50 rounded-lg px-4 py-3">
-                    <dt className="text-xs font-medium text-gray-500 mb-0.5">{label}</dt>
-                    <dd className="text-sm font-medium text-gray-900">{eq[key] || '—'}</dd>
-                  </div>
-                ))}
-              </dl>
-              <button onClick={startEditId} className="btn-secondary">
-                <MdEdit className="h-4 w-4" /> Edit Details
-              </button>
-            </>
-          )}
-        </div>
-      </Section>
+      <EquipmentLifeHistoryCard
+        equipment={eq}
+        saving={saving}
+        onSave={saveLifeHistory}
+        onUploadImage={uploadImg}
+        onRemoveImage={removeImg}
+      />
 
       {/* ── Section 2: Specifications ── */}
-      <Section
+      <EquipmentSectionShell
         title="Equipment Specification"
+        badge={specs.length}
         open={open.spec}
         onToggle={() => toggle('spec')}
-        badge={specs.length}
       >
         <div className="p-5">
           {editSpecs ? (
@@ -542,149 +386,24 @@ const EquipmentDetail = () => {
             </>
           )}
         </div>
-      </Section>
+      </EquipmentSectionShell>
 
-      {/* ── Section 3: OEM Schedule ── */}
-      <Section
-        title="OEM Maintenance Schedule"
-        open={open.oem}
-        onToggle={() => toggle('oem')}
-        badge={schedule.length}
-      >
-        <div className="p-5">
-          {editSched ? (
-            <>
-              <div className="table-wrapper mb-4 max-h-96 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr>
-                      <th className="th w-14">#</th>
-                      <th className="th">Component</th>
-                      <th className="th">Action</th>
-                      {IV_KEYS.map(k => (
-                        <th key={k} className="th w-14 text-center">{IV_LABELS[k].slice(0, 4)}</th>
-                      ))}
-                      <th className="th w-10"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {schedForm.map((s, i) => (
-                      <tr key={i}>
-                        <td className="td">
-                          <input
-                            type="number"
-                            className="input w-14 text-center px-1"
-                            value={s.no}
-                            onChange={(e) => updateSchedRow(i, 'no', +e.target.value)}
-                          />
-                        </td>
-                        <td className="td">
-                          <input
-                            type="text"
-                            className="input"
-                            value={s.comp || ''}
-                            onChange={(e) => updateSchedRow(i, 'comp', e.target.value)}
-                          />
-                        </td>
-                        <td className="td">
-                          <input
-                            type="text"
-                            className="input"
-                            value={s.act || ''}
-                            onChange={(e) => updateSchedRow(i, 'act', e.target.value)}
-                          />
-                        </td>
-                        {IV_KEYS.map(k => (
-                          <td key={k} className="td text-center">
-                            <input
-                              type="text"
-                              maxLength={1}
-                              className="input w-10 text-center px-1 font-mono"
-                              value={s[k] || ''}
-                              onChange={(e) => updateSchedRow(i, k, e.target.value || null)}
-                            />
-                          </td>
-                        ))}
-                        <td className="td">
-                          <button
-                            onClick={() => setSchedForm(f => f.filter((_, j) => j !== i))}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <MdDelete className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSchedForm(f => [...f, { no: f.length + 1, comp: '', act: '' }])}
-                  className="btn-secondary"
-                >
-                  <MdAdd className="h-4 w-4" /> Add Row
-                </button>
-                <button onClick={saveSched} disabled={saving} className="btn-primary">
-                  {saving ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />} Save
-                </button>
-                <button onClick={() => setEditSched(false)} className="btn-secondary">Cancel</button>
-              </div>
-            </>
-          ) : (
-            <>
-              {schedule.length === 0 ? (
-                <p className="text-sm text-gray-400 mb-4">No OEM schedule recorded.</p>
-              ) : (
-                <div className="table-wrapper mb-4">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr>
-                        <th className="th w-10">#</th>
-                        <th className="th">Component</th>
-                        <th className="th">Maintenance Action</th>
-                        {usedIv.map(k => (
-                          <th key={k} className="th w-28 text-center">{IV_LABELS[k]}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 bg-white">
-                      {schedule.map((s) => (
-                        <tr key={s.id}>
-                          <td className="td text-gray-400">{s.no}</td>
-                          <td className="td font-medium">{s.comp}</td>
-                          <td className="td text-gray-600">{s.act}</td>
-                          {usedIv.map(k => (
-                            <td key={k} className="td text-center font-mono">
-                              <span className={
-                                s[k] === '√' ? 'text-green-600 font-bold' :
-                                s[k] === 'X' ? 'text-gray-400' : ''
-                              }>
-                                {s[k] || '—'}
-                              </span>
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <button onClick={startEditSched} className="btn-secondary">
-                <MdEdit className="h-4 w-4" /> Edit Schedule
-              </button>
-            </>
-          )}
-        </div>
-      </Section>
+      {/* ── Section 3: OEM Schedule (structured hub) ── */}
+      <div className="mb-3">
+        <OemMaintenanceScheduleHub
+          embedded
+          apiSchedule={schedule}
+          onSave={saveHubSchedule}
+          saving={saving}
+        />
+      </div>
 
       {/* ── Section 4: Maintenance History ── */}
-      <Section
+      <EquipmentSectionShell
         title="Equipment Maintenance History"
+        badge={histTotal}
         open={open.hist}
         onToggle={() => toggle('hist')}
-        badge={histTotal}
       >
         <div className="p-5">
           <div className="flex justify-end mb-4">
@@ -804,7 +523,7 @@ const EquipmentDetail = () => {
             </div>
           )}
         </div>
-      </Section>
+      </EquipmentSectionShell>
 
       {/* ── History Modal ── */}
       {histModal && (
@@ -916,15 +635,6 @@ const EquipmentDetail = () => {
                     <option value="EXTERNAL">EXTERNAL</option>
                     <option value="BOTH">BOTH</option>
                   </select>
-                </div>
-                <div>
-                  <label className="label">Provider</label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={histModal.data.provider}
-                    onChange={(e) => setHistField('provider', e.target.value)}
-                  />
                 </div>
                 <div>
                   <label className="label">Responsible</label>

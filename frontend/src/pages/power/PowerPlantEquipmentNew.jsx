@@ -12,7 +12,7 @@ const PowerPlantEquipmentNew = () => {
   const appName = useAppName(appId);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildPowerPlantEquipmentNewTrail({ appId, appName })} />
 
       <AppFormsHeader

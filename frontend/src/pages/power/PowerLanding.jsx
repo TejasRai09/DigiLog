@@ -14,7 +14,7 @@ const PowerLanding = () => {
   const n = POWER_DEPT_FORMS.length;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildPowerLandingTrail({ appId, appName })} />
 
       <AppFormsHeader

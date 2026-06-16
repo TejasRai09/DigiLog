@@ -63,7 +63,7 @@ const PowerList = () => {
   const deptLabel  = DEPT_LABELS[dept] || dept;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildPowerDeptTrail({ appId, appName, dept })} />
 
       <div className="mb-6">
