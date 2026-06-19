@@ -1,0 +1,260 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "30.85MW Generator Set",
+      "hierarchy_card": "Alternator",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Turbine > Alternator",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "30.85MW Generator Set",
+      "equip_no": "ZIL/GSM/PP/02",
+      "tag_name": "",
+      "category": "30.85MW STG",
+      "subcategory": "Turbine",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Andritz Pvt Ltd. Bhopal",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Machine Sr. No.",
+          "val": "C- 422/327",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Rated Power",
+          "val": "30.85MW",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Year of Manufacture",
+          "val": "2014",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Rated Voltage",
+          "val": "11 ±10% KV",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Rated Current",
+          "val": "2024 Amp.",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Protection",
+          "val": "IP54",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Winding Insulation Class",
+          "val": "F - Class",
+          "section": "mechanical"
+        }
+      ],
+      "schedule": [
+        {
+          "no": 1,
+          "comp": "Stator",
+          "actions": [
+            "Clean & Check of winding , Supports & Bandages",
+            "Checking of Busbar terminal & Joints.",
+            "Cleaning of Stator winding and Connection",
+            "Measure IR of Stator winding."
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 2,
+          "comp": "Rotor",
+          "actions": [
+            "Measure IR of Field winding.",
+            "Check whether all fastening elements are tight.",
+            "Visual Inspection of Rotor."
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 3,
+          "comp": "Generator Bearing",
+          "actions": [
+            "Check Quality of bearing oil.",
+            "Extended visual inspection of end shields."
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 4,
+          "comp": "Brushless Exciter",
+          "actions": [
+            "Measure IR of Rotor winding.",
+            "Measure IR of Stator winding.",
+            "Functional Test of Diode.",
+            "Check whether all fastening elements are tight.",
+            "Visual Inspection of Exciter."
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 5,
+          "comp": "Oil System",
+          "actions": [
+            "Visual inspection on all oil - conveying pipes"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 6,
+          "comp": "Cooling System",
+          "actions": [
+            "Visual inspection of Air - Water Cooler .",
+            "Hydraulic Test of Air - Water Cooler ."
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 7,
+          "comp": "Heating system",
+          "actions": [
+            "Check function of heating system"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 8,
+          "comp": "Monitoring Instruments",
+          "actions": [
+            "Inspection of Monitoring Instrument",
+            "Check slip ring brushes Condition for the ground fault detection"
+          ],
+          "iv_W": "√",
+          "iv_M": null,
+          "iv_Q": null,
+          "iv_H": null,
+          "iv_Y": null,
+          "iv_T": null,
+          "iv_3Y": null
+        }
+      ],
+      "history": [
+        {
+          "year": "2016",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Generator Healthy"
+        },
+        {
+          "year": "2017",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Generator Healthy"
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018",
+          "obs": "During OFF Season - 2018 Inspection of 30.85MW Alternator Rotor & found Dislocation of Rotor bandages of Alternator ,observed in some area at both end rotor.",
+          "act": "Rotor sent to M/s Andritz workshop Bhopal for repairing of Rotor bandages and testing on dated 24.09.2018.",
+          "cost": "57 Lakh",
+          "svc": "External",
+          "provider": "External Agency",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Rotor sent to OEM for repairing & testing"
+        },
+        {
+          "year": "2019",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Rotor bandages gap measured & Recorded after Closing of Season"
+        },
+        {
+          "year": "2020",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Rotor bandages gap measured & Recorded after Closing of Season"
+        },
+        {
+          "year": "2021",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Rotor bandages gap measured & Recorded after Closing of Season"
+        },
+        {
+          "year": "2022",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Rotor bandages gap measured & Recorded after Closing of Season"
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023",
+          "obs": "30.85 MW Alternator Schedule Maintenance as per OEM Recommendation during OFF Season -23",
+          "act": "30.85 MW Alternator dismantled at GSMA Site for Overhauling & Testing in presence of Triveni Engineer",
+          "cost": "13 Lakh",
+          "svc": "External",
+          "provider": "External Agency",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Alternator Dismantled for Overhauling & Testing at Site"
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024",
+          "obs": "NO",
+          "act": "NO",
+          "resp": "Mr. Dileep Kumar",
+          "rem": "Rotor bandages gap measured & Recorded after Closing of Season"
+        }
+      ]
+    }
+  ]
+}

@@ -3,8 +3,10 @@
  * Substitutes __MYSQL_DATABASE__ in init.sql with the resolved database name.
  * Ensures that database exists and defines:
  *   system tables (users, apps, forms, mappings, portal_settings), form/logbook tables,
- *   distillery_operations, mh_* Mill House cards, and pp_* Power Plant equipment
- *   (pp_equipment, pp_specs, pp_oem_schedule, pp_history — used by /api/power).
+ *   distillery_operations, mh_* Mill House cards, pp_* Power Plant equipment
+ *   (pp_equipment, pp_specs, pp_oem_schedule, pp_history — used by /api/power),
+ *   and ppn_* Power Plant equipment new hub
+ *   (ppn_equipment, ppn_specs, ppn_oem_schedule, ppn_history — used by /api/power-new).
  *
  * Idempotent on an existing DB (CREATE TABLE IF NOT EXISTS): safe to re-run after pull
  * to add new tables (e.g. pp_*) without wiping data.
@@ -158,7 +160,7 @@ async function main() {
     await ensureDistilleryOperationsCalcColumns(conn, databaseName);
     await ensureUserProfileColumns(conn, databaseName);
     await ensureManagerColumn(conn, databaseName);
-    console.log(`Done — schema applied on "${databaseName}" (forms + mh_* + pp_* + …).`);
+    console.log(`Done — schema applied on "${databaseName}" (forms + mh_* + pp_* + ppn_* + …).`);
   } catch (err) {
     console.error('Apply failed:', err.message);
     process.exit(1);

@@ -1,0 +1,142 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "CT Fan No.-1",
+      "hierarchy_card": "Cooling Tower",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Turbine > Cooling Tower",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "CT Fan No.-1",
+      "equip_no": "ZIL/GSM/PP/30",
+      "tag_name": "",
+      "category": "30.85MW STG",
+      "subcategory": "Turbine",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "75",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.95",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "550A(Semi.Cond.)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX120 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "280S",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1486",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "260A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "140129121",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Load",
+          "val": "120.69",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "6316C3/ 6316C3 Ins.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Model No.",
+          "val": "ACS850-04-260A-5",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Al.Cable -35Sqmm & VFD Earthing 16 Sqmm Cu Wire",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating- 250 Amp.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "SDU",
+          "val": "315 Amp. , Make - ABB , Model No.- OT315E03P",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

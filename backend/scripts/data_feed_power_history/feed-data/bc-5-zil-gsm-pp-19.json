@@ -1,0 +1,142 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "BC-5",
+      "hierarchy_card": "Belt Conveyor -05",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -05",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "BC-5",
+      "equip_no": "ZIL/GSM/PP/19",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "18.5KW",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.955",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MPCB Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX70mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "T3CI180M",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1445 RPM",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "28-40A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "130904088",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Load",
+          "val": "32.32 A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6309ZZC3 / NDE-6308ZZC3",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A63-30",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MPCB Setting",
+          "val": "28A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4Sqmm)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos 1P 6A- 1Nos",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

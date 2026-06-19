@@ -1,0 +1,137 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "CEP No.-1",
+      "hierarchy_card": "Pumps",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Turbine > Pumps",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "CEP No.-1",
+      "equip_no": "",
+      "tag_name": "",
+      "category": "30.85MW STG",
+      "subcategory": "Turbine",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "37KW",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.922",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "250A(Semi.Cond.)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 70 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "D200L",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "2930 RPM",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "125A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "Load",
+          "section": "electrical"
+        },
+        {
+          "lbl": "67 A",
+          "val": "Bearing DE / NDE",
+          "section": "electrical"
+        },
+        {
+          "lbl": "DE- 6312C3 / NDE-6312C3",
+          "val": "Model No.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "ACS550-01-125A-4",
+          "val": "Signal Isolator",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Make - Masibus , Model - 9000U",
+          "val": "Earthing",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -ABB , Rating- 250 Amp.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MCCB",
+          "val": "250 Amp. , Make - ABB",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

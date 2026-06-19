@@ -145,24 +145,24 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const ops = [];
       for (const app of appsWithForms) {
         const appId = String(app._id);
         if (enabledApps.has(appId)) {
-          ops.push(
-            api.post('/admin/mappings', {
-              userId:  user._id,
-              appId:   app._id,
-              formIds: [...(formChecked.get(appId) ?? new Set())],
-            }),
-          );
+          await api.post('/admin/mappings', {
+            userId:  user._id,
+            appId:   app._id,
+            formIds: [...(formChecked.get(appId) ?? new Set())],
+          });
         } else {
           const existing = userMappings.find((m) => String(m.app?._id) === appId);
-          if (existing) ops.push(api.delete(`/admin/mappings/${existing._id}`));
+          if (existing) await api.delete(`/admin/mappings/${existing._id}`);
         }
       }
-      await Promise.all(ops);
-      toast.success(isDashboardVariant ? 'Dashboard mapping saved.' : 'Form mapping saved.');
+      toast.success(
+        isDashboardVariant
+          ? 'Dashboard mapping saved. BI Control Tower homepage card updated automatically.'
+          : 'Form mapping saved. Forms Hub homepage card updated automatically.',
+      );
       onSaved();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save mapping.');

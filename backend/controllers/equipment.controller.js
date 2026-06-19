@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { validHistoryImageField } = require('../utils/historyImages');
 
 const getEq = async (id) => {
   const [[eq]] = await pool.execute('SELECT * FROM mh_equipment WHERE id = ?', [id]);
@@ -198,7 +199,6 @@ const addHistory = async (req, res) => {
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
     const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
-    const validImg = (d) => (d && String(d).startsWith('data:image') ? d : null);
     const [result] = await pool.execute(
       `INSERT INTO mh_history
          (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after)
@@ -208,7 +208,7 @@ const addHistory = async (req, res) => {
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
        svc || null, provider || null, resp || null, rem || null,
-       validImg(img_before), validImg(img_after)]
+       validHistoryImageField(img_before), validHistoryImageField(img_after)]
     );
     res.status(201).json({ message: 'Record added.', id: result.insertId });
   } catch (err) {
@@ -222,7 +222,6 @@ const updateHistory = async (req, res) => {
   try {
     const { id, hid } = req.params;
     const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
-    const validImg = (d) => (d && String(d).startsWith('data:image') ? d : null);
     const [result] = await pool.execute(
       `UPDATE mh_history
        SET season=?, year=?, date_start=?, date_finish=?,
@@ -233,7 +232,7 @@ const updateHistory = async (req, res) => {
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
        svc || null, provider || null, resp || null, rem || null,
-       validImg(img_before), validImg(img_after),
+       validHistoryImageField(img_before), validHistoryImageField(img_after),
        hid, id]
     );
     if (result.affectedRows === 0)

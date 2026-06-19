@@ -1,0 +1,21 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "HP Heater -2",
+      "hierarchy_card": "HP-02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > HP-02",
+      "image_name": "HP Heater No.- 2",
+      "name": "HP Heater -2",
+      "equip_no": "ZIL/GSM/PP/05",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "",
+      "drive": "",
+      "specs": [],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

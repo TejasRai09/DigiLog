@@ -1,0 +1,212 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "MS-21-2025",
+      "hierarchy_card": "Superheater Tubes (RSH)",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Pressure Parts > Superheater Tubes (RSH)",
+      "image_name": "Motorized Actuator",
+      "name": "MS-21-2025",
+      "equip_no": "",
+      "tag_name": "MS-21",
+      "category": "150TPH BLR",
+      "subcategory": "Pressure Parts",
+      "location": "Power Plant (150 TPH Boiler-RSH OUTLET HEADER VENT ISO MOV )",
+      "commissioned": "05.10.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Rotork control India pvt.ltd",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Sr. No.",
+          "val": "2B25960109",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Actuater type",
+          "val": "K 60 F 10 A",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Wiring Diagram No.",
+          "val": "1687Z00TGZ",
+          "section": "instrument"
+        },
+        {
+          "lbl": "O/P speed",
+          "val": "48.0 rpm",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Lubricant",
+          "val": "SAE80EP Or ALPHA SP68",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Motor",
+          "val": "0.27 KW 3PH",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Avg. Load",
+          "val": "1.70 A   S2-15 min.",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Supply",
+          "val": "415 VAC",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Year of Manufacture",
+          "val": "2014-01",
+          "section": "instrument"
+        }
+      ],
+      "schedule": [
+        {
+          "no": 1,
+          "comp": "Mechanical Part",
+          "act": "Dismantling & Cleaning all internal parts",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 2,
+          "comp": "Handwheel Assembly & Oil Level",
+          "act": "Check handwheel retainer, felt seal & Oil level",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 3,
+          "comp": "Electronic Part",
+          "act": "Cleaning  & tightness  all connection & connectors",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 4,
+          "comp": "Local/ Remote Operation",
+          "act": "Checking the limit switch in open & close condition. Operation checked in local mode & remote mode (DCS)",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 5,
+          "comp": "Motor Assembly",
+          "act": "Physical Checking of motor & IR Value measurement",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "X",
+          "iv_T": "X",
+          "iv_3Y": "√"
+        }
+      ],
+      "history": [
+        {
+          "season": "OFF Season",
+          "year": "2018",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Actuator and Thrust Bearing not Checked",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "2019",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Only Actuator Checked",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "2020",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Actuator and Thrust Bearing Checked",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "2021",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Only Thrust Bearing Checked",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "28/08/2024",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "Indication Bulb Found Fuse",
+          "act": "1.  Replaced the indication bulb.",
+          "cost": "",
+          "svc": "INTERNAL",
+          "provider": "",
+          "resp": "S.Pandey  / Pankaj Singh",
+          "rem": "S.Pandey  / Pankaj Singh"
+        },
+        {
+          "season": "OFF Season",
+          "year": "05.01.2025",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "1.  Oil Level checked , Found Ok.",
+          "cost": "",
+          "svc": "INTERNAL",
+          "provider": "",
+          "resp": "Dilip Jha / Pankaj Kumar",
+          "rem": "Dilip Jha / Pankaj Kumar"
+        }
+      ]
+    }
+  ]
+}
