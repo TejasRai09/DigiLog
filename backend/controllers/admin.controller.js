@@ -1,6 +1,7 @@
 const crypto  = require('crypto');
 const bcrypt  = require('bcryptjs');
 const { pool } = require('../config/mysql');
+const { syncUserHomepageCards } = require('../utils/syncUserHomepageCards');
 const { sendAccountActivationEmail } = require('../services/email.service');
 
 // ─── Mappers ─────────────────────────────────────────────────
@@ -228,6 +229,35 @@ const getMappings = async (_req, res) => {
   res.json(result);
 };
 
+const isDeadlock = (err) => err?.code === 'ER_LOCK_DEADLOCK' || err?.errno === 1213;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function upsertMappingTransaction(conn, userId, appId, formIds) {
+  await conn.beginTransaction();
+  try {
+    await conn.query(
+      `INSERT INTO mappings (user_id, app_id) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
+      [userId, appId],
+    );
+    const [[{ id: mappingId }]] = await conn.query('SELECT LAST_INSERT_ID() AS id');
+
+    await conn.query('DELETE FROM mapping_forms WHERE mapping_id = ?', [mappingId]);
+    if (Array.isArray(formIds) && formIds.length > 0) {
+      const vals = formIds.map((fId) => [mappingId, fId]);
+      await conn.query('INSERT INTO mapping_forms (mapping_id, form_id) VALUES ?', [vals]);
+    }
+
+    await syncUserHomepageCards(conn, userId);
+    await conn.commit();
+    return mappingId;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  }
+}
+
 // POST /api/admin/mappings  – upsert
 const upsertMapping = async (req, res) => {
   const { userId, appId, formIds } = req.body;
@@ -235,39 +265,44 @@ const upsertMapping = async (req, res) => {
   if (!userId || !appId)
     return res.status(400).json({ message: 'userId and appId are required.' });
 
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    // Upsert the mapping row
-    await conn.query(
-      `INSERT INTO mappings (user_id, app_id) VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)`,
-      [userId, appId]
-    );
-    const [[{ id: mappingId }]] = await conn.query('SELECT LAST_INSERT_ID() AS id');
-
-    // Replace mapping_forms
-    await conn.query('DELETE FROM mapping_forms WHERE mapping_id = ?', [mappingId]);
-    if (Array.isArray(formIds) && formIds.length > 0) {
-      const vals = formIds.map((fId) => [mappingId, fId]);
-      await conn.query('INSERT INTO mapping_forms (mapping_id, form_id) VALUES ?', [vals]);
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const conn = await pool.getConnection();
+    try {
+      const mappingId = await upsertMappingTransaction(conn, userId, appId, formIds);
+      return res.json({ message: 'Mapping saved.', mappingId });
+    } catch (err) {
+      if (isDeadlock(err) && attempt < maxAttempts) {
+        await sleep(50 * attempt);
+        continue;
+      }
+      console.error('upsertMapping:', err.message);
+      return res.status(500).json({
+        message: isDeadlock(err)
+          ? 'Mapping save conflicted with another update. Please try again.'
+          : (err.message || 'Failed to save mapping.'),
+      });
+    } finally {
+      conn.release();
     }
-
-    await conn.commit();
-    res.json({ message: 'Mapping saved.', mappingId });
-  } catch (err) {
-    await conn.rollback();
-    throw err;
-  } finally {
-    conn.release();
   }
+
+  return res.status(500).json({ message: 'Failed to save mapping.' });
 };
 
 // DELETE /api/admin/mappings/:id
 const deleteMapping = async (req, res) => {
-  await pool.query('DELETE FROM mappings WHERE id = ?', [req.params.id]);
-  res.json({ message: 'Mapping removed.' });
+  try {
+    const [[row]] = await pool.query('SELECT user_id FROM mappings WHERE id = ?', [req.params.id]);
+    if (!row) return res.status(404).json({ message: 'Mapping not found.' });
+
+    await pool.query('DELETE FROM mappings WHERE id = ?', [req.params.id]);
+    await syncUserHomepageCards(pool, row.user_id);
+    res.json({ message: 'Mapping removed.' });
+  } catch (err) {
+    console.error('deleteMapping:', err.message);
+    res.status(500).json({ message: err.message || 'Failed to remove mapping.' });
+  }
 };
 
 // ─── App & Form management (admin convenience) ───────────────

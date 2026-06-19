@@ -5,7 +5,10 @@ USE `__MYSQL_DATABASE__`;
 CREATE TABLE IF NOT EXISTS `pp_equipment` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `dept`        VARCHAR(20)  NOT NULL DEFAULT 'electrical',
+  `category`    VARCHAR(100) DEFAULT NULL,
+  `subcategory` VARCHAR(100) DEFAULT NULL,
   `equip_no`    VARCHAR(100) DEFAULT NULL,
+  `tag_name`    VARCHAR(100) DEFAULT NULL,
   `name`        VARCHAR(300) NOT NULL,
   `location`    VARCHAR(200) DEFAULT NULL,
   `commissioned` VARCHAR(100) DEFAULT NULL,

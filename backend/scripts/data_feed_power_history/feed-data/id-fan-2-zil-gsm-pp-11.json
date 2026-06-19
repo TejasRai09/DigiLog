@@ -1,0 +1,142 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "ID Fan-2",
+      "hierarchy_card": "ID Fan -02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > ID Fan -02",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "ID Fan-2",
+      "equip_no": "ZIL/GSM/PP/11",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "500KW",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.965",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "Dual Module",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "1250A(Semi.Cond)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 5RX3CX240 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "400",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "993 RPM",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "602A x 2no",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "N8/64681620",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Load",
+          "val": "848A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6326C3 / NDE- 6326 M",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Model No.",
+          "val": "ACS 880-04-650A-3+B051+E208",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "H",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E - 8nos",
+          "section": "electrical"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-1600 Amp.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "SDU",
+          "val": "1600 Amp. , Make - ABB , Model No.- OT1600E03P",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

@@ -18,6 +18,7 @@ import {
   pathIdsForNodeId,
   pathLabels,
 } from '../../config/powerPlantEquipmentHierarchy';
+import { isZilEquipNo } from '../../config/powerEquipmentFields';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
@@ -188,7 +189,12 @@ function ViewToggle({ view, onChange }) {
   );
 }
 
-export default function PowerPlantHierarchyExplorer({ appId = null, returnTo = '/power-plant-equipment-new' }) {
+export default function PowerPlantHierarchyExplorer({
+  appId = null,
+  returnTo = '/power-plant-equipment-new',
+  apiBase = '/power-new',
+  detailPrefix = '/power-plant-equipment-new',
+}) {
   const navigate = useNavigate();
   const [view, setView] = useState(VIEW_CARDS);
   const [pathIds, setPathIds] = useState([POWER_PLANT_EQUIPMENT_TREE.id]);
@@ -202,29 +208,52 @@ export default function PowerPlantHierarchyExplorer({ appId = null, returnTo = '
   const cards = currentNode.children ?? [];
   const childCount = cards.length;
 
+  const openDraftEquipment = (node) => {
+    const lookupName = node.lookupName || node.name;
+    const pathIds = pathIdsForNodeId(node.id);
+    const labels = pathLabels(POWER_PLANT_EQUIPMENT_TREE, pathIds);
+    const category = labels[1] || '';
+    const subcategory = labels[2] || '';
+    const equipNo = node.equipNo || '';
+    navigate(`${detailPrefix}/new`, {
+      state: {
+        appId: appId != null && appId !== '' ? String(appId) : undefined,
+        returnTo,
+        fromHierarchy: true,
+        draftEquipment: {
+          name: lookupName,
+          equip_no: isZilEquipNo(equipNo) ? equipNo : '',
+          tag_name: equipNo && !isZilEquipNo(equipNo) ? equipNo : '',
+          category,
+          subcategory,
+        },
+      },
+    });
+  };
+
   const openEquipment = async (node) => {
-    if (!node.equipNo) {
-      toast.error(`No equipment tag linked for "${node.name}".`);
+    const lookupName = node.lookupName || node.name;
+    if (!node.equipNo && !lookupName) {
+      openDraftEquipment(node);
       return;
     }
     setOpening(node.id);
     try {
-      const params = { equip_no: node.equipNo };
-      const lookupName = node.lookupName || node.name;
+      const params = {};
+      if (node.equipNo) params.equip_no = node.equipNo;
       if (lookupName) params.name = lookupName;
 
-      const { data } = await api.get('/power/lookup', { params });
-      const { id, dept } = data.equipment;
+      const { data } = await api.get(`${apiBase}/lookup`, { params });
+      const { id } = data.equipment;
       const navState = {
         appId: appId != null && appId !== '' ? String(appId) : undefined,
         returnTo,
         fromHierarchy: true,
       };
-      navigate(`/power/${dept}/${id}`, { state: navState });
+      navigate(`${detailPrefix}/${id}`, { state: navState });
     } catch (err) {
       if (err.response?.status === 404) {
-        const tag = node.equipNo ? ` (${node.equipNo})` : '';
-        toast.error(`No equipment history record found for "${node.name}"${tag}.`);
+        openDraftEquipment(node);
       } else {
         toast.error(err.response?.data?.message || 'Could not open equipment.');
       }

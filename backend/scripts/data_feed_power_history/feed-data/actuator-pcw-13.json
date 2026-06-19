@@ -1,0 +1,202 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "PCW-13-2025",
+      "hierarchy_card": "Pumps",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Condenser > Pumps",
+      "image_name": "Motorized Actuator",
+      "name": "PCW-13-2025",
+      "equip_no": "",
+      "tag_name": "PCW-13",
+      "category": "30.85MW STG",
+      "subcategory": "Condenser",
+      "location": "Power Plant (150 TPH Boiler- MCWP-A DISCHARGE MOV )",
+      "commissioned": "05.10.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "AUMA",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Sr. No.",
+          "val": "5033814002-GB-01",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Actuater type",
+          "val": "SA12E 180",
+          "section": "instrument"
+        },
+        {
+          "lbl": "O/P speed",
+          "val": "180.0 RPM",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Lubricant",
+          "val": "EP 0",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Motor",
+          "val": "Avg. Load",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Supply",
+          "val": "415 VAC",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Year of Manufacture",
+          "val": "2014-01",
+          "section": "instrument"
+        }
+      ],
+      "schedule": [
+        {
+          "no": 1,
+          "comp": "Mechanical Part",
+          "act": "Dismantling & Cleaning all internal parts",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 2,
+          "comp": "Handwheel Assembly & Oil Level",
+          "act": "Check handwheel retainer, felt seal & Oil level",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 3,
+          "comp": "Electronic Part",
+          "act": "Cleaning  & tightness  all connection & connectors",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 4,
+          "comp": "Local/ Remote Operation",
+          "act": "Checking the limit switch in open & close condition. Operation checked in local mode & remote mode (DCS)",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 5,
+          "comp": "Motor Assembly",
+          "act": "Physical Checking of motor & IR Value measurement",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "X",
+          "iv_T": "X",
+          "iv_3Y": "√"
+        }
+      ],
+      "history": [
+        {
+          "season": "OFF Season",
+          "year": "2018",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Actuator and Thrust Bearing Checked.",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "2019",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Actuator and Thrust Bearing not Checked.",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "2020",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Only Actuator Checked.",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "2021",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok",
+          "act": "Actuator and Thrust Bearing not Checked.",
+          "cost": "",
+          "svc": "",
+          "provider": "",
+          "resp": "",
+          "rem": ""
+        },
+        {
+          "season": "OFF Season",
+          "year": "13/07/2024",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok.",
+          "act": "1. Grease Quantity  Checked, Found Ok.",
+          "cost": "",
+          "svc": "INTERNAL",
+          "provider": "",
+          "resp": "S.Pandey  / Pankaj Kumar",
+          "rem": "S.Pandey  / Pankaj Kumar"
+        },
+        {
+          "season": "OFF Season",
+          "year": "23/05/2025",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok.",
+          "act": "1. Grease Quantity  Checked, Found Ok.",
+          "cost": "",
+          "svc": "INTERNAL",
+          "provider": "",
+          "resp": "S.Pandey  / Pankaj Singh",
+          "rem": "S.Pandey  / Pankaj Singh"
+        }
+      ]
+    }
+  ]
+}

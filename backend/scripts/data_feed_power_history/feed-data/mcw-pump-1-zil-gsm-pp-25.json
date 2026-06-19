@@ -1,0 +1,142 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "MCW Pump-1",
+      "hierarchy_card": "Pumps",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Condenser > Pumps",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "MCW Pump-1",
+      "equip_no": "ZIL/GSM/PP/25",
+      "tag_name": "",
+      "category": "30.85MW STG",
+      "subcategory": "Condenser",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "315",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.96",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "1600A(Semi.Cond.)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 3RX3CX 240 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "355",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "992",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "807A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "64728342",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Load",
+          "val": "550",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "NU220/6322C3 Ins.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Model No.",
+          "val": "ACS850-04-807A-5",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Al.Cable -35Sqmm & VFD Earthing 16 Sqmm Cu Wire",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating- 1250 Amp.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "SDU",
+          "val": "1250 Amp. , Make - ABB , Model No.- OT1250E03P",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

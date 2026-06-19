@@ -34,6 +34,7 @@ export default function EquipmentSpecificationHub({
   onSave,
   saving = false,
   embedded = false,
+  hideBulkActions = false,
 }) {
   const initial = useMemo(() => parseSpecsFromApi(apiSpecs), [apiSpecs]);
   const baselineRef = useRef({ specs: initial.specs, subSections: initial.subSections });
@@ -48,6 +49,7 @@ export default function EquipmentSpecificationHub({
 
   const [subModal, setSubModal] = useState(null);
   const [subModalSlots, setSubModalSlots] = useState([]);
+  const [subModalError, setSubModalError] = useState('');
   const [paramModal, setParamModal] = useState(null);
   const [tempParams, setTempParams] = useState([]);
   const [uploadedFileName, setUploadedFileName] = useState(null);
@@ -94,16 +96,20 @@ export default function EquipmentSpecificationHub({
   const openSubModal = (sectionId) => {
     const slots = [...(subSections[sectionId] || [])];
     while (slots.length < 6) slots.push('');
+    setSubModalError('');
     setSubModal({ sectionId });
     setSubModalSlots(slots.slice(0, 6));
   };
 
-  const saveSubModal = () => {
+  const saveSubModal = async () => {
     const newSubs = [];
     for (const val of subModalSlots) {
       const trimmed = val.trim();
       if (!trimmed) continue;
-      if (newSubs.includes(trimmed)) return;
+      if (newSubs.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
+        setSubModalError('Duplicate subgroup names are not allowed.');
+        return;
+      }
       newSubs.push(trimmed);
     }
     if (newSubs.length === 0) return;
@@ -111,23 +117,31 @@ export default function EquipmentSpecificationHub({
     const secName = subModal.sectionId;
     const oldSubs = subSections[secName] || [];
 
-    setSpecs((prev) => {
-      let next = [...prev];
-      oldSubs.forEach((oldName, idx) => {
-        const newName = newSubs[idx];
-        if (newName && newName !== oldName) {
-          next = next.map((s) =>
-            s.section === secName && s.subSection === oldName ? { ...s, subSection: newName } : s
-          );
-        } else if (!newName) {
-          next = next.filter((s) => !(s.section === secName && s.subSection === oldName));
-        }
-      });
-      return next;
+    let nextSpecs = [...specs];
+    oldSubs.forEach((oldName, idx) => {
+      const newName = newSubs[idx];
+      if (newName && newName !== oldName) {
+        nextSpecs = nextSpecs.map((s) =>
+          s.section === secName && s.subSection === oldName ? { ...s, subSection: newName } : s
+        );
+      } else if (!newName) {
+        nextSpecs = nextSpecs.filter((s) => !(s.section === secName && s.subSection === oldName));
+      }
     });
 
-    setSubSections((p) => ({ ...p, [secName]: newSubs }));
+    const nextSubSections = { ...subSections, [secName]: newSubs };
+
+    setSpecs(nextSpecs);
+    setSubSections(nextSubSections);
+    setSubModalError('');
     setSubModal(null);
+
+    try {
+      await handlePersist(nextSpecs, nextSubSections);
+      setIsEditMode(false);
+    } catch {
+      /* stay in edit mode on save failure */
+    }
   };
 
   const openParamModal = (sectionId, subName) => {
@@ -219,9 +233,9 @@ export default function EquipmentSpecificationHub({
     setUploadedFileName(null);
   };
 
-  const handlePersist = useCallback(async () => {
+  const handlePersist = useCallback(async (specsToSave = specs, subSectionsToSave = subSections) => {
     if (onSave) {
-      await onSave(specs, subSections);
+      await onSave(specsToSave, subSectionsToSave);
       setUploadedFileName(null);
     }
   }, [onSave, specs, subSections]);
@@ -304,13 +318,15 @@ export default function EquipmentSpecificationHub({
             </span>
           </button>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => openSubModal(sec.id)}
-              className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100"
-            >
-              <MdAdd className="w-3 h-3" /> Sub-group
-            </button>
+            {isEditMode && (
+              <button
+                type="button"
+                onClick={() => openSubModal(sec.id)}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100"
+              >
+                <MdAdd className="w-3 h-3" /> Sub-group
+              </button>
+            )}
             <button type="button" onClick={() => toggleSection(sec.id)} className="text-slate-400 hover:text-slate-600">
               {collapsed ? <MdChevronRight className="w-4 h-4" /> : <MdExpandMore className="w-4 h-4" />}
             </button>
@@ -339,13 +355,15 @@ export default function EquipmentSpecificationHub({
                       <span className="text-[9px] text-slate-400 bg-slate-200/50 px-1.5 py-0.5 rounded-full">
                         {subSpecs.length} parameter{subSpecs.length !== 1 ? 's' : ''}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => openParamModal(sec.id, subName)}
-                        className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold uppercase"
-                      >
-                        + Add/Edit Param
-                      </button>
+                      {isEditMode && (
+                        <button
+                          type="button"
+                          onClick={() => openParamModal(sec.id, subName)}
+                          className="text-indigo-600 hover:text-indigo-800 text-[10px] font-bold uppercase"
+                        >
+                          + Add/Edit Param
+                        </button>
+                      )}
                       <button type="button" onClick={() => toggleSubGroup(sec.id, subName)} className="text-slate-400">
                         {subCollapsed ? <MdChevronRight className="w-3.5 h-3.5" /> : <MdExpandMore className="w-3.5 h-3.5" />}
                       </button>
@@ -356,7 +374,9 @@ export default function EquipmentSpecificationHub({
                     <div className="divide-y divide-slate-100">
                       {subSpecs.length === 0 ? (
                         <p className="px-6 py-4 text-xs text-slate-400 italic text-center">
-                          No parameters added yet. Click &quot;+ Add/Edit Param&quot; to populate.
+                          {isEditMode
+                            ? 'No parameters added yet. Click "+ Add/Edit Param" to populate.'
+                            : 'No parameters recorded.'}
                         </p>
                       ) : (
                         subSpecs.map((item) => (
@@ -442,38 +462,42 @@ export default function EquipmentSpecificationHub({
                     className="w-full sm:w-48 pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => downloadSpecTemplate()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200"
-                >
-                  <MdDownload className="w-3.5 h-3.5" /> Template
-                </button>
-                <input ref={uploadRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
-                {uploadedFileName ? (
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className="text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 truncate max-w-[160px] sm:max-w-[220px]"
-                      title={uploadedFileName}
-                    >
-                      {uploadedFileName}
-                    </span>
+                {!hideBulkActions && (
+                  <>
                     <button
                       type="button"
-                      onClick={() => uploadRef.current?.click()}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 shrink-0"
+                      onClick={() => downloadSpecTemplate()}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200"
                     >
-                      <MdUpload className="w-3.5 h-3.5" /> Re-upload
+                      <MdDownload className="w-3.5 h-3.5" /> Template
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => uploadRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200"
-                  >
-                    <MdUpload className="w-3.5 h-3.5" /> Upload
-                  </button>
+                    <input ref={uploadRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleUpload} />
+                    {uploadedFileName ? (
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span
+                          className="text-xs font-medium text-slate-600 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 truncate max-w-[160px] sm:max-w-[220px]"
+                          title={uploadedFileName}
+                        >
+                          {uploadedFileName}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => uploadRef.current?.click()}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200 shrink-0"
+                        >
+                          <MdUpload className="w-3.5 h-3.5" /> Re-upload
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => uploadRef.current?.click()}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg border border-indigo-200"
+                      >
+                        <MdUpload className="w-3.5 h-3.5" /> Upload
+                      </button>
+                    )}
+                  </>
                 )}
                 <button
                   type="button"
@@ -488,14 +512,16 @@ export default function EquipmentSpecificationHub({
                   {isEditMode ? <MdCheck className="w-3.5 h-3.5" /> : <MdEdit className="w-3.5 h-3.5" />}
                   {saving ? 'Saving…' : isEditMode ? 'Finish Edit' : 'Edit Specs'}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg border border-rose-200"
-                >
-                  <MdRefresh className="w-3.5 h-3.5" /> Reset
-                </button>
-                {!isEditMode && uploadedFileName && (
+                {!hideBulkActions && (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg border border-rose-200"
+                  >
+                    <MdRefresh className="w-3.5 h-3.5" /> Reset
+                  </button>
+                )}
+                {!hideBulkActions && !isEditMode && uploadedFileName && (
                   <button
                     type="button"
                     onClick={handlePersist}
@@ -532,7 +558,7 @@ export default function EquipmentSpecificationHub({
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Manage Sub-groups</h3>
-              <button type="button" onClick={() => setSubModal(null)} className="text-slate-400 hover:text-slate-600">
+              <button type="button" onClick={() => { setSubModalError(''); setSubModal(null); }} className="text-slate-400 hover:text-slate-600">
                 <MdClose className="w-5 h-5" />
               </button>
             </div>
@@ -566,9 +592,10 @@ export default function EquipmentSpecificationHub({
                     <input
                       type="text"
                       value={val}
-                      onChange={(e) =>
-                        setSubModalSlots((prev) => prev.map((s, j) => (j === i ? e.target.value : s)))
-                      }
+                      onChange={(e) => {
+                        setSubModalError('');
+                        setSubModalSlots((prev) => prev.map((s, j) => (j === i ? e.target.value : s)));
+                      }}
                       placeholder="Empty Slot Label"
                       className="w-full px-3 py-1.5 border border-slate-200 bg-slate-50 rounded-lg text-xs"
                     />
@@ -576,13 +603,18 @@ export default function EquipmentSpecificationHub({
                 ))}
               </div>
               <p className="text-[10px] text-slate-400">At most 6 subgroups per discipline. Empty slots are hidden.</p>
+              {subModalError && (
+                <p className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
+                  {subModalError}
+                </p>
+              )}
             </div>
             <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-2">
-              <button type="button" onClick={() => setSubModal(null)} className="px-3 py-1.5 text-xs font-semibold border rounded-lg">
+              <button type="button" onClick={() => { setSubModalError(''); setSubModal(null); }} className="px-3 py-1.5 text-xs font-semibold border rounded-lg">
                 Cancel
               </button>
               <button type="button" onClick={saveSubModal} className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-lg">
-                Save Subgroups
+                Save Changes
               </button>
             </div>
           </div>

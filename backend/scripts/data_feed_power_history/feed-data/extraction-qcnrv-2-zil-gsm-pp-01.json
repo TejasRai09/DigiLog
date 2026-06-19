@@ -1,0 +1,188 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "Extraction QCNRV-2",
+      "hierarchy_card": "Extraction QCNRV-2",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Turbine > Extraction QCNRV-2",
+      "image_name": "30.85 MW Turbine Extraction Condensing Cum Bleed",
+      "name": "Extraction QCNRV-2",
+      "equip_no": "ZIL/GSM/PP/01",
+      "tag_name": "",
+      "category": "30.85MW STG",
+      "subcategory": "Turbine",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "GE Triveni Ltd",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Inlet Steam Flow",
+          "val": "150 TPH",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Rated Power",
+          "val": "30850 KW",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Exhaust Pressure",
+          "val": "0.098 Bar",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Inlet Steam Pressure",
+          "val": "102.97 Bar",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Turbine Overspeed Range",
+          "val": "6704-6828",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Turbine Speed",
+          "val": "6150 RPM",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Year of Manufacture",
+          "val": "2014",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Inlet Steam Temprature",
+          "val": "535°C",
+          "section": "mechanical"
+        },
+        {
+          "lbl": "Serial No.",
+          "val": "GET-4HE-029",
+          "section": "mechanical"
+        }
+      ],
+      "schedule": [
+        {
+          "no": 1,
+          "comp": "Turbine rotor",
+          "actions": [
+            "Clean & Checking of moving blades",
+            "clean and check of fins",
+            "cleaning and checking of general shafts",
+            "Checking of Steam path clerance measurement nozzle to blades left and right",
+            "Rotor Run out checking",
+            "Bump test and axial float active & non-active measurement checking"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": null,
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 2,
+          "comp": "Nozzle Segment & Diaphragms",
+          "actions": [
+            "cleaning and checking of top and bottom nozzles",
+            "clening and checking of top and bottoms Diaphragms nozzles",
+            "Checking of steam path clearance nozzle to blades"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": null,
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 3,
+          "comp": "Rotor Glands",
+          "actions": [
+            "Checking and cleaning of HP labyrinth packing gland",
+            "Checking of gland drains"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": null,
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 4,
+          "comp": "Casing",
+          "actions": [
+            "Cleanig and checking of parting plates with HP holde , BP gland ,GBC .",
+            "Checking key guide"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": null,
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 5,
+          "comp": "Bearing and Coupling",
+          "actions": [
+            "Checking of both side (front and rear) journal bearing",
+            "Checking of Bearings clearance before dismantling and after assembling",
+            "checking and cleaning of expension blades",
+            "Checking of shear pin of coupling"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 6,
+          "comp": "ESV",
+          "actions": [
+            "Checking and cleaning of valve seat lapping and blue matching",
+            "checking and cleaning of valve spindle, runout",
+            "checking and cleaning of Oil piston, spring"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        },
+        {
+          "no": 7,
+          "comp": "Control Valves",
+          "actions": [
+            "Checking and cleaning of throat valves(4nos)",
+            "checking of control valves opening measurement",
+            "Checking of gland packing",
+            "checking seat Blue matching and spindle runout of valve"
+          ],
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": null
+        }
+      ],
+      "history": []
+    }
+  ]
+}

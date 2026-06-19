@@ -15,10 +15,6 @@ const {
   getAllAppsWithForms,
 } = require('../controllers/admin.controller');
 const {
-  getAdminHomepageCards,
-  upsertUserHomepageCards,
-} = require('../controllers/homepageCards.controller');
-const {
   getAdminBiSettings,
   updateAdminBiSettings,
 } = require('../controllers/biSettings.controller');
@@ -43,9 +39,6 @@ router.post('/mappings',     upsertMapping);
 router.delete('/mappings/:id', deleteMapping);
 
 router.get('/apps-all',      getAllAppsWithForms);
-
-router.get('/homepage-cards',  getAdminHomepageCards);
-router.put('/homepage-cards',  upsertUserHomepageCards);
 
 router.get('/bi-settings',  getAdminBiSettings);
 router.put('/bi-settings',  updateAdminBiSettings);

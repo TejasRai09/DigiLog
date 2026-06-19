@@ -12,6 +12,14 @@
     "db:schema": "node scripts/apply-init-sql.js",
     "db:apply-sql": "node scripts/apply-sql-file.js",
     "db:mill-mapping": "node scripts/import-mill-mapping.js",
+    "db:import-power-xlsx": "node scripts/import-power-equipment-xlsx.js",
+    "db:import-ppn-feed": "node scripts/data_feed_power_history/import-ppn-feed.js",
+    "db:import-ppn-feed-all": "node scripts/data_feed_power_history/import-all-feeds.js",
+    "db:generate-ppn-feeds": "node scripts/data_feed_power_history/generate-bulk-feeds.mjs",
+    "db:generate-actuator-feeds": "node scripts/data_feed_power_history/generate-actuator-feeds.mjs",
+    "db:clear-power-equipment": "node scripts/clear-power-equipment-data.js",
+    "db:clear-power-equipment-new": "node scripts/clear-power-equipment-data.js --new",
+    "db:clear-power-history": "node scripts/clear-power-equipment-data.js --history-only",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
@@ -37,7 +45,7 @@
     "mysql2": "^3.10.0",
     "nodemailer": "^6.9.14",
     "prisma": "^7.8.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "npm:@e965/xlsx@0.20.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"

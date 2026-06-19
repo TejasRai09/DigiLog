@@ -101,7 +101,9 @@ const PowerList = () => {
               <thead>
                 <tr>
                   <th className="th w-10">#</th>
-                  <th className="th">Tag / Equipment No.</th>
+                  <th className="th">Equipment No.</th>
+                  <th className="th">Tag Name</th>
+                  <th className="th">Category</th>
                   <th className="th">Name of Equipment</th>
                   <th className="th">Location</th>
                   <th className="th">Commissioned</th>
@@ -111,7 +113,7 @@ const PowerList = () => {
               <tbody className="divide-y divide-gray-100 bg-white">
                 {equipment.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="td text-center text-gray-400 py-16">
+                    <td colSpan={8} className="td text-center text-gray-400 py-16">
                       No equipment found.
                     </td>
                   </tr>
@@ -123,6 +125,10 @@ const PowerList = () => {
                   >
                     <td className="td text-gray-400">{(page - 1) * LIMIT + idx + 1}</td>
                     <td className="td font-mono font-semibold text-blue-700">{eq.equip_no || '—'}</td>
+                    <td className="td font-mono text-blue-600">{eq.tag_name || '—'}</td>
+                    <td className="td text-gray-600">
+                      {[eq.category, eq.subcategory].filter(Boolean).join(' / ') || '—'}
+                    </td>
                     <td className="td font-medium text-gray-900">{eq.name}</td>
                     <td className="td text-gray-500">{eq.location || '—'}</td>
                     <td className="td text-gray-500">{eq.commissioned || '—'}</td>

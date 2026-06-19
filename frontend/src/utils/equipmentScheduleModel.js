@@ -16,7 +16,13 @@ export function parseActionSteps(act = '') {
   if (raw.includes('||')) {
     return raw.split('||').map((s) => s.trim()).filter(Boolean);
   }
-  return raw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const lines = raw.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (lines.length > 1) return lines;
+  if (raw.includes(';')) {
+    const parts = raw.split(';').map((s) => s.trim()).filter(Boolean);
+    if (parts.length > 1) return parts;
+  }
+  return [raw];
 }
 
 export function joinActionSteps(actions = []) {

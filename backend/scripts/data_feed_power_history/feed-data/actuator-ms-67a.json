@@ -1,0 +1,155 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "MS-67A-2024",
+      "hierarchy_card": "GVC",
+      "hierarchy_path": "Power Plant > 30.85MW STG > Turbine > GVC",
+      "image_name": "Motorized Actuator",
+      "name": "MS-67A-2024",
+      "equip_no": "",
+      "tag_name": "MS-67A",
+      "category": "30.85MW STG",
+      "subcategory": "Turbine",
+      "location": "Power Plant (150 TPH Boiler -MS-67A)",
+      "commissioned": "05.10.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "AUMA",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Sr. No.",
+          "val": "91015205",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Actuater type",
+          "val": "SA3A16",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Wiring Diagram No.",
+          "val": "3-WDP-D2G-ZDEA1C3A-A2D00",
+          "section": "instrument"
+        },
+        {
+          "lbl": "O/P speed",
+          "val": "16.RPM",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Lubricant",
+          "val": "EP 0",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Motor",
+          "val": "Avg. Load",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Supply",
+          "val": "415 VAC",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Year of Manufacture",
+          "val": "2014-01",
+          "section": "instrument"
+        }
+      ],
+      "schedule": [
+        {
+          "no": 1,
+          "comp": "Mechanical Part",
+          "act": "Dismantling & Cleaning all internal parts",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 2,
+          "comp": "Handwheel Assembly & Oil Level",
+          "act": "Check handwheel retainer, felt seal & Oil level",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 3,
+          "comp": "Electronic Part",
+          "act": "Cleaning  & tightness  all connection & connectors",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 4,
+          "comp": "Local/ Remote Operation",
+          "act": "Checking the limit switch in open & close condition. Operation checked in local mode & remote mode (DCS)",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "√",
+          "iv_T": "X",
+          "iv_3Y": "X"
+        },
+        {
+          "no": 5,
+          "comp": "Motor Assembly",
+          "act": "Physical Checking of motor & IR Value measurement",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_Q": "X",
+          "iv_H": "X",
+          "iv_Y": "X",
+          "iv_T": "X",
+          "iv_3Y": "√"
+        }
+      ],
+      "history": [
+        {
+          "season": "OFF Season",
+          "year": "05.08.2024",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok.",
+          "act": "1.  Grease Quantity Checked found ok.",
+          "cost": "",
+          "svc": "INTERNAL",
+          "provider": "",
+          "resp": "Prashant Shukla / Pankaj Singh",
+          "rem": "Prashant Shukla / Pankaj Singh"
+        },
+        {
+          "season": "OFF Season",
+          "year": "28/05/2025",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "All Parts Found Ok.",
+          "act": "1. Grease quantity  Checked, Found Ok.",
+          "cost": "",
+          "svc": "INTERNAL",
+          "provider": "",
+          "resp": "Prashant Shukla  / Pankaj Kumar",
+          "rem": "Prashant Shukla  / Pankaj Kumar"
+        }
+      ]
+    }
+  ]
+}

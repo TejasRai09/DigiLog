@@ -2,19 +2,17 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch, MdPeople,
-  MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdHome, MdUpload,
+  MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdUpload,
   MdSupervisorAccount,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import EmployeeFormMappingModal from '../../components/admin/EmployeeFormMappingModal';
-import EmployeeHomepageMappingModal from '../../components/admin/EmployeeHomepageMappingModal';
 import EmployeeDataUploadAccessModal from '../../components/admin/EmployeeDataUploadAccessModal';
 import AssignManagerModal from '../../components/admin/AssignManagerModal';
 import BiDashboardSettings from '../../components/admin/BiDashboardSettings';
 import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
-import { homepageCardLabel } from '../../config/homepageCards';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
 
 const ROLES = ['employee', 'admin'];
@@ -116,25 +114,21 @@ const EmployeeManagement = () => {
   const [mailing, setMailing]     = useState(new Set());
   const [rowMenu, setRowMenu]     = useState(null);
   const [mappingModal, setMappingModal] = useState(null); // { user, variant: 'forms' | 'dashboards' }
-  const [homepageModal, setHomepageModal] = useState(null);
   const [dataUploadModal, setDataUploadModal] = useState(null);
   const [managerModal, setManagerModal] = useState(null); // user object
   const [mappings, setMappings]   = useState([]);
-  const [homepageAssignments, setHomepageAssignments] = useState([]);
   const [dataUploadAssignments, setDataUploadAssignments] = useState([]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [uRes, mRes, hRes, dRes] = await Promise.all([
+      const [uRes, mRes, dRes] = await Promise.all([
         api.get('/admin/users'),
         api.get('/admin/mappings'),
-        api.get('/admin/homepage-cards'),
         api.get('/admin/data-upload-access'),
       ]);
       setUsers(uRes.data);
       setMappings(mRes.data);
-      setHomepageAssignments(hRes.data);
       setDataUploadAssignments(dRes.data.assignments || []);
     } catch {
       toast.error('Failed to load data.');
@@ -461,21 +455,6 @@ const EmployeeManagement = () => {
                   onClick={() => {
                     const x = rowMenu.user;
                     setRowMenu(null);
-                    setHomepageModal(x);
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  <MdHome className="h-4 w-4 text-slate-600" />
-                  Homepage cards
-                </button>
-              )}
-              {rowMenu.user.role === 'employee' && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    const x = rowMenu.user;
-                    setRowMenu(null);
                     setDataUploadModal(x);
                   }}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -527,19 +506,6 @@ const EmployeeManagement = () => {
           </>,
           document.body
         )}
-
-      {homepageModal && (
-        <EmployeeHomepageMappingModal
-          key={`homepage-${homepageModal._id}`}
-          user={homepageModal}
-          homepageAssignments={homepageAssignments}
-          onClose={() => setHomepageModal(null)}
-          onSaved={() => {
-            setHomepageModal(null);
-            fetchData();
-          }}
-        />
-      )}
 
       {dataUploadModal && (
         <EmployeeDataUploadAccessModal

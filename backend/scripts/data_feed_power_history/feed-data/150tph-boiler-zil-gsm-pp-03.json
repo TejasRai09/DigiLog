@@ -1,0 +1,21 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "150TPH Boiler",
+      "hierarchy_card": "Steam Drum",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Pressure Parts > Steam Drum",
+      "image_name": "150TPH High Pressure Boiler",
+      "name": "150TPH Boiler",
+      "equip_no": "ZIL/GSM/PP/03",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Pressure Parts",
+      "location": "POWER PLANT",
+      "commissioned": "",
+      "drive": "",
+      "specs": [],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

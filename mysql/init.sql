@@ -106,17 +106,19 @@ CREATE TABLE IF NOT EXISTS `user_homepage_cards` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Backfill: give forms_hub to everyone with a non-BI mapping,
---           give bi_control_tower to everyone mapped to the BI app.
+-- Backfill: forms_hub when at least one non-BI form is mapped;
+--           bi_control_tower when at least one BI dashboard is mapped.
 INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
   SELECT DISTINCT m.user_id, 'forms_hub'
-  FROM `mappings` m
+  FROM `mapping_forms` mf
+  JOIN `mappings` m ON m.id = mf.mapping_id
   JOIN `apps` a ON a.id = m.app_id
   WHERE a.name <> 'BI Control Tower';
 
 INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
   SELECT DISTINCT m.user_id, 'bi_control_tower'
-  FROM `mappings` m
+  FROM `mapping_forms` mf
+  JOIN `mappings` m ON m.id = mf.mapping_id
   JOIN `apps` a ON a.id = m.app_id
   WHERE a.name = 'BI Control Tower';
 
@@ -642,7 +644,10 @@ CREATE TABLE IF NOT EXISTS `ph_stoppage` (
 CREATE TABLE IF NOT EXISTS `pp_equipment` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `dept`        VARCHAR(20)  NOT NULL DEFAULT 'electrical',
+  `category`    VARCHAR(100) DEFAULT NULL,
+  `subcategory` VARCHAR(100) DEFAULT NULL,
   `equip_no`    VARCHAR(100) DEFAULT NULL,
+  `tag_name`    VARCHAR(100) DEFAULT NULL,
   `name`        VARCHAR(300) NOT NULL,
   `location`    VARCHAR(200) DEFAULT NULL,
   `commissioned` VARCHAR(100) DEFAULT NULL,
@@ -702,6 +707,76 @@ CREATE TABLE IF NOT EXISTS `pp_history` (
   `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`equip_id`) REFERENCES `pp_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Power Plant Equipment History (new hub) — separate from pp_* (/api/power-new)
+CREATE TABLE IF NOT EXISTS `ppn_equipment` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `dept`        VARCHAR(20)  NOT NULL DEFAULT 'plant',
+  `category`    VARCHAR(100) DEFAULT NULL,
+  `subcategory` VARCHAR(100) DEFAULT NULL,
+  `equip_no`    VARCHAR(100) DEFAULT NULL,
+  `tag_name`    VARCHAR(100) DEFAULT NULL,
+  `name`        VARCHAR(300) NOT NULL,
+  `location`    VARCHAR(200) DEFAULT NULL,
+  `commissioned` VARCHAR(100) DEFAULT NULL,
+  `drive`       VARCHAR(200) DEFAULT NULL,
+  `photo`       MEDIUMTEXT   DEFAULT NULL,
+  `plate`       MEDIUMTEXT   DEFAULT NULL,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_ppn_dept (dept),
+  INDEX idx_ppn_category (category, subcategory),
+  INDEX idx_ppn_sort (dept, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_specs` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `lbl`         VARCHAR(300) NOT NULL,
+  `val`         TEXT         DEFAULT NULL,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_oem_schedule` (
+  `id`       INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id` INT          NOT NULL,
+  `no`       INT          NOT NULL DEFAULT 0,
+  `comp`     VARCHAR(300) DEFAULT NULL,
+  `act`      TEXT         DEFAULT NULL,
+  `iv_W`     CHAR(1)      DEFAULT NULL,
+  `iv_M`     CHAR(1)      DEFAULT NULL,
+  `iv_Q`     CHAR(1)      DEFAULT NULL,
+  `iv_H`     CHAR(1)      DEFAULT NULL,
+  `iv_Y`     CHAR(1)      DEFAULT NULL,
+  `iv_T`     CHAR(1)      DEFAULT NULL,
+  `iv_3Y`    CHAR(1)      DEFAULT NULL,
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_history` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `season`      VARCHAR(20)  DEFAULT NULL,
+  `year`        VARCHAR(50)  DEFAULT NULL,
+  `date_start`  DATE         DEFAULT NULL,
+  `date_finish` DATE         DEFAULT NULL,
+  `obs`         TEXT         DEFAULT NULL,
+  `act`         TEXT         DEFAULT NULL,
+  `cost`        VARCHAR(50)  DEFAULT NULL,
+  `svc`         VARCHAR(20)  DEFAULT NULL,
+  `provider`    VARCHAR(300) DEFAULT NULL,
+  `resp`        VARCHAR(300) DEFAULT NULL,
+  `rem`         TEXT         DEFAULT NULL,
+  `img_before`  MEDIUMTEXT   DEFAULT NULL,
+  `img_after`   MEDIUMTEXT   DEFAULT NULL,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `distillery_operations` (

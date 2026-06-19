@@ -1,0 +1,254 @@
+bucket,dept,equip_no,name,hierarchy_path,display_label
+shared,electrical,ZIL/GSM/PP/01,30.85MW Steam Turbine,Power Plant > 30.85MW STG > Turbine > Gearbox | Power Plant > 30.85MW STG > Turbine > Barring Gear,
+shared,electrical,ZIL/GSM/PP/02,30.85MW Generator Set,Power Plant > 30.85MW STG > Turbine > Alternator,
+shared,electrical,ZIL/GSM/PP/03,150TPH Boiler,Power Plant > 150TPH BLR > Pressure Parts > Steam Drum,
+shared,electrical,ZIL/GSM/PP/04,HP Heater -1,Power Plant > 150TPH BLR > Auxiliary Equipment > HP-01 | Power Plant > 70TPH BLR > Auxiliary Equipment > HP | Power Plant > 30.85MW STG > Turbine > HP Heater-1,
+shared,electrical,ZIL/GSM/PP/05,HP Heater -2,Power Plant > 150TPH BLR > Auxiliary Equipment > HP-02 | Power Plant > 70TPH BLR > Auxiliary Equipment > LP | Power Plant > 30.85MW STG > Turbine > HP Heater-2,
+shared,electrical,ZIL/GSM/PP/06,BFP-1,Power Plant > 150TPH BLR > Auxiliary Equipment > BFP -01 | Power Plant > 70TPH BLR > Auxiliary Equipment > BFP -01,
+shared,electrical,ZIL/GSM/PP/07,BFP-2,Power Plant > 150TPH BLR > Auxiliary Equipment > BFP -02 | Power Plant > 70TPH BLR > Auxiliary Equipment > BFP -02,
+shared,electrical,ZIL/GSM/PP/08,BFP-3,Power Plant > 150TPH BLR > Auxiliary Equipment > BFP -03 | Power Plant > 70TPH BLR > Auxiliary Equipment > BFP -03,
+shared,electrical,ZIL/GSM/PP/09,BFP-4,Power Plant > 150TPH BLR > Auxiliary Equipment > BFP -04,
+shared,electrical,ZIL/GSM/PP/10,ID Fan -1,Power Plant > 150TPH BLR > Auxiliary Equipment > ID Fan -01 | Power Plant > 70TPH BLR > Auxiliary Equipment > ID Fan -01,
+shared,electrical,ZIL/GSM/PP/11,ID Fan-2,Power Plant > 150TPH BLR > Auxiliary Equipment > ID Fan -02 | Power Plant > 70TPH BLR > Auxiliary Equipment > ID Fan -02,
+shared,electrical,ZIL/GSM/PP/12,FD Fan-1,Power Plant > 150TPH BLR > Auxiliary Equipment > FD Fan -01 | Power Plant > 70TPH BLR > Auxiliary Equipment > FD Fan,
+shared,electrical,ZIL/GSM/PP/13,FD Fan-2,Power Plant > 150TPH BLR > Auxiliary Equipment > FD Fan -02,
+shared,electrical,ZIL/GSM/PP/14,SA Fan -1,Power Plant > 150TPH BLR > Auxiliary Equipment > SA Fan -01 | Power Plant > 70TPH BLR > Auxiliary Equipment > SA Fan -01,
+shared,electrical,ZIL/GSM/PP/14,SA Fan -2,Power Plant > 150TPH BLR > Auxiliary Equipment > SA Fan -02,
+shared,electrical,ZIL/GSM/PP/15,BC-1,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -01 | Power Plant > 70TPH BLR > Fuel Handling System > MBC,
+shared,electrical,ZIL/GSM/PP/15,CEP No.-1,Power Plant > 70TPH BLR > Auxiliary Equipment > Exhaust Condensate Drain Pump-1 | Power Plant > 30.85MW STG > Turbine > Pumps,
+shared,electrical,ZIL/GSM/PP/15,CEP No.-2,Power Plant > 70TPH BLR > Auxiliary Equipment > Exhaust Condensate Drain Pump-2,
+shared,electrical,ZIL/GSM/PP/15,MOP,Power Plant > 30.85MW STG > Turbine > Oil Cooler,
+shared,electrical,ZIL/GSM/PP/16,BC-2,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -02,
+shared,electrical,ZIL/GSM/PP/17,BC-3,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -03,
+shared,electrical,ZIL/GSM/PP/18,BC-4,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -04,
+shared,electrical,ZIL/GSM/PP/19,BC-5,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -05,
+shared,electrical,ZIL/GSM/PP/20,BC-6,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -06,
+shared,electrical,ZIL/GSM/PP/21,BC-7,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -07,
+shared,electrical,ZIL/GSM/PP/22,BC-8,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -08,
+shared,electrical,ZIL/GSM/PP/23,Bagasse Elevator,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Bagasse Elevator | Power Plant > 70TPH BLR > Fuel Handling System > Bagasse Elevator,
+shared,electrical,ZIL/GSM/PP/24,Slat Chain,Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Slat Chain Carrier | Power Plant > 70TPH BLR > Fuel Handling System > RBC,
+shared,electrical,ZIL/GSM/PP/25,MCW Pump-1,Power Plant > 30.85MW STG > Condenser > Pumps,
+shared,electrical,ZIL/GSM/PP/30,CT Fan No.-1,Power Plant > 30.85MW STG > Turbine > Cooling Tower,
+shared,electrical,ZIL/GSM/PP/30,Inst.Air Comp.-1,Power Plant > 150TPH BLR > Ash Handling System > Service Air Compressor | Power Plant > 30.85MW STG > Turbine > Dessicant Air Dryer,
+shared,instrument,MOV-100,MOV-100 (Bleed-1 MOV),Power Plant > 30.85MW STG > Turbine > Bleed-1,
+shared,instrument,MOV-101,MOV-101 (Bleed-2 MOV),Power Plant > 30.85MW STG > Turbine > Bleed-2,
+shared,instrument,MOV-401,MOV-401 (Steam to hogger ejector MOV),Power Plant > 30.85MW STG > Turbine > Ejector,
+shared,instrument,MS-107,MS-107 (FSH outlet vent MOV),Power Plant > 150TPH BLR > Pressure Parts > Superheater Tubes (FSH),
+shared,instrument,MS-14,MS-14 (Roof tube inlet drain MOV),Power Plant > 150TPH BLR > Pressure Parts > Headers,
+shared,instrument,MS-16,MS-16 (LTSH inlet header drain MOV),Power Plant > 150TPH BLR > Pressure Parts > Superheater Tubes (LTSH),
+shared,instrument,MS-21,MS-21 (RSH outlet header vent MOV),Power Plant > 150TPH BLR > Pressure Parts > Superheater Tubes (RSH),
+shared,instrument,MS-27,MS-27 (EMRV inlet iso MOV),Power Plant > 150TPH BLR > Pressure Parts > EMRV,
+shared,instrument,MS-43,MS-43 (Main steam line iso MOV),Power Plant > 150TPH BLR > Pressure Parts > Steam Piping,
+shared,instrument,MS-66,MS-66 (TG inlet iso MOV),Power Plant > 30.85MW STG > Turbine > GVC,
+shared,instrument,PDW-38,PDW-38 (Deaerator emergency make-up water line MOV),Power Plant > 150TPH BLR > Auxiliary Equipment > Deaerator,
+shared,instrument,PFW-133,PFW-133 (Economiser inlet header iso MOV),Power Plant > 150TPH BLR > Pressure Parts > Economizer,
+shared,instrument2,APH-PC-M,APH-PC-M,Power Plant > 150TPH BLR > Auxiliary Equipment > Air Preheater | Power Plant > 150TPH BLR > Ash Handling System > Dense Phase System APH Master | Power Plant > 150TPH BLR > Ash Handling System > APH & ESP Hopper | Power Plant > 150TPH BLR > Instrumentation & Control Valves > APH-PC-M,
+shared,instrument2,APH-PC-S,APH-PC-S,Power Plant > 150TPH BLR > Ash Handling System > Dense Phase System APH Slave | Power Plant > 150TPH BLR > Instrumentation & Control Valves > APH-PC-S,
+shared,instrument2,BV-01,BV-01 (Spray water on/off valve to DSH-502),Power Plant > 150TPH BLR > Instrumentation & Control Valves > BV-01,
+shared,instrument2,BV-02,BV-02 (Spray water on/off valve to DSH-501),Power Plant > 150TPH BLR > Instrumentation & Control Valves > BV-02,
+shared,instrument2,BV-03,BV-03 (Spray water on/off valve FOR 110/3 ATA process steam PRDS),Power Plant > 150TPH BLR > Instrumentation & Control Valves > BV-03,
+shared,instrument2,BV-04,BV-04 (Spray water on/off valve FOR 110/3 ATA Dearator steam PRDS),Power Plant > 150TPH BLR > Instrumentation & Control Valves > BV-04,
+shared,instrument2,BV-05,BV-05 (Spray water on/off valve FOR 110/8 Auxiliary steam PRDS),Power Plant > 150TPH BLR > Instrumentation & Control Valves > BV-05,
+shared,instrument2,BV-07,BV-07,Power Plant > 150TPH BLR > Instrumentation & Control Valves > BV-07,
+shared,instrument2,DAM-901,DAM-901 (ID FAN-A Suction Damper RPC)),Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-901,
+shared,instrument2,DAM-902,DAM-902 (ID FAN-B Suction Damper RPC)),Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-902,
+shared,instrument2,DAM-903,DAM-903 (SA FAN-A Suction Damper RPC)),Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-903,
+shared,instrument2,DAM-904,DAM-904 (SA FAN-B Suction Damper RPC)),Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-904,
+shared,instrument2,DAM-905,DAM-905 (FD FAN-A Suction Damper RPC)),Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-905,
+shared,instrument2,DAM-906,DAM-906 (FD FAN-B Suction Damper RPC)),Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-906,
+shared,instrument2,DAM-907,DAM-907 (DA FAN-A Suction Damper RPC)),Power Plant > 150TPH BLR > Auxiliary Equipment > DA Fan -01 | Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-907,
+shared,instrument2,DAM-908,DAM-908 (DA FAN-B Suction Damper RPC)),Power Plant > 150TPH BLR > Auxiliary Equipment > DA Fan -02 | Power Plant > 150TPH BLR > Instrumentation & Control Valves > DAM-908,
+shared,instrument2,ESP1-PC,ESP1-PC,Power Plant > 150TPH BLR > Auxiliary Equipment > ESP | Power Plant > 150TPH BLR > Ash Handling System > ESP | Power Plant > 150TPH BLR > Instrumentation & Control Valves > ESP1-PC,
+shared,instrument2,ESP2-PC,ESP2-PC,Power Plant > 150TPH BLR > Instrumentation & Control Valves > ESP2-PC,
+shared,instrument2,ESP3-PC,ESP3-PC,Power Plant > 150TPH BLR > Instrumentation & Control Valves > ESP3-PC,
+shared,instrument2,ESP4-PC,ESP4-PC,Power Plant > 150TPH BLR > Instrumentation & Control Valves > ESP4-PC,
+shared,instrument2,FCV-500,FCV-500 (Boiler feed water 30% control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > FCV-500,
+shared,instrument2,FCV-501A,FCV-501A (Boiler feed water 100% control valve-1),Power Plant > 150TPH BLR > Instrumentation & Control Valves > FCV-501A,
+shared,instrument2,FCV-501B,FCV-501B (Boiler feed water 100% control valve-2),Power Plant > 150TPH BLR > Instrumentation & Control Valves > FCV-501B,
+shared,instrument2,LCV-501,LCV-501 (Boiler CBD Tank Level control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > LCV-501,
+shared,instrument2,PCV-502,PCV-502 (110/45 ATA Process Steam Pr. Control Valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-502,
+shared,instrument2,PCV-503,PCV-503 (Soot Blower control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-503,
+shared,instrument2,PCV-505,PCV-505 (Boiler Start up vent control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-505,
+shared,instrument2,PCV-509,PCV-509 (Boiler 110/3 ATA Process PRDS control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-509,
+shared,instrument2,PCV-510,PCV-510 (Boiler 110/3 ATA Dearator Steam Pr. control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-510,
+shared,instrument2,PCV-511A,PCV-511A (Boiler 110/8 ATA Auxiliary Steam Pr. control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-511A,
+shared,instrument2,PCV-511B,PCV-511B (Boiler 110/8 ATA Auxiliary Steam Pr. Bypass control valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PCV-511B,
+shared,instrument2,PFW-09,PFW-09 (Dearator Overflow On/Off Valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PFW-09,
+shared,instrument2,PRV-501,PRV-501 (135/67 KG/CM2 Water Pressure Reducing Valve),Power Plant > 150TPH BLR > Instrumentation & Control Valves > PRV-501,
+shared,instrument2,TCV-501A,TCV-501A (Boiler Spray Water Temp. control valve for DSH-501),Power Plant > 150TPH BLR > Pressure Parts > Attemperator-01 | Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-501A,
+shared,instrument2,TCV-501B,TCV-501B (Boiler Spray Water Bypass Temp. control valve for DSH-501),Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-501B,
+shared,instrument2,TCV-502A,TCV-502A (Boiler Spray Water Temp. control valve For DSH-502),Power Plant > 150TPH BLR > Pressure Parts > Attemperator-02 | Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-502A,
+shared,instrument2,TCV-502B,TCV-502B (Boiler Spray Water Bypass Temp. control valve for DSH-502),Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-502B,
+shared,instrument2,TCV-509A,TCV-509A,Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-509A,
+shared,instrument2,TCV-509A NEW,TCV-509A,Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-509A NEW,
+shared,instrument2,TCV-510A,TCV-510B,Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-510A,
+shared,instrument2,TCV-511A,TCV-511A/SPRAY WATER TCV FOR 110/8 ATA AUX. STEAM PRDS,Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-511A,
+shared,instrument2,TCV-511A NEW,TCV-511A,Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-511A NEW,
+shared,instrument2,TCV-511B,TCV-511B/SPRAY WATER TCV FOR 110/8 ATA AUX. STEAM PRDS,Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-511B,
+shared,instrument2,TCV-604A,TCV-604A (Spray Water Control Valve For 110/45 ATA Steam PRDS),Power Plant > 150TPH BLR > Instrumentation & Control Valves > TCV-604A,
+old_only,electrical,ZIL/GSM/PP/15,ACOP,,
+old_only,electrical,ZIL/GSM/PP/15,AOP,,
+old_only,electrical,ZIL/GSM/PP/15,CEP No.-3,,
+old_only,electrical,ZIL/GSM/PP/15,EOP,,
+old_only,electrical,ZIL/GSM/PP/15,MCOP,,
+old_only,electrical,ZIL/GSM/PP/26,MCW pump -2,,
+old_only,electrical,ZIL/GSM/PP/27,MCW Pump-3,,
+old_only,electrical,ZIL/GSM/PP/28,ACW Pump -1,,
+old_only,electrical,ZIL/GSM/PP/29,ACW Pump-2,,
+old_only,electrical,ZIL/GSM/PP/30,ACW Pump -3,,
+old_only,electrical,ZIL/GSM/PP/30,CT Fan No.-2,,
+old_only,electrical,ZIL/GSM/PP/30,Inst.Air Comp.-2,,
+old_only,instrument,CBD-03,CBD-03 (CBD ISO MOV),,
+old_only,instrument,IBD-03,IBD-03 (IBD ISO MOV),,
+old_only,instrument,MOV-102,MOV-102 (Bleed-2 to ejector MOV),,
+old_only,instrument,MOV-201,MOV-201 (CEP-A discharge MOV),,
+old_only,instrument,MOV-202,MOV-202 (CEP-B discharge MOV),,
+old_only,instrument,MOV-203,MOV-203 (CEP-C discharge MOV),,
+old_only,instrument,MOV-402,MOV-402 (Steam to standby hogger ejector MOV),,
+old_only,instrument,MOV-403,MOV-403 (Steam to Y1 ejector MOV),,
+old_only,instrument,MOV-404,MOV-404 (Air to hogger ejector MOV),,
+old_only,instrument,MOV-405,MOV-405 (Air to standby hogger ejector MOV),,
+old_only,instrument,MOV-406,MOV-406 (Condensate to hogger ejector MOV),,
+old_only,instrument,MOV-407,MOV-407 (Condensate to standby hogger ejector MOV),,
+old_only,instrument,MOV-408,MOV-408 (Condensate to Y1 ejector MOV),,
+old_only,instrument,MS-103,MS-103 (LTSH outlet drain MOV),,
+old_only,instrument,MS-105,MS-105 (RSH outlet drain MOV),,
+old_only,instrument,MS-109,MS-109 (FSH outlet drain MOV),,
+old_only,instrument,MS-20,MS-20 (DSH-501 outlet drain MOV),,
+old_only,instrument,MS-24,MS-24 (DSH-502 outlet drain MOV),,
+old_only,instrument,MS-27A,MS-27A (EMRV inlet integral iso MOV),,
+old_only,instrument,MS-44,MS-44 (Main steam line bypass iso MOV),,
+old_only,instrument,MS-67,MS-67 (TG inlet bypass iso MOV),,
+old_only,instrument,PCW-13,PCW-13 (MCWP-A),,
+old_only,instrument,PCW-14,PCW-14 (MCWP-B),,
+old_only,instrument,PCW-15,PCW-15 (MCWP-C),,
+old_only,instrument,PCW-42,PCW-42 (ACWP-A),,
+old_only,instrument,PCW-43,PCW-43 (ACWP-B),,
+old_only,instrument,PCW-44,PCW-44 (ACWP-C),,
+old_only,instrument,PFW-133A,PFW-133A (Economiser inlet integral iso MOV),,
+old_only,instrument,PFW-264,PFW-264 (BFP-D Discharge ISO MOV),,
+old_only,instrument,PFW-62,PFW-62 (BFP-A Discharge ISO MOV),,
+old_only,instrument,PFW-63,PFW-63 (BFP-B Discharge ISO MOV),,
+old_only,instrument,PFW-64,PFW-64 (BFP-C Discharge ISO MOV),,
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Ash Silo,Ash Silo
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Bag Filters,Bag Filters
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Dense Phase System -1,Dense Phase System -1
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Dense Phase System -2,Dense Phase System -2
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Dense Phase System -3,Dense Phase System -3
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Dense Phase System -4,Dense Phase System -4
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Submerged Belt,Submerged Belt
+new_only,,,,Power Plant > 150TPH BLR > Ash Handling System > Valves & Pipes,Valves & Pipes
+new_only,,,,Power Plant > 150TPH BLR > Auxiliary Equipment > LP-01,LP-01
+new_only,,,,Power Plant > 150TPH BLR > Auxiliary Equipment > LP-02,LP-02
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Drum Feeder-01,Drum Feeder-01
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Drum Feeder-02,Drum Feeder-02
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Drum Feeder-03,Drum Feeder-03
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Drum Feeder-04,Drum Feeder-04
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Drum Feeder-05,Drum Feeder-05
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Drum Feeder-06,Drum Feeder-06
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Screw Feeder-01,Screw Feeder-01
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Screw Feeder-02,Screw Feeder-02
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Screw Feeder-03,Screw Feeder-03
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Screw Feeder-04,Screw Feeder-04
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Screw Feeder-05,Screw Feeder-05
+new_only,,,,Power Plant > 150TPH BLR > Fuel Feeding System > Screw Feeder-06,Screw Feeder-06
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -01,New Belt Conveyor -01
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -02,New Belt Conveyor -02
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -03,New Belt Conveyor -03
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -04,New Belt Conveyor -04
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -05,New Belt Conveyor -05
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -06,New Belt Conveyor -06
+new_only,,,,Power Plant > 150TPH BLR > Fuel Handling System (Phase-2) > New Belt Conveyor -07,New Belt Conveyor -07
+new_only,,,,Power Plant > 150TPH BLR > Pressure Parts > Main Steam Line Safety Valves,Main Steam Line Safety Valves
+new_only,,,,Power Plant > 150TPH BLR > Pressure Parts > Riser Tubes,Riser Tubes
+new_only,,,,Power Plant > 150TPH BLR > Pressure Parts > Steam Drum Safety Valves-1,Steam Drum Safety Valves-1
+new_only,,,,Power Plant > 150TPH BLR > Pressure Parts > Steam Drum Safety Valves-2,Steam Drum Safety Valves-2
+new_only,,,,Power Plant > 150TPH BLR > Pressure Parts > Water Wall Tubes,Water Wall Tubes
+new_only,,,,Power Plant > 30.85MW STG > Condenser > Surface Condenser,Surface Condenser
+new_only,,,,Power Plant > 30.85MW STG > Turbine > Extraction QCNRV-1,Extraction QCNRV-1
+new_only,,,,Power Plant > 30.85MW STG > Turbine > Extraction QCNRV-2,Extraction QCNRV-2
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Ash Clarifier,Ash Clarifier
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Ash Drag Conveyor,Ash Drag Conveyor
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Back Wash Pump,Back Wash Pump
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Injection Pump No.1,Injection Pump No.1
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Injection Pump No.2,Injection Pump No.2
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Injection Pump No.3,Injection Pump No.3
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Sludge Pits,Sludge Pits
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Slurry Pump No.1,Slurry Pump No.1
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Slurry Pump No.2,Slurry Pump No.2
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Slurry Pump No.3,Slurry Pump No.3
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Valves & Pipes,Valves & Pipes
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Wet Scrubber No.1,Wet Scrubber No.1
+new_only,,,,Power Plant > 70TPH BLR > Ash Handling System > Wet Scrubber No.2,Wet Scrubber No.2
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Air Preheater,Air Preheater
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Bagasse Blower Fan -01,Bagasse Blower Fan -01
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Bagasse Blower Fan -02,Bagasse Blower Fan -02
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Bagasse Blower Fan -03,Bagasse Blower Fan -03
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > De-super Heating Pump -1,De-super Heating Pump -1
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > De-super Heating Pump -2,De-super Heating Pump -2
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Deaerator,Deaerator
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Feed Tank,Feed Tank
+new_only,,,,Power Plant > 70TPH BLR > Auxiliary Equipment > Transfer Pump,Transfer Pump
+new_only,,,,Power Plant > 70TPH BLR > Fuel Feeding System > Bagasse Feeder-01,Bagasse Feeder-01
+new_only,,,,Power Plant > 70TPH BLR > Fuel Feeding System > Bagasse Feeder-02,Bagasse Feeder-02
+new_only,,,,Power Plant > 70TPH BLR > Fuel Feeding System > Bagasse Feeder-03,Bagasse Feeder-03
+new_only,,,,Power Plant > 70TPH BLR > Fuel Feeding System > Bagasse Feeder-04,Bagasse Feeder-04
+new_only,,,,Power Plant > 70TPH BLR > Fuel Feeding System > Bagasse Feeder-05,Bagasse Feeder-05
+new_only,,,,Power Plant > 70TPH BLR > Fuel Feeding System > Bagasse Feeder-06,Bagasse Feeder-06
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Bank Zone Tubes,Bank Zone Tubes
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Economizer,Economizer
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Main Steam Line Safety Valves,Main Steam Line Safety Valves
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > MSV,MSV
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Riser Tubes,Riser Tubes
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Roof Tubes,Roof Tubes
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Side Wall Tubes,Side Wall Tubes
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Steam Drum,Steam Drum
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Steam Drum Safety Valves-1,Steam Drum Safety Valves-1
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Steam Drum Safety Valves-2,Steam Drum Safety Valves-2
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Steam Piping,Steam Piping
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Superheater Tubes (FSH),Superheater Tubes (FSH)
+new_only,,,,Power Plant > 70TPH BLR > Pressure Parts > Superheater Tubes (PSH),Superheater Tubes (PSH)
+new_only,,,,Power Plant > WTP > Chemical Storage > Caustic Soda Lye Tank,Caustic Soda Lye Tank
+new_only,,,,Power Plant > WTP > Chemical Storage > H2SO4 Tank,H2SO4 Tank
+new_only,,,,Power Plant > WTP > Chemical Storage > HCL Tank,HCL Tank
+new_only,,,,Power Plant > WTP > Chemical Unloading > Caustic Soda Lye,Caustic Soda Lye
+new_only,,,,Power Plant > WTP > CPU > Activated Carbon Filter,Activated Carbon Filter
+new_only,,,,Power Plant > WTP > CPU > Air Blower-1,Air Blower-1
+new_only,,,,Power Plant > WTP > CPU > Air Blower-2,Air Blower-2
+new_only,,,,Power Plant > WTP > CPU > Air Blower-3,Air Blower-3
+new_only,,,,Power Plant > WTP > CPU > Air Compressor,Air Compressor
+new_only,,,,Power Plant > WTP > CPU > Anti Scalent Dosing System,Anti Scalent Dosing System
+new_only,,,,Power Plant > WTP > CPU > Caustic Dosing System,Caustic Dosing System
+new_only,,,,Power Plant > WTP > CPU > CPU Feed Pump-01,CPU Feed Pump-01
+new_only,,,,Power Plant > WTP > CPU > CPU Feed Pump-02,CPU Feed Pump-02
+new_only,,,,Power Plant > WTP > CPU > CPU RO System,CPU RO System
+new_only,,,,Power Plant > WTP > CPU > CT Fan,CT Fan
+new_only,,,,Power Plant > WTP > CPU > Filter Feed Pump-1,Filter Feed Pump-1
+new_only,,,,Power Plant > WTP > CPU > Filter Feed Pump-2,Filter Feed Pump-2
+new_only,,,,Power Plant > WTP > CPU > HCL Dosing System,HCL Dosing System
+new_only,,,,Power Plant > WTP > CPU > Hypo Dosing System,Hypo Dosing System
+new_only,,,,Power Plant > WTP > CPU > Iron Removal Filter,Iron Removal Filter
+new_only,,,,Power Plant > WTP > CPU > Multi Grade Filter,Multi Grade Filter
+new_only,,,,Power Plant > WTP > CPU > Poly Dosing System,Poly Dosing System
+new_only,,,,Power Plant > WTP > CPU > RO Feed Pump-01,RO Feed Pump-01
+new_only,,,,Power Plant > WTP > CPU > RO Feed Pump-02,RO Feed Pump-02
+new_only,,,,Power Plant > WTP > CPU > Sludge Pump-1,Sludge Pump-1
+new_only,,,,Power Plant > WTP > CPU > Sludge Pump-2,Sludge Pump-2
+new_only,,,,Power Plant > WTP > CPU > SMBS Dosing System,SMBS Dosing System
+new_only,,,,Power Plant > WTP > CPU > UF Back Wash Pump-01,UF Back Wash Pump-01
+new_only,,,,Power Plant > WTP > CPU > UF Back Wash Pump-02,UF Back Wash Pump-02
+new_only,,,,Power Plant > WTP > CPU > UF Feed Pump-01,UF Feed Pump-01
+new_only,,,,Power Plant > WTP > CPU > UF Feed Pump-02,UF Feed Pump-02
+new_only,,,,Power Plant > WTP > CPU > Ultra Filtration System,Ultra Filtration System
+new_only,,,,Power Plant > WTP > DM Plant > MB,MB
+new_only,,,,Power Plant > WTP > DM Plant > Pumps,Pumps
+new_only,,,,Power Plant > WTP > DM Plant > SAC,SAC
+new_only,,,,Power Plant > WTP > DM Plant > SBA,SBA
+new_only,,,,Power Plant > WTP > Laboratory > Equipments,Equipments
+new_only,,,,Power Plant > WTP > Reject Water Pit > Pumps,Pumps
+new_only,,,,Power Plant > WTP > RO Plant > Degasser Tower,Degasser Tower
+new_only,,,,Power Plant > WTP > RO Plant > MCF,MCF
+new_only,,,,Power Plant > WTP > RO Plant > MGF,MGF
+new_only,,,,Power Plant > WTP > RO Plant > Pumps,Pumps
+new_only,,,,Power Plant > WTP > RO Plant > RO System,RO System
+new_only,,,,Power Plant > WTP > Water Storage > Tanks,Tanks

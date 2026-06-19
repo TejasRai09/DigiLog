@@ -1,0 +1,142 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "Slat Chain",
+      "hierarchy_card": "Slat Chain Carrier",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Slat Chain Carrier",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "Slat Chain",
+      "equip_no": "ZIL/GSM/PP/24",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "37KW",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.902",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "Y-D Starter",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MCCB Rating",
+          "val": "125A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 2RX3CX35mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "D225MDM",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1470 RPM",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MPR Rating",
+          "val": "2 - 5.5A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable 4CX1.5mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "C0701110109",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Load",
+          "val": "76 A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6313C3 / NDE-6312C3",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A75-30 -2Nos A50-10 - 1nos",
+          "section": "electrical"
+        },
+        {
+          "lbl": "MPR Setting",
+          "val": "2.5A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos 1P 6A- 1Nos",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}
