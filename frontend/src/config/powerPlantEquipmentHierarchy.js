@@ -274,6 +274,17 @@ export function annotateHierarchy(node, path = '0') {
 
 export const POWER_PLANT_EQUIPMENT_TREE = annotateHierarchy(POWER_PLANT_EQUIPMENT_ROOT);
 
+/** Find a node anywhere in the tree by its annotated id. */
+export function findNodeById(root, nodeId) {
+  if (!root || nodeId == null) return null;
+  if (root.id === nodeId) return root;
+  for (const child of root.children ?? []) {
+    const found = findNodeById(child, nodeId);
+    if (found) return found;
+  }
+  return null;
+}
+
 /** Breadcrumb path: array of node ids from root to current. */
 export function findNodeByPath(root, pathIds) {
   let node = root;
@@ -302,4 +313,64 @@ export function pathLabels(root, pathIds) {
     node = next;
   }
   return labels;
+}
+
+/** Match a hierarchy leaf to loaded equipment (equip_no, lookupName, or name). */
+export function findLeafForEquipment(root, equipment) {
+  if (!equipment) return null;
+  const equipNo = String(equipment.equip_no || '').trim();
+  const tagName = String(equipment.tag_name || '').trim();
+  const name = String(equipment.name || '').trim().toLowerCase();
+  let found = null;
+
+  const walk = (node) => {
+    if (found) return;
+    const children = node.children ?? [];
+    if (!children.length) {
+      const lookup = (node.lookupName || node.name || '').trim();
+      const nodeName = (node.name || '').trim();
+      if (equipNo && node.equipNo && node.equipNo === equipNo) {
+        found = node;
+        return;
+      }
+      if (tagName && node.equipNo === tagName) {
+        found = node;
+        return;
+      }
+      if (name && (name === lookup.toLowerCase() || name === nodeName.toLowerCase())) {
+        found = node;
+      }
+      return;
+    }
+    for (const child of children) walk(child);
+  };
+
+  walk(root);
+  return found;
+}
+
+/** Resolve breadcrumb path ids from navigation state or equipment tree match. */
+export function hierarchyPathIdsForEquipment(root, equipment, navPathIds) {
+  if (Array.isArray(navPathIds) && navPathIds.length) return navPathIds;
+  const leaf = findLeafForEquipment(root, equipment);
+  if (leaf) return pathIdsForNodeId(leaf.id);
+  return null;
+}
+
+/** Labels for equipment detail breadcrumb: hierarchy path ending with equipment name. */
+export function hierarchyBreadcrumbLabels(root, equipment, navPathIds) {
+  const equipmentName = String(equipment?.name || '').trim() || 'Equipment';
+  const pathIds = hierarchyPathIdsForEquipment(root, equipment, navPathIds);
+
+  if (pathIds?.length) {
+    const labels = pathLabels(root, pathIds);
+    if (labels.length) labels[labels.length - 1] = equipmentName;
+    return { labels, pathIds };
+  }
+
+  const fallback = ['Power Plant'];
+  if (equipment?.category) fallback.push(String(equipment.category).trim());
+  if (equipment?.subcategory) fallback.push(String(equipment.subcategory).trim());
+  fallback.push(equipmentName);
+  return { labels: fallback, pathIds: null };
 }

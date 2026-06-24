@@ -16,10 +16,13 @@ import {
   MdUpload,
 } from 'react-icons/md';
 import EquipmentSectionShell from './EquipmentSectionShell';
+import SpecSubGroupPanel from './SpecSubGroupPanel';
 import {
   SPEC_SECTIONS,
   newSpecId,
   parseSpecsFromApi,
+  emptySubGroupMetaEntry,
+  normalizeSubGroupMetaEntry,
 } from '../../utils/equipmentSpecModel';
 import { downloadSpecTemplate, parseSpecWorkbook } from '../../utils/equipmentSpecExcel';
 
@@ -35,15 +38,30 @@ export default function EquipmentSpecificationHub({
   saving = false,
   embedded = false,
   hideBulkActions = false,
+  sectionFilter = null,
+  sectionTitle = null,
+  defaultBodyOpen = false,
+  subGroupCardMode = false,
+  equipmentDefaults = {},
+  onDeleteSubGroupMaintenanceHistory = null,
+  onRenameSubGroupMaintenanceHistory = null,
 }) {
-  const initial = useMemo(() => parseSpecsFromApi(apiSpecs), [apiSpecs]);
-  const baselineRef = useRef({ specs: initial.specs, subSections: initial.subSections });
+  const initial = useMemo(
+    () => parseSpecsFromApi(apiSpecs, equipmentDefaults),
+    [apiSpecs, equipmentDefaults],
+  );
+  const baselineRef = useRef({
+    specs: initial.specs,
+    subSections: initial.subSections,
+    subGroupMeta: initial.subGroupMeta,
+  });
 
   const [specs, setSpecs] = useState(initial.specs);
   const [subSections, setSubSections] = useState(initial.subSections);
+  const [subGroupMeta, setSubGroupMeta] = useState(initial.subGroupMeta);
   const [search, setSearch] = useState('');
   const [isEditMode, setIsEditMode] = useState(false);
-  const [bodyOpen, setBodyOpen] = useState(false);
+  const [bodyOpen, setBodyOpen] = useState(defaultBodyOpen);
   const [sectionCollapsed, setSectionCollapsed] = useState({});
   const [subGroupCollapsed, setSubGroupCollapsed] = useState({});
 
@@ -59,25 +77,38 @@ export default function EquipmentSpecificationHub({
   const draggedParam = useRef(null);
 
   useEffect(() => {
-    const parsed = parseSpecsFromApi(apiSpecs);
-    baselineRef.current = { specs: parsed.specs, subSections: parsed.subSections };
+    const parsed = parseSpecsFromApi(apiSpecs, equipmentDefaults);
+    baselineRef.current = {
+      specs: parsed.specs,
+      subSections: parsed.subSections,
+      subGroupMeta: parsed.subGroupMeta,
+    };
     setSpecs(parsed.specs);
     setSubSections(parsed.subSections);
+    setSubGroupMeta(parsed.subGroupMeta);
     setSearch('');
     setIsEditMode(false);
     setSubGroupCollapsed({});
     setUploadedFileName(null);
-  }, [apiSpecs]);
+  }, [apiSpecs, equipmentDefaults]);
 
   const searchVal = search.toLowerCase().trim();
 
+  const sectionsToRender = useMemo(() => {
+    if (!sectionFilter) return SPEC_SECTIONS;
+    return SPEC_SECTIONS.filter((s) => s.id === sectionFilter);
+  }, [sectionFilter]);
+
   const visibleCount = useMemo(() => {
-    if (!searchVal) return specs.length;
-    return specs.filter(
+    const pool = sectionFilter
+      ? specs.filter((s) => s.section === sectionFilter)
+      : specs;
+    if (!searchVal) return pool.length;
+    return pool.filter(
       (s) =>
         s.label.toLowerCase().includes(searchVal) || s.value.toLowerCase().includes(searchVal)
     ).length;
-  }, [specs, searchVal]);
+  }, [specs, searchVal, sectionFilter]);
 
   const toggleSection = (id) =>
     setSectionCollapsed((p) => ({ ...p, [id]: !p[id] }));
@@ -92,6 +123,16 @@ export default function EquipmentSpecificationHub({
   };
 
   const deleteSpec = (id) => setSpecs((prev) => prev.filter((s) => s.id !== id));
+
+  const updateSubGroupMeta = (sectionId, subName, entry) => {
+    setSubGroupMeta((prev) => ({
+      ...prev,
+      [sectionId]: {
+        ...(prev[sectionId] || {}),
+        [subName]: normalizeSubGroupMetaEntry(entry, equipmentDefaults),
+      },
+    }));
+  };
 
   const openSubModal = (sectionId) => {
     const slots = [...(subSections[sectionId] || [])];
@@ -131,13 +172,34 @@ export default function EquipmentSpecificationHub({
 
     const nextSubSections = { ...subSections, [secName]: newSubs };
 
+    let nextSubGroupMeta = subGroupMeta;
+    if (subGroupCardMode) {
+      const secMeta = { ...(subGroupMeta[secName] || {}) };
+      oldSubs.forEach((oldName, idx) => {
+        const newName = newSubs[idx];
+        if (oldName && newName && oldName !== newName && secMeta[oldName]) {
+          secMeta[newName] = secMeta[oldName];
+          delete secMeta[oldName];
+        } else if (oldName && !newName) {
+          delete secMeta[oldName];
+        }
+      });
+      newSubs.forEach((name) => {
+        if (name && !secMeta[name]) {
+          secMeta[name] = emptySubGroupMetaEntry(equipmentDefaults);
+        }
+      });
+      nextSubGroupMeta = { ...subGroupMeta, [secName]: secMeta };
+    }
+
     setSpecs(nextSpecs);
     setSubSections(nextSubSections);
+    if (subGroupCardMode) setSubGroupMeta(nextSubGroupMeta);
     setSubModalError('');
     setSubModal(null);
 
     try {
-      await handlePersist(nextSpecs, nextSubSections);
+      await handlePersist(nextSpecs, nextSubSections, nextSubGroupMeta);
       setIsEditMode(false);
     } catch {
       /* stay in edit mode on save failure */
@@ -161,7 +223,7 @@ export default function EquipmentSpecificationHub({
     setTempParams(rows);
   };
 
-  const saveParamModal = () => {
+  const saveParamModal = async () => {
     const { sectionId, subName } = paramModal;
     const clean = tempParams
       .map((s) => ({
@@ -175,11 +237,20 @@ export default function EquipmentSpecificationHub({
         id: String(s.id).startsWith('temp-') ? newSpecId() : s.id,
       }));
 
-    setSpecs((prev) => [
-      ...prev.filter((s) => !(s.section === sectionId && s.subSection === subName)),
+    const nextSpecs = [
+      ...specs.filter((s) => !(s.section === sectionId && s.subSection === subName)),
       ...clean,
-    ]);
+    ];
+    setSpecs(nextSpecs);
     setParamModal(null);
+
+    if (subGroupCardMode) {
+      try {
+        await handlePersist(nextSpecs, subSections, subGroupMeta);
+      } catch {
+        /* param modal already closed */
+      }
+    }
   };
 
   const sortSubSlots = () => {
@@ -224,21 +295,90 @@ export default function EquipmentSpecificationHub({
 
   const handleReset = () => {
     if (!window.confirm('Revert all specifications and sub-groups to last saved data?')) return;
-    const { specs: bSpecs, subSections: bSubs } = baselineRef.current;
+    const { specs: bSpecs, subSections: bSubs, subGroupMeta: bMeta } = baselineRef.current;
     setSpecs(bSpecs.map((s) => ({ ...s })));
     setSubSections(JSON.parse(JSON.stringify(bSubs)));
+    setSubGroupMeta(JSON.parse(JSON.stringify(bMeta || {})));
     setSearch('');
     setIsEditMode(false);
     setSubGroupCollapsed({});
     setUploadedFileName(null);
   };
 
-  const handlePersist = useCallback(async (specsToSave = specs, subSectionsToSave = subSections) => {
+  const handlePersist = useCallback(async (
+    specsToSave = specs,
+    subSectionsToSave = subSections,
+    subGroupMetaToSave = subGroupMeta,
+  ) => {
     if (onSave) {
-      await onSave(specsToSave, subSectionsToSave);
+      await onSave(specsToSave, subSectionsToSave, subGroupMetaToSave);
       setUploadedFileName(null);
     }
-  }, [onSave, specs, subSections]);
+  }, [onSave, specs, subSections, subGroupMeta]);
+
+  const deleteSubGroup = async (sectionId, subName) => {
+    const nextSubs = (subSections[sectionId] || []).filter((s) => s !== subName);
+    const nextSpecs = specs.filter((s) => !(s.section === sectionId && s.subSection === subName));
+    const nextMeta = { ...subGroupMeta };
+    if (nextMeta[sectionId]) {
+      const secMeta = { ...nextMeta[sectionId] };
+      delete secMeta[subName];
+      nextMeta[sectionId] = secMeta;
+    }
+    setSpecs(nextSpecs);
+    setSubSections({ ...subSections, [sectionId]: nextSubs });
+    setSubGroupMeta(nextMeta);
+    if (onDeleteSubGroupMaintenanceHistory) {
+      await onDeleteSubGroupMaintenanceHistory(sectionId, subName);
+    }
+    await handlePersist(nextSpecs, { ...subSections, [sectionId]: nextSubs }, nextMeta);
+  };
+
+  const renameSubGroupWithMeta = async (sectionId, oldName, newName, metaFields) => {
+    let nextSubs = [...(subSections[sectionId] || [])];
+    let nextSpecs = [...specs];
+    const nextMeta = { ...subGroupMeta, [sectionId]: { ...(subGroupMeta[sectionId] || {}) } };
+
+    if (newName !== oldName) {
+      if (nextSubs.some((s) => s.toLowerCase() === newName.toLowerCase() && s !== oldName)) {
+        window.alert('A card with that name already exists.');
+        throw new Error('duplicate');
+      }
+      nextSubs = nextSubs.map((s) => (s === oldName ? newName : s));
+      nextSpecs = nextSpecs.map((s) =>
+        s.section === sectionId && s.subSection === oldName ? { ...s, subSection: newName } : s
+      );
+      if (nextMeta[sectionId][oldName]) {
+        nextMeta[sectionId][newName] = nextMeta[sectionId][oldName];
+        delete nextMeta[sectionId][oldName];
+      }
+      if (onRenameSubGroupMaintenanceHistory) {
+        await onRenameSubGroupMaintenanceHistory(sectionId, oldName, newName);
+      }
+    }
+
+    nextMeta[sectionId][newName] = normalizeSubGroupMetaEntry(
+      { ...nextMeta[sectionId][newName], ...metaFields },
+      equipmentDefaults,
+    );
+
+    setSpecs(nextSpecs);
+    setSubSections({ ...subSections, [sectionId]: nextSubs });
+    setSubGroupMeta(nextMeta);
+    await handlePersist(nextSpecs, { ...subSections, [sectionId]: nextSubs }, nextMeta);
+  };
+
+  const persistSubGroupMeta = async (sectionId, subName, entry) => {
+    const nextMeta = {
+      ...subGroupMeta,
+      [sectionId]: {
+        ...(subGroupMeta[sectionId] || {}),
+        [subName]: normalizeSubGroupMetaEntry(entry, equipmentDefaults),
+      },
+    };
+    setSubGroupMeta(nextMeta);
+    await handlePersist(specs, subSections, nextMeta);
+  };
 
   const finishEditMode = async () => {
     if (isEditMode) {
@@ -285,6 +425,48 @@ export default function EquipmentSpecificationHub({
     draggedParam.current = null;
   };
 
+  const renderSubGroupPanels = (sec) => {
+    const secSpecs = specs.filter(
+      (s) =>
+        s.section === sec.id &&
+        (!searchVal ||
+          s.label.toLowerCase().includes(searchVal) ||
+          s.value.toLowerCase().includes(searchVal))
+    );
+    const groups = subSections[sec.id] || [];
+    const visibleGroups = groups.filter((sub) => {
+      if (!searchVal) return true;
+      return secSpecs.some((s) => s.subSection === sub);
+    });
+
+    if (searchVal && visibleGroups.length === 0) return [];
+
+    return visibleGroups.map((subName, idx) => {
+      const subSpecs = secSpecs.filter((s) => s.subSection === subName);
+      const subKey = `${sec.id}-${subName}`;
+      const subCollapsed = subGroupCollapsed[subKey];
+
+      return (
+        <SpecSubGroupPanel
+          key={`${sec.id}-${idx}-${subName}`}
+          sectionId={sec.id}
+          subName={subName}
+          subSpecs={subSpecs}
+          subGroupMeta={subGroupMeta}
+          equipmentDefaults={equipmentDefaults}
+          collapsed={subCollapsed}
+          onToggle={() => toggleSubGroup(sec.id, subName)}
+          onMetaChange={updateSubGroupMeta}
+          onOpenParamModal={openParamModal}
+          onDeleteSubGroup={deleteSubGroup}
+          onRenameSubGroup={renameSubGroupWithMeta}
+          onPersistMeta={persistSubGroupMeta}
+          saving={saving}
+        />
+      );
+    });
+  };
+
   const renderSection = (sec) => {
     const secSpecs = specs.filter(
       (s) =>
@@ -300,6 +482,10 @@ export default function EquipmentSpecificationHub({
     });
 
     if (searchVal && visibleGroups.length === 0) return null;
+
+    if (subGroupCardMode && sectionFilter) {
+      return renderSubGroupPanels(sec);
+    }
 
     const collapsed = sectionCollapsed[sec.id];
 
@@ -334,11 +520,32 @@ export default function EquipmentSpecificationHub({
         </div>
 
         {!collapsed && (
-          <div className="divide-y divide-slate-100">
+          <div className={subGroupCardMode ? 'py-1' : 'divide-y divide-slate-100'}>
             {visibleGroups.map((subName, idx) => {
               const subSpecs = secSpecs.filter((s) => s.subSection === subName);
               const subKey = `${sec.id}-${subName}`;
               const subCollapsed = subGroupCollapsed[subKey];
+
+              if (subGroupCardMode) {
+                return (
+                  <SpecSubGroupPanel
+                    key={`${sec.id}-${idx}-${subName}`}
+                    sectionId={sec.id}
+                    subName={subName}
+                    subSpecs={subSpecs}
+                    subGroupMeta={subGroupMeta}
+                    equipmentDefaults={equipmentDefaults}
+                    collapsed={subCollapsed}
+                    onToggle={() => toggleSubGroup(sec.id, subName)}
+                    onMetaChange={updateSubGroupMeta}
+                    onOpenParamModal={openParamModal}
+                    onDeleteSubGroup={deleteSubGroup}
+                    onRenameSubGroup={renameSubGroupWithMeta}
+                    onPersistMeta={persistSubGroupMeta}
+                    saving={saving}
+                  />
+                );
+              }
 
               return (
                 <div key={`${sec.id}-${idx}-${subName}`} className="bg-white">
@@ -432,25 +639,29 @@ export default function EquipmentSpecificationHub({
   };
 
   const wrapperClass = embedded ? '' : 'max-w-4xl mx-auto';
+  const activeSectionId = sectionFilter || sectionsToRender[0]?.id || null;
 
   return (
     <div className={wrapperClass}>
       <EquipmentSectionShell
-        title="Equipment Specification"
+        title={sectionTitle || 'Equipment Specification'}
         badge={visibleCount}
         open={bodyOpen}
         onToggle={() => setBodyOpen((o) => !o)}
       >
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/40">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
-                  <span className="text-xs font-bold text-indigo-600 tracking-wider uppercase">Asset Management Spec sheet</span>
+            <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-4 sm:px-6 py-4 border-b border-slate-100 ${subGroupCardMode ? 'bg-white' : 'bg-slate-50/40'}`}>
+              {!subGroupCardMode && (
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse" />
+                    <span className="text-xs font-bold text-indigo-600 tracking-wider uppercase">Asset Management Spec sheet</span>
+                  </div>
+                  {equipmentTag && (
+                    <p className="text-sm font-semibold text-slate-500 mt-0.5">TAG: {equipmentTag}</p>
+                  )}
                 </div>
-                {equipmentTag && (
-                  <p className="text-sm font-semibold text-slate-500 mt-0.5">TAG: {equipmentTag}</p>
-                )}
-              </div>
+              )}
+              {subGroupCardMode && <div />}
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <div className="relative flex-grow sm:flex-grow-0">
                   <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -499,49 +710,66 @@ export default function EquipmentSpecificationHub({
                     )}
                   </>
                 )}
-                <button
-                  type="button"
-                  onClick={finishEditMode}
-                  disabled={saving}
-                  className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                    isEditMode
-                      ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                  }`}
-                >
-                  {isEditMode ? <MdCheck className="w-3.5 h-3.5" /> : <MdEdit className="w-3.5 h-3.5" />}
-                  {saving ? 'Saving…' : isEditMode ? 'Finish Edit' : 'Edit Specs'}
-                </button>
-                {!hideBulkActions && (
+                {subGroupCardMode && activeSectionId && (
                   <button
                     type="button"
-                    onClick={handleReset}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg border border-rose-200"
+                    onClick={() => openSubModal(activeSectionId)}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg border border-violet-200"
                   >
-                    <MdRefresh className="w-3.5 h-3.5" /> Reset
+                    <MdAdd className="w-3.5 h-3.5" /> Add Equipment
                   </button>
                 )}
-                {!hideBulkActions && !isEditMode && uploadedFileName && (
-                  <button
-                    type="button"
-                    onClick={handlePersist}
-                    disabled={saving}
-                    className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-60"
-                  >
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
+                {!subGroupCardMode && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={finishEditMode}
+                      disabled={saving}
+                      className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                        isEditMode
+                          ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                      }`}
+                    >
+                      {isEditMode ? <MdCheck className="w-3.5 h-3.5" /> : <MdEdit className="w-3.5 h-3.5" />}
+                      {saving ? 'Saving…' : isEditMode ? 'Finish Edit' : 'Edit Specs'}
+                    </button>
+                    {!hideBulkActions && (
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg border border-rose-200"
+                      >
+                        <MdRefresh className="w-3.5 h-3.5" /> Reset
+                      </button>
+                    )}
+                    {!hideBulkActions && !isEditMode && uploadedFileName && (
+                      <button
+                        type="button"
+                        onClick={handlePersist}
+                        disabled={saving}
+                        className="px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-60"
+                      >
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
 
-            <div className="p-4 sm:p-6 space-y-4">
-            <div className="grid grid-cols-12 gap-4 px-2 sm:px-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              <div className="col-span-6 sm:col-span-5">Specification</div>
-              <div className="col-span-6 sm:col-span-7">Value</div>
-            </div>
+            <div className={subGroupCardMode ? 'py-3 px-3 sm:px-4 space-y-4 bg-slate-100/70' : 'p-4 sm:p-6 space-y-4'}>
+            {!subGroupCardMode && (
+              <div className="grid grid-cols-12 gap-4 px-2 sm:px-4 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                <div className="col-span-6 sm:col-span-5">Specification</div>
+                <div className="col-span-6 sm:col-span-7">Value</div>
+              </div>
+            )}
 
-            <div className="space-y-4">
-              {SPEC_SECTIONS.map(renderSection)}
+            <div className={subGroupCardMode ? '' : 'space-y-4'}>
+              {subGroupCardMode && sectionFilter
+                ? sectionsToRender.flatMap((sec) => renderSubGroupPanels(sec))
+                : sectionsToRender.map(renderSection)}
             </div>
 
             {searchVal && visibleCount === 0 && (

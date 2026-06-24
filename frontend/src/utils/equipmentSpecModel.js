@@ -13,6 +13,45 @@ export const DEFAULT_SUB_SECTIONS = {
 };
 
 export const META_SUBSECTIONS_LBL = '__subsections__';
+export const META_SUBGROUP_META_LBL = '__subgroup_meta__';
+export const SUBGROUP_GALLERY_SIZE = 6;
+
+export function emptySubGroupMetaEntry(defaults = {}) {
+  return {
+    tagNo: defaults.tagNo ?? '',
+    equipNo: defaults.equipNo ?? '',
+    location: defaults.location ?? '',
+    commissioned: defaults.commissioned ?? '',
+    images: Array.from({ length: SUBGROUP_GALLERY_SIZE }, () => ({ src: null, caption: '' })),
+  };
+}
+
+export function normalizeSubGroupImages(images) {
+  return Array.from({ length: SUBGROUP_GALLERY_SIZE }, (_, i) => ({
+    src: images?.[i]?.src || null,
+    caption: images?.[i]?.caption || '',
+  }));
+}
+
+export function normalizeSubGroupMetaEntry(raw, defaults = {}) {
+  if (!raw || typeof raw !== 'object') return emptySubGroupMetaEntry(defaults);
+  return {
+    tagNo: raw.tagNo ?? raw.tag_no ?? defaults.tagNo ?? '',
+    equipNo: raw.equipNo ?? raw.equip_no ?? defaults.equipNo ?? '',
+    location: raw.location ?? defaults.location ?? '',
+    commissioned: raw.commissioned ?? defaults.commissioned ?? '',
+    images: normalizeSubGroupImages(raw.images),
+  };
+}
+
+export function getSubGroupMetaEntry(subGroupMeta, section, subName, defaults = {}) {
+  const entry = subGroupMeta?.[section]?.[subName];
+  return normalizeSubGroupMetaEntry(entry, defaults);
+}
+
+export function countSubGroupGalleryImages(images = []) {
+  return normalizeSubGroupImages(images).filter((img) => img.src).length;
+}
 
 export function emptySubSections() {
   return JSON.parse(JSON.stringify(DEFAULT_SUB_SECTIONS));
@@ -22,9 +61,10 @@ export function newSpecId() {
   return `spec-${Date.now()}-${Math.round(Math.random() * 10000)}`;
 }
 
-/** API rows → { specs, subSections } */
-export function parseSpecsFromApi(rows = []) {
+/** API rows → { specs, subSections, subGroupMeta } */
+export function parseSpecsFromApi(rows = [], equipmentDefaults = {}) {
   const subSections = emptySubSections();
+  const subGroupMeta = {};
   const specs = [];
 
   for (const row of rows) {
@@ -38,6 +78,22 @@ export function parseSpecsFromApi(rows = []) {
         }
       } catch {
         /* keep defaults */
+      }
+      continue;
+    }
+
+    if (row.lbl === META_SUBGROUP_META_LBL) {
+      try {
+        const parsed = JSON.parse(row.val || '{}');
+        for (const [section, groups] of Object.entries(parsed)) {
+          if (!groups || typeof groups !== 'object') continue;
+          subGroupMeta[section] = {};
+          for (const [subName, meta] of Object.entries(groups)) {
+            subGroupMeta[section][subName] = normalizeSubGroupMetaEntry(meta, equipmentDefaults);
+          }
+        }
+      } catch {
+        /* keep empty meta */
       }
       continue;
     }
@@ -59,11 +115,49 @@ export function parseSpecsFromApi(rows = []) {
     }
   }
 
-  return { specs, subSections };
+  for (const section of Object.keys(subSections)) {
+    if (!subGroupMeta[section]) subGroupMeta[section] = {};
+    for (const subName of subSections[section]) {
+      if (!subGroupMeta[section][subName]) {
+        subGroupMeta[section][subName] = emptySubGroupMetaEntry(equipmentDefaults);
+      }
+    }
+  }
+
+  return { specs, subSections, subGroupMeta };
 }
 
-/** { specs, subSections } → API payload */
-export function serializeSpecsForApi(specs, subSections) {
+/** Build selectable equipment cards from saved specs (for maintenance history). */
+export function buildEquipmentOptionsFromSpecs(rows = [], equipmentDefaults = {}, sectionFilter = null) {
+  const { subSections } = parseSpecsFromApi(rows, equipmentDefaults);
+  const options = [];
+
+  for (const sec of SPEC_SECTIONS) {
+    if (sectionFilter && sec.id !== sectionFilter) continue;
+    for (const subName of subSections[sec.id] || []) {
+      options.push({
+        key: `${sec.id}::${subName}`,
+        section: sec.id,
+        subSection: subName,
+        label: subName,
+        disciplineLabel: sec.title.replace(/^\d+\.\s*/, ''),
+      });
+    }
+  }
+
+  return options;
+}
+
+export function parseEquipmentOptionKey(key) {
+  if (!key || !String(key).includes('::')) return null;
+  const [section, ...rest] = String(key).split('::');
+  const subSection = rest.join('::');
+  if (!section || !subSection) return null;
+  return { section, subSection };
+}
+
+/** { specs, subSections, subGroupMeta } → API payload */
+export function serializeSpecsForApi(specs, subSections, subGroupMeta = {}) {
   const out = specs
     .filter((s) => s.label?.trim() || s.value?.trim())
     .map((s, i) => ({
@@ -81,6 +175,16 @@ export function serializeSpecsForApi(specs, subSections) {
     sub_section: null,
     sort_order: 99999,
   });
+
+  if (subGroupMeta && Object.keys(subGroupMeta).length) {
+    out.push({
+      lbl: META_SUBGROUP_META_LBL,
+      val: JSON.stringify(subGroupMeta),
+      section: null,
+      sub_section: null,
+      sort_order: 99998,
+    });
+  }
 
   return out;
 }

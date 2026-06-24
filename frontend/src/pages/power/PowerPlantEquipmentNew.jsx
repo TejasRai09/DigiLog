@@ -26,6 +26,8 @@ const PowerPlantEquipmentNew = () => {
       <PowerPlantHierarchyExplorer
         appId={appId}
         returnTo="/power-plant-equipment-new"
+        initialPathIds={location.state?.hierarchyPathIds}
+        restoreEquipmentId={location.state?.restoreEquipmentId}
       />
     </main>
   );

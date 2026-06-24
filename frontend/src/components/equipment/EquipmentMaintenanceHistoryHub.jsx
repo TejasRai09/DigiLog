@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MdAdd,
   MdChevronLeft,
@@ -7,6 +7,7 @@ import {
   MdDelete,
   MdDownload,
   MdEdit,
+  MdExpandMore,
   MdInfo,
   MdSave,
   MdSearch,
@@ -18,6 +19,7 @@ import { resizeImage } from '../../utils/resizeImage';
 import {
   EMPTY_HISTORY_FORM,
   HISTORY_SERVICE_OPTIONS,
+  equipmentKeysFromRecord,
   formatDateDisplay,
   formatEntryId,
   historyRecordFromApi,
@@ -26,6 +28,135 @@ import {
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
+
+function EquipmentMultiSelectDropdown({ options, value = [], onChange, labelMap }) {
+  const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const rootRef = useRef(null);
+  const searchRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDocClick = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) {
+        setOpen(false);
+        setSearchQuery('');
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => searchRef.current?.focus(), 0);
+      return () => clearTimeout(t);
+    }
+    setSearchQuery('');
+    return undefined;
+  }, [open]);
+
+  const filteredOptions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter(
+      (opt) =>
+        opt.label.toLowerCase().includes(q)
+        || (opt.disciplineLabel && opt.disciplineLabel.toLowerCase().includes(q)),
+    );
+  }, [options, searchQuery]);
+
+  const selectedLabels = value
+    .map((key) => labelMap.get(key) || options.find((o) => o.key === key)?.label)
+    .filter(Boolean);
+
+  const displayText = selectedLabels.length
+    ? selectedLabels.join(', ')
+    : '— Select equipment —';
+
+  const toggleKey = (key) => {
+    const set = new Set(value);
+    if (set.has(key)) set.delete(key);
+    else set.add(key);
+    onChange(Array.from(set));
+  };
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm border border-slate-200 rounded-lg bg-white hover:border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+      >
+        <span className={`truncate ${selectedLabels.length ? 'text-slate-800' : 'text-slate-400'}`}>
+          {displayText}
+        </span>
+        <MdExpandMore className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0">
+            <div className="relative">
+              <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search equipment..."
+                className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-md bg-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                onClick={(e) => e.stopPropagation()}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <MdClose className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="max-h-44 overflow-y-auto py-1">
+            {filteredOptions.length > 0 ? filteredOptions.map((opt) => {
+              const checked = value.includes(opt.key);
+              return (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => toggleKey(opt.key)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
+                    checked ? 'bg-violet-50 text-violet-900' : 'text-slate-700'
+                  }`}
+                >
+                  <span
+                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
+                      checked ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {checked && <span className="text-[10px] leading-none">✓</span>}
+                  </span>
+                  <span className="truncate font-medium">{opt.label}</span>
+                </button>
+              );
+            }) : (
+              <p className="px-3 py-4 text-center text-xs text-slate-400">No equipment found</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {value.length > 0 && (
+        <p className="mt-1.5 text-[11px] text-slate-500">
+          {value.length} equipment selected
+        </p>
+      )}
+    </div>
+  );
+}
 
 function SeasonBadge({ season }) {
   const inSeason = season === 'Season';
@@ -101,11 +232,28 @@ export default function EquipmentMaintenanceHistoryHub({
   onToggle,
   onSave,
   onDelete,
+  equipmentOptions = [],
 }) {
+  const showEquipmentPicker = equipmentOptions.length > 0;
   const records = useMemo(
     () => apiRecords.map(historyRecordFromApi),
     [apiRecords],
   );
+
+  const equipmentLabelMap = useMemo(() => {
+    const map = new Map();
+    equipmentOptions.forEach((opt) => map.set(opt.key, opt.label));
+    return map;
+  }, [equipmentOptions]);
+
+  const labelForRecord = (rec) => {
+    const keys = rec.equipmentKeys?.length ? rec.equipmentKeys : equipmentKeysFromRecord(rec);
+    if (!keys.length) return '—';
+    return keys
+      .map((key) => equipmentLabelMap.get(key))
+      .filter(Boolean)
+      .join(', ') || rec.subSection || '—';
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [seasonFilter, setSeasonFilter] = useState('All');
@@ -138,7 +286,8 @@ export default function EquipmentMaintenanceHistoryHub({
         || formatEntryId(rec.id).toLowerCase().includes(q)
         || rec.observation.toLowerCase().includes(q)
         || (rec.action && rec.action.toLowerCase().includes(q))
-        || String(rec.year).toLowerCase().includes(q);
+        || String(rec.year).toLowerCase().includes(q)
+        || labelForRecord(rec).toLowerCase().includes(q);
 
       const matchesSeason = seasonFilter === 'All'
         || (seasonFilter === 'Off-Season' ? isOffSeason(rec.season) : rec.season === seasonFilter);
@@ -157,7 +306,10 @@ export default function EquipmentMaintenanceHistoryHub({
   const openAdd = () => {
     setIsEditing(false);
     setSelectedRecord(null);
-    setForm({ ...EMPTY_HISTORY_FORM });
+    setForm({
+      ...EMPTY_HISTORY_FORM,
+      equipmentKeys: equipmentOptions[0]?.key ? [equipmentOptions[0].key] : [],
+    });
     setFormOpen(true);
   };
 
@@ -166,6 +318,7 @@ export default function EquipmentMaintenanceHistoryHub({
     setIsEditing(true);
     setSelectedRecord(record);
     setForm({
+      equipmentKeys: equipmentKeysFromRecord(record),
       season: record.season || '',
       year: record.year || '',
       start: record.start || '',
@@ -200,6 +353,7 @@ export default function EquipmentMaintenanceHistoryHub({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.observation?.trim()) return;
+    if (showEquipmentPicker && (!form.equipmentKeys || form.equipmentKeys.length === 0)) return;
     await onSave(form, isEditing ? 'edit' : 'add', selectedRecord?.id);
     setFormOpen(false);
   };
@@ -277,7 +431,8 @@ export default function EquipmentMaintenanceHistoryHub({
       <button
         type="button"
         onClick={openAdd}
-        className="inline-flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all uppercase tracking-wider self-end lg:self-auto"
+        disabled={showEquipmentPicker && equipmentOptions.length === 0}
+        className="inline-flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all uppercase tracking-wider self-end lg:self-auto disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <MdAdd className="w-4 h-4" />
         Add Record
@@ -291,6 +446,7 @@ export default function EquipmentMaintenanceHistoryHub({
         <table className="w-full border-collapse text-left text-xs font-semibold text-slate-500">
           <thead className="bg-[#f8fafc]/90 border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             <tr>
+              {showEquipmentPicker && <th className="px-5 py-4 w-[140px]">Equipment</th>}
               <th className="px-5 py-4 w-[110px]">Entry ID</th>
               <th className="px-5 py-4 w-[130px]">Season</th>
               <th className="px-5 py-4 w-[80px]">Year</th>
@@ -308,6 +464,11 @@ export default function EquipmentMaintenanceHistoryHub({
                 className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                 onClick={() => openDetail(row)}
               >
+                {showEquipmentPicker && (
+                  <td className="px-5 py-3.5 text-slate-800 font-semibold max-w-[140px] truncate" title={labelForRecord(row)}>
+                    {labelForRecord(row)}
+                  </td>
+                )}
                 <td className="px-5 py-3.5 font-mono font-bold text-slate-800">{formatEntryId(row.id)}</td>
                 <td className="px-5 py-3.5"><SeasonBadge season={row.season} /></td>
                 <td className="px-5 py-3.5 text-slate-500">{row.year || '—'}</td>
@@ -340,7 +501,7 @@ export default function EquipmentMaintenanceHistoryHub({
               </tr>
             )) : (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={showEquipmentPicker ? 9 : 8} className="px-5 py-12 text-center text-slate-400">
                   <MdInfo className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                   <p className="font-semibold text-slate-600 text-sm">No maintenance records found</p>
                 </td>
@@ -356,6 +517,11 @@ export default function EquipmentMaintenanceHistoryHub({
     <div className="md:hidden px-4 py-4 space-y-3">
       {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
         <div key={row.id} className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm space-y-3">
+          {showEquipmentPicker && (
+            <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 truncate">
+              {labelForRecord(row)}
+            </p>
+          )}
           <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <span className="bg-slate-100 text-slate-600 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0">
@@ -393,7 +559,7 @@ export default function EquipmentMaintenanceHistoryHub({
     </div>
   );
 
-  const pagination = (
+  const pagination = filteredRecords.length > ITEMS_PER_PAGE ? (
     <div className="px-4 md:px-6 pb-6 pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold text-slate-500">
       <div>
         Showing{' '}
@@ -435,7 +601,7 @@ export default function EquipmentMaintenanceHistoryHub({
         </button>
       </div>
     </div>
-  );
+  ) : null;
 
   const formModal = formOpen && (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] p-4 flex items-end sm:items-center justify-center overflow-y-auto">
@@ -458,6 +624,20 @@ export default function EquipmentMaintenanceHistoryHub({
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-4 text-sm">
+            {showEquipmentPicker && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Equipment <span className="text-red-500">*</span>
+                </label>
+                <EquipmentMultiSelectDropdown
+                  options={equipmentOptions}
+                  value={form.equipmentKeys || []}
+                  onChange={(keys) => setForm((f) => ({ ...f, equipmentKeys: keys }))}
+                  labelMap={equipmentLabelMap}
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Season</label>
@@ -646,6 +826,12 @@ export default function EquipmentMaintenanceHistoryHub({
         </div>
 
         <div className="p-6 space-y-4 overflow-y-auto flex-1 text-sm">
+          {showEquipmentPicker && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-400 uppercase">Equipment</span>
+              <span className="text-sm font-semibold text-slate-800">{labelForRecord(selectedRecord)}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase">Season</span>
             <SeasonBadge season={selectedRecord.season} />

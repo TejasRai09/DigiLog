@@ -7,4 +7,5 @@ module.exports = createPowerEquipmentController({
   history: 'ppn_history',
   defaultDept: 'plant',
   logPrefix: 'powerNew',
+  historySubGroupScoped: true,
 });

@@ -737,7 +737,7 @@ CREATE TABLE IF NOT EXISTS `ppn_specs` (
   `section`     VARCHAR(32)  DEFAULT NULL,
   `sub_section` VARCHAR(200) DEFAULT NULL,
   `lbl`         VARCHAR(300) NOT NULL,
-  `val`         TEXT         DEFAULT NULL,
+  `val`         MEDIUMTEXT   DEFAULT NULL,
   `sort_order`  INT          NOT NULL DEFAULT 0,
   FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -761,6 +761,9 @@ CREATE TABLE IF NOT EXISTS `ppn_oem_schedule` (
 CREATE TABLE IF NOT EXISTS `ppn_history` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `equipment_refs` JSON        DEFAULT NULL,
   `season`      VARCHAR(20)  DEFAULT NULL,
   `year`        VARCHAR(50)  DEFAULT NULL,
   `date_start`  DATE         DEFAULT NULL,
@@ -776,7 +779,8 @@ CREATE TABLE IF NOT EXISTS `ppn_history` (
   `img_after`   MEDIUMTEXT   DEFAULT NULL,
   `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE,
+  INDEX idx_ppn_history_sub_group (equip_id, section, sub_section)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `distillery_operations` (
