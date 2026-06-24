@@ -1,19 +1,24 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
-import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail } from '../../utils/breadcrumbTrail';
+import { buildPowerEquipmentTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
 import EquipmentSpecificationHub from '../../components/equipment/EquipmentSpecificationHub';
 import OemMaintenanceScheduleHub from '../../components/equipment/OemMaintenanceScheduleHub';
 import EquipmentMaintenanceHistoryHub from '../../components/equipment/EquipmentMaintenanceHistoryHub';
-import { serializeSpecsForApi } from '../../utils/equipmentSpecModel';
+import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { serializeScheduleForApi } from '../../utils/equipmentScheduleModel';
-import { historyRecordToApi } from '../../utils/equipmentHistoryModel';
+import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
 import { POWER_LIFE_HISTORY_FIELDS, powerEquipmentDisplayId, isZilEquipNo } from '../../config/powerEquipmentFields';
+import { findDiscipline } from '../../config/engineeringDisciplines';
+import {
+  POWER_PLANT_EQUIPMENT_TREE,
+  hierarchyBreadcrumbLabels,
+} from '../../config/powerPlantEquipmentHierarchy';
 
 const HIST_FETCH_LIMIT = 200;
 
@@ -29,6 +34,11 @@ const PowerEquipmentDetail = () => {
   const showNewHubTrail = fromHierarchy || isNewHub;
   const draftEquipment = location.state?.draftEquipment;
   const returnTo = location.state?.returnTo || '/power-plant-equipment-new';
+  const hierarchyPathIds = location.state?.hierarchyPathIds;
+  const specSection = location.state?.specSection || null;
+  const restoreEquipmentId = location.state?.restoreEquipmentId || null;
+  const disciplineMeta = specSection ? findDiscipline(specSection) : null;
+  const disciplineSpecFocus = isNewHub && Boolean(specSection && disciplineMeta);
   const appName = useAppName(appId);
   const isNewDraft = id === 'new';
 
@@ -74,13 +84,16 @@ const PowerEquipmentDetail = () => {
             appId,
             returnTo,
             fromHierarchy,
+            hierarchyPathIds,
+            specSection,
+            restoreEquipmentId,
           },
         });
         return newId;
       })();
     }
     return createPromiseRef.current;
-  }, [draftEquipment, eq?.name, eq?.equip_no, dept, navigate, appId, returnTo, fromHierarchy, apiBase, defaultDept, isNewHub]);
+  }, [draftEquipment, eq?.name, eq?.equip_no, dept, navigate, appId, returnTo, fromHierarchy, hierarchyPathIds, specSection, restoreEquipmentId, apiBase, defaultDept, isNewHub]);
 
   const [open, setOpen] = useState({ spec: false, oem: false, hist: false });
   const toggle = (s) => setOpen(o => ({ ...o, [s]: !o[s] }));
@@ -175,11 +188,11 @@ const PowerEquipmentDetail = () => {
     }
   };
 
-  const saveHubSpecs = async (structuredSpecs, subSections) => {
+  const saveHubSpecs = async (structuredSpecs, subSections, subGroupMeta) => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
-      const payload = serializeSpecsForApi(structuredSpecs, subSections);
+      const payload = serializeSpecsForApi(structuredSpecs, subSections, subGroupMeta);
       await api.put(`${apiBase}/${equipId}/specs`, { specs: payload });
       const { data } = await api.get(`${apiBase}/${equipId}`);
       setSpecs(data.specs);
@@ -245,51 +258,150 @@ const PowerEquipmentDetail = () => {
     }
   };
 
+  const deleteSubGroupMaintenanceHistory = async (section, subSection) => {
+    if (!isNewHub) return;
+    const equipId = await resolveEquipmentId();
+    await api.delete(`${apiBase}/${equipId}/history-sub-group`, {
+      data: { section, sub_section: subSection },
+    });
+    await loadHistory(equipId);
+  };
+
+  const renameSubGroupMaintenanceHistory = async (section, oldSubSection, newSubSection) => {
+    if (!isNewHub || oldSubSection === newSubSection) return;
+    const equipId = await resolveEquipmentId();
+    await api.put(`${apiBase}/${equipId}/history-sub-group/rename`, {
+      section,
+      old_sub_section: oldSubSection,
+      new_sub_section: newSubSection,
+    });
+    await loadHistory(equipId);
+  };
+
+  const breadcrumbItems = useMemo(() => {
+    if (!showNewHubTrail) {
+      return buildPowerEquipmentTrail({
+        appId,
+        appName,
+        dept,
+        equipmentName: eq?.name,
+      });
+    }
+
+    const hubState = {
+      appId: appId != null && appId !== '' ? String(appId) : undefined,
+      hierarchyPathIds,
+      restoreEquipmentId,
+    };
+
+    const equipmentForTrail = eq || draftEquipment || {};
+    const { labels, pathIds } = hierarchyBreadcrumbLabels(
+      POWER_PLANT_EQUIPMENT_TREE,
+      equipmentForTrail,
+      hierarchyPathIds,
+    );
+
+    const trailItems = labels.map((label, i) => {
+      const isEquipmentCrumb = i === labels.length - 1;
+      if (isEquipmentCrumb && restoreEquipmentId) {
+        return {
+          label,
+          to: returnTo,
+          state: {
+            ...hubState,
+            restoreEquipmentId,
+            hierarchyPathIds: pathIds,
+          },
+        };
+      }
+      if (i === labels.length - 1) return { label };
+      return {
+        label,
+        to: returnTo,
+        state: pathIds?.length
+          ? { ...hubState, hierarchyPathIds: pathIds.slice(0, i + 1) }
+          : hubState,
+      };
+    });
+
+    return trailItems;
+  }, [
+    showNewHubTrail,
+    appId,
+    appName,
+    dept,
+    eq,
+    draftEquipment,
+    hierarchyPathIds,
+    returnTo,
+    specSection,
+    restoreEquipmentId,
+    disciplineMeta,
+  ]);
+
+  const equipmentDefaults = useMemo(() => ({
+    tagNo: eq?.tag_name || draftEquipment?.tag_name || '',
+    equipNo: eq?.equip_no || draftEquipment?.equip_no || '',
+    location: eq?.location || '',
+    commissioned: eq?.commissioned || '',
+  }), [eq?.tag_name, eq?.equip_no, eq?.location, eq?.commissioned, draftEquipment?.tag_name, draftEquipment?.equip_no]);
+
+  const equipmentOptions = useMemo(
+    () => buildEquipmentOptionsFromSpecs(
+      specs,
+      equipmentDefaults,
+      disciplineSpecFocus ? specSection : null,
+    ),
+    [specs, equipmentDefaults, disciplineSpecFocus, specSection],
+  );
+
+  const historyForView = useMemo(() => {
+    if (!isNewHub || !disciplineSpecFocus) return history;
+    return history.filter((row) => historyRecordMatchesSection(row, specSection));
+  }, [history, isNewHub, disciplineSpecFocus, specSection]);
+
+  const historyTotalForView = isNewHub && disciplineSpecFocus
+    ? historyForView.length
+    : histTotal;
+
   if (loading) return <div className="flex justify-center py-32"><Spinner size="lg" /></div>;
   if (!eq)     return <p className="text-center py-20 text-gray-400">Equipment not found.</p>;
 
-  const DEPT_LABELS = { electrical: 'Electrical', instrument: 'Instrument', instrument2: 'Instrument II', plant: 'Power Plant' };
-  const deptLabel = DEPT_LABELS[eq?.dept || dept] || eq?.dept || dept;
+  const displayId = powerEquipmentDisplayId(eq);
 
   return (
     <main className="app-main">
-      <AppBreadcrumb
-        items={
-          showNewHubTrail
-            ? [
-                ...buildPowerPlantEquipmentNewTrail({ appId, appName }).map((item, i, arr) => (
-                  i === arr.length - 1 && item.label
-                    ? { ...item, to: returnTo, state: location.state }
-                    : item
-                )),
-                { label: eq?.name || 'Equipment' },
-              ]
-            : buildPowerEquipmentTrail({
-                appId,
-                appName,
-                dept,
-                equipmentName: eq?.name,
-              })
-        }
-      />
+      <AppBreadcrumb items={breadcrumbItems} />
 
-      <div className="mb-6">
-        <p className="text-sm text-gray-500 font-mono">
-          {powerEquipmentDisplayId(eq)} · Power Plant{deptLabel ? ` · ${deptLabel}` : ''}
-          {eq?.category ? ` · ${eq.category}` : ''}
-          {eq?.subcategory ? ` / ${eq.subcategory}` : ''}
-          {isNewDraft && (
-            <span className="ml-2 text-amber-600 font-sans font-medium">New — save to create record</span>
-          )}
-        </p>
-      </div>
+      {(displayId || isNewDraft) && (
+        <div className="mb-6">
+          <p className="text-sm text-gray-500 font-mono">
+            {displayId}
+            {isNewDraft && (
+              <span className="ml-2 text-amber-600 font-sans font-medium">New — save to create record</span>
+            )}
+          </p>
+        </div>
+      )}
 
+      {!isNewHub && (
+        <EquipmentLifeHistoryCard
+          equipment={eq}
+          saving={saving}
+          onSave={saveLifeHistory}
+          fields={POWER_LIFE_HISTORY_FIELDS}
+        />
+      )}
+      {/*
+        Power Plant Equipment History (new): Equipment Life History Card disabled.
+        Tag no., equipment no., location, commissioning date & gallery are on each spec sub-group.
       <EquipmentLifeHistoryCard
         equipment={eq}
         saving={saving}
         onSave={saveLifeHistory}
         fields={POWER_LIFE_HISTORY_FIELDS}
       />
+      */}
 
       {/* ── Section 2: Specifications (structured hub) ── */}
       <div className="mb-3">
@@ -300,6 +412,12 @@ const PowerEquipmentDetail = () => {
           onSave={saveHubSpecs}
           saving={saving}
           hideBulkActions={showNewHubTrail}
+          sectionFilter={disciplineSpecFocus ? specSection : null}
+          defaultBodyOpen={disciplineSpecFocus}
+          subGroupCardMode={isNewHub}
+          equipmentDefaults={equipmentDefaults}
+          onDeleteSubGroupMaintenanceHistory={isNewHub ? deleteSubGroupMaintenanceHistory : null}
+          onRenameSubGroupMaintenanceHistory={isNewHub ? renameSubGroupMaintenanceHistory : null}
         />
       </div>
 
@@ -316,13 +434,14 @@ const PowerEquipmentDetail = () => {
 
       <EquipmentMaintenanceHistoryHub
         embedded
-        apiRecords={history}
-        totalCount={histTotal}
+        apiRecords={isNewHub ? historyForView : history}
+        totalCount={isNewHub ? historyTotalForView : histTotal}
         saving={saving}
         open={open.hist}
         onToggle={() => toggle('hist')}
         onSave={saveMaintenanceRecord}
         onDelete={deleteMaintenanceRecord}
+        equipmentOptions={isNewHub ? equipmentOptions : []}
       />
     </main>
   );

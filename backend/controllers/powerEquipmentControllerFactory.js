@@ -4,6 +4,49 @@ const { enrichEquipment } = require('../utils/powerEquipmentClassification');
 
 const META_SUBSECTIONS_LBL = '__subsections__';
 
+function normalizeEquipmentRef(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const section = String(raw.section || '').trim();
+  const sub_section = String(raw.sub_section || raw.subSection || '').trim();
+  if (!section || !sub_section) return null;
+  return { section, sub_section };
+}
+
+function parseEquipmentRefsFromBody(body = {}) {
+  if (Array.isArray(body.equipment_refs)) {
+    return body.equipment_refs.map(normalizeEquipmentRef).filter(Boolean);
+  }
+  const section = String(body.section || '').trim();
+  const sub_section = String(body.sub_section || body.subSection || '').trim();
+  if (section && sub_section) return [{ section, sub_section }];
+  return [];
+}
+
+function parseEquipmentRefsFromRow(row = {}) {
+  if (row.equipment_refs) {
+    try {
+      const raw = typeof row.equipment_refs === 'string'
+        ? JSON.parse(row.equipment_refs)
+        : row.equipment_refs;
+      if (Array.isArray(raw)) {
+        const refs = raw.map(normalizeEquipmentRef).filter(Boolean);
+        if (refs.length) return refs;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  const section = String(row.section || '').trim();
+  const sub_section = String(row.sub_section || row.subSection || '').trim();
+  if (section && sub_section) return [{ section, sub_section }];
+  return [];
+}
+
+function serializeEquipmentRefsColumn(refs = []) {
+  if (!refs.length) return null;
+  return JSON.stringify(refs);
+}
+
 /**
  * @param {{ equipment: string, specs: string, schedule: string, history: string, defaultDept?: string, logPrefix?: string }} tables
  */
@@ -15,6 +58,7 @@ function createPowerEquipmentController(tables) {
     history: HIST,
     defaultDept = 'electrical',
     logPrefix = 'power',
+    historySubGroupScoped = false,
   } = tables;
 
   const getEq = async (id) => {
@@ -312,20 +356,37 @@ function createPowerEquipmentController(tables) {
     }
   };
 
+  const historyWhereClause = (id, section, subSection) => {
+    const conditions = ['equip_id = ?'];
+    const params = [id];
+    if (historySubGroupScoped && section) {
+      conditions.push('section = ?');
+      params.push(section);
+    }
+    if (historySubGroupScoped && subSection) {
+      conditions.push('sub_section = ?');
+      params.push(subSection);
+    }
+    return { where: conditions.join(' AND '), params };
+  };
+
   const getHistory = async (req, res) => {
     try {
       const { id } = req.params;
       const page = Math.max(1, parseInt(req.query.page || '1', 10));
       const limit = Math.min(200, parseInt(req.query.limit || '20', 10));
       const offset = (page - 1) * limit;
+      const section = String(req.query.section || '').trim() || null;
+      const subSection = String(req.query.sub_section || req.query.subSection || '').trim() || null;
+      const { where, params } = historyWhereClause(id, section, subSection);
       const [[{ total }]] = await pool.execute(
-        `SELECT COUNT(*) AS total FROM \`${HIST}\` WHERE equip_id = ?`, [id],
+        `SELECT COUNT(*) AS total FROM \`${HIST}\` WHERE ${where}`, params,
       );
       const [records] = await pool.query(
-        `SELECT * FROM \`${HIST}\` WHERE equip_id = ?
+        `SELECT * FROM \`${HIST}\` WHERE ${where}
          ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
          LIMIT ${limit} OFFSET ${offset}`,
-        [id],
+        params,
       );
       res.json({ total, page, limit, records });
     } catch (err) {
@@ -342,17 +403,44 @@ function createPowerEquipmentController(tables) {
 
       const {
         season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after,
+        section, sub_section: subSectionBody, subSection, equipment_refs,
       } = req.body;
+      const equipmentRefs = parseEquipmentRefsFromBody({ equipment_refs, section, sub_section: subSectionBody ?? subSection });
+
+      if (historySubGroupScoped && equipmentRefs.length === 0) {
+        return res.status(400).json({ message: 'At least one equipment mapping is required.' });
+      }
+
+      const cols = ['equip_id'];
+      const placeholders = ['?'];
+      const values = [id];
+
+      if (historySubGroupScoped) {
+        cols.push('section', 'sub_section', 'equipment_refs');
+        placeholders.push('?', '?', '?');
+        values.push(
+          equipmentRefs[0].section,
+          equipmentRefs[0].sub_section,
+          serializeEquipmentRefsColumn(equipmentRefs),
+        );
+      }
+
+      cols.push(
+        'season', 'year', 'date_start', 'date_finish', 'obs', 'act', 'cost', 'svc', 'provider', 'resp', 'rem',
+        'img_before', 'img_after',
+      );
+      placeholders.push('?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?');
+      values.push(
+        season || null, year || null,
+        date_start || null, date_finish || null,
+        obs || null, act || null, cost || null,
+        svc || null, provider || null, resp || null, rem || null,
+        validHistoryImageField(img_before), validHistoryImageField(img_after),
+      );
+
       const [result] = await pool.execute(
-        `INSERT INTO \`${HIST}\`
-           (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [id,
-          season || null, year || null,
-          date_start || null, date_finish || null,
-          obs || null, act || null, cost || null,
-          svc || null, provider || null, resp || null, rem || null,
-          validHistoryImageField(img_before), validHistoryImageField(img_after)],
+        `INSERT INTO \`${HIST}\` (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`,
+        values,
       );
       res.status(201).json({ message: 'Record added.', id: result.insertId });
     } catch (err) {
@@ -366,19 +454,46 @@ function createPowerEquipmentController(tables) {
       const { id, hid } = req.params;
       const {
         season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after,
+        section, sub_section: subSectionBody, subSection, equipment_refs,
       } = req.body;
+
+      const setParts = [
+        'season=?', 'year=?', 'date_start=?', 'date_finish=?',
+        'obs=?', 'act=?', 'cost=?', 'svc=?', 'provider=?', 'resp=?', 'rem=?',
+        'img_before=?', 'img_after=?',
+      ];
+      const values = [
+        season || null, year || null,
+        date_start || null, date_finish || null,
+        obs || null, act || null, cost || null,
+        svc || null, provider || null, resp || null, rem || null,
+        validHistoryImageField(img_before), validHistoryImageField(img_after),
+      ];
+
+      if (historySubGroupScoped) {
+        const equipmentRefs = parseEquipmentRefsFromBody({
+          equipment_refs,
+          section,
+          sub_section: subSectionBody ?? subSection,
+        });
+        if (equipmentRefs.length === 0) {
+          return res.status(400).json({ message: 'At least one equipment mapping is required.' });
+        }
+        setParts.push('section=?', 'sub_section=?', 'equipment_refs=?');
+        values.push(
+          equipmentRefs[0].section,
+          equipmentRefs[0].sub_section,
+          serializeEquipmentRefsColumn(equipmentRefs),
+        );
+      }
+
+      values.push(hid, id);
+
       const [result] = await pool.execute(
         `UPDATE \`${HIST}\`
-         SET season=?, year=?, date_start=?, date_finish=?,
-             obs=?, act=?, cost=?, svc=?, provider=?, resp=?, rem=?,
-             img_before=?, img_after=?
+         SET ${setParts.join(', ')}
          WHERE id=? AND equip_id=?`,
-        [season || null, year || null,
-          date_start || null, date_finish || null,
-          obs || null, act || null, cost || null,
-          svc || null, provider || null, resp || null, rem || null,
-          validHistoryImageField(img_before), validHistoryImageField(img_after),
-          hid, id],
+        values,
       );
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: 'Record not found.' });
@@ -386,6 +501,104 @@ function createPowerEquipmentController(tables) {
       res.json({ message: 'Record updated.' });
     } catch (err) {
       console.error(`${logPrefix}.updateHistory:`, err.message);
+      res.status(500).json({ message: 'Database error: ' + err.message });
+    }
+  };
+
+  const deleteSubGroupHistory = async (req, res) => {
+    if (!historySubGroupScoped) {
+      return res.status(404).json({ message: 'Not found.' });
+    }
+    try {
+      const { id } = req.params;
+      const section = String(req.body.section || '').trim();
+      const sub_section = String(req.body.sub_section || req.body.subSection || '').trim();
+      if (!section || !sub_section) {
+        return res.status(400).json({ message: 'section and sub_section are required.' });
+      }
+
+      const [rows] = await pool.execute(
+        `SELECT id, section, sub_section, equipment_refs FROM \`${HIST}\` WHERE equip_id = ?`,
+        [id],
+      );
+
+      for (const row of rows) {
+        const refs = parseEquipmentRefsFromRow(row);
+        const matchesLegacy = row.section === section && row.sub_section === sub_section;
+        const nextRefs = refs.filter(
+          (ref) => !(ref.section === section && ref.sub_section === sub_section),
+        );
+
+        if (!matchesLegacy && nextRefs.length === refs.length) continue;
+
+        if (nextRefs.length === 0) {
+          await pool.execute(`DELETE FROM \`${HIST}\` WHERE id = ? AND equip_id = ?`, [row.id, id]);
+        } else {
+          await pool.execute(
+            `UPDATE \`${HIST}\` SET section = ?, sub_section = ?, equipment_refs = ? WHERE id = ? AND equip_id = ?`,
+            [nextRefs[0].section, nextRefs[0].sub_section, serializeEquipmentRefsColumn(nextRefs), row.id, id],
+          );
+        }
+      }
+
+      res.json({ message: 'Sub-group history updated.' });
+    } catch (err) {
+      console.error(`${logPrefix}.deleteSubGroupHistory:`, err.message);
+      res.status(500).json({ message: 'Database error: ' + err.message });
+    }
+  };
+
+  const renameSubGroupHistory = async (req, res) => {
+    if (!historySubGroupScoped) {
+      return res.status(404).json({ message: 'Not found.' });
+    }
+    try {
+      const { id } = req.params;
+      const section = String(req.body.section || '').trim();
+      const old_sub_section = String(req.body.old_sub_section || req.body.oldSubSection || '').trim();
+      const new_sub_section = String(req.body.new_sub_section || req.body.newSubSection || '').trim();
+      if (!section || !old_sub_section || !new_sub_section) {
+        return res.status(400).json({ message: 'section, old_sub_section, and new_sub_section are required.' });
+      }
+
+      const [rows] = await pool.execute(
+        `SELECT id, section, sub_section, equipment_refs FROM \`${HIST}\` WHERE equip_id = ?`,
+        [id],
+      );
+
+      for (const row of rows) {
+        const refs = parseEquipmentRefsFromRow(row).map((ref) => (
+          ref.section === section && ref.sub_section === old_sub_section
+            ? { section, sub_section: new_sub_section }
+            : ref
+        ));
+
+        const legacySubSection = row.section === section && row.sub_section === old_sub_section
+          ? new_sub_section
+          : row.sub_section;
+
+        const changed = JSON.stringify(refs) !== JSON.stringify(parseEquipmentRefsFromRow(row))
+          || legacySubSection !== row.sub_section;
+
+        if (!changed) continue;
+
+        await pool.execute(
+          `UPDATE \`${HIST}\`
+           SET section = ?, sub_section = ?, equipment_refs = ?
+           WHERE id = ? AND equip_id = ?`,
+          [
+            refs[0]?.section || row.section,
+            refs[0]?.sub_section || legacySubSection,
+            serializeEquipmentRefsColumn(refs),
+            row.id,
+            id,
+          ],
+        );
+      }
+
+      res.json({ message: 'Sub-group history renamed.' });
+    } catch (err) {
+      console.error(`${logPrefix}.renameSubGroupHistory:`, err.message);
       res.status(500).json({ message: 'Database error: ' + err.message });
     }
   };
@@ -420,6 +633,8 @@ function createPowerEquipmentController(tables) {
     addHistory,
     updateHistory,
     deleteHistory,
+    deleteSubGroupHistory,
+    renameSubGroupHistory,
   };
 }
 

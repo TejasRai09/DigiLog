@@ -11,6 +11,8 @@ router.put('/:id/image/:type',      authenticate, ctrl.uploadImage);
 router.delete('/:id/image/:type',   authenticate, ctrl.deleteImage);
 router.put('/:id/specs',            authenticate, ctrl.updateSpecs);
 router.put('/:id/schedule',         authenticate, ctrl.updateSchedule);
+router.delete('/:id/history-sub-group', authenticate, ctrl.deleteSubGroupHistory);
+router.put('/:id/history-sub-group/rename', authenticate, ctrl.renameSubGroupHistory);
 router.get('/:id/history',          authenticate, ctrl.getHistory);
 router.post('/:id/history',         authenticate, ctrl.addHistory);
 router.put('/:id/history/:hid',     authenticate, ctrl.updateHistory);

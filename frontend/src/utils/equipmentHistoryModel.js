@@ -57,10 +57,76 @@ export function isOffSeason(season) {
   return season === 'Off-Season' || season === 'OFF Season';
 }
 
+export function parseEquipmentKey(key) {
+  if (!key || !String(key).includes('::')) return null;
+  const [section, ...rest] = String(key).split('::');
+  const subSection = rest.join('::');
+  if (!section || !subSection) return null;
+  return { section, subSection };
+}
+
+export function equipmentKeyFromRef(ref) {
+  if (!ref?.section || !(ref.sub_section || ref.subSection)) return '';
+  return `${ref.section}::${ref.sub_section || ref.subSection}`;
+}
+
+export function parseEquipmentRefsFromRow(row = {}) {
+  if (row.equipment_refs) {
+    try {
+      const raw = typeof row.equipment_refs === 'string'
+        ? JSON.parse(row.equipment_refs)
+        : row.equipment_refs;
+      if (Array.isArray(raw)) {
+        const refs = raw
+          .map((ref) => {
+            const section = ref?.section || '';
+            const subSection = ref?.sub_section || ref?.subSection || '';
+            if (!section || !subSection) return null;
+            return { section, subSection };
+          })
+          .filter(Boolean);
+        if (refs.length) return refs;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  if (row.section && (row.sub_section || row.subSection)) {
+    return [{
+      section: row.section,
+      subSection: row.sub_section || row.subSection,
+    }];
+  }
+  return [];
+}
+
+export function equipmentKeysFromRecord(record) {
+  return parseEquipmentRefsFromRow(record).map(
+    (ref) => `${ref.section}::${ref.subSection}`,
+  );
+}
+
+/** @deprecated use equipmentKeysFromRecord */
+export function equipmentKeyFromRecord(record) {
+  const keys = equipmentKeysFromRecord(record);
+  return keys[0] || '';
+}
+
+export function historyRecordMatchesSection(row, section) {
+  if (!section) return true;
+  return parseEquipmentRefsFromRow(row).some((ref) => ref.section === section);
+}
+
 /** API row → UI record for the maintenance history hub. */
 export function historyRecordFromApi(row) {
+  const equipmentRefs = parseEquipmentRefsFromRow(row);
+  const first = equipmentRefs[0] || {};
   return {
     id: row.id,
+    section: first.section || row.section || '',
+    subSection: first.subSection || row.sub_section || row.subSection || '',
+    equipmentRefs,
+    equipmentKeys: equipmentRefs.map((ref) => `${ref.section}::${ref.subSection}`),
     season: normalizeSeasonFromApi(row.season),
     year: row.year || '',
     start: row.date_start ? String(row.date_start).slice(0, 10) : '',
@@ -79,7 +145,16 @@ export function historyRecordFromApi(row) {
 
 /** UI form → API body for POST/PUT history. */
 export function historyRecordToApi(form) {
-  return {
+  const keys = Array.isArray(form.equipmentKeys) ? form.equipmentKeys : [];
+  const fromKeys = keys.map(parseEquipmentKey).filter(Boolean);
+  const fromLegacyKey = parseEquipmentKey(form.equipmentKey);
+  const equipment_refs = (fromKeys.length ? fromKeys : fromLegacyKey ? [fromLegacyKey] : [])
+    .map(({ section, subSection }) => ({
+      section,
+      sub_section: subSection,
+    }));
+
+  const body = {
     season: seasonToApi(form.season),
     year: form.year?.trim() || null,
     date_start: form.start || null,
@@ -93,10 +168,19 @@ export function historyRecordToApi(form) {
     rem: form.remarks?.trim() || null,
     img_before: serializeHistoryPhotos(form.photosBefore),
     img_after: serializeHistoryPhotos(form.photosAfter),
+    equipment_refs,
   };
+
+  if (equipment_refs.length) {
+    body.section = equipment_refs[0].section;
+    body.sub_section = equipment_refs[0].sub_section;
+  }
+
+  return body;
 }
 
 export const EMPTY_HISTORY_FORM = {
+  equipmentKeys: [],
   season: '',
   year: '',
   start: '',
