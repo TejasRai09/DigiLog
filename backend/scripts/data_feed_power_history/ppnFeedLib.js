@@ -9,10 +9,10 @@ const SPEC_SECTIONS = ['mechanical', 'civil', 'instrument', 'electrical'];
 const DEFAULT_DEPT = 'plant';
 
 const DEFAULT_SUB_SECTIONS = {
-  mechanical: ['General'],
-  civil: ['General'],
-  instrument: ['General'],
-  electrical: ['General'],
+  mechanical: [],
+  civil: [],
+  instrument: [],
+  electrical: [],
 };
 
 function emptyToNull(v) {
@@ -140,7 +140,21 @@ function normalizeScheduleRow(row, index) {
 }
 
 function normalizeHistoryRow(row) {
+  const section = emptyToNull(row.section);
+  const sub_section = emptyToNull(row.sub_section ?? row.subSection);
+  const equipment_refs = Array.isArray(row.equipment_refs)
+    ? row.equipment_refs
+      .map((ref) => ({
+        section: emptyToNull(ref.section),
+        sub_section: emptyToNull(ref.sub_section ?? ref.subSection),
+      }))
+      .filter((ref) => ref.section && ref.sub_section)
+    : null;
+
   return {
+    section,
+    sub_section,
+    equipment_refs,
     season: emptyToNull(row.season),
     year: emptyToNull(row.year),
     date_start: emptyToNull(row.date_start ?? row.dateStart),
@@ -155,6 +169,52 @@ function normalizeHistoryRow(row) {
     img_before: row.img_before ?? null,
     img_after: row.img_after ?? null,
   };
+}
+
+function readSubSectionsMeta(specRows) {
+  const meta = specRows.find((s) => s.lbl === META_SUBSECTIONS_LBL);
+  if (!meta?.val) return { ...DEFAULT_SUB_SECTIONS };
+  try {
+    const parsed = JSON.parse(meta.val);
+    const out = { ...DEFAULT_SUB_SECTIONS };
+    for (const sec of SPEC_SECTIONS) {
+      if (Array.isArray(parsed[sec]) && parsed[sec].length) out[sec] = parsed[sec];
+    }
+    return out;
+  } catch {
+    return { ...DEFAULT_SUB_SECTIONS };
+  }
+}
+
+/** Pick the discipline that owns most spec rows (for scoping maintenance history). */
+function inferPrimarySectionFromSpecs(specRows) {
+  const counts = {};
+  for (const row of specRows) {
+    if (!row.section || row.lbl === META_SUBSECTIONS_LBL) continue;
+    counts[row.section] = (counts[row.section] || 0) + 1;
+  }
+  const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  return ranked[0]?.[0] || 'mechanical';
+}
+
+/** Attach section / sub_section / equipment_refs when feed history rows omit them. */
+function scopeHistoryFromSpecs(historyRows, specRows, opts = {}) {
+  const subSections = readSubSectionsMeta(specRows);
+  const primarySection = opts.defaultSection
+    ? normalizeSection(opts.defaultSection)
+    : inferPrimarySectionFromSpecs(specRows);
+  const primarySubSection = emptyToNull(opts.defaultSubSection)
+    || subSections[primarySection]?.[0]
+    || 'General';
+
+  return historyRows.map((row) => {
+    const section = row.section || primarySection;
+    const sub_section = row.sub_section || primarySubSection;
+    const equipment_refs = row.equipment_refs?.length
+      ? row.equipment_refs
+      : [{ section, sub_section }];
+    return { ...row, section, sub_section, equipment_refs };
+  });
 }
 
 function resolveDbName(record) {
@@ -208,6 +268,11 @@ function normalizeEquipmentRecord(record, sortOrder = 0) {
     drive: record.drive ?? null,
   });
 
+  const specs = prepareSpecsForDb(record.specs || []);
+  const rawHistory = (record.history || [])
+    .map(normalizeHistoryRow)
+    .filter((h) => h.obs || h.act || h.year || h.date_start);
+
   return {
     dept: DEFAULT_DEPT,
     category: enriched.category,
@@ -219,11 +284,12 @@ function normalizeEquipmentRecord(record, sortOrder = 0) {
     commissioned: emptyToNull(record.commissioned),
     drive: emptyToNull(record.drive),
     sort_order: Number(record.sort_order ?? sortOrder) || sortOrder,
-    specs: prepareSpecsForDb(record.specs || []),
+    specs,
     schedule: (record.schedule || []).map(normalizeScheduleRow),
-    history: (record.history || [])
-      .map(normalizeHistoryRow)
-      .filter((h) => h.obs || h.act || h.year || h.date_start),
+    history: scopeHistoryFromSpecs(rawHistory, specs, {
+      defaultSection: record.history_section ?? record.historySection,
+      defaultSubSection: record.history_sub_section ?? record.historySubSection ?? record.sub_section,
+    }),
   };
 }
 
@@ -289,6 +355,90 @@ async function findExistingPpnId(conn, equipment) {
   return null;
 }
 
+/** Match feed record by hierarchy_name, hierarchy_card, name, equip_no, tag_name. */
+async function findExistingPpnIdFromRecord(conn, record) {
+  const candidates = [
+    resolveDbName(record),
+    record.hierarchy_name,
+    record.hierarchy_card,
+    record.name,
+  ]
+    .map((v) => String(v || '').trim())
+    .filter(Boolean);
+  const uniqueNames = [...new Set(candidates)];
+
+  for (const name of uniqueNames) {
+    const id = await findExistingPpnId(conn, {
+      name,
+      equip_no: record.equip_no ?? record.equipNo,
+      tag_name: record.tag_name ?? record.tagName,
+    });
+    if (id) return id;
+  }
+  return null;
+}
+
+async function ensureSubSectionsMeta(conn, equipId, section, subSection) {
+  const [existing] = await conn.execute(
+    'SELECT id FROM ppn_specs WHERE equip_id = ? AND lbl = ? LIMIT 1',
+    [equipId, META_SUBSECTIONS_LBL],
+  );
+  if (existing[0]) return;
+
+  const subSections = { ...DEFAULT_SUB_SECTIONS };
+  const sec = normalizeSection(section) || 'mechanical';
+  const sub = emptyToNull(subSection) || 'General';
+  subSections[sec] = [sub];
+
+  await conn.execute(
+    `INSERT INTO ppn_specs (equip_id, section, sub_section, lbl, val, sort_order)
+     VALUES (?, NULL, NULL, ?, ?, 99999)`,
+    [equipId, META_SUBSECTIONS_LBL, JSON.stringify(subSections)],
+  );
+}
+
+/**
+ * Create a minimal ppn_equipment row (+ __subsections__) for history-only feeds
+ * when the card has not been opened in the app yet.
+ */
+async function ensureHistoryEquipmentStub(conn, record, scope = {}) {
+  const dbName = resolveDbName(record);
+  const existingId = await findExistingPpnIdFromRecord(conn, record);
+  if (existingId) return existingId;
+
+  const enriched = enrichEquipment({
+    dept: DEFAULT_DEPT,
+    name: dbName,
+    equip_no: record.equip_no ?? record.equipNo ?? null,
+    tag_name: record.tag_name ?? record.tagName ?? null,
+    category: record.category ?? null,
+    subcategory: record.subcategory ?? record.sub_category ?? null,
+    location: record.location ?? null,
+  });
+
+  const equipId = await insertPpnEquipment(conn, {
+    dept: DEFAULT_DEPT,
+    category: enriched.category,
+    subcategory: enriched.subcategory,
+    equip_no: enriched.equip_no,
+    tag_name: enriched.tag_name,
+    name: dbName || enriched.name,
+    location: emptyToNull(record.location),
+    commissioned: emptyToNull(record.commissioned),
+    drive: emptyToNull(record.drive),
+    sort_order: Number(record.sort_order) || 0,
+  });
+
+  await ensureSubSectionsMeta(
+    conn,
+    equipId,
+    scope.section ?? record.history_section ?? record.section ?? 'mechanical',
+    scope.subSection ?? record.sub_section ?? record.subSection ?? 'General',
+  );
+
+  return equipId;
+}
+
 async function deletePpnTree(conn, equipId) {
   await conn.execute('DELETE FROM ppn_history WHERE equip_id = ?', [equipId]);
   await conn.execute('DELETE FROM ppn_oem_schedule WHERE equip_id = ?', [equipId]);
@@ -345,12 +495,23 @@ async function insertPpnSchedule(conn, equipId, scheduleRows) {
 
 async function insertPpnHistory(conn, equipId, historyRows) {
   for (const row of historyRows) {
+    const refs = row.equipment_refs?.length
+      ? row.equipment_refs
+      : (row.section && row.sub_section
+        ? [{ section: row.section, sub_section: row.sub_section }]
+        : []);
+    const equipmentRefsJson = refs.length ? JSON.stringify(refs) : null;
+    const primary = refs[0] || {};
+
     await conn.execute(
       `INSERT INTO ppn_history
-         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (equip_id, section, sub_section, equipment_refs, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         equipId,
+        primary.section || row.section || null,
+        primary.sub_section || row.sub_section || null,
+        equipmentRefsJson,
         row.season, row.year, row.date_start, row.date_finish,
         row.obs, row.act, row.cost, row.svc, row.provider, row.resp, row.rem,
       ],
@@ -441,10 +602,19 @@ module.exports = {
   SPEC_SECTIONS,
   flattenFeedPayload,
   normalizeEquipmentRecord,
+  normalizeHistoryRow,
   prepareSpecsForDb,
+  scopeHistoryFromSpecs,
+  inferPrimarySectionFromSpecs,
+  readSubSectionsMeta,
   importPpnRecord,
   findExistingPpnId,
+  findExistingPpnIdFromRecord,
+  ensureHistoryEquipmentStub,
+  ensureSubSectionsMeta,
+  insertPpnEquipment,
   deletePpnTree,
   formatHierarchyPath,
   buildFeedMeta,
+  resolveDbName,
 };

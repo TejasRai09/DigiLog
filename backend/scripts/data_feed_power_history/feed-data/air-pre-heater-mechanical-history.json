@@ -1,0 +1,1615 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "Air Preheater",
+      "hierarchy_card": "Air Pre Heater",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > Air Pre Heater",
+      "name": "Air Preheater",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "history_only": true,
+      "history": [
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 12 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Ishwar Singh",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, 18 Nos. tube founde leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Ishwar Singh",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 05 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Ishwar Singh",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 45 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 47 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, 90 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": "110 Nos Tube Replacement work & 52 leakage tube blind.",
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH Damage due to boiler explosion",
+          "act": "4th Zone Complete Change with Tube sheet",
+          "cost": null,
+          "svc": "External",
+          "resp": "Ishwar Singh",
+          "rem": "1728 nos tube replaced and tube sheet replaced with new.",
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 16 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH Damage due to boiler explosion",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "External",
+          "resp": "Ishwar Singh",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, 07 Nos. tube founde leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, 18 Nos. tube founde leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH Damage due to boiler explosion",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "External",
+          "resp": "Ishwar Singh",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 15 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, 18 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH Damage due to boiler explosion",
+          "act": "APH tube smoke test, 12 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "External",
+          "resp": "Ishwar Singh",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 25 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 14 tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": "160 Nos Tube Replacement work.",
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2016-17",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2017-18",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2018-19",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2019-20",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, No tube found leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2020-21",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 45 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Pankaj Gupta",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2021-22",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 48 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2022-23",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leak Test",
+          "act": "APH tube smoke test, 46 Nos. tube found leakage & Blind leakage tube.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Dharmendra Kumar",
+          "rem": "155 Nos Tube Replacement work.",
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2023-24",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH Damage due to boiler explosion",
+          "act": "4th Zone Complete Change with Tube sheet",
+          "cost": null,
+          "svc": "External",
+          "resp": "Ishwar Singh",
+          "rem": "1152 tubes replaced with new and tube sheet replaced with new.",
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2024-25",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        },
+        {
+          "season": "Off-Season",
+          "year": "2025-26",
+          "date_start": null,
+          "date_finish": null,
+          "obs": "APH air leake Test",
+          "act": "APH tube smoke test, No tube founde leakage.",
+          "cost": null,
+          "svc": "Internal",
+          "resp": "Vikas Gaur",
+          "rem": null,
+          "section": "mechanical",
+          "sub_section": "General",
+          "equipment_refs": [
+            {
+              "section": "mechanical",
+              "sub_section": "General"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

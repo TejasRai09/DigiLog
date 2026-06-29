@@ -301,19 +301,23 @@ const PowerEquipmentDetail = () => {
       hierarchyPathIds,
     );
 
+    const onDisciplinePage = Boolean(disciplineSpecFocus && disciplineMeta);
+
     const trailItems = labels.map((label, i) => {
       const isEquipmentCrumb = i === labels.length - 1;
+
       if (isEquipmentCrumb && restoreEquipmentId) {
         return {
           label,
           to: returnTo,
           state: {
-            ...hubState,
-            restoreEquipmentId,
+            appId: hubState.appId,
             hierarchyPathIds: pathIds,
+            restoreEquipmentId,
           },
         };
       }
+
       if (i === labels.length - 1) return { label };
       return {
         label,
@@ -323,6 +327,19 @@ const PowerEquipmentDetail = () => {
           : hubState,
       };
     });
+
+    if (onDisciplinePage) {
+      trailItems.push({
+        label: disciplineMeta.name,
+        to: returnTo,
+        linkWhenLast: true,
+        state: {
+          appId: hubState.appId,
+          hierarchyPathIds: pathIds,
+          restoreEquipmentId,
+        },
+      });
+    }
 
     return trailItems;
   }, [
@@ -337,6 +354,9 @@ const PowerEquipmentDetail = () => {
     specSection,
     restoreEquipmentId,
     disciplineMeta,
+    disciplineSpecFocus,
+    id,
+    isNewDraft,
   ]);
 
   const equipmentDefaults = useMemo(() => ({

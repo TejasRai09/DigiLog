@@ -23,6 +23,7 @@
     flex-wrap: wrap;
     overflow-x: hidden;
     overflow-y: visible;
+    isolation: isolate;
     row-gap: 0.625rem;
     column-gap: 0.5rem;
   }

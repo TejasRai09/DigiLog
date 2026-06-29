@@ -5,11 +5,12 @@ export const SPEC_SECTIONS = [
   { id: 'electrical', title: '4. Electrical', hint: 'Power ratings, supply lines & protections' },
 ];
 
+/** Empty by default — sub-groups come from DB/import or user adds them in the UI. */
 export const DEFAULT_SUB_SECTIONS = {
-  mechanical: ['Rotor & Frame', 'Bearings'],
-  civil: ['Foundation Base', 'Isolators & Anchors'],
-  instrument: ['Cables & Signals', 'Drive Controller'],
-  electrical: ['Motor Ratings', 'VFD System', 'Protection Feeders'],
+  mechanical: [],
+  civil: [],
+  instrument: [],
+  electrical: [],
 };
 
 export const META_SUBSECTIONS_LBL = '__subsections__';

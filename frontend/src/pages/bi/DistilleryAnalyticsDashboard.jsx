@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   MdInfoOutline,
@@ -14,7 +15,7 @@ import {
   MdExpandMore,
   MdArrowBack,
 } from 'react-icons/md';
-import { ResponsiveContainer, LineChart, AreaChart, Line, Area, YAxis } from 'recharts';
+import { ResponsiveContainer, LineChart, AreaChart, Line, Area, YAxis, Tooltip } from 'recharts';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import {
@@ -28,9 +29,7 @@ import {
 } from '../../utils/distilleryBiDateRange';
 import {
   aggregateKpisFromRows,
-  buildSeasonHistoricalByDay,
   filterSeasonCompareRowsBySeason,
-  overlayPriorMetrics,
 } from '../../utils/distilleryBiComparison';
 import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
 
@@ -87,15 +86,196 @@ function formatDistilleryRawScalar(kind, row, key) {
   }
 }
 
-const InfoTooltip = ({ definition }) => (
-  <div className="group relative z-10 ml-2 inline-flex cursor-help items-center">
-    <MdInfoOutline className="h-3.5 w-3.5 text-slate-400 transition-colors hover:text-blue-500" />
-    <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-lg bg-slate-800 p-3 text-center text-[11px] font-normal leading-relaxed text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 dark:bg-slate-700">
-      {definition}
-      <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700" />
+const FLOATING_LAYER_Z = 9999;
+const FLOATING_BACKDROP_Z = 9998;
+
+/** Track anchor position for portaled overlays (escapes parent z-index / overflow). */
+function useAnchorPosition(anchorRef, active) {
+  const [position, setPosition] = useState(null);
+
+  const update = useCallback(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      centerX: rect.left + rect.width / 2,
+      width: rect.width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!active) {
+      setPosition(null);
+      return;
+    }
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [active, update]);
+
+  return position;
+}
+
+const InfoTooltip = ({ definition, isDarkMode, placement = 'top' }) => {
+  const anchorRef = useRef(null);
+  const [active, setActive] = useState(false);
+  const pos = useAnchorPosition(anchorRef, active);
+
+  const tooltip =
+    active &&
+    pos &&
+    createPortal(
+      <div
+        role="tooltip"
+        className={`pointer-events-none fixed w-64 rounded-lg p-3 text-center text-[11px] font-normal leading-relaxed text-white shadow-xl ${
+          isDarkMode ? 'bg-slate-700' : 'bg-slate-800'
+        }`}
+        style={{
+          zIndex: FLOATING_LAYER_Z,
+          ...(placement === 'bottom'
+            ? { top: pos.bottom + 8, left: pos.centerX, transform: 'translateX(-50%)' }
+            : { top: pos.top - 8, left: pos.centerX, transform: 'translate(-50%, -100%)' }),
+        }}
+      >
+        {definition}
+      </div>,
+      document.body,
+    );
+
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        className="ml-2 inline-flex shrink-0 cursor-help items-center rounded p-0.5 text-slate-400 transition-colors hover:text-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        aria-label="More information"
+        onMouseEnter={() => setActive(true)}
+        onMouseLeave={() => setActive(false)}
+        onFocus={() => setActive(true)}
+        onBlur={() => setActive(false)}
+      >
+        <MdInfoOutline className="h-3.5 w-3.5" />
+      </button>
+      {tooltip}
+    </>
+  );
+};
+
+function OpModeFilter({
+  isOpen,
+  onToggle,
+  onClose,
+  availableModes,
+  selectedModes,
+  toggleMode,
+  isDarkMode,
+  cardClasses,
+  textClasses,
+  modeLabelHover,
+}) {
+  const btnRef = useRef(null);
+  const pos = useAnchorPosition(btnRef, isOpen);
+  const panelWidth = 192;
+
+  const panel =
+    isOpen &&
+    pos &&
+    createPortal(
+      <>
+        <button
+          type="button"
+          aria-label="Close operation mode menu"
+          className="fixed inset-0 cursor-default bg-transparent"
+          style={{ zIndex: FLOATING_BACKDROP_Z }}
+          onClick={onClose}
+        />
+        <div
+          className={`fixed w-48 rounded-xl border p-2 shadow-xl ${
+            isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'
+          }`}
+          style={{
+            zIndex: FLOATING_LAYER_Z,
+            top: pos.bottom + 8,
+            left: Math.max(8, Math.min(pos.right - panelWidth, window.innerWidth - panelWidth - 8)),
+          }}
+        >
+          <div
+            className={`mb-2 border-b px-2 pb-2 text-[10px] font-bold uppercase tracking-wider ${
+              isDarkMode ? 'border-slate-700 text-slate-500' : 'border-slate-100 text-slate-400'
+            }`}
+          >
+            Filter by Mode
+          </div>
+          {availableModes.map((m) => (
+            <label
+              key={m}
+              className={`flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors ${modeLabelHover}`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedModes.includes(m)}
+                onChange={() => toggleMode(m)}
+                className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
+                  isDarkMode ? 'border-slate-600 bg-slate-900' : ''
+                }`}
+              />
+              <span className={`text-sm font-semibold ${textClasses.title}`}>{m}</span>
+            </label>
+          ))}
+        </div>
+      </>,
+      document.body,
+    );
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={onToggle}
+        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border p-1.5 px-2 text-[10px] font-bold transition-colors sm:gap-2 sm:px-3 sm:text-xs ${cardClasses} ${textClasses.muted} ${
+          isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
+        }`}
+      >
+        <MdFilterList className="h-3.5 w-3.5" />
+        Op Mode ({selectedModes.length === availableModes.length ? 'All' : selectedModes.length})
+        <MdExpandMore className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {panel}
+    </>
+  );
+};
+
+const KpiSparklineTooltip = ({ active, payload, isDarkMode, unit }) => {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const v = Number(payload[0].value);
+  if (!Number.isFinite(v)) return null;
+  const dateLabel = row.dateFull || row.date || '';
+  const valueLabel =
+    unit === '%'
+      ? `${v.toFixed(2)}%`
+      : `${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${unit}`;
+
+  return (
+    <div
+      className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold shadow-lg ${
+        isDarkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+      }`}
+    >
+      <div className={`mb-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{dateLabel}</div>
+      <div className="tabular-nums">{valueLabel}</div>
     </div>
-  </div>
-);
+  );
+};
 
 const MetricCard = ({
   title,
@@ -127,12 +307,12 @@ const MetricCard = ({
 
   return (
     <div
-      className={`flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-4 transition-shadow hover:shadow-md ${cardClasses}`}
+      className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-4 transition-shadow hover:shadow-md sm:overflow-visible ${cardClasses}`}
     >
-      <div className="mb-2 flex min-w-0 items-start justify-between">
+      <div className="mb-2 flex min-w-0 items-start justify-between overflow-visible">
         <div className={`flex min-w-0 items-center text-xs font-bold ${textClasses.title}`}>
           {title}
-          <InfoTooltip definition={definition} />
+          <InfoTooltip definition={definition} isDarkMode={isDarkMode} placement="top" />
         </div>
       </div>
 
@@ -188,6 +368,11 @@ const MetricCard = ({
                     </linearGradient>
                   </defs>
                   <YAxis domain={['dataMin', 'dataMax']} hide />
+                  <Tooltip
+                    content={<KpiSparklineTooltip isDarkMode={isDarkMode} unit={unit} />}
+                    cursor={{ stroke: chartColor, strokeWidth: 1, strokeDasharray: '4 4' }}
+                    wrapperStyle={{ zIndex: 100, outline: 'none' }}
+                  />
                   <Area
                     type="monotone"
                     dataKey={dataKey}
@@ -195,17 +380,25 @@ const MetricCard = ({
                     strokeWidth={2.5}
                     fill={`url(#gradient-${dataKey})`}
                     isAnimationActive={false}
+                    dot={{ r: 2.5, fill: chartColor, strokeWidth: 0 }}
+                    activeDot={{ r: 4, fill: chartColor, stroke: '#fff', strokeWidth: 1 }}
                   />
                 </AreaChart>
               ) : (
                 <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
-                  <YAxis domain={['dataMin', 'dataMax']} hide />
+                  <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
+                  <Tooltip
+                    content={<KpiSparklineTooltip isDarkMode={isDarkMode} unit={unit} />}
+                    cursor={{ stroke: chartColor, strokeWidth: 1, strokeDasharray: '4 4' }}
+                    wrapperStyle={{ zIndex: 100, outline: 'none' }}
+                  />
                   <Line
                     type="monotone"
                     dataKey={dataKey}
                     stroke={chartColor}
                     strokeWidth={2.5}
-                    dot={false}
+                    dot={{ r: 2.5, fill: chartColor, strokeWidth: 0 }}
+                    activeDot={{ r: 4, fill: chartColor, stroke: '#fff', strokeWidth: 1 }}
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -268,7 +461,8 @@ const ChartTitle = ({
   if (!data || data.length === 0) return null;
 
   const currentAvg = data.reduce((sum, item) => sum + item[dataKey], 0) / data.length;
-  const pyAvg = pyData.reduce((sum, item) => sum + item[dataKey], 0) / pyData.length;
+  const pyAvg =
+    pyData?.length > 0 ? pyData.reduce((sum, item) => sum + item[dataKey], 0) / pyData.length : 0;
 
   const delta = pyAvg !== 0 ? ((currentAvg - pyAvg) / pyAvg) * 100 : 0;
   const isPositive = delta > 0;
@@ -283,7 +477,7 @@ const ChartTitle = ({
     <div className="mb-1 flex flex-wrap items-center gap-3">
       <div className="flex items-center">
         <h3 className={`text-sm font-black ${textClasses.title}`}>{title}</h3>
-        <InfoTooltip definition={definition} />
+        <InfoTooltip definition={definition} isDarkMode={isDarkMode} placement="top" />
       </div>
 
       <div
@@ -538,34 +732,19 @@ export default function DistilleryAnalyticsDashboard() {
     return filterSeasonCompareRowsBySeason(rawData, from, to, activeSeasonLabel, rowDateIso, selectedModes);
   }, [rawData, fromDate, toDate, activeSeasonLabel, selectedModes]);
 
-  const historicalData = useMemo(() => {
-    if (comparisonType === 'PP') {
-      const priorByIso = new Map(priorDataSlice.map((r) => [rowDateIso(r), r]));
-      return filteredData.map((item, idx) => {
-        const iso = rowDateIso(item);
-        const pmItem = (iso && priorByIso.get(iso)) || priorDataSlice[idx];
-        return overlayPriorMetrics(item, pmItem);
-      });
-    }
-
-    if (activeSeasonLabel) {
-      return buildSeasonHistoricalByDay(filteredData, seasonCompareSlice, activeSeasonLabel, rowDateIso);
-    }
-
-    return filteredData;
-  }, [filteredData, comparisonType, priorDataSlice, seasonCompareSlice, activeSeasonLabel]);
+  /** Prior-period rows for comparisons — same slices as KPI cards (no day overlay). */
+  const comparisonDataSlice = useMemo(() => {
+    if (comparisonType === 'PP') return priorDataSlice;
+    if (isSeasonComparisonType(comparisonType)) return seasonCompareSlice;
+    return [];
+  }, [comparisonType, priorDataSlice, seasonCompareSlice]);
 
   const currentKPIs = useMemo(() => aggregateKpisFromRows(filteredData), [filteredData]);
 
-  const pyKPIs = useMemo(() => {
-    if (comparisonType === 'PP') {
-      return aggregateKpisFromRows(priorDataSlice);
-    }
-    if (isSeasonComparisonType(comparisonType)) {
-      return aggregateKpisFromRows(seasonCompareSlice);
-    }
-    return aggregateKpisFromRows(historicalData);
-  }, [comparisonType, priorDataSlice, seasonCompareSlice, historicalData]);
+  const pyKPIs = useMemo(
+    () => aggregateKpisFromRows(comparisonDataSlice),
+    [comparisonDataSlice],
+  );
 
   const formatMetric = (val) => {
     if (val > 1000000) return `${(val / 1000000).toFixed(2)}M`;
@@ -607,9 +786,6 @@ export default function DistilleryAnalyticsDashboard() {
     strokeDasharray: '3 3',
   };
 
-  const modePanelClass = isDarkMode
-    ? 'absolute right-0 top-full z-[320] mt-2 w-48 rounded-xl border border-slate-700 bg-slate-800 p-2 shadow-xl'
-    : 'absolute right-0 top-full z-[320] mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
   const modeLabelHover = isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50';
 
   if (loading) {
@@ -714,7 +890,7 @@ export default function DistilleryAnalyticsDashboard() {
 
         <div className="flex w-full min-w-0 flex-col gap-2 px-0.5 py-1 lg:w-auto lg:items-end lg:py-1.5">
           <div
-            className={`distillery-filter-bar relative z-[200] flex w-full min-w-0 max-w-full items-center gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:gap-2.5 sm:p-2.5 ${
+            className={`distillery-filter-bar relative flex w-full min-w-0 max-w-full items-center gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:gap-2.5 sm:p-2.5 ${
               isDarkMode
                 ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
                 : 'border-purple-200 bg-white/80 shadow-purple-100/50'
@@ -734,48 +910,19 @@ export default function DistilleryAnalyticsDashboard() {
 
             <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            <div className="relative z-[310] shrink-0">
-              <button
-                type="button"
-                onClick={() => setIsModeOpen(!isModeOpen)}
-                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border p-1.5 px-2 text-[10px] font-bold transition-colors sm:gap-2 sm:px-3 sm:text-xs ${cardClasses} ${textClasses.muted} ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}
-              >
-                <MdFilterList className="h-3.5 w-3.5" />
-                Op Mode ({selectedModes.length === availableModes.length ? 'All' : selectedModes.length})
-                <MdExpandMore className={`h-3 w-3 transition-transform ${isModeOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isModeOpen && (
-                <>
-                  <button
-                    type="button"
-                    aria-label="Close menu"
-                    className="fixed inset-0 z-[300] cursor-default bg-transparent"
-                    onClick={() => setIsModeOpen(false)}
-                  />
-                  <div className={modePanelClass}>
-                    <div
-                      className={`mb-2 border-b px-2 pb-2 text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'border-slate-700 text-slate-500' : 'border-slate-100 text-slate-400'}`}
-                    >
-                      Filter by Mode
-                    </div>
-                    {availableModes.map((m) => (
-                      <label
-                        key={m}
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors ${modeLabelHover}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedModes.includes(m)}
-                          onChange={() => toggleMode(m)}
-                          className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${isDarkMode ? 'border-slate-600 bg-slate-900' : ''}`}
-                        />
-                        <span className={`text-sm font-semibold ${textClasses.title}`}>{m}</span>
-                      </label>
-                    ))}
-                  </div>
-                </>
-              )}
+            <div className="shrink-0">
+              <OpModeFilter
+                isOpen={isModeOpen}
+                onToggle={() => setIsModeOpen(!isModeOpen)}
+                onClose={() => setIsModeOpen(false)}
+                availableModes={availableModes}
+                selectedModes={selectedModes}
+                toggleMode={toggleMode}
+                isDarkMode={isDarkMode}
+                cardClasses={cardClasses}
+                textClasses={textClasses}
+                modeLabelHover={modeLabelHover}
+              />
             </div>
 
             <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
@@ -938,7 +1085,7 @@ export default function DistilleryAnalyticsDashboard() {
           <DistilleryChartsGrid
             ChartTitle={ChartTitle}
             filteredData={filteredData}
-            historicalData={historicalData}
+            comparisonData={comparisonDataSlice}
             periodLabel={periodLabel}
             comparisonLabel={comparisonLabel}
             isDarkMode={isDarkMode}

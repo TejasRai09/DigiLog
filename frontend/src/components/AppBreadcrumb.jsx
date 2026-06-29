@@ -3,8 +3,8 @@ import { MdChevronRight, MdHome } from 'react-icons/md';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 
 /**
- * Horizontal breadcrumb trail. Last item is the current page (not linked).
- * @param {{ label: string, to?: string, state?: object }[]} items
+ * Horizontal breadcrumb trail. Last item is the current page (not linked) unless `linkWhenLast`.
+ * @param {{ label: string, to?: string, state?: object, linkWhenLast?: boolean }[]} items
  */
 const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
   if (!items?.length) return null;
@@ -15,7 +15,7 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           const label = withoutGsmaLabel(item.label) || '…';
-          const showLink = Boolean(item.to) && !isLast;
+          const showLink = Boolean(item.to) && (!isLast || item.linkWhenLast);
 
           return (
             <li key={`${label}-${index}`} className="flex items-center gap-0.5 min-w-0">
@@ -26,7 +26,10 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
                 <Link
                   to={item.to}
                   state={item.state}
-                  className="hover:text-gray-900 transition-colors truncate max-w-[10rem] sm:max-w-xs md:max-w-none"
+                  className={`hover:text-gray-900 transition-colors truncate max-w-[10rem] sm:max-w-xs md:max-w-none ${
+                    isLast ? 'font-medium text-gray-900' : ''
+                  }`}
+                  aria-current={isLast ? 'page' : undefined}
                 >
                   {index === 0 ? (
                     <span className="inline-flex items-center gap-1">

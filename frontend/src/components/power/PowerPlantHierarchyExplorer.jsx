@@ -31,21 +31,20 @@ import { isZilEquipNo } from '../../config/powerEquipmentFields';
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
 
-function HierarchyBreadcrumb({ pathIds, onNavigate, extraLabel = null }) {
+function HierarchyBreadcrumb({ pathIds, onNavigate }) {
   const labels = pathLabels(POWER_PLANT_EQUIPMENT_TREE, pathIds);
-  const displayLabels = extraLabel ? [...labels, extraLabel] : labels;
-  if (displayLabels.length <= 1) return null;
+  if (labels.length <= 1) return null;
 
   return (
     <nav className="flex flex-wrap items-center gap-1 text-sm text-gray-500 mb-4" aria-label="Equipment path">
-      {displayLabels.map((label, i) => {
-        const isLast = i === displayLabels.length - 1;
+      {labels.map((label, i) => {
+        const isLast = i === labels.length - 1;
         const targetPath = pathIds.slice(0, i + 1);
-        const canNavigate = !isLast && i < labels.length;
+
         return (
           <span key={`${targetPath.join('/')}-${label}`} className="inline-flex items-center gap-1">
             {i > 0 && <MdChevronRight className="h-4 w-4 shrink-0 text-gray-300" aria-hidden />}
-            {isLast || !canNavigate ? (
+            {isLast ? (
               <span className="font-medium text-gray-800">{label}</span>
             ) : (
               <button

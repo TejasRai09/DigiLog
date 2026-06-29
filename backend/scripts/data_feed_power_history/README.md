@@ -190,3 +190,34 @@ Use `--replace` to delete and re-import when a match exists. Without `--replace`
 ```bash
 npm run db:clear-power-equipment-new
 ```
+
+## Air Pre Heater — maintenance history only
+
+For Excel-sourced mechanical history (does **not** create equipment or specs):
+
+1. Place `PLANT/folder/air preheater data.xlsx`
+2. Extract:
+
+```bash
+npm run db:extract-aph-history
+# optional: npm run db:extract-aph-history -- --sub-section "General"
+```
+
+3. Prerequisite: open **Air Pre Heater** in the app and add a mechanical equipment card (e.g. **General**).
+4. Import:
+
+```bash
+npm run db:import-aph-history -- --replace-history
+```
+
+See also `PLANT/folder/README-air-pre-heater-import.md`.
+
+### Fix history not showing on discipline pages
+
+If history was imported before `section` / `equipment_refs` were set, rows exist in `ppn_history` but the Mechanical / Instrument UI filter hides them.
+
+```bash
+npm run db:backfill-ppn-history-scope
+```
+
+Re-import with `--replace` also scopes history automatically on new imports.
