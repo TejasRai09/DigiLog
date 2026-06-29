@@ -13,7 +13,7 @@ import {
 export default function DistilleryChartsGrid({
   ChartTitle,
   filteredData,
-  historicalData,
+  comparisonData,
   periodLabel,
   comparisonLabel,
   isDarkMode,
@@ -39,7 +39,7 @@ export default function DistilleryChartsGrid({
     definition: meta.definition,
     dataKey: meta.dataKey,
     data: filteredData,
-    pyData: historicalData,
+    pyData: comparisonData,
     timeFilter: periodLabel,
     isDarkMode,
     comparisonLabel,
@@ -48,7 +48,7 @@ export default function DistilleryChartsGrid({
 
   const vs = (key, isSum = false) => (
     <span className="text-[8px] font-semibold text-slate-400">
-      | vs {comparisonLabel}: {formatMetric(getChartMetric(key, isSum, historicalData))}
+      | vs {comparisonLabel}: {formatMetric(getChartMetric(key, isSum, comparisonData))}
     </span>
   );
 

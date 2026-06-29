@@ -114,13 +114,30 @@ export function equipmentKeyFromRecord(record) {
 
 export function historyRecordMatchesSection(row, section) {
   if (!section) return true;
-  return parseEquipmentRefsFromRow(row).some((ref) => ref.section === section);
+  const refs = parseEquipmentRefsFromRow(row);
+  if (!refs.length) return true;
+  return refs.some((ref) => ref.section === section);
+}
+
+export function isPlaceholderNo(value) {
+  return String(value || '').trim().toUpperCase() === 'NO';
+}
+
+function displayHistoryText(primary, fallback = '') {
+  const main = String(primary || '').trim();
+  if (main && !isPlaceholderNo(main)) return main;
+  const alt = String(fallback || '').trim();
+  if (alt && !isPlaceholderNo(alt)) return alt;
+  return '';
 }
 
 /** API row → UI record for the maintenance history hub. */
 export function historyRecordFromApi(row) {
   const equipmentRefs = parseEquipmentRefsFromRow(row);
   const first = equipmentRefs[0] || {};
+  const rawObs = row.obs || '';
+  const rawAct = row.act || '';
+  const rawRem = row.rem || '';
   return {
     id: row.id,
     section: first.section || row.section || '',
@@ -131,13 +148,13 @@ export function historyRecordFromApi(row) {
     year: row.year || '',
     start: row.date_start ? String(row.date_start).slice(0, 10) : '',
     finish: row.date_finish ? String(row.date_finish).slice(0, 10) : '',
-    observation: row.obs || '',
-    action: row.act || '',
+    observation: displayHistoryText(rawObs, rawRem),
+    action: displayHistoryText(rawAct),
     repairCost: row.cost || '',
     service: row.svc || '',
     provider: row.provider || '',
     responsible: row.resp || '',
-    remarks: row.rem || '',
+    remarks: isPlaceholderNo(rawRem) ? '' : rawRem,
     photosBefore: parseHistoryPhotos(row.img_before),
     photosAfter: parseHistoryPhotos(row.img_after),
   };

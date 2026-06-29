@@ -335,11 +335,19 @@ function coerceCell(field, raw, meta) {
   if (cat === 'datetime') {
     const t = meta[field].type.toLowerCase();
     if (t.includes('date') && !t.includes('time')) {
+      // MM/DD/YYYY
       const md = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
       if (md) {
         const mo = md[1].padStart(2, '0');
         const da = md[2].padStart(2, '0');
         return `${md[3]}-${mo}-${da}`;
+      }
+      // DD-MM-YYYY (e.g. distillery backlog CSV)
+      const md2 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (md2) {
+        const da2 = md2[1].padStart(2, '0');
+        const mo2 = md2[2].padStart(2, '0');
+        return `${md2[3]}-${mo2}-${da2}`;
       }
     }
     return s;
