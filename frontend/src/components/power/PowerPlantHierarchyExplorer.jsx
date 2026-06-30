@@ -17,6 +17,7 @@ import EngineeringDisciplineCards from './EngineeringDisciplineCards';
 import {
   disciplineNodesForEquipment,
   ENGINEERING_DISCIPLINES,
+  findDiscipline,
   isEquipmentLeaf,
 } from '../../config/engineeringDisciplines';
 import {
@@ -293,6 +294,13 @@ export default function PowerPlantHierarchyExplorer({
     ...(specSection ? { specSection } : {}),
   });
 
+  const equipmentDetailPath = (equipId, specSection = null) => {
+    if (specSection && findDiscipline(specSection)) {
+      return `${detailPrefix}/${equipId}/${specSection}`;
+    }
+    return `${detailPrefix}/${equipId}`;
+  };
+
   const openDraftEquipment = (node, specSection = null) => {
     const lookupName = node.lookupName || node.name;
     const nodePathIds = pathIdsForNodeId(node.id);
@@ -300,7 +308,7 @@ export default function PowerPlantHierarchyExplorer({
     const category = labels[1] || '';
     const subcategory = labels[2] || '';
     const equipNo = node.equipNo || '';
-    navigate(`${detailPrefix}/new`, {
+    navigate(equipmentDetailPath('new', specSection), {
       state: {
         ...buildNavState(node, specSection),
         draftEquipment: {
@@ -329,7 +337,7 @@ export default function PowerPlantHierarchyExplorer({
 
       const { data } = await api.get(`${apiBase}/lookup`, { params });
       const { id } = data.equipment;
-      navigate(`${detailPrefix}/${id}`, { state: buildNavState(node, specSection) });
+      navigate(equipmentDetailPath(id, specSection), { state: buildNavState(node, specSection) });
     } catch (err) {
       if (err.response?.status === 404) {
         openDraftEquipment(node, specSection);

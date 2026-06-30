@@ -41,7 +41,7 @@ function rowIntervalsFromApi(row) {
     .map((c) => c.key);
 }
 
-function equipmentKeysFromScheduleRow(row = {}) {
+export function equipmentKeysFromScheduleRow(row = {}) {
   if (row.equipment_refs) {
     try {
       const raw = typeof row.equipment_refs === 'string'
@@ -68,6 +68,32 @@ function equipmentKeysFromScheduleRow(row = {}) {
     return [`${row.section}::${subSection}`];
   }
   return [];
+}
+
+/** Raw API schedule row belongs to a discipline section (mechanical | electrical | …). */
+export function scheduleApiRowMatchesSection(row, section) {
+  if (!section) return true;
+  const keys = equipmentKeysFromScheduleRow(row);
+  if (keys.length) {
+    return keys.some((key) => {
+      const parsed = parseEquipmentOptionKey(key);
+      return parsed?.section === section;
+    });
+  }
+  const rowSection = String(row.section || '').trim();
+  if (rowSection) return rowSection === section;
+  return false;
+}
+
+/** Parsed UI schedule row belongs to a discipline section. */
+export function scheduleRowMatchesSection(row, section) {
+  if (!section) return true;
+  const keys = Array.isArray(row.equipmentKeys) ? row.equipmentKeys : [];
+  if (!keys.length) return false;
+  return keys.some((key) => {
+    const parsed = parseEquipmentOptionKey(key);
+    return parsed?.section === section;
+  });
 }
 
 /** API schedule rows → UI model */

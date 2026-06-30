@@ -148,8 +148,12 @@ export function equipmentKeyFromRecord(record) {
 export function historyRecordMatchesSection(row, section) {
   if (!section) return true;
   const refs = parseEquipmentRefsFromRow(row);
-  if (!refs.length) return true;
-  return refs.some((ref) => ref.section === section);
+  if (refs.length) {
+    return refs.some((ref) => ref.section === section);
+  }
+  const rowSection = String(row.section || '').trim();
+  if (rowSection) return rowSection === section;
+  return false;
 }
 
 export function isPlaceholderNo(value) {

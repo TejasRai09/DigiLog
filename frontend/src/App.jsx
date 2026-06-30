@@ -119,7 +119,7 @@ const App = () => {
           <Route path="/power/:dept"                element={<PowerList />} />
           <Route path="/power/:dept/:id"            element={<PowerEquipmentDetail />} />
           <Route path="/power-plant-equipment-new"      element={<PowerPlantEquipmentNew />} />
-          <Route path="/power-plant-equipment-new/:id"  element={<PowerEquipmentDetail />} />
+          <Route path="/power-plant-equipment-new/:id/:discipline?"  element={<PowerEquipmentDetail />} />
 
           {/* EHS Forms */}
           <Route path="/ehs"                       element={<EhsLanding />} />
