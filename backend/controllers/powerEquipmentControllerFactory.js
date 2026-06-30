@@ -59,6 +59,7 @@ function createPowerEquipmentController(tables) {
     defaultDept = 'electrical',
     logPrefix = 'power',
     historySubGroupScoped = false,
+    scheduleEquipmentScoped = false,
   } = tables;
 
   const getEq = async (id) => {
@@ -336,14 +337,40 @@ function createPowerEquipmentController(tables) {
       await conn.beginTransaction();
       await conn.execute(`DELETE FROM \`${SCHED}\` WHERE equip_id = ?`, [id]);
       for (const s of sched) {
-        await conn.execute(
-          `INSERT INTO \`${SCHED}\`
-             (equip_id, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-          [id, s.no ?? 0, s.comp ?? '', s.act ?? '',
-            s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
-            s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null],
-        );
+        if (scheduleEquipmentScoped) {
+          const refs = Array.isArray(s.equipment_refs) ? s.equipment_refs : [];
+          const equipmentRefsJson = refs.length
+            ? JSON.stringify(refs.map((ref) => ({
+              section: ref.section ?? null,
+              sub_section: ref.sub_section ?? ref.subSection ?? null,
+            })).filter((ref) => ref.section && ref.sub_section))
+            : null;
+          await conn.execute(
+            `INSERT INTO \`${SCHED}\`
+               (equip_id, section, sub_section, equipment_refs, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            [
+              id,
+              s.section ?? null,
+              s.sub_section ?? null,
+              equipmentRefsJson,
+              s.no ?? 0,
+              s.comp ?? '',
+              s.act ?? '',
+              s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
+              s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null,
+            ],
+          );
+        } else {
+          await conn.execute(
+            `INSERT INTO \`${SCHED}\`
+               (equip_id, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+            [id, s.no ?? 0, s.comp ?? '', s.act ?? '',
+              s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
+              s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null],
+          );
+        }
       }
       await conn.commit();
       res.json({ message: 'Schedule updated.' });
@@ -402,7 +429,7 @@ function createPowerEquipmentController(tables) {
       if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
       const {
-        season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after,
+        season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after,
         section, sub_section: subSectionBody, subSection, equipment_refs,
       } = req.body;
       const equipmentRefs = parseEquipmentRefsFromBody({ equipment_refs, section, sub_section: subSectionBody ?? subSection });
@@ -426,15 +453,15 @@ function createPowerEquipmentController(tables) {
       }
 
       cols.push(
-        'season', 'year', 'date_start', 'date_finish', 'obs', 'act', 'cost', 'svc', 'provider', 'resp', 'rem',
+        'season', 'year', 'date_start', 'date_finish', 'obs', 'act', 'cost', 'svc', 'maintenance_type', 'provider', 'resp', 'rem',
         'img_before', 'img_after',
       );
-      placeholders.push('?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?');
+      placeholders.push('?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?');
       values.push(
         season || null, year || null,
         date_start || null, date_finish || null,
         obs || null, act || null, cost || null,
-        svc || null, provider || null, resp || null, rem || null,
+        svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
         validHistoryImageField(img_before), validHistoryImageField(img_after),
       );
 
@@ -453,20 +480,20 @@ function createPowerEquipmentController(tables) {
     try {
       const { id, hid } = req.params;
       const {
-        season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after,
+        season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after,
         section, sub_section: subSectionBody, subSection, equipment_refs,
       } = req.body;
 
       const setParts = [
         'season=?', 'year=?', 'date_start=?', 'date_finish=?',
-        'obs=?', 'act=?', 'cost=?', 'svc=?', 'provider=?', 'resp=?', 'rem=?',
+        'obs=?', 'act=?', 'cost=?', 'svc=?', 'maintenance_type=?', 'provider=?', 'resp=?', 'rem=?',
         'img_before=?', 'img_after=?',
       ];
       const values = [
         season || null, year || null,
         date_start || null, date_finish || null,
         obs || null, act || null, cost || null,
-        svc || null, provider || null, resp || null, rem || null,
+        svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
         validHistoryImageField(img_before), validHistoryImageField(img_after),
       ];
 

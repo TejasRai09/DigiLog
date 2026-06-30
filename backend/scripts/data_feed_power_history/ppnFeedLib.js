@@ -65,7 +65,7 @@ function prepareSpecsForDb(rawSpecs = []) {
     const subSection = readSubSectionFromSpec(spec, section, subSections);
 
     if (!subSections[section].includes(subSection)) {
-      if (subSections[section].length < 6) subSections[section].push(subSection);
+      if (subSections[section].length < 20) subSections[section].push(subSection);
     }
 
     rows.push({
@@ -125,8 +125,19 @@ function normalizeScheduleRow(row, index) {
     actText = joinActionSteps(parseActionStepsForImport(actText));
   }
   const iv = row.int || row;
+  const equipment_refs = Array.isArray(row.equipment_refs)
+    ? row.equipment_refs
+      .map((ref) => ({
+        section: emptyToNull(ref.section),
+        sub_section: emptyToNull(ref.sub_section ?? ref.subSection),
+      }))
+      .filter((ref) => ref.section && ref.sub_section)
+    : null;
   return {
     no: Number(row.no) || index + 1,
+    section: emptyToNull(row.section),
+    sub_section: emptyToNull(row.sub_section ?? row.subSection),
+    equipment_refs,
     comp: emptyToNull(row.comp ?? row.component) ?? '',
     act: actText,
     iv_W: normalizeIvMark(iv.iv_W ?? iv.W),
@@ -163,6 +174,7 @@ function normalizeHistoryRow(row) {
     act: emptyToNull(row.act ?? row.action),
     cost: emptyToNull(row.cost),
     svc: emptyToNull(row.svc ?? row.service),
+    maintenance_type: emptyToNull(row.maintenance_type ?? row.maintenanceType),
     provider: emptyToNull(row.provider),
     resp: emptyToNull(row.resp ?? row.responsible),
     rem: emptyToNull(row.rem ?? row.remark ?? row.remarks),
@@ -483,10 +495,14 @@ async function insertPpnSchedule(conn, equipId, scheduleRows) {
   for (const row of scheduleRows) {
     await conn.execute(
       `INSERT INTO ppn_oem_schedule
-         (equip_id, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (equip_id, section, sub_section, equipment_refs, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        equipId, row.no, row.comp, row.act,
+        equipId,
+        row.section ?? null,
+        row.sub_section ?? null,
+        row.equipment_refs?.length ? JSON.stringify(row.equipment_refs) : null,
+        row.no, row.comp, row.act,
         row.iv_W, row.iv_M, row.iv_Q, row.iv_H, row.iv_Y, row.iv_T, row.iv_3Y,
       ],
     );
@@ -505,15 +521,15 @@ async function insertPpnHistory(conn, equipId, historyRows) {
 
     await conn.execute(
       `INSERT INTO ppn_history
-         (equip_id, section, sub_section, equipment_refs, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (equip_id, section, sub_section, equipment_refs, season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         equipId,
         primary.section || row.section || null,
         primary.sub_section || row.sub_section || null,
         equipmentRefsJson,
         row.season, row.year, row.date_start, row.date_finish,
-        row.obs, row.act, row.cost, row.svc, row.provider, row.resp, row.rem,
+        row.obs, row.act, row.cost, row.svc, row.maintenance_type, row.provider, row.resp, row.rem,
       ],
     );
   }

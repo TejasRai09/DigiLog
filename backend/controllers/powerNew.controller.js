@@ -8,4 +8,5 @@ module.exports = createPowerEquipmentController({
   defaultDept: 'plant',
   logPrefix: 'powerNew',
   historySubGroupScoped: true,
+  scheduleEquipmentScoped: true,
 });

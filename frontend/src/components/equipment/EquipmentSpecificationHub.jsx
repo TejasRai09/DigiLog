@@ -23,6 +23,8 @@ import {
   parseSpecsFromApi,
   emptySubGroupMetaEntry,
   normalizeSubGroupMetaEntry,
+  MAX_SUB_GROUPS,
+  INITIAL_VISIBLE_SUB_GROUP_SLOTS,
 } from '../../utils/equipmentSpecModel';
 import { downloadSpecTemplate, parseSpecWorkbook } from '../../utils/equipmentSpecExcel';
 
@@ -67,6 +69,7 @@ export default function EquipmentSpecificationHub({
 
   const [subModal, setSubModal] = useState(null);
   const [subModalSlots, setSubModalSlots] = useState([]);
+  const [subModalVisibleCount, setSubModalVisibleCount] = useState(INITIAL_VISIBLE_SUB_GROUP_SLOTS);
   const [subModalError, setSubModalError] = useState('');
   const [paramModal, setParamModal] = useState(null);
   const [tempParams, setTempParams] = useState([]);
@@ -135,16 +138,34 @@ export default function EquipmentSpecificationHub({
   };
 
   const openSubModal = (sectionId) => {
-    const slots = [...(subSections[sectionId] || [])];
-    while (slots.length < 6) slots.push('');
+    const existing = [...(subSections[sectionId] || [])];
+    const initialVisible = Math.min(
+      MAX_SUB_GROUPS,
+      Math.max(INITIAL_VISIBLE_SUB_GROUP_SLOTS, existing.length),
+    );
+    const slots = [...existing];
+    while (slots.length < initialVisible) slots.push('');
     setSubModalError('');
     setSubModal({ sectionId });
-    setSubModalSlots(slots.slice(0, 6));
+    setSubModalVisibleCount(initialVisible);
+    setSubModalSlots(slots.slice(0, MAX_SUB_GROUPS));
+  };
+
+  const addSubModalSlot = () => {
+    setSubModalVisibleCount((count) => {
+      if (count >= MAX_SUB_GROUPS) return count;
+      const nextCount = count + 1;
+      setSubModalSlots((prev) => {
+        if (prev.length >= nextCount) return prev;
+        return [...prev, ''];
+      });
+      return nextCount;
+    });
   };
 
   const saveSubModal = async () => {
     const newSubs = [];
-    for (const val of subModalSlots) {
+    for (const val of subModalSlots.slice(0, subModalVisibleCount)) {
       const trimmed = val.trim();
       if (!trimmed) continue;
       if (newSubs.some((s) => s.toLowerCase() === trimmed.toLowerCase())) {
@@ -154,6 +175,10 @@ export default function EquipmentSpecificationHub({
       newSubs.push(trimmed);
     }
     if (newSubs.length === 0) return;
+    if (newSubs.length > MAX_SUB_GROUPS) {
+      setSubModalError(`At most ${MAX_SUB_GROUPS} equipment entries are allowed.`);
+      return;
+    }
 
     const secName = subModal.sectionId;
     const oldSubs = subSections[secName] || [];
@@ -256,8 +281,9 @@ export default function EquipmentSpecificationHub({
   const sortSubSlots = () => {
     const filled = subModalSlots.map((s) => s.trim()).filter(Boolean);
     filled.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-    while (filled.length < 6) filled.push('');
-    setSubModalSlots(filled);
+    const next = [...filled];
+    while (next.length < subModalVisibleCount) next.push('');
+    setSubModalSlots(next);
   };
 
   const sortTempParams = () => {
@@ -785,7 +811,9 @@ export default function EquipmentSpecificationHub({
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Manage Sub-groups</h3>
+              <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+                {subGroupCardMode ? 'Manage Equipment' : 'Manage Sub-groups'}
+              </h3>
               <button type="button" onClick={() => { setSubModalError(''); setSubModal(null); }} className="text-slate-400 hover:text-slate-600">
                 <MdClose className="w-5 h-5" />
               </button>
@@ -800,13 +828,17 @@ export default function EquipmentSpecificationHub({
                 />
               </div>
               <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Draggable Sub-group Slots</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  {subGroupCardMode ? 'Equipment slots' : 'Draggable Sub-group Slots'}
+                </span>
                 <button type="button" onClick={sortSubSlots} className="text-xs text-indigo-600 font-bold flex items-center gap-1">
                   <MdSortByAlpha className="w-3.5 h-3.5" /> Sort A-Z
                 </button>
               </div>
               <div className="space-y-2">
-                {subModalSlots.map((val, i) => (
+                {Array.from({ length: subModalVisibleCount }, (_, i) => {
+                  const val = subModalSlots[i] ?? '';
+                  return (
                   <div
                     key={i}
                     draggable
@@ -822,15 +854,33 @@ export default function EquipmentSpecificationHub({
                       value={val}
                       onChange={(e) => {
                         setSubModalError('');
-                        setSubModalSlots((prev) => prev.map((s, j) => (j === i ? e.target.value : s)));
+                        setSubModalSlots((prev) => {
+                          const next = [...prev];
+                          while (next.length <= i) next.push('');
+                          next[i] = e.target.value;
+                          return next;
+                        });
                       }}
-                      placeholder="Empty Slot Label"
+                      placeholder={subGroupCardMode ? 'Equipment name' : 'Empty Slot Label'}
                       className="w-full px-3 py-1.5 border border-slate-200 bg-slate-50 rounded-lg text-xs"
                     />
                   </div>
-                ))}
+                  );
+                })}
+                {subModalVisibleCount < MAX_SUB_GROUPS && (
+                  <button
+                    type="button"
+                    onClick={addSubModalSlot}
+                    className="flex items-center justify-center gap-2 w-full bg-white border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40 p-2 rounded-xl text-xs font-bold text-indigo-600 transition-colors"
+                  >
+                    <MdAdd className="w-4 h-4" />
+                    Add equipment slot
+                  </button>
+                )}
               </div>
-              <p className="text-[10px] text-slate-400">At most 6 subgroups per discipline. Empty slots are hidden.</p>
+              <p className="text-[10px] text-slate-400">
+                Up to {MAX_SUB_GROUPS} {subGroupCardMode ? 'equipment' : 'subgroups'} per discipline. Showing {subModalVisibleCount} slot{subModalVisibleCount !== 1 ? 's' : ''}. Empty slots are hidden after save.
+              </p>
               {subModalError && (
                 <p className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
                   {subModalError}

@@ -41,6 +41,39 @@ export function formatDateDisplay(dateString) {
   return dateString;
 }
 
+function historyRecordYearValue(rec) {
+  const y = String(rec?.year ?? '').trim();
+  if (!y || y === '—') return null;
+  const n = Number.parseInt(y, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+function historyRecordStartValue(rec) {
+  const start = String(rec?.start ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : '';
+}
+
+/** Sort maintenance history newest → oldest: year desc, then start date desc. */
+export function compareMaintenanceHistoryNewestFirst(a, b) {
+  const yearA = historyRecordYearValue(a);
+  const yearB = historyRecordYearValue(b);
+  if (yearA !== yearB) {
+    return (yearB ?? -1) - (yearA ?? -1);
+  }
+
+  const startA = historyRecordStartValue(a);
+  const startB = historyRecordStartValue(b);
+  if (startB !== startA) return startB.localeCompare(startA);
+
+  return (Number(b?.id) || 0) - (Number(a?.id) || 0);
+}
+
+/** `order`: `'desc'` newest first (default), `'asc'` oldest first. */
+export function compareMaintenanceHistoryByDate(a, b, order = 'desc') {
+  const cmp = compareMaintenanceHistoryNewestFirst(a, b);
+  return order === 'desc' ? cmp : -cmp;
+}
+
 export function normalizeSeasonFromApi(season) {
   if (!season) return '';
   if (season === 'OFF Season' || season === 'Off-Season') return 'Off-Season';
@@ -152,6 +185,7 @@ export function historyRecordFromApi(row) {
     action: displayHistoryText(rawAct),
     repairCost: row.cost || '',
     service: row.svc || '',
+    maintenanceType: row.maintenance_type || '',
     provider: row.provider || '',
     responsible: row.resp || '',
     remarks: isPlaceholderNo(rawRem) ? '' : rawRem,
@@ -180,6 +214,7 @@ export function historyRecordToApi(form) {
     act: form.action?.trim() || null,
     cost: form.repairCost ? String(form.repairCost) : null,
     svc: form.service || null,
+    maintenance_type: form.maintenanceType || null,
     provider: form.provider?.trim() || null,
     resp: form.responsible?.trim() || null,
     rem: form.remarks?.trim() || null,
@@ -206,6 +241,7 @@ export const EMPTY_HISTORY_FORM = {
   action: '',
   repairCost: '',
   service: '',
+  maintenanceType: '',
   provider: '',
   responsible: '',
   remarks: '',
@@ -214,12 +250,22 @@ export const EMPTY_HISTORY_FORM = {
 };
 
 export const HISTORY_SERVICE_OPTIONS = [
-  'Mechanical Overhaul',
-  'Hydraulic overhaul',
-  'Electrical Repair',
-  'Gear Overhaul',
-  'Inspection',
   'INTERNAL',
   'EXTERNAL',
-  'BOTH',
 ];
+
+export const HISTORY_MAINTENANCE_TYPE_OPTIONS = [
+  { value: 'RM', label: 'Routine Maintenance (RM)' },
+  { value: 'PM', label: 'Preventive Maintenance (PM)' },
+  { value: 'PdM', label: 'Predictive Maintenance (PdM)' },
+  { value: 'CBM', label: 'Condition-Based Maintenance (CBM)' },
+  { value: 'CM', label: 'Corrective / Run-to-Failure Maintenance (CM)' },
+  { value: 'RCM', label: 'Reliability-Centered Maintenance (RCM)' },
+];
+
+export function maintenanceTypeLabel(value) {
+  const code = String(value || '').trim();
+  if (!code) return '';
+  const match = HISTORY_MAINTENANCE_TYPE_OPTIONS.find((opt) => opt.value === code);
+  return match?.label || code;
+}

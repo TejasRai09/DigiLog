@@ -220,7 +220,7 @@ function parseSpecs(ws, specStart, specEnd) {
     if (!value && subCandidate && !normalizeSectionHeader(subCandidate)) {
       currentSub = subCandidate;
       if (!subSections[currentSection].includes(currentSub)) {
-        if (subSections[currentSection].length < 6) {
+        if (subSections[currentSection].length < 20) {
           subSections[currentSection].push(currentSub);
         }
       }
@@ -230,7 +230,7 @@ function parseSpecs(ws, specStart, specEnd) {
     if (!label && !value) continue;
 
     if (!subSections[currentSection].includes(currentSub)) {
-      if (subSections[currentSection].length < 6) {
+      if (subSections[currentSection].length < 20) {
         subSections[currentSection].push(currentSub);
       } else {
         currentSub = subSections[currentSection][0] || 'General';
