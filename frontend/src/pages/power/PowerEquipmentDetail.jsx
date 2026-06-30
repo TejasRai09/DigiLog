@@ -375,6 +375,11 @@ const PowerEquipmentDetail = () => {
     [specs, equipmentDefaults, disciplineSpecFocus, specSection],
   );
 
+  const scheduleEquipmentOptions = useMemo(
+    () => (isNewHub ? buildEquipmentOptionsFromSpecs(specs, equipmentDefaults, null) : []),
+    [isNewHub, specs, equipmentDefaults],
+  );
+
   const historyForView = useMemo(() => {
     if (!isNewHub || !disciplineSpecFocus) return history;
     return history.filter((row) => historyRecordMatchesSection(row, specSection));
@@ -449,6 +454,7 @@ const PowerEquipmentDetail = () => {
           onSave={saveHubSchedule}
           saving={saving}
           hideBulkActions={showNewHubTrail}
+          equipmentOptions={scheduleEquipmentOptions}
         />
       </div>
 
@@ -462,6 +468,7 @@ const PowerEquipmentDetail = () => {
         onSave={saveMaintenanceRecord}
         onDelete={deleteMaintenanceRecord}
         equipmentOptions={isNewHub ? equipmentOptions : []}
+        exportFileName={eq?.name || eq?.tag_name || 'Equipment_Maintenance_History'}
       />
     </main>
   );

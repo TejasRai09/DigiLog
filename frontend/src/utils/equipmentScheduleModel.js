@@ -1,3 +1,5 @@
+import { parseEquipmentOptionKey } from './equipmentSpecModel';
+
 export const SCHEDULE_INTERVALS = [
   { key: 'WEEK', dbKey: 'iv_W', label: 'WEEK', fullLabel: 'Weekly', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   { key: 'MONT', dbKey: 'iv_M', label: 'MONT', fullLabel: 'Monthly', color: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -39,6 +41,35 @@ function rowIntervalsFromApi(row) {
     .map((c) => c.key);
 }
 
+function equipmentKeysFromScheduleRow(row = {}) {
+  if (row.equipment_refs) {
+    try {
+      const raw = typeof row.equipment_refs === 'string'
+        ? JSON.parse(row.equipment_refs)
+        : row.equipment_refs;
+      if (Array.isArray(raw)) {
+        const keys = raw
+          .map((ref) => {
+            const section = ref?.section || '';
+            const subSection = ref?.sub_section || ref?.subSection || '';
+            if (!section || !subSection) return null;
+            return `${section}::${subSection}`;
+          })
+          .filter(Boolean);
+        if (keys.length) return keys;
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  const subSection = row.sub_section ?? row.subSection ?? '';
+  if (row.section && subSection) {
+    return [`${row.section}::${subSection}`];
+  }
+  return [];
+}
+
 /** API schedule rows → UI model */
 export function parseScheduleFromApi(rows = []) {
   return rows
@@ -49,6 +80,7 @@ export function parseScheduleFromApi(rows = []) {
       return {
         id: String(row.id ?? newScheduleId()),
         no: row.no ?? index + 1,
+        equipmentKeys: equipmentKeysFromScheduleRow(row),
         component: row.comp ?? '',
         actions: actions.length ? actions : [''],
         intervals: rowIntervalsFromApi(row),
@@ -62,11 +94,21 @@ export function serializeScheduleForApi(rows = []) {
     .filter((r) => r.component?.trim() || r.actions?.some((a) => a?.trim()))
     .map((row, index) => {
       const intervals = row.intervals || [];
+      const keys = Array.isArray(row.equipmentKeys) ? row.equipmentKeys : [];
+      const refs = keys.map((key) => parseEquipmentOptionKey(key)).filter(Boolean);
       const payload = {
         no: index + 1,
         comp: row.component?.trim() ?? '',
         act: joinActionSteps(row.actions),
       };
+      if (refs.length) {
+        payload.section = refs[0].section;
+        payload.sub_section = refs[0].subSection;
+        payload.equipment_refs = refs.map((ref) => ({
+          section: ref.section,
+          sub_section: ref.subSection,
+        }));
+      }
       for (const cfg of SCHEDULE_INTERVALS) {
         payload[cfg.dbKey] = intervals.includes(cfg.key) ? '√' : null;
       }

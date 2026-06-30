@@ -300,6 +300,7 @@ const EquipmentDetail = () => {
         onToggle={() => toggle('hist')}
         onSave={saveMaintenanceRecord}
         onDelete={deleteMaintenanceRecord}
+        exportFileName={eq?.name || eq?.tag_name || 'Equipment_Maintenance_History'}
       />
     </main>
   );

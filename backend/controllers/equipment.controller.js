@@ -198,16 +198,16 @@ const addHistory = async (req, res) => {
     const eq = await getEq(id);
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
-    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
+    const { season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after } = req.body;
     const [result] = await pool.execute(
       `INSERT INTO mh_history
-         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [id,
        season || null, year || null,
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
-       svc || null, provider || null, resp || null, rem || null,
+       svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
        validHistoryImageField(img_before), validHistoryImageField(img_after)]
     );
     res.status(201).json({ message: 'Record added.', id: result.insertId });
@@ -221,17 +221,17 @@ const addHistory = async (req, res) => {
 const updateHistory = async (req, res) => {
   try {
     const { id, hid } = req.params;
-    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
+    const { season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after } = req.body;
     const [result] = await pool.execute(
       `UPDATE mh_history
        SET season=?, year=?, date_start=?, date_finish=?,
-           obs=?, act=?, cost=?, svc=?, provider=?, resp=?, rem=?,
+           obs=?, act=?, cost=?, svc=?, maintenance_type=?, provider=?, resp=?, rem=?,
            img_before=?, img_after=?
        WHERE id=? AND equip_id=?`,
       [season || null, year || null,
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
-       svc || null, provider || null, resp || null, rem || null,
+       svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
        validHistoryImageField(img_before), validHistoryImageField(img_after),
        hid, id]
     );

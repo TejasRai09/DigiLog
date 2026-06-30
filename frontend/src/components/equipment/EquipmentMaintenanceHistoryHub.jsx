@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   MdAdd,
+  MdArrowDownward,
+  MdArrowUpward,
   MdChevronLeft,
   MdChevronRight,
   MdClose,
-  MdDelete,
   MdDownload,
   MdEdit,
-  MdExpandMore,
   MdInfo,
   MdSave,
   MdSearch,
@@ -15,147 +15,60 @@ import {
 } from 'react-icons/md';
 import Spinner from '../Spinner';
 import EquipmentSectionShell from './EquipmentSectionShell';
+import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
 import { resizeImage } from '../../utils/resizeImage';
 import {
   EMPTY_HISTORY_FORM,
+  HISTORY_MAINTENANCE_TYPE_OPTIONS,
   HISTORY_SERVICE_OPTIONS,
   equipmentKeysFromRecord,
+  compareMaintenanceHistoryByDate,
   formatDateDisplay,
   formatEntryId,
   historyRecordFromApi,
   isOffSeason,
+  maintenanceTypeLabel,
 } from '../../utils/equipmentHistoryModel';
+import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
 
-function EquipmentMultiSelectDropdown({ options, value = [], onChange, labelMap }) {
-  const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const rootRef = useRef(null);
-  const searchRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onDocClick = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) {
-        setOpen(false);
-        setSearchQuery('');
-      }
-    };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, [open]);
-
-  useEffect(() => {
-    if (open) {
-      const t = setTimeout(() => searchRef.current?.focus(), 0);
-      return () => clearTimeout(t);
-    }
-    setSearchQuery('');
-    return undefined;
-  }, [open]);
-
-  const filteredOptions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter(
-      (opt) =>
-        opt.label.toLowerCase().includes(q)
-        || (opt.disciplineLabel && opt.disciplineLabel.toLowerCase().includes(q)),
-    );
-  }, [options, searchQuery]);
-
-  const selectedLabels = value
-    .map((key) => labelMap.get(key) || options.find((o) => o.key === key)?.label)
-    .filter(Boolean);
-
-  const displayText = selectedLabels.length
-    ? selectedLabels.join(', ')
-    : '— Select equipment —';
-
-  const toggleKey = (key) => {
-    const set = new Set(value);
-    if (set.has(key)) set.delete(key);
-    else set.add(key);
-    onChange(Array.from(set));
+function formSnapshotFromRecord(record) {
+  return {
+    equipmentKeys: [...equipmentKeysFromRecord(record)].sort(),
+    season: record.season || '',
+    year: record.year || '',
+    start: record.start || '',
+    finish: record.finish || '',
+    observation: record.observation || '',
+    action: record.action || '',
+    repairCost: record.repairCost || '',
+    service: record.service || '',
+    maintenanceType: record.maintenanceType || '',
+    provider: record.provider || '',
+    responsible: record.responsible || '',
+    remarks: record.remarks || '',
+    photosBefore: [...(record.photosBefore || [])],
+    photosAfter: [...(record.photosAfter || [])],
   };
+}
 
-  return (
-    <div ref={rootRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm border border-slate-200 rounded-lg bg-white hover:border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-      >
-        <span className={`truncate ${selectedLabels.length ? 'text-slate-800' : 'text-slate-400'}`}>
-          {displayText}
-        </span>
-        <MdExpandMore className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0">
-            <div className="relative">
-              <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search equipment..."
-                className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-md bg-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
-                onClick={(e) => e.stopPropagation()}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <MdClose className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="max-h-44 overflow-y-auto py-1">
-            {filteredOptions.length > 0 ? filteredOptions.map((opt) => {
-              const checked = value.includes(opt.key);
-              return (
-                <button
-                  key={opt.key}
-                  type="button"
-                  onClick={() => toggleKey(opt.key)}
-                  className={`w-full flex items-center gap-2.5 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                    checked ? 'bg-violet-50 text-violet-900' : 'text-slate-700'
-                  }`}
-                >
-                  <span
-                    className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                      checked ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-300 bg-white'
-                    }`}
-                  >
-                    {checked && <span className="text-[10px] leading-none">✓</span>}
-                  </span>
-                  <span className="truncate font-medium">{opt.label}</span>
-                </button>
-              );
-            }) : (
-              <p className="px-3 py-4 text-center text-xs text-slate-400">No equipment found</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {value.length > 0 && (
-        <p className="mt-1.5 text-[11px] text-slate-500">
-          {value.length} equipment selected
-        </p>
-      )}
-    </div>
-  );
+function historyFormsEqual(a, b) {
+  const scalarKeys = [
+    'season', 'year', 'start', 'finish', 'observation', 'action',
+    'repairCost', 'service', 'maintenanceType', 'provider', 'responsible', 'remarks',
+  ];
+  for (const key of scalarKeys) {
+    if (String(a?.[key] ?? '') !== String(b?.[key] ?? '')) return false;
+  }
+  const aKeys = [...(a?.equipmentKeys || [])].sort();
+  const bKeys = [...(b?.equipmentKeys || [])].sort();
+  if (aKeys.length !== bKeys.length || aKeys.some((value, index) => value !== bKeys[index])) {
+    return false;
+  }
+  return JSON.stringify(a?.photosBefore || []) === JSON.stringify(b?.photosBefore || [])
+    && JSON.stringify(a?.photosAfter || []) === JSON.stringify(b?.photosAfter || []);
 }
 
 function SeasonBadge({ season }) {
@@ -231,8 +144,8 @@ export default function EquipmentMaintenanceHistoryHub({
   open = true,
   onToggle,
   onSave,
-  onDelete,
   equipmentOptions = [],
+  exportFileName,
 }) {
   const showEquipmentPicker = equipmentOptions.length > 0;
   const records = useMemo(
@@ -258,6 +171,8 @@ export default function EquipmentMaintenanceHistoryHub({
   const [searchQuery, setSearchQuery] = useState('');
   const [seasonFilter, setSeasonFilter] = useState('All');
   const [yearFilter, setYearFilter] = useState('All');
+  const [equipmentFilter, setEquipmentFilter] = useState([]);
+  const [startSortOrder, setStartSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -266,13 +181,37 @@ export default function EquipmentMaintenanceHistoryHub({
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [form, setForm] = useState(EMPTY_HISTORY_FORM);
 
+  const serviceOptions = useMemo(() => {
+    if (form.service && !HISTORY_SERVICE_OPTIONS.includes(form.service)) {
+      return [form.service, ...HISTORY_SERVICE_OPTIONS];
+    }
+    return HISTORY_SERVICE_OPTIONS;
+  }, [form.service]);
+
+  const maintenanceTypeOptions = useMemo(() => {
+    const known = HISTORY_MAINTENANCE_TYPE_OPTIONS.map((opt) => opt.value);
+    if (form.maintenanceType && !known.includes(form.maintenanceType)) {
+      return [
+        { value: form.maintenanceType, label: form.maintenanceType },
+        ...HISTORY_MAINTENANCE_TYPE_OPTIONS,
+      ];
+    }
+    return HISTORY_MAINTENANCE_TYPE_OPTIONS;
+  }, [form.maintenanceType]);
+
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxCaption, setLightboxCaption] = useState('');
 
   const fileBeforeRef = useRef(null);
   const fileAfterRef = useRef(null);
+  const editBaselineRef = useRef(null);
 
   const badge = totalCount ?? records.length;
+
+  const toggleStartSort = () => {
+    setStartSortOrder((order) => (order === 'desc' ? 'asc' : 'desc'));
+    setCurrentPage(1);
+  };
 
   const uniqueYears = useMemo(() => {
     const years = records.map((r) => r.year).filter((y) => y && y !== '—');
@@ -281,21 +220,29 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const filteredRecords = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return records.filter((rec) => {
-      const matchesSearch = !q
-        || formatEntryId(rec.id).toLowerCase().includes(q)
-        || rec.observation.toLowerCase().includes(q)
-        || (rec.action && rec.action.toLowerCase().includes(q))
-        || String(rec.year).toLowerCase().includes(q)
-        || labelForRecord(rec).toLowerCase().includes(q);
+    return records
+      .filter((rec) => {
+        const matchesSearch = !q
+          || formatEntryId(rec.id).toLowerCase().includes(q)
+          || rec.observation.toLowerCase().includes(q)
+          || (rec.action && rec.action.toLowerCase().includes(q))
+          || String(rec.year).toLowerCase().includes(q)
+          || labelForRecord(rec).toLowerCase().includes(q)
+          || maintenanceTypeLabel(rec.maintenanceType).toLowerCase().includes(q);
 
-      const matchesSeason = seasonFilter === 'All'
-        || (seasonFilter === 'Off-Season' ? isOffSeason(rec.season) : rec.season === seasonFilter);
+        const matchesSeason = seasonFilter === 'All'
+          || (seasonFilter === 'Off-Season' ? isOffSeason(rec.season) : rec.season === seasonFilter);
 
-      const matchesYear = yearFilter === 'All' || rec.year === yearFilter;
-      return matchesSearch && matchesSeason && matchesYear;
-    });
-  }, [records, searchQuery, seasonFilter, yearFilter]);
+        const matchesYear = yearFilter === 'All' || rec.year === yearFilter;
+
+        const recKeys = equipmentKeysFromRecord(rec);
+        const matchesEquipment = equipmentFilter.length === 0
+          || recKeys.some((key) => equipmentFilter.includes(key));
+
+        return matchesSearch && matchesSeason && matchesYear && matchesEquipment;
+      })
+      .sort((a, b) => compareMaintenanceHistoryByDate(a, b, startSortOrder));
+  }, [records, searchQuery, seasonFilter, yearFilter, equipmentFilter, equipmentLabelMap, startSortOrder]);
 
   const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE) || 1;
   const paginatedRecords = useMemo(() => {
@@ -306,6 +253,7 @@ export default function EquipmentMaintenanceHistoryHub({
   const openAdd = () => {
     setIsEditing(false);
     setSelectedRecord(null);
+    editBaselineRef.current = null;
     setForm({
       ...EMPTY_HISTORY_FORM,
       equipmentKeys: equipmentOptions[0]?.key ? [equipmentOptions[0].key] : [],
@@ -317,21 +265,24 @@ export default function EquipmentMaintenanceHistoryHub({
     if (e) e.stopPropagation();
     setIsEditing(true);
     setSelectedRecord(record);
+    const snapshot = formSnapshotFromRecord(record);
+    editBaselineRef.current = snapshot;
     setForm({
-      equipmentKeys: equipmentKeysFromRecord(record),
-      season: record.season || '',
-      year: record.year || '',
-      start: record.start || '',
-      finish: record.finish || '',
-      observation: record.observation || '',
-      action: record.action || '',
-      repairCost: record.repairCost || '',
-      service: record.service || '',
-      provider: record.provider || '',
-      responsible: record.responsible || '',
-      remarks: record.remarks || '',
-      photosBefore: [...(record.photosBefore || [])],
-      photosAfter: [...(record.photosAfter || [])],
+      equipmentKeys: [...snapshot.equipmentKeys],
+      season: snapshot.season,
+      year: snapshot.year,
+      start: snapshot.start,
+      finish: snapshot.finish,
+      observation: snapshot.observation,
+      action: snapshot.action,
+      repairCost: snapshot.repairCost,
+      service: snapshot.service,
+      maintenanceType: snapshot.maintenanceType,
+      provider: snapshot.provider,
+      responsible: snapshot.responsible,
+      remarks: snapshot.remarks,
+      photosBefore: [...snapshot.photosBefore],
+      photosAfter: [...snapshot.photosAfter],
     });
     setDetailOpen(false);
     setFormOpen(true);
@@ -350,20 +301,23 @@ export default function EquipmentMaintenanceHistoryHub({
     }));
   };
 
+  const canSave = useMemo(() => {
+    if (!form.season?.trim()) return false;
+    if (!form.start?.trim()) return false;
+    if (!form.observation?.trim()) return false;
+    if (showEquipmentPicker && (!form.equipmentKeys || form.equipmentKeys.length === 0)) return false;
+    if (isEditing) {
+      if (!editBaselineRef.current) return false;
+      return !historyFormsEqual(form, editBaselineRef.current);
+    }
+    return true;
+  }, [form, isEditing, showEquipmentPicker]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.observation?.trim()) return;
-    if (showEquipmentPicker && (!form.equipmentKeys || form.equipmentKeys.length === 0)) return;
+    if (!canSave) return;
     await onSave(form, isEditing ? 'edit' : 'add', selectedRecord?.id);
     setFormOpen(false);
-  };
-
-  const handleDelete = async () => {
-    if (!selectedRecord?.id) return;
-    if (!confirm('Delete this history record?')) return;
-    await onDelete(selectedRecord.id);
-    setFormOpen(false);
-    setDetailOpen(false);
   };
 
   const downloadImage = (src, name) => {
@@ -373,6 +327,20 @@ export default function EquipmentMaintenanceHistoryHub({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const handleDownloadExcel = () => {
+    if (!records.length) return;
+    const baseName = (exportFileName || 'Equipment_Maintenance_History')
+      .replace(/[^\w\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '_');
+    downloadMaintenanceHistoryExcel(records, {
+      includeEquipmentColumns: showEquipmentPicker,
+      getEquipmentLabel: labelForRecord,
+      sortOrder: startSortOrder,
+      filename: `${baseName}_${new Date().toISOString().slice(0, 10)}.xlsx`,
+    });
   };
 
   const toolbar = (
@@ -426,17 +394,61 @@ export default function EquipmentMaintenanceHistoryHub({
             ))}
           </select>
         </div>
+
+        {showEquipmentPicker && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Equipment:</span>
+            <EquipmentMultiSelectDropdown
+              options={equipmentOptions}
+              value={equipmentFilter}
+              onChange={(keys) => {
+                setEquipmentFilter(keys);
+                setCurrentPage(1);
+              }}
+              labelMap={equipmentLabelMap}
+              emptyLabel="All Equipment"
+              variant="toolbar"
+            />
+          </div>
+        )}
+
+        {showEquipmentPicker && (
+          <button
+            type="button"
+            onClick={toggleStartSort}
+            title={startSortOrder === 'desc' ? 'Newest first — click for oldest first' : 'Oldest first — click for newest first'}
+            className="inline-flex items-center gap-1 bg-white border border-slate-200 text-xs text-slate-600 rounded-lg px-2.5 py-1.5 font-semibold hover:border-slate-300 hover:text-slate-800 transition-colors md:hidden"
+          >
+            Start
+            {startSortOrder === 'desc' ? (
+              <MdArrowDownward className="w-3.5 h-3.5" />
+            ) : (
+              <MdArrowUpward className="w-3.5 h-3.5" />
+            )}
+          </button>
+        )}
       </div>
 
-      <button
-        type="button"
-        onClick={openAdd}
-        disabled={showEquipmentPicker && equipmentOptions.length === 0}
-        className="inline-flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all uppercase tracking-wider self-end lg:self-auto disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <MdAdd className="w-4 h-4" />
-        Add Record
-      </button>
+      <div className="flex flex-wrap items-center gap-2 self-end lg:self-auto">
+        <button
+          type="button"
+          onClick={handleDownloadExcel}
+          disabled={records.length === 0}
+          className="inline-flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-4 py-2.5 rounded-lg border border-emerald-200 shadow-sm transition-all uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <MdDownload className="w-4 h-4" />
+          Download Excel
+        </button>
+        <button
+          type="button"
+          onClick={openAdd}
+          disabled={showEquipmentPicker && equipmentOptions.length === 0}
+          className="inline-flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <MdAdd className="w-4 h-4" />
+          Add Record
+        </button>
+      </div>
     </div>
   );
 
@@ -446,12 +458,31 @@ export default function EquipmentMaintenanceHistoryHub({
         <table className="w-full border-collapse text-left text-xs font-semibold text-slate-500">
           <thead className="bg-[#f8fafc]/90 border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-400 font-bold">
             <tr>
-              {showEquipmentPicker && <th className="px-5 py-4 w-[140px]">Equipment</th>}
               <th className="px-5 py-4 w-[110px]">Entry ID</th>
+              {showEquipmentPicker && <th className="px-5 py-4 w-[140px]">Equipment</th>}
               <th className="px-5 py-4 w-[130px]">Season</th>
               <th className="px-5 py-4 w-[80px]">Year</th>
-              <th className="px-5 py-4 w-[105px]">Start</th>
+              <th className="px-5 py-4 w-[105px]">
+                {showEquipmentPicker ? (
+                  <button
+                    type="button"
+                    onClick={toggleStartSort}
+                    title={startSortOrder === 'desc' ? 'Newest first — click for oldest first' : 'Oldest first — click for newest first'}
+                    className="inline-flex items-center gap-1 uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors"
+                  >
+                    Start
+                    {startSortOrder === 'desc' ? (
+                      <MdArrowDownward className="w-3.5 h-3.5" />
+                    ) : (
+                      <MdArrowUpward className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                ) : (
+                  'Start'
+                )}
+              </th>
               <th className="px-5 py-4 w-[105px]">Finish</th>
+              <th className="px-5 py-4 w-[100px]">Maint. Type</th>
               <th className="px-5 py-4">Observation</th>
               <th className="px-5 py-4">Action</th>
               <th className="px-5 py-4 w-[120px] text-center">Actions</th>
@@ -464,16 +495,22 @@ export default function EquipmentMaintenanceHistoryHub({
                 className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                 onClick={() => openDetail(row)}
               >
+                <td className="px-5 py-3.5 font-mono font-bold text-slate-800">{formatEntryId(row.id)}</td>
                 {showEquipmentPicker && (
                   <td className="px-5 py-3.5 text-slate-800 font-semibold max-w-[140px] truncate" title={labelForRecord(row)}>
                     {labelForRecord(row)}
                   </td>
                 )}
-                <td className="px-5 py-3.5 font-mono font-bold text-slate-800">{formatEntryId(row.id)}</td>
                 <td className="px-5 py-3.5"><SeasonBadge season={row.season} /></td>
                 <td className="px-5 py-3.5 text-slate-500">{row.year || '—'}</td>
                 <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">{formatDateDisplay(row.start)}</td>
                 <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap">{formatDateDisplay(row.finish)}</td>
+                <td
+                  className="px-5 py-3.5 text-slate-700 font-semibold whitespace-nowrap"
+                  title={maintenanceTypeLabel(row.maintenanceType) || undefined}
+                >
+                  {row.maintenanceType || '—'}
+                </td>
                 <td className="px-5 py-3.5 max-w-xs truncate text-slate-800" title={row.observation}>{row.observation}</td>
                 <td className="px-5 py-3.5 max-w-xs truncate" title={row.action}>{row.action || '—'}</td>
                 <td className="px-5 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
@@ -484,24 +521,12 @@ export default function EquipmentMaintenanceHistoryHub({
                     <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                       <MdEdit className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (!confirm('Delete this history record?')) return;
-                        await onDelete(row.id);
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                      title="Delete"
-                    >
-                      <MdDelete className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </td>
               </tr>
             )) : (
               <tr>
-                <td colSpan={showEquipmentPicker ? 9 : 8} className="px-5 py-12 text-center text-slate-400">
+                <td colSpan={showEquipmentPicker ? 10 : 9} className="px-5 py-12 text-center text-slate-400">
                   <MdInfo className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                   <p className="font-semibold text-slate-600 text-sm">No maintenance records found</p>
                 </td>
@@ -535,6 +560,12 @@ export default function EquipmentMaintenanceHistoryHub({
             <span className="text-slate-400 font-bold">Timeline:</span>{' '}
             {formatDateDisplay(row.start)} – {formatDateDisplay(row.finish)}
           </p>
+          {row.maintenanceType && (
+            <p className="text-[11px] text-slate-600">
+              <span className="text-slate-400 font-bold">Maint. Type:</span>{' '}
+              {maintenanceTypeLabel(row.maintenanceType)}
+            </p>
+          )}
           <p className="text-[11px] text-slate-600 line-clamp-2">{row.action || '—'}</p>
           <div className="flex items-center justify-between pt-1 border-t border-slate-50">
             <span className="text-[9px] text-slate-400 font-bold uppercase">
@@ -640,10 +671,13 @@ export default function EquipmentMaintenanceHistoryHub({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Season</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Season <span className="text-red-500">*</span>
+                </label>
                 <select
                   value={form.season}
                   onChange={(e) => setForm((f) => ({ ...f, season: e.target.value }))}
+                  required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm"
                 >
                   <option value="">— Select —</option>
@@ -664,11 +698,14 @@ export default function EquipmentMaintenanceHistoryHub({
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Date of Start</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Date of Start <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   value={form.start}
                   onChange={(e) => handleStartChange(e.target.value)}
+                  required
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm"
                 />
               </div>
@@ -707,6 +744,19 @@ export default function EquipmentMaintenanceHistoryHub({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">Maintenance Type</label>
+                <select
+                  value={form.maintenanceType}
+                  onChange={(e) => setForm((f) => ({ ...f, maintenanceType: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm"
+                >
+                  <option value="">— Select —</option>
+                  {maintenanceTypeOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">Repair Cost (Rs.)</label>
                 <input
@@ -725,7 +775,7 @@ export default function EquipmentMaintenanceHistoryHub({
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm"
                 >
                   <option value="">— Select —</option>
-                  {HISTORY_SERVICE_OPTIONS.map((opt) => (
+                  {serviceOptions.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
@@ -781,31 +831,18 @@ export default function EquipmentMaintenanceHistoryHub({
             </div>
           </div>
 
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between sticky bottom-0 bg-white">
-            {isEditing ? (
-              <button
-                type="button"
-                onClick={handleDelete}
-                disabled={saving}
-                className="px-4 py-2 text-red-600 hover:bg-red-50 font-bold rounded-lg flex items-center gap-1 text-xs"
-              >
-                <MdDelete className="w-4 h-4" />
-                Delete
-              </button>
-            ) : <div />}
-            <div className="flex gap-3">
-              <button type="button" onClick={() => setFormOpen(false)} className="px-5 py-2.5 border border-slate-200 rounded-lg text-slate-600 font-bold text-xs">
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-2"
-              >
+          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
+            <button type="button" onClick={() => setFormOpen(false)} className="px-5 py-2.5 border border-slate-200 rounded-lg text-slate-600 font-bold text-xs">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !canSave}
+              className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
                 {saving ? <Spinner size="sm" /> : <MdSave className="w-4 h-4" />}
                 {isEditing ? 'Save' : 'Add'}
               </button>
-            </div>
           </div>
         </form>
       </div>
@@ -862,6 +899,12 @@ export default function EquipmentMaintenanceHistoryHub({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+            <div className="sm:col-span-2">
+              <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Maintenance Type</span>
+              <span className="text-sm font-semibold text-slate-700">
+                {maintenanceTypeLabel(selectedRecord.maintenanceType) || '—'}
+              </span>
+            </div>
             <div>
               <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Repair Cost</span>
               <span className="text-sm font-bold text-emerald-600">

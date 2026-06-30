@@ -16,6 +16,7 @@ import {
   parseScheduleFromApi,
 } from '../../utils/equipmentScheduleModel';
 import EquipmentSectionShell from './EquipmentSectionShell';
+import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
 
 const ACTION_STEP_INPUT =
   'flex-1 w-full min-w-0 px-2 py-1 text-xs border border-slate-200 rounded resize-none leading-5 overflow-y-hidden';
@@ -66,7 +67,23 @@ export default function OemMaintenanceScheduleHub({
   saving = false,
   embedded = false,
   hideBulkActions = false,
+  equipmentOptions = [],
 }) {
+  const showEquipmentPicker = equipmentOptions.length > 0;
+  const equipmentLabelMap = useMemo(() => {
+    const map = new Map();
+    equipmentOptions.forEach((opt) => map.set(opt.key, opt.label));
+    return map;
+  }, [equipmentOptions]);
+
+  const labelForEquipmentKeys = (keys = []) => {
+    if (!keys.length) return '—';
+    return keys
+      .map((key) => equipmentLabelMap.get(key))
+      .filter(Boolean)
+      .join(', ') || '—';
+  };
+
   const initial = useMemo(() => parseScheduleFromApi(apiSchedule), [apiSchedule]);
   const baselineRef = useRef(initial);
 
@@ -90,18 +107,27 @@ export default function OemMaintenanceScheduleHub({
 
   const filtered = useMemo(() => {
     return schedule.filter((row) => {
+      const equipmentLabel = labelForEquipmentKeys(row.equipmentKeys).toLowerCase();
       const matchesSearch =
         !searchVal ||
         row.component.toLowerCase().includes(searchVal) ||
-        row.actions.some((a) => a.toLowerCase().includes(searchVal));
+        row.actions.some((a) => a.toLowerCase().includes(searchVal)) ||
+        (showEquipmentPicker && equipmentLabel !== '—' && equipmentLabel.includes(searchVal));
       const matchesInterval =
         intervalFilter === 'ALL' || row.intervals.includes(intervalFilter);
       return matchesSearch && matchesInterval;
     });
-  }, [schedule, searchVal, intervalFilter]);
+  }, [schedule, searchVal, intervalFilter, showEquipmentPicker, equipmentLabelMap]);
 
   const startEdit = () => {
-    setDraft(JSON.parse(JSON.stringify(schedule)));
+    setDraft(
+      JSON.parse(JSON.stringify(schedule)).map((row) => ({
+        ...row,
+        equipmentKeys: row.equipmentKeys?.length
+          ? [...row.equipmentKeys]
+          : (row.equipmentKey ? [row.equipmentKey] : []),
+      })),
+    );
     setIsEditing(true);
   };
 
@@ -112,10 +138,18 @@ export default function OemMaintenanceScheduleHub({
 
   const saveEdit = async () => {
     const invalid = draft.some(
-      (r) => !r.component.trim() || !r.actions.length || r.actions.some((a) => !a.trim())
+      (r) =>
+        (showEquipmentPicker && (!r.equipmentKeys || r.equipmentKeys.length === 0))
+        || !r.component.trim()
+        || !r.actions.length
+        || r.actions.some((a) => !a.trim())
     );
     if (invalid) {
-      toast.error('Fill all component names and action steps.');
+      toast.error(
+        showEquipmentPicker
+          ? 'Select equipment and fill all component names and action steps.'
+          : 'Fill all component names and action steps.',
+      );
       return;
     }
     try {
@@ -130,22 +164,33 @@ export default function OemMaintenanceScheduleHub({
 
   const handleReset = () => {
     if (!window.confirm('Revert schedule to last saved data?')) return;
-    setSchedule(baselineRef.current.map((r) => ({ ...r, actions: [...r.actions], intervals: [...r.intervals] })));
+    setSchedule(baselineRef.current.map((r) => ({
+      ...r,
+      equipmentKeys: [...(r.equipmentKeys || [])],
+      actions: [...r.actions],
+      intervals: [...r.intervals],
+    })));
     setIsEditing(false);
     setDraft([]);
     setSearch('');
     setIntervalFilter('ALL');
   };
 
+  const canAddRow = !showEquipmentPicker || draft.every((r) => r.equipmentKeys?.length > 0);
+
   const addRow = () => {
+    if (!canAddRow) return;
     const nextNo = draft.length ? Math.max(...draft.map((r) => r.no)) + 1 : 1;
     setDraft((prev) => [
       ...prev,
-      { id: newScheduleId(), no: nextNo, component: '', actions: [''], intervals: [] },
+      { id: newScheduleId(), no: nextNo, equipmentKeys: [], component: '', actions: [''], intervals: [] },
     ]);
   };
 
   const deleteRow = (id) => setDraft((prev) => prev.filter((r) => r.id !== id));
+
+  const updateEquipmentKeys = (id, keys) =>
+    setDraft((prev) => prev.map((r) => (r.id === id ? { ...r, equipmentKeys: keys } : r)));
 
   const updateComponent = (id, value) =>
     setDraft((prev) => prev.map((r) => (r.id === id ? { ...r, component: value } : r)));
@@ -286,6 +331,7 @@ export default function OemMaintenanceScheduleHub({
                         <thead>
                           <tr className="border-b border-slate-100 text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-50/30">
                             <th className="py-3 px-4 w-12 text-center">#</th>
+                            {showEquipmentPicker && <th className="py-3 px-4 w-40">Equipment</th>}
                             <th className="py-3 px-4 w-1/4">Component</th>
                             <th className="py-3 px-4 w-1/2">Maintenance Action</th>
                             <th className="py-3 px-4 w-1/4">Active Intervals</th>
@@ -295,6 +341,11 @@ export default function OemMaintenanceScheduleHub({
                           {filtered.map((row, index) => (
                             <tr key={row.id} className="hover:bg-slate-50/40 align-top">
                               <td className="py-3 px-4 text-center text-xs text-slate-400">{index + 1}</td>
+                              {showEquipmentPicker && (
+                                <td className="py-3 px-4 text-slate-800 text-sm max-w-0 break-words font-semibold" title={labelForEquipmentKeys(row.equipmentKeys)}>
+                                  {labelForEquipmentKeys(row.equipmentKeys)}
+                                </td>
+                              )}
                               <td className="py-3 px-4 font-semibold text-slate-900 text-sm max-w-0 break-words">{row.component}</td>
                               <td className="py-3 px-4 text-slate-600 text-sm max-w-0 align-top">
                                 <ul className="list-disc pl-4 space-y-1 min-w-0">
@@ -316,7 +367,14 @@ export default function OemMaintenanceScheduleHub({
                           <div className="space-y-2">
                             <div className="flex items-start gap-2 min-w-0">
                               <span className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full shrink-0">#{index + 1}</span>
-                              <h4 className="font-bold text-slate-900 text-xs leading-snug break-words min-w-0 flex-1">{row.component}</h4>
+                              <div className="min-w-0 flex-1 space-y-1">
+                                {showEquipmentPicker && (
+                                  <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 truncate" title={labelForEquipmentKeys(row.equipmentKeys)}>
+                                    {labelForEquipmentKeys(row.equipmentKeys)}
+                                  </p>
+                                )}
+                                <h4 className="font-bold text-slate-900 text-xs leading-snug break-words">{row.component}</h4>
+                              </div>
                             </div>
                             <div className="w-full pl-0">
                               {renderIntervalBadges(row.intervals)}
@@ -340,6 +398,7 @@ export default function OemMaintenanceScheduleHub({
                         <thead>
                           <tr className="border-b border-slate-150 text-[10px] font-bold uppercase text-slate-400 bg-slate-50 sticky top-0">
                             <th className="py-2 px-3 w-10 text-center">#</th>
+                            {showEquipmentPicker && <th className="py-2 px-3 w-40">Equipment</th>}
                             <th className="py-2 px-3 w-44">Component</th>
                             <th className="py-2 px-3 w-80">Action Steps</th>
                             {SCHEDULE_INTERVALS.map((c) => (
@@ -352,6 +411,18 @@ export default function OemMaintenanceScheduleHub({
                           {draft.map((row, index) => (
                             <tr key={row.id} className="align-top">
                               <td className="py-2 px-3 text-center text-xs text-slate-400">{index + 1}</td>
+                              {showEquipmentPicker && (
+                                <td className="py-2 px-2 min-w-[10rem]">
+                                  <EquipmentMultiSelectDropdown
+                                    options={equipmentOptions}
+                                    value={row.equipmentKeys || []}
+                                    onChange={(keys) => updateEquipmentKeys(row.id, keys)}
+                                    labelMap={equipmentLabelMap}
+                                    emptyLabel="— Select equipment —"
+                                    compact
+                                  />
+                                </td>
+                              )}
                               <td className="py-2 px-2">
                                 <input type="text" value={row.component} onChange={(e) => updateComponent(row.id, e.target.value)} className="w-full px-2 py-1 text-xs border border-slate-200 rounded-lg" placeholder="Component..." />
                               </td>
@@ -402,6 +473,21 @@ export default function OemMaintenanceScheduleHub({
                             <button type="button" onClick={() => deleteRow(row.id)} className="text-slate-400 hover:text-rose-600"><MdDelete className="w-4 h-4" /></button>
                           </div>
                           <div className="space-y-4">
+                            {showEquipmentPicker && (
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">Equipment</label>
+                                <div className="mt-1">
+                                  <EquipmentMultiSelectDropdown
+                                    options={equipmentOptions}
+                                    value={row.equipmentKeys || []}
+                                    onChange={(keys) => updateEquipmentKeys(row.id, keys)}
+                                    labelMap={equipmentLabelMap}
+                                    emptyLabel="— Select equipment —"
+                                    compact
+                                  />
+                                </div>
+                              </div>
+                            )}
                             <div>
                               <label className="text-[10px] font-bold text-slate-500 uppercase">Component</label>
                               <input type="text" value={row.component} onChange={(e) => updateComponent(row.id, e.target.value)} className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 rounded-lg" />
@@ -448,7 +534,13 @@ export default function OemMaintenanceScheduleHub({
 
             {isEditing && (
               <div className="px-4 sm:px-6 py-3 border-t border-slate-100 bg-slate-50/40">
-                <button type="button" onClick={addRow} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-slate-200 bg-white rounded-lg text-slate-700">
+                <button
+                  type="button"
+                  onClick={addRow}
+                  disabled={!canAddRow}
+                  title={!canAddRow ? 'Select equipment on all rows before adding another' : undefined}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold border border-slate-200 bg-white rounded-lg text-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <MdAdd className="w-4 h-4" /> Add Row
                 </button>
               </div>

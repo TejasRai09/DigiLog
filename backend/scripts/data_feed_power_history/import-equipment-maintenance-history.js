@@ -82,15 +82,15 @@ async function insertHistoryRows(conn, equipId, rows) {
     await conn.execute(
       `INSERT INTO ppn_history
          (equip_id, section, sub_section, equipment_refs, season, year, date_start, date_finish,
-          obs, act, cost, svc, provider, resp, rem)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          obs, act, cost, svc, maintenance_type, provider, resp, rem)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         equipId,
         primary.section || row.section || null,
         primary.sub_section || row.sub_section || null,
         equipmentRefsJson,
         row.season, row.year, row.date_start, row.date_finish,
-        row.obs, row.act, row.cost, row.svc, row.provider, row.resp, row.rem,
+        row.obs, row.act, row.cost, row.svc, row.maintenance_type, row.provider, row.resp, row.rem,
       ],
     );
   }

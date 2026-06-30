@@ -7,8 +7,18 @@ import {
 } from 'react-icons/md';
 import ManageGalleryModal from './ManageGalleryModal';
 import {
+  formatCommissionedDisplay,
   getSubGroupMetaEntry,
+  toDateInputValue,
 } from '../../utils/equipmentSpecModel';
+
+const DETAIL_FIELDS = [
+  { label: 'Card name', key: 'name' },
+  { label: 'Tag No.', key: 'tagNo', mono: true },
+  { label: 'Equipment No.', key: 'equipNo', mono: true },
+  { label: 'Location', key: 'location' },
+  { label: 'Date of Commissioning', key: 'commissioned', date: true },
+];
 
 function MetaField({ label, value }) {
   const display = String(value || '').trim() || '--';
@@ -139,7 +149,7 @@ export default function SpecSubGroupPanel({
       tagNo: meta.tagNo,
       equipNo: meta.equipNo,
       location: meta.location,
-      commissioned: meta.commissioned,
+      commissioned: toDateInputValue(meta.commissioned),
     });
     setDetailsOpen(true);
   };
@@ -203,13 +213,13 @@ export default function SpecSubGroupPanel({
                 <MetaField label="TAG" value={meta.tagNo} />
                 <MetaField label="No" value={meta.equipNo} />
                 <MetaField label="Location" value={meta.location} />
-                <MetaField label="Date of Commissioning" value={meta.commissioned} />
+                <MetaField label="Date of Commissioning" value={formatCommissionedDisplay(meta.commissioned)} />
               </div>
               <div className="mt-2 hidden sm:flex sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-1">
                 <MetaInline label="TAG" value={meta.tagNo} />
                 <MetaInline label="No" value={meta.equipNo} />
                 <MetaInline label="Location" value={meta.location} />
-                <MetaInline label="Date of Commissioning" value={meta.commissioned} />
+                <MetaInline label="Date of Commissioning" value={formatCommissionedDisplay(meta.commissioned)} />
               </div>
             </div>
           </div>
@@ -346,18 +356,12 @@ export default function SpecSubGroupPanel({
               </button>
             </div>
             <div className="p-5 space-y-3">
-              {[
-                ['Card name', 'name', false],
-                ['Tag No.', 'tagNo', true],
-                ['Equipment No.', 'equipNo', true],
-                ['Location', 'location', false],
-                ['Date of Commissioning', 'commissioned', false],
-              ].map(([label, key, mono]) => (
+              {DETAIL_FIELDS.map(({ label, key, mono, date }) => (
                 <div key={key}>
                   <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1">{label}</label>
                   <input
-                    type="text"
-                    value={detailsDraft[key]}
+                    type={date ? 'date' : 'text'}
+                    value={date ? toDateInputValue(detailsDraft[key]) : detailsDraft[key]}
                     onChange={(e) => setDetailsDraft((d) => ({ ...d, [key]: e.target.value }))}
                     className={`w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-violet-500 ${mono ? 'font-mono' : ''}`}
                   />

@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { MdClose, MdDelete, MdPhotoLibrary } from 'react-icons/md';
 import { resizeImage } from '../../utils/resizeImage';
-import { SUBGROUP_GALLERY_SIZE } from '../../utils/equipmentSpecModel';
+import {
+  MIN_GALLERY_CAPTION_LENGTH,
+  SUBGROUP_GALLERY_SIZE,
+  validateSubGroupGalleryImages,
+} from '../../utils/equipmentSpecModel';
 
-export const MIN_GALLERY_CAPTION_LENGTH = 30;
+export { MIN_GALLERY_CAPTION_LENGTH };
 
 function normalizeDraftImages(images) {
   const slots = Array.from({ length: SUBGROUP_GALLERY_SIZE }, (_, i) => ({
@@ -68,7 +72,7 @@ export default function ManageGalleryModal({
       return;
     }
     if (!captionValid) {
-      setFormError(`Caption must be at least ${MIN_GALLERY_CAPTION_LENGTH} characters.`);
+      setFormError(`Image description must be at least ${MIN_GALLERY_CAPTION_LENGTH} characters.`);
       return;
     }
     if (filledCount >= SUBGROUP_GALLERY_SIZE) {
@@ -97,6 +101,11 @@ export default function ManageGalleryModal({
   };
 
   const handleApply = () => {
+    const galleryError = validateSubGroupGalleryImages(draftImages);
+    if (galleryError) {
+      setFormError(galleryError);
+      return;
+    }
     onApply(draftImages);
   };
 
@@ -157,7 +166,7 @@ export default function ManageGalleryModal({
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Caption (Mandatory, Min {MIN_GALLERY_CAPTION_LENGTH} Characters)
+                  Image Description (Mandatory, Min {MIN_GALLERY_CAPTION_LENGTH} Characters)
                 </p>
                 <span className={`text-[10px] font-bold ${captionValid ? 'text-slate-400' : 'text-rose-500'}`}>
                   {captionLen} / {MIN_GALLERY_CAPTION_LENGTH} min
@@ -170,7 +179,7 @@ export default function ManageGalleryModal({
                   setFormError('');
                 }}
                 rows={3}
-                placeholder={`Enter caption description (at least ${MIN_GALLERY_CAPTION_LENGTH} characters)...`}
+                placeholder={`Enter image description (at least ${MIN_GALLERY_CAPTION_LENGTH} characters)...`}
                 className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-violet-500 resize-none"
               />
             </div>

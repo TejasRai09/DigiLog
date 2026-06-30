@@ -15,7 +15,48 @@ export const DEFAULT_SUB_SECTIONS = {
 
 export const META_SUBSECTIONS_LBL = '__subsections__';
 export const META_SUBGROUP_META_LBL = '__subgroup_meta__';
+/** Max equipment (sub-group) cards per discipline in power-plant spec hub. */
+export const MAX_SUB_GROUPS = 20;
+/** Equipment name inputs shown initially in the manage modal; user can reveal more via +. */
+export const INITIAL_VISIBLE_SUB_GROUP_SLOTS = 6;
 export const SUBGROUP_GALLERY_SIZE = 6;
+/** Minimum length for power-plant sub-group gallery image descriptions (captions). */
+export const MIN_GALLERY_CAPTION_LENGTH = 10;
+
+export function isGalleryCaptionValid(caption) {
+  return String(caption || '').trim().length >= MIN_GALLERY_CAPTION_LENGTH;
+}
+
+export function validateSubGroupGalleryImages(images = []) {
+  const filled = normalizeSubGroupImages(images).filter((img) => img.src);
+  const invalid = filled.find((img) => !isGalleryCaptionValid(img.caption));
+  if (!invalid) return null;
+  return `Each image description must be at least ${MIN_GALLERY_CAPTION_LENGTH} characters.`;
+}
+
+/** Normalize stored commissioning values for `<input type="date">`. */
+export function toDateInputValue(value) {
+  if (!value) return '';
+  const s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const dot = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (dot) {
+    return `${dot[3]}-${dot[2].padStart(2, '0')}-${dot[1].padStart(2, '0')}`;
+  }
+  const slash = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    return `${slash[3]}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
+  }
+  return '';
+}
+
+export function formatCommissionedDisplay(value) {
+  if (!value) return '';
+  const iso = toDateInputValue(value);
+  if (!iso) return String(value).trim();
+  const [y, m, d] = iso.split('-');
+  return `${d}.${m}.${y}`;
+}
 
 export function emptySubGroupMetaEntry(defaults = {}) {
   return {
@@ -74,7 +115,7 @@ export function parseSpecsFromApi(rows = [], equipmentDefaults = {}) {
         const parsed = JSON.parse(row.val || '{}');
         for (const sec of Object.keys(DEFAULT_SUB_SECTIONS)) {
           if (Array.isArray(parsed[sec]) && parsed[sec].length) {
-            subSections[sec] = parsed[sec].slice(0, 6);
+            subSections[sec] = parsed[sec].slice(0, MAX_SUB_GROUPS);
           }
         }
       } catch {
@@ -110,7 +151,7 @@ export function parseSpecsFromApi(rows = [], equipmentDefaults = {}) {
     });
 
     if (!subSections[section]?.includes(subSection)) {
-      if ((subSections[section]?.length ?? 0) < 6) {
+      if ((subSections[section]?.length ?? 0) < MAX_SUB_GROUPS) {
         subSections[section] = [...(subSections[section] || []), subSection];
       }
     }
@@ -130,17 +171,19 @@ export function parseSpecsFromApi(rows = [], equipmentDefaults = {}) {
 
 /** Build selectable equipment cards from saved specs (for maintenance history). */
 export function buildEquipmentOptionsFromSpecs(rows = [], equipmentDefaults = {}, sectionFilter = null) {
-  const { subSections } = parseSpecsFromApi(rows, equipmentDefaults);
+  const { subSections, subGroupMeta } = parseSpecsFromApi(rows, equipmentDefaults);
   const options = [];
 
   for (const sec of SPEC_SECTIONS) {
     if (sectionFilter && sec.id !== sectionFilter) continue;
     for (const subName of subSections[sec.id] || []) {
+      const meta = getSubGroupMetaEntry(subGroupMeta, sec.id, subName, equipmentDefaults);
+      const tagSuffix = String(meta.tagNo || '').trim() ? ` (${String(meta.tagNo).trim()})` : '';
       options.push({
         key: `${sec.id}::${subName}`,
         section: sec.id,
         subSection: subName,
-        label: subName,
+        label: `${subName}${tagSuffix}`,
         disciplineLabel: sec.title.replace(/^\d+\.\s*/, ''),
       });
     }
