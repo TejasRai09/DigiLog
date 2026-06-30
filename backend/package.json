@@ -12,6 +12,7 @@
     "db:schema": "node scripts/apply-init-sql.js",
     "db:apply-sql": "node scripts/apply-sql-file.js",
     "db:mill-mapping": "node scripts/import-mill-mapping.js",
+    "db:add-mill-house-equipment": "node scripts/add-mill-house-equipment.js",
     "db:import-power-xlsx": "node scripts/import-power-equipment-xlsx.js",
     "db:import-ppn-feed": "node scripts/data_feed_power_history/import-ppn-feed.js",
     "db:extract-aph-history": "python ../scripts/import_air_preheater_maintenance_history.py",
