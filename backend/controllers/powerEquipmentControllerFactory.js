@@ -47,6 +47,152 @@ function serializeEquipmentRefsColumn(refs = []) {
   return JSON.stringify(refs);
 }
 
+function renameSubSectionInRefs(refs, section, oldSubSection, newSubSection) {
+  return refs.map((ref) => (
+    ref.section === section && ref.sub_section === oldSubSection
+      ? { section, sub_section: newSubSection }
+      : ref
+  ));
+}
+
+async function renameSubGroupRefsInTable(poolConn, tableName, equipId, section, oldSubSection, newSubSection) {
+  const [rows] = await poolConn.execute(
+    `SELECT id, section, sub_section, equipment_refs FROM \`${tableName}\` WHERE equip_id = ?`,
+    [equipId],
+  );
+
+  for (const row of rows) {
+    const prevRefs = parseEquipmentRefsFromRow(row);
+    const refs = renameSubSectionInRefs(prevRefs, section, oldSubSection, newSubSection);
+
+    const legacySubSection = row.section === section && row.sub_section === oldSubSection
+      ? newSubSection
+      : row.sub_section;
+
+    const changed = JSON.stringify(refs) !== JSON.stringify(prevRefs)
+      || legacySubSection !== row.sub_section;
+
+    if (!changed) continue;
+
+    await poolConn.execute(
+      `UPDATE \`${tableName}\`
+       SET section = ?, sub_section = ?, equipment_refs = ?
+       WHERE id = ? AND equip_id = ?`,
+      [
+        refs[0]?.section || row.section,
+        refs[0]?.sub_section || legacySubSection,
+        serializeEquipmentRefsColumn(refs),
+        row.id,
+        equipId,
+      ],
+    );
+  }
+}
+
+async function deleteSubGroupRefsInTable(poolConn, tableName, equipId, section, subSection) {
+  const [rows] = await poolConn.execute(
+    `SELECT id, section, sub_section, equipment_refs FROM \`${tableName}\` WHERE equip_id = ?`,
+    [equipId],
+  );
+
+  for (const row of rows) {
+    const refs = parseEquipmentRefsFromRow(row);
+    const matchesLegacy = row.section === section && row.sub_section === subSection;
+    const nextRefs = refs.filter(
+      (ref) => !(ref.section === section && ref.sub_section === subSection),
+    );
+
+    if (!matchesLegacy && nextRefs.length === refs.length) continue;
+
+    if (nextRefs.length === 0) {
+      await poolConn.execute(`DELETE FROM \`${tableName}\` WHERE id = ? AND equip_id = ?`, [row.id, equipId]);
+    } else {
+      await poolConn.execute(
+        `UPDATE \`${tableName}\` SET section = ?, sub_section = ?, equipment_refs = ? WHERE id = ? AND equip_id = ?`,
+        [nextRefs[0].section, nextRefs[0].sub_section, serializeEquipmentRefsColumn(nextRefs), row.id, equipId],
+      );
+    }
+  }
+}
+
+function scheduleRowMatchesSection(row, section) {
+  if (!section) return true;
+  const refs = parseEquipmentRefsFromRow(row);
+  if (refs.length) {
+    return refs.some((ref) => ref.section === section);
+  }
+  const rowSection = String(row.section || '').trim();
+  if (rowSection) return rowSection === section;
+  return false;
+}
+
+function scheduleDbRowToPayload(row) {
+  let equipment_refs = null;
+  if (row.equipment_refs) {
+    try {
+      equipment_refs = typeof row.equipment_refs === 'string'
+        ? JSON.parse(row.equipment_refs)
+        : row.equipment_refs;
+    } catch {
+      equipment_refs = null;
+    }
+  }
+  return {
+    section: row.section ?? null,
+    sub_section: row.sub_section ?? null,
+    equipment_refs,
+    no: row.no ?? 0,
+    comp: row.comp ?? '',
+    act: row.act ?? '',
+    iv_W: row.iv_W ?? null,
+    iv_M: row.iv_M ?? null,
+    iv_Q: row.iv_Q ?? null,
+    iv_H: row.iv_H ?? null,
+    iv_Y: row.iv_Y ?? null,
+    iv_T: row.iv_T ?? null,
+    iv_3Y: row.iv_3Y ?? null,
+  };
+}
+
+async function insertScheduleRows(conn, tableName, equipId, rows, scheduleEquipmentScoped) {
+  for (const s of rows) {
+    if (scheduleEquipmentScoped) {
+      const refs = Array.isArray(s.equipment_refs) ? s.equipment_refs : [];
+      const equipmentRefsJson = refs.length
+        ? JSON.stringify(refs.map((ref) => ({
+          section: ref.section ?? null,
+          sub_section: ref.sub_section ?? ref.subSection ?? null,
+        })).filter((ref) => ref.section && ref.sub_section))
+        : null;
+      await conn.execute(
+        `INSERT INTO \`${tableName}\`
+           (equip_id, section, sub_section, equipment_refs, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          equipId,
+          s.section ?? null,
+          s.sub_section ?? null,
+          equipmentRefsJson,
+          s.no ?? 0,
+          s.comp ?? '',
+          s.act ?? '',
+          s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
+          s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null,
+        ],
+      );
+    } else {
+      await conn.execute(
+        `INSERT INTO \`${tableName}\`
+           (equip_id, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        [equipId, s.no ?? 0, s.comp ?? '', s.act ?? '',
+          s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
+          s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null],
+      );
+    }
+  }
+}
+
 /**
  * @param {{ equipment: string, specs: string, schedule: string, history: string, defaultDept?: string, logPrefix?: string }} tables
  */
@@ -205,12 +351,17 @@ function createPowerEquipmentController(tables) {
       const eq = await getEq(req.params.id);
       if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
+      const section = String(req.query.section || '').trim() || null;
+
       const [specs] = await pool.execute(
         `SELECT * FROM \`${SPECS}\` WHERE equip_id = ? ORDER BY sort_order, id`, [eq.id],
       );
-      const [schedule] = await pool.execute(
+      const [scheduleRows] = await pool.execute(
         `SELECT * FROM \`${SCHED}\` WHERE equip_id = ? ORDER BY no`, [eq.id],
       );
+      const schedule = (scheduleEquipmentScoped && section)
+        ? scheduleRows.filter((row) => scheduleRowMatchesSection(row, section))
+        : scheduleRows;
       const [[{ total }]] = await pool.execute(
         `SELECT COUNT(*) AS total FROM \`${HIST}\` WHERE equip_id = ?`, [eq.id],
       );
@@ -334,44 +485,24 @@ function createPowerEquipmentController(tables) {
     try {
       const { id } = req.params;
       const sched = Array.isArray(req.body.schedule) ? req.body.schedule : [];
+      const scopeSection = String(req.query.section || req.body.scope_section || '').trim() || null;
+
       await conn.beginTransaction();
-      await conn.execute(`DELETE FROM \`${SCHED}\` WHERE equip_id = ?`, [id]);
-      for (const s of sched) {
-        if (scheduleEquipmentScoped) {
-          const refs = Array.isArray(s.equipment_refs) ? s.equipment_refs : [];
-          const equipmentRefsJson = refs.length
-            ? JSON.stringify(refs.map((ref) => ({
-              section: ref.section ?? null,
-              sub_section: ref.sub_section ?? ref.subSection ?? null,
-            })).filter((ref) => ref.section && ref.sub_section))
-            : null;
-          await conn.execute(
-            `INSERT INTO \`${SCHED}\`
-               (equip_id, section, sub_section, equipment_refs, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-            [
-              id,
-              s.section ?? null,
-              s.sub_section ?? null,
-              equipmentRefsJson,
-              s.no ?? 0,
-              s.comp ?? '',
-              s.act ?? '',
-              s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
-              s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null,
-            ],
-          );
-        } else {
-          await conn.execute(
-            `INSERT INTO \`${SCHED}\`
-               (equip_id, no, comp, act, iv_W, iv_M, iv_Q, iv_H, iv_Y, iv_T, iv_3Y)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-            [id, s.no ?? 0, s.comp ?? '', s.act ?? '',
-              s.iv_W ?? null, s.iv_M ?? null, s.iv_Q ?? null,
-              s.iv_H ?? null, s.iv_Y ?? null, s.iv_T ?? null, s.iv_3Y ?? null],
-          );
-        }
+
+      let rowsToSave = sched;
+      if (scheduleEquipmentScoped && scopeSection) {
+        const [existing] = await conn.execute(
+          `SELECT * FROM \`${SCHED}\` WHERE equip_id = ? ORDER BY no`,
+          [id],
+        );
+        const preserved = existing
+          .filter((row) => !scheduleRowMatchesSection(row, scopeSection))
+          .map(scheduleDbRowToPayload);
+        rowsToSave = [...preserved, ...sched];
       }
+
+      await conn.execute(`DELETE FROM \`${SCHED}\` WHERE equip_id = ?`, [id]);
+      await insertScheduleRows(conn, SCHED, id, rowsToSave, scheduleEquipmentScoped);
       await conn.commit();
       res.json({ message: 'Schedule updated.' });
     } catch (err) {
@@ -544,28 +675,9 @@ function createPowerEquipmentController(tables) {
         return res.status(400).json({ message: 'section and sub_section are required.' });
       }
 
-      const [rows] = await pool.execute(
-        `SELECT id, section, sub_section, equipment_refs FROM \`${HIST}\` WHERE equip_id = ?`,
-        [id],
-      );
-
-      for (const row of rows) {
-        const refs = parseEquipmentRefsFromRow(row);
-        const matchesLegacy = row.section === section && row.sub_section === sub_section;
-        const nextRefs = refs.filter(
-          (ref) => !(ref.section === section && ref.sub_section === sub_section),
-        );
-
-        if (!matchesLegacy && nextRefs.length === refs.length) continue;
-
-        if (nextRefs.length === 0) {
-          await pool.execute(`DELETE FROM \`${HIST}\` WHERE id = ? AND equip_id = ?`, [row.id, id]);
-        } else {
-          await pool.execute(
-            `UPDATE \`${HIST}\` SET section = ?, sub_section = ?, equipment_refs = ? WHERE id = ? AND equip_id = ?`,
-            [nextRefs[0].section, nextRefs[0].sub_section, serializeEquipmentRefsColumn(nextRefs), row.id, id],
-          );
-        }
+      await deleteSubGroupRefsInTable(pool, HIST, id, section, sub_section);
+      if (scheduleEquipmentScoped) {
+        await deleteSubGroupRefsInTable(pool, SCHED, id, section, sub_section);
       }
 
       res.json({ message: 'Sub-group history updated.' });
@@ -588,39 +700,9 @@ function createPowerEquipmentController(tables) {
         return res.status(400).json({ message: 'section, old_sub_section, and new_sub_section are required.' });
       }
 
-      const [rows] = await pool.execute(
-        `SELECT id, section, sub_section, equipment_refs FROM \`${HIST}\` WHERE equip_id = ?`,
-        [id],
-      );
-
-      for (const row of rows) {
-        const refs = parseEquipmentRefsFromRow(row).map((ref) => (
-          ref.section === section && ref.sub_section === old_sub_section
-            ? { section, sub_section: new_sub_section }
-            : ref
-        ));
-
-        const legacySubSection = row.section === section && row.sub_section === old_sub_section
-          ? new_sub_section
-          : row.sub_section;
-
-        const changed = JSON.stringify(refs) !== JSON.stringify(parseEquipmentRefsFromRow(row))
-          || legacySubSection !== row.sub_section;
-
-        if (!changed) continue;
-
-        await pool.execute(
-          `UPDATE \`${HIST}\`
-           SET section = ?, sub_section = ?, equipment_refs = ?
-           WHERE id = ? AND equip_id = ?`,
-          [
-            refs[0]?.section || row.section,
-            refs[0]?.sub_section || legacySubSection,
-            serializeEquipmentRefsColumn(refs),
-            row.id,
-            id,
-          ],
-        );
+      await renameSubGroupRefsInTable(pool, HIST, id, section, old_sub_section, new_sub_section);
+      if (scheduleEquipmentScoped) {
+        await renameSubGroupRefsInTable(pool, SCHED, id, section, old_sub_section, new_sub_section);
       }
 
       res.json({ message: 'Sub-group history renamed.' });

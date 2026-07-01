@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MdAccountTree,
@@ -17,9 +17,9 @@ import EngineeringDisciplineCards from './EngineeringDisciplineCards';
 import {
   disciplineNodesForEquipment,
   ENGINEERING_DISCIPLINES,
-  findDiscipline,
   isEquipmentLeaf,
 } from '../../config/engineeringDisciplines';
+import { powerNewDetailPath } from '../../utils/resolveDisciplineSection';
 import {
   POWER_PLANT_EQUIPMENT_TREE,
   findNodeById,
@@ -31,37 +31,6 @@ import { isZilEquipNo } from '../../config/powerEquipmentFields';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
-
-function HierarchyBreadcrumb({ pathIds, onNavigate }) {
-  const labels = pathLabels(POWER_PLANT_EQUIPMENT_TREE, pathIds);
-  if (labels.length <= 1) return null;
-
-  return (
-    <nav className="flex flex-wrap items-center gap-1 text-sm text-gray-500 mb-4" aria-label="Equipment path">
-      {labels.map((label, i) => {
-        const isLast = i === labels.length - 1;
-        const targetPath = pathIds.slice(0, i + 1);
-
-        return (
-          <span key={`${targetPath.join('/')}-${label}`} className="inline-flex items-center gap-1">
-            {i > 0 && <MdChevronRight className="h-4 w-4 shrink-0 text-gray-300" aria-hidden />}
-            {isLast ? (
-              <span className="font-medium text-gray-800">{label}</span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onNavigate(targetPath)}
-                className="hover:text-amber-700 hover:underline"
-              >
-                {label}
-              </button>
-            )}
-          </span>
-        );
-      })}
-    </nav>
-  );
-}
 
 function EquipmentCard({ node, onOpen, opening }) {
   const hasChildren = node.children?.length > 0;
@@ -253,29 +222,25 @@ export default function PowerPlantHierarchyExplorer({
   returnTo = '/power-plant-equipment-new',
   apiBase = '/power-new',
   detailPrefix = '/power-plant-equipment-new',
-  initialPathIds = null,
-  restoreEquipmentId = null,
+  pathIds = [POWER_PLANT_EQUIPMENT_TREE.id],
+  activeEquipmentId = null,
+  onNavigationChange = null,
 }) {
   const navigate = useNavigate();
   const [view, setView] = useState(VIEW_CARDS);
-  const [pathIds, setPathIds] = useState(
-    initialPathIds?.length ? initialPathIds : [POWER_PLANT_EQUIPMENT_TREE.id],
-  );
-  const [activeEquipment, setActiveEquipment] = useState(null);
   const [opening, setOpening] = useState(null);
 
-  useEffect(() => {
-    if (initialPathIds?.length) setPathIds(initialPathIds);
-  }, [initialPathIds]);
+  const activeEquipment = useMemo(
+    () => (activeEquipmentId ? findNodeById(POWER_PLANT_EQUIPMENT_TREE, activeEquipmentId) : null),
+    [activeEquipmentId],
+  );
 
-  useEffect(() => {
-    if (!restoreEquipmentId) return;
-    const node = findNodeById(POWER_PLANT_EQUIPMENT_TREE, restoreEquipmentId);
-    if (node && isEquipmentLeaf(node)) {
-      setActiveEquipment(node);
-      setPathIds(pathIdsForNodeId(node.id).slice(0, -1));
-    }
-  }, [restoreEquipmentId]);
+  const updateNavigation = (nextPathIds, nextActiveEquipmentId = null) => {
+    onNavigationChange?.({
+      pathIds: nextPathIds,
+      activeEquipmentId: nextActiveEquipmentId,
+    });
+  };
 
   const currentNode = useMemo(
     () => findNodeByPath(POWER_PLANT_EQUIPMENT_TREE, pathIds),
@@ -294,12 +259,7 @@ export default function PowerPlantHierarchyExplorer({
     ...(specSection ? { specSection } : {}),
   });
 
-  const equipmentDetailPath = (equipId, specSection = null) => {
-    if (specSection && findDiscipline(specSection)) {
-      return `${detailPrefix}/${equipId}/${specSection}`;
-    }
-    return `${detailPrefix}/${equipId}`;
-  };
+  const equipmentDetailPath = (equipId, specSection = null) => powerNewDetailPath(equipId, specSection);
 
   const openDraftEquipment = (node, specSection = null) => {
     const lookupName = node.lookupName || node.name;
@@ -351,11 +311,10 @@ export default function PowerPlantHierarchyExplorer({
 
   const handleNodeOpen = (node) => {
     if (node.children?.length) {
-      setActiveEquipment(null);
-      setPathIds(pathIdsForNodeId(node.id));
+      updateNavigation(pathIdsForNodeId(node.id), null);
       return;
     }
-    setActiveEquipment(node);
+    updateNavigation(pathIdsForNodeId(node.id).slice(0, -1), node.id);
   };
 
   const handleDisciplineOpen = (disciplineNode) => {
@@ -363,13 +322,6 @@ export default function PowerPlantHierarchyExplorer({
     if (!equipment) return;
     openEquipment(equipment, disciplineNode.disciplineId);
   };
-
-  const handleBreadcrumbNavigate = (targetPath) => {
-    setActiveEquipment(null);
-    setPathIds(targetPath);
-  };
-
-  const disciplinePathIds = activeEquipment ? pathIdsForNodeId(activeEquipment.id) : pathIds;
 
   return (
     <div className="card overflow-hidden">
@@ -390,21 +342,14 @@ export default function PowerPlantHierarchyExplorer({
       <div className="p-5">
         {view === VIEW_CARDS ? (
           activeEquipment ? (
-            <>
-              <HierarchyBreadcrumb
-                pathIds={disciplinePathIds}
-                onNavigate={handleBreadcrumbNavigate}
-              />
-              <EngineeringDisciplineCards
-                equipmentNode={activeEquipment}
-                onSelectDiscipline={(discipline) => openEquipment(activeEquipment, discipline.id)}
-                onBack={() => setActiveEquipment(null)}
-                opening={opening?.includes('--') ? opening.split('--')[1] : null}
-              />
-            </>
+            <EngineeringDisciplineCards
+              equipmentNode={activeEquipment}
+              onSelectDiscipline={(discipline) => openEquipment(activeEquipment, discipline.id)}
+              onBack={() => updateNavigation(pathIds, null)}
+              opening={opening?.includes('--') ? opening.split('--')[1] : null}
+            />
           ) : (
             <>
-              <HierarchyBreadcrumb pathIds={pathIds} onNavigate={handleBreadcrumbNavigate} />
               {childCount === 0 ? (
                 <p className="text-sm text-gray-500 py-8 text-center">
                   No sub-equipment under <span className="font-medium text-gray-700">{currentNode.name}</span>.

@@ -68,13 +68,19 @@ export default function OemMaintenanceScheduleHub({
   embedded = false,
   hideBulkActions = false,
   equipmentOptions = [],
+  disciplineSection = null,
 }) {
-  const showEquipmentPicker = equipmentOptions.length > 0;
+  const scopedEquipmentOptions = useMemo(() => {
+    if (!disciplineSection) return equipmentOptions;
+    return equipmentOptions.filter((opt) => opt.section === disciplineSection);
+  }, [equipmentOptions, disciplineSection]);
+
+  const showEquipmentPicker = scopedEquipmentOptions.length > 0;
   const equipmentLabelMap = useMemo(() => {
     const map = new Map();
-    equipmentOptions.forEach((opt) => map.set(opt.key, opt.label));
+    scopedEquipmentOptions.forEach((opt) => map.set(opt.key, opt.label));
     return map;
-  }, [equipmentOptions]);
+  }, [scopedEquipmentOptions]);
 
   const labelForEquipmentKeys = (keys = []) => {
     if (!keys.length) return '—';
@@ -414,7 +420,7 @@ export default function OemMaintenanceScheduleHub({
                               {showEquipmentPicker && (
                                 <td className="py-2 px-2 min-w-[10rem]">
                                   <EquipmentMultiSelectDropdown
-                                    options={equipmentOptions}
+                                    options={scopedEquipmentOptions}
                                     value={row.equipmentKeys || []}
                                     onChange={(keys) => updateEquipmentKeys(row.id, keys)}
                                     labelMap={equipmentLabelMap}
@@ -478,7 +484,7 @@ export default function OemMaintenanceScheduleHub({
                                 <label className="text-[10px] font-bold text-slate-500 uppercase">Equipment</label>
                                 <div className="mt-1">
                                   <EquipmentMultiSelectDropdown
-                                    options={equipmentOptions}
+                                    options={scopedEquipmentOptions}
                                     value={row.equipmentKeys || []}
                                     onChange={(keys) => updateEquipmentKeys(row.id, keys)}
                                     labelMap={equipmentLabelMap}

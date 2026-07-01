@@ -224,6 +224,17 @@ export default function EquipmentSpecificationHub({
     setSubModal(null);
 
     try {
+      if (onDeleteSubGroupMaintenanceHistory || onRenameSubGroupMaintenanceHistory) {
+        for (let idx = 0; idx < oldSubs.length; idx += 1) {
+          const oldName = oldSubs[idx];
+          const newName = newSubs[idx];
+          if (oldName && !newName && onDeleteSubGroupMaintenanceHistory) {
+            await onDeleteSubGroupMaintenanceHistory(secName, oldName);
+          } else if (oldName && newName && oldName !== newName && onRenameSubGroupMaintenanceHistory) {
+            await onRenameSubGroupMaintenanceHistory(secName, oldName, newName);
+          }
+        }
+      }
       await handlePersist(nextSpecs, nextSubSections, nextSubGroupMeta);
       setIsEditMode(false);
     } catch {
