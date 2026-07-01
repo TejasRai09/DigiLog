@@ -1,8 +1,14 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/powerNew.controller');
+const hier = require('../controllers/ppnHierarchy.controller');
 
 router.get('/lookup',               authenticate, ctrl.lookupEquipment);
+router.get('/hierarchy',            authenticate, hier.getTree);
+router.get('/hierarchy/path/:nodeId', authenticate, hier.getPath);
+router.post('/hierarchy',           authenticate, hier.createNode);
+router.put('/hierarchy/:nodeId',    authenticate, hier.updateNode);
+router.delete('/hierarchy/:nodeId', authenticate, hier.deleteNode);
 router.get('/',                     authenticate, ctrl.listEquipment);
 router.post('/',                    authenticate, ctrl.createEquipment);
 router.get('/:id',                  authenticate, ctrl.getEquipment);

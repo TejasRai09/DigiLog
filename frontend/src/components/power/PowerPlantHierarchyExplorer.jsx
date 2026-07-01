@@ -6,6 +6,8 @@ import {
   MdBolt,
   MdChevronRight,
   MdDashboard,
+  MdDelete,
+  MdEdit,
   MdExpandLess,
   MdExpandMore,
   MdFolder,
@@ -13,29 +15,51 @@ import {
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import Spinner from '../Spinner';
 import EngineeringDisciplineCards from './EngineeringDisciplineCards';
+import { useHierarchyManage } from './HierarchyManagePanel';
 import {
   disciplineNodesForEquipment,
   ENGINEERING_DISCIPLINES,
-  isEquipmentLeaf,
 } from '../../config/engineeringDisciplines';
 import { powerNewDetailPath } from '../../utils/resolveDisciplineSection';
 import {
-  POWER_PLANT_EQUIPMENT_TREE,
   findNodeById,
   findNodeByPath,
+  isHierarchyEquipment,
+  isHierarchyGroup,
+  isProtectedSeededNode,
   pathIdsForNodeId,
   pathLabels,
-} from '../../config/powerPlantEquipmentHierarchy';
+} from '../../utils/hierarchyTreeUtils';
 import { isZilEquipNo } from '../../config/powerEquipmentFields';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
 
-function EquipmentCard({ node, onOpen, opening }) {
-  const hasChildren = node.children?.length > 0;
-  const Icon = hasChildren ? MdFolder : MdSettings;
+function EquipmentCard({
+  node,
+  onOpen,
+  opening,
+  showManageActions = false,
+  onEdit,
+  onDelete,
+  manageSaving = false,
+}) {
+  const isGroup = isHierarchyGroup(node);
+  const childCount = node.children?.length ?? 0;
+  const Icon = isGroup ? MdFolder : MdSettings;
   const isOpening = opening === node.id;
+
+  const subtitle = () => {
+    if (isOpening) return 'Opening…';
+    if (isGroup) {
+      return childCount === 0
+        ? 'Empty folder'
+        : `${childCount} item${childCount !== 1 ? 's' : ''}`;
+    }
+    return `${ENGINEERING_DISCIPLINES.length} disciplines · Choose section`;
+  };
 
   return (
     <button
@@ -51,20 +75,38 @@ function EquipmentCard({ node, onOpen, opening }) {
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-gray-900 leading-snug">{node.name}</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              {isOpening
-                ? 'Opening…'
-                : hasChildren
-                  ? `${node.children.length} item${node.children.length !== 1 ? 's' : ''}`
-                  : `${ENGINEERING_DISCIPLINES.length} disciplines · Choose section`}
-            </p>
+            <p className="text-xs text-gray-500 mt-1">{subtitle()}</p>
           </div>
         </div>
-        {hasChildren ? (
-          <MdChevronRight className="h-5 w-5 text-gray-400 group-hover:text-amber-600 shrink-0 mt-0.5" />
-        ) : (
-          <MdArrowForward className="h-5 w-5 text-gray-400 group-hover:text-amber-600 shrink-0 mt-0.5" />
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {showManageActions && (
+            <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                disabled={manageSaving}
+                onClick={() => onEdit?.(node)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                title="Edit"
+              >
+                <MdEdit className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                disabled={manageSaving}
+                onClick={() => onDelete?.(node)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                title="Delete"
+              >
+                <MdDelete className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+          {isGroup ? (
+            <MdChevronRight className="h-5 w-5 text-gray-400 group-hover:text-amber-600 mt-0.5" />
+          ) : (
+            <MdArrowForward className="h-5 w-5 text-gray-400 group-hover:text-amber-600 mt-0.5" />
+          )}
+        </div>
       </div>
     </button>
   );
@@ -78,10 +120,10 @@ function TreeBranch({
   opening,
   activeDisciplineId = null,
 }) {
-  const isEquipment = isEquipmentLeaf(node);
+  const isGroup = isHierarchyGroup(node);
+  const isEquipment = isHierarchyEquipment(node);
   const hierarchyChildren = node.children ?? [];
   const disciplineChildren = isEquipment ? disciplineNodesForEquipment(node) : [];
-  const hasChildren = hierarchyChildren.length > 0 || disciplineChildren.length > 0;
   const [open, setOpen] = useState(defaultOpen || depth < 1);
   const isOpening = opening === node.id;
 
@@ -141,7 +183,7 @@ function TreeBranch({
     );
   }
 
-  if (!hasChildren) {
+  if (!isGroup) {
     return null;
   }
 
@@ -162,7 +204,7 @@ function TreeBranch({
         <span className="font-medium">{node.name}</span>
         <span className="text-xs text-gray-400 ml-1">({hierarchyChildren.length})</span>
       </button>
-      {open && (
+      {open && hierarchyChildren.length > 0 && (
         <div>
           {hierarchyChildren.map((child) => (
             <TreeBranch
@@ -218,11 +260,14 @@ function ViewToggle({ view, onChange }) {
 }
 
 export default function PowerPlantHierarchyExplorer({
+  tree = null,
+  treeLoading = false,
+  onReloadTree = null,
+  hierarchySource = 'static',
   appId = null,
   returnTo = '/power-plant-equipment-new',
   apiBase = '/power-new',
-  detailPrefix = '/power-plant-equipment-new',
-  pathIds = [POWER_PLANT_EQUIPMENT_TREE.id],
+  pathIds = [],
   activeEquipmentId = null,
   onNavigationChange = null,
 }) {
@@ -230,10 +275,31 @@ export default function PowerPlantHierarchyExplorer({
   const [view, setView] = useState(VIEW_CARDS);
   const [opening, setOpening] = useState(null);
 
+  const isDbTree = hierarchySource === 'database';
+
   const activeEquipment = useMemo(
-    () => (activeEquipmentId ? findNodeById(POWER_PLANT_EQUIPMENT_TREE, activeEquipmentId) : null),
-    [activeEquipmentId],
+    () => (activeEquipmentId && tree ? findNodeById(tree, activeEquipmentId) : null),
+    [activeEquipmentId, tree],
   );
+
+  const currentNode = useMemo(
+    () => (tree ? findNodeByPath(tree, pathIds) : null),
+    [tree, pathIds],
+  );
+
+  const {
+    addButton,
+    manageModal,
+    openEdit,
+    deleteNode,
+    saving: manageSaving,
+  } = useHierarchyManage({
+    tree,
+    pathIds,
+    activeEquipment,
+    onReload: onReloadTree,
+    isDbTree,
+  });
 
   const updateNavigation = (nextPathIds, nextActiveEquipmentId = null) => {
     onNavigationChange?.({
@@ -242,19 +308,17 @@ export default function PowerPlantHierarchyExplorer({
     });
   };
 
-  const currentNode = useMemo(
-    () => findNodeByPath(POWER_PLANT_EQUIPMENT_TREE, pathIds),
-    [pathIds],
-  );
-
-  const cards = currentNode.children ?? [];
+  const cards = currentNode?.children ?? [];
   const childCount = cards.length;
+
+  const cardManageActionsEnabled = (node) =>
+    isDbTree && tree && !isProtectedSeededNode(tree, node.id);
 
   const buildNavState = (node, specSection = null) => ({
     appId: appId != null && appId !== '' ? String(appId) : undefined,
     returnTo,
     fromHierarchy: true,
-    hierarchyPathIds: pathIdsForNodeId(node.id),
+    hierarchyPathIds: tree ? pathIdsForNodeId(tree, node.id) : [],
     restoreEquipmentId: node.id,
     ...(specSection ? { specSection } : {}),
   });
@@ -262,9 +326,10 @@ export default function PowerPlantHierarchyExplorer({
   const equipmentDetailPath = (equipId, specSection = null) => powerNewDetailPath(equipId, specSection);
 
   const openDraftEquipment = (node, specSection = null) => {
+    if (!tree) return;
     const lookupName = node.lookupName || node.name;
-    const nodePathIds = pathIdsForNodeId(node.id);
-    const labels = pathLabels(POWER_PLANT_EQUIPMENT_TREE, nodePathIds);
+    const nodePathIds = pathIdsForNodeId(tree, node.id);
+    const labels = pathLabels(tree, nodePathIds);
     const category = labels[1] || '';
     const subcategory = labels[2] || '';
     const equipNo = node.equipNo || '';
@@ -285,10 +350,19 @@ export default function PowerPlantHierarchyExplorer({
   const openEquipment = async (node, specSection = null) => {
     const lookupName = node.lookupName || node.name;
     const openingKey = specSection ? `${node.id}--${specSection}` : node.id;
+
+    if (node.ppnEquipId) {
+      navigate(equipmentDetailPath(node.ppnEquipId, specSection), {
+        state: buildNavState(node, specSection),
+      });
+      return;
+    }
+
     if (!node.equipNo && !lookupName) {
       openDraftEquipment(node, specSection);
       return;
     }
+
     setOpening(openingKey);
     try {
       const params = {};
@@ -310,11 +384,12 @@ export default function PowerPlantHierarchyExplorer({
   };
 
   const handleNodeOpen = (node) => {
-    if (node.children?.length) {
-      updateNavigation(pathIdsForNodeId(node.id), null);
+    if (!tree) return;
+    if (isHierarchyGroup(node)) {
+      updateNavigation(pathIdsForNodeId(tree, node.id), null);
       return;
     }
-    updateNavigation(pathIdsForNodeId(node.id).slice(0, -1), node.id);
+    updateNavigation(pathIdsForNodeId(tree, node.id).slice(0, -1), node.id);
   };
 
   const handleDisciplineOpen = (disciplineNode) => {
@@ -323,65 +398,93 @@ export default function PowerPlantHierarchyExplorer({
     openEquipment(equipment, disciplineNode.disciplineId);
   };
 
-  return (
-    <div className="card overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-gray-800">Equipment hierarchy</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {activeEquipment
-              ? activeEquipment.name
-              : view === VIEW_CARDS
-                ? `${childCount} item${childCount !== 1 ? 's' : ''} at this level`
-                : 'Full plant structure — expand equipment to choose a discipline'}
-          </p>
-        </div>
-        <ViewToggle view={view} onChange={setView} />
+  if (treeLoading && !tree) {
+    return (
+      <div className="card p-12 flex justify-center">
+        <Spinner />
       </div>
+    );
+  }
 
-      <div className="p-5">
-        {view === VIEW_CARDS ? (
-          activeEquipment ? (
-            <EngineeringDisciplineCards
-              equipmentNode={activeEquipment}
-              onSelectDiscipline={(discipline) => openEquipment(activeEquipment, discipline.id)}
-              onBack={() => updateNavigation(pathIds, null)}
-              opening={opening?.includes('--') ? opening.split('--')[1] : null}
-            />
-          ) : (
-            <>
-              {childCount === 0 ? (
-                <p className="text-sm text-gray-500 py-8 text-center">
-                  No sub-equipment under <span className="font-medium text-gray-700">{currentNode.name}</span>.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {cards.map((node) => (
-                    <EquipmentCard
-                      key={node.id}
-                      node={node}
-                      onOpen={handleNodeOpen}
-                      opening={opening}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )
-        ) : (
-          <div className="max-h-[min(70vh,720px)] overflow-y-auto pr-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 px-1">
-              Interactive tree structure
-            </p>
-            <TreeBranch
-              node={POWER_PLANT_EQUIPMENT_TREE}
-              defaultOpen
-              onOpenDiscipline={handleDisciplineOpen}
-              opening={opening}
-            />
-          </div>
-        )}
+  if (!tree) {
+    return (
+      <div className="card p-8 text-center text-sm text-gray-500">
+        Could not load equipment hierarchy.
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Equipment hierarchy</h2>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {activeEquipment
+                ? activeEquipment.name
+                : view === VIEW_CARDS
+                  ? `${childCount} item${childCount !== 1 ? 's' : ''} at this level`
+                  : 'Full plant structure — expand equipment to choose a discipline'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {addButton}
+            <ViewToggle view={view} onChange={setView} />
+          </div>
+        </div>
+
+        <div className="p-5">
+          {view === VIEW_CARDS ? (
+            activeEquipment ? (
+              <EngineeringDisciplineCards
+                equipmentNode={activeEquipment}
+                onSelectDiscipline={(discipline) => openEquipment(activeEquipment, discipline.id)}
+                onBack={() => updateNavigation(pathIds, null)}
+                opening={opening?.includes('--') ? opening.split('--')[1] : null}
+              />
+            ) : (
+              <>
+                {childCount === 0 ? (
+                  <p className="text-sm text-gray-500 py-8 text-center">
+                    No sub-equipment under{' '}
+                    <span className="font-medium text-gray-700">{currentNode?.name}</span>.
+                    {isDbTree && !activeEquipment && ' Use the add button above to create items here.'}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {cards.map((node) => (
+                      <EquipmentCard
+                        key={node.id}
+                        node={node}
+                        onOpen={handleNodeOpen}
+                        opening={opening}
+                        showManageActions={cardManageActionsEnabled(node)}
+                        onEdit={openEdit}
+                        onDelete={deleteNode}
+                        manageSaving={manageSaving}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )
+          ) : (
+            <div className="max-h-[min(70vh,720px)] overflow-y-auto pr-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 px-1">
+                Interactive tree structure
+              </p>
+              <TreeBranch
+                node={tree}
+                defaultOpen
+                onOpenDiscipline={handleDisciplineOpen}
+                opening={opening}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      {manageModal}
+    </>
   );
 }

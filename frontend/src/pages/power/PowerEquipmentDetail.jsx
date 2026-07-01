@@ -15,10 +15,8 @@ import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../uti
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
 import { POWER_LIFE_HISTORY_FIELDS, powerEquipmentDisplayId, isZilEquipNo } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
-import {
-  POWER_PLANT_EQUIPMENT_TREE,
-  hierarchyBreadcrumbLabels,
-} from '../../config/powerPlantEquipmentHierarchy';
+import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
+import { hierarchyBreadcrumbLabels } from '../../utils/hierarchyTreeUtils';
 import {
   powerNewDetailPath,
   resolveDisciplineSection,
@@ -51,6 +49,7 @@ const PowerEquipmentDetail = () => {
   const disciplineMeta = specSection ? findDiscipline(specSection) : null;
   const disciplineSpecFocus = isNewHub && Boolean(specSection && disciplineMeta);
   const appName = useAppName(appId);
+  const { tree: hierarchyTree } = usePowerPlantHierarchy();
   const isNewDraft = id === 'new';
 
   const [eq,        setEq]        = useState(null);
@@ -340,7 +339,7 @@ const PowerEquipmentDetail = () => {
 
     const equipmentForTrail = eq || draftEquipment || {};
     const { labels, pathIds } = hierarchyBreadcrumbLabels(
-      POWER_PLANT_EQUIPMENT_TREE,
+      hierarchyTree,
       equipmentForTrail,
       hierarchyPathIds,
     );
@@ -364,6 +363,7 @@ const PowerEquipmentDetail = () => {
     restoreEquipmentId,
     disciplineMeta,
     disciplineSpecFocus,
+    hierarchyTree,
   ]);
 
   const equipmentDefaults = useMemo(() => ({
