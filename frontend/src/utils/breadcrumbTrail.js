@@ -176,8 +176,32 @@ export function buildPowerPlantEquipmentNewTrail({
     && Array.isArray(hierarchyPathIds)
     && hierarchyPathIds.length > 0;
 
+  const hubRootState = { ...hubStateBase };
+
   if (!hasHierarchy) {
-    items.push({ label: hubLabel });
+    const hasSegmentsAfterHub = Array.isArray(hierarchyLabels) && hierarchyLabels.length > 0;
+    items.push({
+      label: hubLabel,
+      ...(hasSegmentsAfterHub ? { to: hubPath, state: hubRootState } : {}),
+    });
+
+    if (hasSegmentsAfterHub) {
+      const skipRoot = hierarchyLabels[0] === 'Power Plant';
+      const segmentLabels = skipRoot ? hierarchyLabels.slice(1) : hierarchyLabels;
+      segmentLabels.forEach((label, i) => {
+        const isLast = i === segmentLabels.length - 1;
+        if (isLast && disciplineLabel) {
+          items.push({ label });
+          return;
+        }
+        if (!isLast) {
+          items.push({ label });
+          return;
+        }
+        items.push({ label });
+      });
+    }
+
     if (disciplineLabel) items.push({ label: disciplineLabel });
     return items;
   }
@@ -185,7 +209,7 @@ export function buildPowerPlantEquipmentNewTrail({
   items.push({
     label: hubLabel,
     to: hubPath,
-    state: hubStateBase,
+    state: hubRootState,
   });
 
   const skipRoot = hierarchyLabels[0] === 'Power Plant';

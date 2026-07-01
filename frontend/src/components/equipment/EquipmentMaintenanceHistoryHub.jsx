@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   MdAdd,
-  MdArrowDownward,
-  MdArrowUpward,
   MdChevronLeft,
   MdChevronRight,
   MdClose,
@@ -16,6 +14,7 @@ import {
 import Spinner from '../Spinner';
 import EquipmentSectionShell from './EquipmentSectionShell';
 import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
+import ToolbarFilterSelect from './ToolbarFilterSelect';
 import { resizeImage } from '../../utils/resizeImage';
 import {
   EMPTY_HISTORY_FORM,
@@ -28,11 +27,16 @@ import {
   historyRecordFromApi,
   isOffSeason,
   maintenanceTypeLabel,
+  normalizeServiceFromApi,
+  serviceLabel,
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
+
+const FILTER_SEARCH_CLASS =
+  'w-full pl-9 pr-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500';
 
 function formSnapshotFromRecord(record) {
   return {
@@ -182,8 +186,9 @@ export default function EquipmentMaintenanceHistoryHub({
   const [form, setForm] = useState(EMPTY_HISTORY_FORM);
 
   const serviceOptions = useMemo(() => {
-    if (form.service && !HISTORY_SERVICE_OPTIONS.includes(form.service)) {
-      return [form.service, ...HISTORY_SERVICE_OPTIONS];
+    const normalized = normalizeServiceFromApi(form.service);
+    if (normalized && !HISTORY_SERVICE_OPTIONS.includes(normalized)) {
+      return [normalized, ...HISTORY_SERVICE_OPTIONS];
     }
     return HISTORY_SERVICE_OPTIONS;
   }, [form.service]);
@@ -207,11 +212,6 @@ export default function EquipmentMaintenanceHistoryHub({
   const editBaselineRef = useRef(null);
 
   const badge = totalCount ?? records.length;
-
-  const toggleStartSort = () => {
-    setStartSortOrder((order) => (order === 'desc' ? 'asc' : 'desc'));
-    setCurrentPage(1);
-  };
 
   const uniqueYears = useMemo(() => {
     const years = records.map((r) => r.year).filter((y) => y && y !== '—');
@@ -343,11 +343,30 @@ export default function EquipmentMaintenanceHistoryHub({
     });
   };
 
+  const seasonFilterOptions = useMemo(() => ([
+    { value: 'All', label: 'All Seasons' },
+    { value: 'Off-Season', label: 'Off-Season' },
+    { value: 'Season', label: 'Season' },
+  ]), []);
+
+  const yearFilterOptions = useMemo(
+    () => uniqueYears.map((yr) => ({
+      value: yr,
+      label: yr === 'All' ? 'All Years' : yr,
+    })),
+    [uniqueYears],
+  );
+
+  const sortFilterOptions = useMemo(() => ([
+    { value: 'desc', label: 'Start: Newest first' },
+    { value: 'asc', label: 'Start: Oldest first' },
+  ]), []);
+
   const toolbar = (
-    <div className="px-4 md:px-6 pt-4 pb-2 flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between bg-white border-b border-slate-50">
-      <div className="flex flex-wrap items-center gap-3 flex-1">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <MdSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 px-4 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/40">
+      <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto flex-wrap">
+        <div className="relative flex-1 min-w-[180px]">
+          <MdSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             placeholder="Search IDs, observations, actions..."
@@ -356,96 +375,73 @@ export default function EquipmentMaintenanceHistoryHub({
               setSearchQuery(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full pl-10 pr-9 py-2 text-sm text-slate-700 bg-slate-50/50 hover:bg-slate-50 focus:bg-white border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl outline-none"
+            className={FILTER_SEARCH_CLASS}
           />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <MdClose className="w-4 h-4" />
-            </button>
-          )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Season:</span>
-          <select
-            value={seasonFilter}
-            onChange={(e) => { setSeasonFilter(e.target.value); setCurrentPage(1); }}
-            className="bg-white border border-slate-200 text-xs text-slate-600 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer font-semibold"
-          >
-            <option value="All">All Seasons</option>
-            <option value="Off-Season">Off-Season</option>
-            <option value="Season">Season</option>
-          </select>
-        </div>
+        <ToolbarFilterSelect
+          value={seasonFilter}
+          onChange={(value) => {
+            setSeasonFilter(value);
+            setCurrentPage(1);
+          }}
+          options={seasonFilterOptions}
+        />
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Year:</span>
-          <select
-            value={yearFilter}
-            onChange={(e) => { setYearFilter(e.target.value); setCurrentPage(1); }}
-            className="bg-white border border-slate-200 text-xs text-slate-600 rounded-lg px-2.5 py-1.5 outline-none cursor-pointer font-semibold"
-          >
-            {uniqueYears.map((yr) => (
-              <option key={yr} value={yr}>{yr === 'All' ? 'All Years' : yr}</option>
-            ))}
-          </select>
-        </div>
+        <ToolbarFilterSelect
+          value={yearFilter}
+          onChange={(value) => {
+            setYearFilter(value);
+            setCurrentPage(1);
+          }}
+          options={yearFilterOptions}
+        />
 
         {showEquipmentPicker && (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Equipment:</span>
-            <EquipmentMultiSelectDropdown
-              options={equipmentOptions}
-              value={equipmentFilter}
-              onChange={(keys) => {
-                setEquipmentFilter(keys);
-                setCurrentPage(1);
-              }}
-              labelMap={equipmentLabelMap}
-              emptyLabel="All Equipment"
-              variant="toolbar"
-            />
-          </div>
+          <EquipmentMultiSelectDropdown
+            options={equipmentOptions}
+            value={equipmentFilter}
+            onChange={(keys) => {
+              setEquipmentFilter(keys);
+              setCurrentPage(1);
+            }}
+            labelMap={equipmentLabelMap}
+            emptyLabel="All Equipment"
+            variant="toolbar"
+            triggerMinWidth="14rem"
+            panelMinWidth={280}
+          />
         )}
 
-        {showEquipmentPicker && (
-          <button
-            type="button"
-            onClick={toggleStartSort}
-            title={startSortOrder === 'desc' ? 'Newest first — click for oldest first' : 'Oldest first — click for newest first'}
-            className="inline-flex items-center gap-1 bg-white border border-slate-200 text-xs text-slate-600 rounded-lg px-2.5 py-1.5 font-semibold hover:border-slate-300 hover:text-slate-800 transition-colors md:hidden"
-          >
-            Start
-            {startSortOrder === 'desc' ? (
-              <MdArrowDownward className="w-3.5 h-3.5" />
-            ) : (
-              <MdArrowUpward className="w-3.5 h-3.5" />
-            )}
-          </button>
-        )}
+        <ToolbarFilterSelect
+          value={startSortOrder}
+          onChange={(value) => {
+            setStartSortOrder(value);
+            setCurrentPage(1);
+          }}
+          options={sortFilterOptions}
+          minWidth="11.5rem"
+          panelMinWidth={188}
+        />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 self-end lg:self-auto">
+      <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
         <button
           type="button"
           onClick={handleDownloadExcel}
           disabled={records.length === 0}
-          className="inline-flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs px-4 py-2.5 rounded-lg border border-emerald-200 shadow-sm transition-all uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <MdDownload className="w-4 h-4" />
+          <MdDownload className="w-3.5 h-3.5" />
           Download Excel
         </button>
         <button
           type="button"
           onClick={openAdd}
           disabled={showEquipmentPicker && equipmentOptions.length === 0}
-          className="inline-flex items-center justify-center gap-2 bg-[#2563eb] hover:bg-blue-700 text-white font-bold text-xs px-5 py-2.5 rounded-lg shadow-sm transition-all uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <MdAdd className="w-4 h-4" />
+          <MdAdd className="w-3.5 h-3.5" />
           Add Record
         </button>
       </div>
@@ -462,25 +458,7 @@ export default function EquipmentMaintenanceHistoryHub({
               {showEquipmentPicker && <th className="px-5 py-4 w-[140px]">Equipment</th>}
               <th className="px-5 py-4 w-[130px]">Season</th>
               <th className="px-5 py-4 w-[80px]">Year</th>
-              <th className="px-5 py-4 w-[105px]">
-                {showEquipmentPicker ? (
-                  <button
-                    type="button"
-                    onClick={toggleStartSort}
-                    title={startSortOrder === 'desc' ? 'Newest first — click for oldest first' : 'Oldest first — click for newest first'}
-                    className="inline-flex items-center gap-1 uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors"
-                  >
-                    Start
-                    {startSortOrder === 'desc' ? (
-                      <MdArrowDownward className="w-3.5 h-3.5" />
-                    ) : (
-                      <MdArrowUpward className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                ) : (
-                  'Start'
-                )}
-              </th>
+              <th className="px-5 py-4 w-[105px]">Start</th>
               <th className="px-5 py-4 w-[105px]">Finish</th>
               <th className="px-5 py-4 w-[100px]">Maint. Type</th>
               <th className="px-5 py-4">Observation</th>
@@ -913,7 +891,7 @@ export default function EquipmentMaintenanceHistoryHub({
             </div>
             <div>
               <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Service</span>
-              <span className="text-sm font-semibold text-slate-700">{selectedRecord.service || '—'}</span>
+              <span className="text-sm font-semibold text-slate-700">{serviceLabel(selectedRecord.service) || '—'}</span>
             </div>
             <div>
               <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Provider</span>

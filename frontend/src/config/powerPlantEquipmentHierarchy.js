@@ -264,6 +264,9 @@ export const POWER_PLANT_EQUIPMENT_ROOT = group('Power Plant', [
   ]),
 ]);
 
+/** Built-in root categories from static hierarchy — no card edit/delete. */
+export const PROTECTED_ROOT_CATEGORY_NAMES = POWER_PLANT_EQUIPMENT_ROOT.children.map((c) => c.name);
+
 /** Assign stable ids for React keys and navigation paths. */
 export function annotateHierarchy(node, path = '0') {
   const id = path;

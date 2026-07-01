@@ -2,7 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MdClose, MdExpandMore, MdSearch } from 'react-icons/md';
 
+import { TOOLBAR_FILTER_TRIGGER_CLASS } from './ToolbarFilterSelect';
+
 const PANEL_Z_INDEX = 9999;
+const TOOLBAR_PANEL_MIN_WIDTH = 280;
 
 export default function EquipmentMultiSelectDropdown({
   options,
@@ -13,6 +16,8 @@ export default function EquipmentMultiSelectDropdown({
   className = '',
   variant = 'default',
   compact = false,
+  panelMinWidth = TOOLBAR_PANEL_MIN_WIDTH,
+  triggerMinWidth = '14rem',
 }) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,11 +34,14 @@ export default function EquipmentMultiSelectDropdown({
     if (!trigger) return;
 
     const rect = trigger.getBoundingClientRect();
+    const panelWidth = isToolbar
+      ? Math.max(rect.width, panelMinWidth)
+      : rect.width;
     setPanelStyle({
       position: 'fixed',
       top: rect.bottom + 4,
       left: rect.left,
-      width: rect.width,
+      width: panelWidth,
       zIndex: PANEL_Z_INDEX,
     });
   };
@@ -50,7 +58,7 @@ export default function EquipmentMultiSelectDropdown({
       window.removeEventListener('scroll', updatePanelPosition, true);
       window.removeEventListener('resize', updatePanelPosition);
     };
-  }, [open, isToolbar]);
+  }, [open, isToolbar, panelMinWidth]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -107,11 +115,11 @@ export default function EquipmentMultiSelectDropdown({
   };
 
   const triggerClassName = isToolbar
-    ? 'flex items-center justify-between gap-1 min-w-[7.5rem] max-w-[20rem] px-2.5 py-1.5 text-left text-xs text-slate-600 font-semibold border border-slate-200 rounded-lg bg-white hover:border-slate-300 cursor-pointer outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+    ? `${TOOLBAR_FILTER_TRIGGER_CLASS} w-full`
     : 'w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm border border-slate-200 rounded-lg bg-white hover:border-slate-300 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
   const labelClassName = isToolbar
-    ? 'text-slate-600 font-semibold leading-snug'
+    ? 'text-slate-700 leading-snug truncate'
     : `truncate ${selectedLabels.length ? 'text-slate-800' : 'text-slate-400'}`;
 
   const chevronClassName = isToolbar
@@ -122,33 +130,35 @@ export default function EquipmentMultiSelectDropdown({
     <div
       ref={panelRef}
       style={panelStyle}
-      className="rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden"
+      className="rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden py-1"
     >
-      <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0">
-        <div className="relative">
-          <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search equipment..."
-            className="w-full pl-8 pr-8 py-1.5 text-sm border border-slate-200 rounded-md bg-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
-            onClick={(e) => e.stopPropagation()}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            >
-              <MdClose className="w-3.5 h-3.5" />
-            </button>
-          )}
+      {options.length > 6 && (
+        <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0">
+          <div className="relative">
+            <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search equipment..."
+              className="w-full pl-8 pr-8 py-1.5 text-xs border border-slate-200 rounded-lg bg-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              onClick={(e) => e.stopPropagation()}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <MdClose className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="max-h-44 overflow-y-auto py-1">
+      <div className="max-h-52 overflow-y-auto">
         {filteredOptions.length > 0 ? filteredOptions.map((opt) => {
           const checked = value.includes(opt.key);
           return (
@@ -156,34 +166,41 @@ export default function EquipmentMultiSelectDropdown({
               key={opt.key}
               type="button"
               onClick={() => toggleKey(opt.key)}
-              className={`w-full flex items-start gap-2.5 px-3 py-2 text-left text-sm hover:bg-slate-50 ${
-                checked ? 'bg-violet-50 text-violet-900' : 'text-slate-700'
+              className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-xs whitespace-nowrap ${
+                checked
+                  ? 'bg-blue-50 text-blue-700 font-semibold'
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
             >
               <span
-                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 mt-0.5 ${
-                  checked ? 'bg-violet-600 border-violet-600 text-white' : 'border-slate-300 bg-white'
+                className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                  checked ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 bg-white'
                 }`}
               >
-                {checked && <span className="text-[10px] leading-none">✓</span>}
+                {checked && <span className="text-[9px] leading-none">✓</span>}
               </span>
-              <span className="font-medium leading-snug whitespace-normal break-words">{opt.label}</span>
+              <span className="min-w-0">{opt.label}</span>
             </button>
           );
         }) : (
-          <p className="px-3 py-4 text-center text-xs text-slate-400">No equipment found</p>
+          <p className="px-3 py-3 text-center text-xs text-slate-400">No equipment found</p>
         )}
       </div>
     </div>
   ) : null;
 
   return (
-    <div ref={rootRef} className={`relative ${className}`}>
+    <div
+      ref={rootRef}
+      className={`relative ${className}`}
+      style={isToolbar ? { minWidth: triggerMinWidth } : undefined}
+    >
       <button
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={triggerClassName}
+        style={isToolbar ? { minWidth: triggerMinWidth } : undefined}
         title={fullLabelTitle}
       >
         <span className={labelClassName}>

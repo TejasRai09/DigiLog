@@ -188,7 +188,7 @@ export function historyRecordFromApi(row) {
     observation: displayHistoryText(rawObs, rawRem),
     action: displayHistoryText(rawAct),
     repairCost: row.cost || '',
-    service: row.svc || '',
+    service: normalizeServiceFromApi(row.svc),
     maintenanceType: row.maintenance_type || '',
     provider: row.provider || '',
     responsible: row.resp || '',
@@ -254,9 +254,22 @@ export const EMPTY_HISTORY_FORM = {
 };
 
 export const HISTORY_SERVICE_OPTIONS = [
-  'INTERNAL',
-  'EXTERNAL',
+  'Internal',
+  'External',
 ];
+
+export function normalizeServiceFromApi(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const upper = raw.toUpperCase();
+  if (upper === 'INTERNAL') return 'Internal';
+  if (upper === 'EXTERNAL') return 'External';
+  return raw;
+}
+
+export function serviceLabel(value) {
+  return normalizeServiceFromApi(value) || String(value || '').trim();
+}
 
 export const HISTORY_MAINTENANCE_TYPE_OPTIONS = [
   { value: 'RM', label: 'Routine Maintenance (RM)' },
