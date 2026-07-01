@@ -154,12 +154,92 @@ export function buildPowerEquipmentTrail({ appId, appName, dept, equipmentName }
   return items;
 }
 
-export function buildPowerPlantEquipmentNewTrail({ appId, appName } = {}) {
+export function buildPowerPlantEquipmentNewTrail({
+  appId,
+  appName,
+  hierarchyLabels = null,
+  hierarchyPathIds = null,
+  restoreEquipmentId = null,
+  disciplineLabel = null,
+} = {}) {
   const items = [DASHBOARD_CRUMB, FORMS_HUB_CRUMB];
-  items.push(hubListCrumb({
-    appId,
-    appName,
-    fallbackLabel: HUB_MODULE_LABELS['/power-plant-equipment-new'],
-  }));
+  const hubPath = '/power-plant-equipment-new';
+  const hubStateBase = {
+    appId: appId != null && appId !== '' ? String(appId) : undefined,
+  };
+  const hubLabel = (appId && appName)
+    ? appName
+    : HUB_MODULE_LABELS['/power-plant-equipment-new'];
+
+  const hasHierarchy = Array.isArray(hierarchyLabels)
+    && hierarchyLabels.length > 0
+    && Array.isArray(hierarchyPathIds)
+    && hierarchyPathIds.length > 0;
+
+  if (!hasHierarchy) {
+    items.push({ label: hubLabel });
+    if (disciplineLabel) items.push({ label: disciplineLabel });
+    return items;
+  }
+
+  items.push({
+    label: hubLabel,
+    to: hubPath,
+    state: hubStateBase,
+  });
+
+  const skipRoot = hierarchyLabels[0] === 'Power Plant';
+  const segmentLabels = skipRoot ? hierarchyLabels.slice(1) : hierarchyLabels;
+  const rootOffset = skipRoot ? 1 : 0;
+
+  segmentLabels.forEach((label, i) => {
+    const isLastSegment = i === segmentLabels.length - 1;
+    const pathSliceEnd = i + 1 + rootOffset;
+    const crumbPathIds = hierarchyPathIds.slice(0, pathSliceEnd);
+    const equipmentState = restoreEquipmentId
+      ? { ...hubStateBase, hierarchyPathIds, restoreEquipmentId }
+      : null;
+
+    if (isLastSegment && disciplineLabel) {
+      items.push({
+        label,
+        to: hubPath,
+        state: equipmentState,
+      });
+      return;
+    }
+
+    if (isLastSegment) {
+      items.push({ label });
+      return;
+    }
+
+    items.push({
+      label,
+      to: hubPath,
+      state: {
+        ...hubStateBase,
+        hierarchyPathIds: crumbPathIds,
+      },
+    });
+  });
+
+  if (disciplineLabel) {
+    items.push({
+      label: disciplineLabel,
+      to: hubPath,
+      linkWhenLast: true,
+      state: equipmentStateForDiscipline(hubStateBase, hierarchyPathIds, restoreEquipmentId),
+    });
+  }
+
   return items;
+}
+
+function equipmentStateForDiscipline(hubStateBase, hierarchyPathIds, restoreEquipmentId) {
+  return {
+    ...hubStateBase,
+    hierarchyPathIds,
+    restoreEquipmentId,
+  };
 }

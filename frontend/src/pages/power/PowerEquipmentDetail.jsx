@@ -4,14 +4,14 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
-import { buildPowerEquipmentTrail } from '../../utils/breadcrumbTrail';
+import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
 import EquipmentSpecificationHub from '../../components/equipment/EquipmentSpecificationHub';
 import OemMaintenanceScheduleHub from '../../components/equipment/OemMaintenanceScheduleHub';
 import EquipmentMaintenanceHistoryHub from '../../components/equipment/EquipmentMaintenanceHistoryHub';
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
-import { serializeScheduleForApi, parseScheduleFromApi, scheduleApiRowMatchesSection, scheduleRowMatchesSection } from '../../utils/equipmentScheduleModel';
+import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
 import { POWER_LIFE_HISTORY_FIELDS, powerEquipmentDisplayId, isZilEquipNo } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
@@ -19,14 +19,12 @@ import {
   POWER_PLANT_EQUIPMENT_TREE,
   hierarchyBreadcrumbLabels,
 } from '../../config/powerPlantEquipmentHierarchy';
+import {
+  powerNewDetailPath,
+  resolveDisciplineSection,
+} from '../../utils/resolveDisciplineSection';
 
 const HIST_FETCH_LIMIT = 200;
-
-function powerNewDetailPath(equipId, specSection = null) {
-  const base = `/power-plant-equipment-new/${equipId}`;
-  if (specSection && findDiscipline(specSection)) return `${base}/${specSection}`;
-  return base;
-}
 
 const PowerEquipmentDetail = () => {
   const { id, dept, discipline: disciplineParam } = useParams();
@@ -41,9 +39,14 @@ const PowerEquipmentDetail = () => {
   const draftEquipment = location.state?.draftEquipment;
   const returnTo = location.state?.returnTo || '/power-plant-equipment-new';
   const hierarchyPathIds = location.state?.hierarchyPathIds;
-  const specSection = (disciplineParam && findDiscipline(disciplineParam) ? disciplineParam : null)
-    || location.state?.specSection
-    || null;
+  const specSection = useMemo(
+    () => resolveDisciplineSection({
+      disciplineParam,
+      pathname: location.pathname,
+      stateSection: location.state?.specSection,
+    }),
+    [disciplineParam, location.pathname, location.state?.specSection],
+  );
   const restoreEquipmentId = location.state?.restoreEquipmentId || null;
   const disciplineMeta = specSection ? findDiscipline(specSection) : null;
   const disciplineSpecFocus = isNewHub && Boolean(specSection && disciplineMeta);
@@ -64,6 +67,12 @@ const PowerEquipmentDetail = () => {
     equipIdRef.current = id;
     if (id !== 'new') createPromiseRef.current = null;
   }, [id]);
+
+  useEffect(() => {
+    if (!isNewHub || !id || id === 'new' || !specSection) return;
+    if (disciplineParam === specSection) return;
+    navigate(powerNewDetailPath(id, specSection), { replace: true, state: location.state });
+  }, [isNewHub, id, specSection, disciplineParam, navigate, location.state]);
 
   const resolveEquipmentId = useCallback(async () => {
     if (equipIdRef.current !== 'new') return equipIdRef.current;
@@ -111,7 +120,7 @@ const PowerEquipmentDetail = () => {
     if (eid === 'new') return;
     try {
       const params = { page: 1, limit: HIST_FETCH_LIMIT };
-      if (isNewHub && disciplineSpecFocus && specSection) {
+      if (isNewHub && specSection) {
         params.section = specSection;
       }
       const { data } = await api.get(`${apiBase}/${eid}/history`, { params });
@@ -122,14 +131,27 @@ const PowerEquipmentDetail = () => {
     }
   };
 
+  const loadSchedule = async (equipId) => {
+    const eid = equipId ?? equipIdRef.current;
+    if (eid === 'new') return;
+    try {
+      const params = isNewHub && specSection ? { section: specSection } : {};
+      const { data } = await api.get(`${apiBase}/${eid}`, { params });
+      setSchedule(data.schedule);
+    } catch {
+      toast.error('Failed to load schedule.');
+    }
+  };
+
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get(`${apiBase}/${id}`);
+      const equipParams = isNewHub && specSection ? { section: specSection } : {};
+      const { data } = await api.get(`${apiBase}/${id}`, { params: equipParams });
       setEq(data.equipment);
       setSpecs(data.specs);
       setSchedule(data.schedule);
-      if (isNewHub && disciplineSpecFocus && specSection) {
+      if (isNewHub && specSection) {
         const params = { page: 1, limit: HIST_FETCH_LIMIT, section: specSection };
         const histRes = await api.get(`${apiBase}/${id}/history`, { params });
         setHistory(histRes.data.records);
@@ -229,16 +251,17 @@ const PowerEquipmentDetail = () => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
-      let mergedSchedule = structuredSchedule;
-      if (isNewHub && disciplineSpecFocus && specSection) {
-        const preserved = parseScheduleFromApi(schedule).filter(
-          (row) => !scheduleRowMatchesSection(row, specSection),
-        );
-        mergedSchedule = [...preserved, ...structuredSchedule];
-      }
-      const payload = serializeScheduleForApi(mergedSchedule);
-      await api.put(`${apiBase}/${equipId}/schedule`, { schedule: payload });
-      const { data } = await api.get(`${apiBase}/${equipId}`);
+      const payload = serializeScheduleForApi(structuredSchedule);
+      const requestConfig = isNewHub && specSection
+        ? { params: { section: specSection } }
+        : {};
+      await api.put(
+        `${apiBase}/${equipId}/schedule`,
+        { schedule: payload, scope_section: specSection || undefined },
+        requestConfig,
+      );
+      const reloadParams = isNewHub && specSection ? { section: specSection } : {};
+      const { data } = await api.get(`${apiBase}/${equipId}`, { params: reloadParams });
       setSchedule(data.schedule);
       toast.success('OEM schedule saved.');
     } catch (err) {
@@ -291,7 +314,7 @@ const PowerEquipmentDetail = () => {
     await api.delete(`${apiBase}/${equipId}/history-sub-group`, {
       data: { section, sub_section: subSection },
     });
-    await loadHistory(equipId);
+    await Promise.all([loadHistory(equipId), loadSchedule(equipId)]);
   };
 
   const renameSubGroupMaintenanceHistory = async (section, oldSubSection, newSubSection) => {
@@ -302,7 +325,7 @@ const PowerEquipmentDetail = () => {
       old_sub_section: oldSubSection,
       new_sub_section: newSubSection,
     });
-    await loadHistory(equipId);
+    await Promise.all([loadHistory(equipId), loadSchedule(equipId)]);
   };
 
   const breadcrumbItems = useMemo(() => {
@@ -315,12 +338,6 @@ const PowerEquipmentDetail = () => {
       });
     }
 
-    const hubState = {
-      appId: appId != null && appId !== '' ? String(appId) : undefined,
-      hierarchyPathIds,
-      restoreEquipmentId,
-    };
-
     const equipmentForTrail = eq || draftEquipment || {};
     const { labels, pathIds } = hierarchyBreadcrumbLabels(
       POWER_PLANT_EQUIPMENT_TREE,
@@ -328,47 +345,14 @@ const PowerEquipmentDetail = () => {
       hierarchyPathIds,
     );
 
-    const onDisciplinePage = Boolean(disciplineSpecFocus && disciplineMeta);
-
-    const trailItems = labels.map((label, i) => {
-      const isEquipmentCrumb = i === labels.length - 1;
-
-      if (isEquipmentCrumb && restoreEquipmentId) {
-        return {
-          label,
-          to: returnTo,
-          state: {
-            appId: hubState.appId,
-            hierarchyPathIds: pathIds,
-            restoreEquipmentId,
-          },
-        };
-      }
-
-      if (i === labels.length - 1) return { label };
-      return {
-        label,
-        to: returnTo,
-        state: pathIds?.length
-          ? { ...hubState, hierarchyPathIds: pathIds.slice(0, i + 1) }
-          : hubState,
-      };
+    return buildPowerPlantEquipmentNewTrail({
+      appId,
+      appName,
+      hierarchyLabels: labels,
+      hierarchyPathIds: pathIds,
+      restoreEquipmentId,
+      disciplineLabel: disciplineSpecFocus && disciplineMeta ? disciplineMeta.name : null,
     });
-
-    if (onDisciplinePage) {
-      trailItems.push({
-        label: disciplineMeta.name,
-        to: returnTo,
-        linkWhenLast: true,
-        state: {
-          appId: hubState.appId,
-          hierarchyPathIds: pathIds,
-          restoreEquipmentId,
-        },
-      });
-    }
-
-    return trailItems;
   }, [
     showNewHubTrail,
     appId,
@@ -377,13 +361,9 @@ const PowerEquipmentDetail = () => {
     eq,
     draftEquipment,
     hierarchyPathIds,
-    returnTo,
-    specSection,
     restoreEquipmentId,
     disciplineMeta,
     disciplineSpecFocus,
-    id,
-    isNewDraft,
   ]);
 
   const equipmentDefaults = useMemo(() => ({
@@ -403,25 +383,23 @@ const PowerEquipmentDetail = () => {
   );
 
   const scheduleEquipmentOptions = useMemo(
-    () => (isNewHub
-      ? buildEquipmentOptionsFromSpecs(
-        specs,
-        equipmentDefaults,
-        disciplineSpecFocus ? specSection : null,
-      )
-      : []),
-    [isNewHub, specs, equipmentDefaults, disciplineSpecFocus, specSection],
+    () => {
+      if (!isNewHub || !specSection) return [];
+      return buildEquipmentOptionsFromSpecs(specs, equipmentDefaults, specSection);
+    },
+    [isNewHub, specs, equipmentDefaults, specSection],
   );
 
   const scheduleForView = useMemo(() => {
-    if (!isNewHub || !disciplineSpecFocus) return schedule;
+    if (!isNewHub) return schedule;
+    if (!specSection) return [];
     return schedule.filter((row) => scheduleApiRowMatchesSection(row, specSection));
-  }, [schedule, isNewHub, disciplineSpecFocus, specSection]);
+  }, [schedule, isNewHub, specSection]);
 
   const historyForView = useMemo(() => {
-    if (!isNewHub || !disciplineSpecFocus) return history;
+    if (!isNewHub || !specSection) return history;
     return history.filter((row) => historyRecordMatchesSection(row, specSection));
-  }, [history, isNewHub, disciplineSpecFocus, specSection]);
+  }, [history, isNewHub, specSection]);
 
   const historyTotalForView = histTotal;
 
@@ -434,13 +412,10 @@ const PowerEquipmentDetail = () => {
     <main className="app-main">
       <AppBreadcrumb items={breadcrumbItems} />
 
-      {(displayId || isNewDraft) && (
+      {displayId && (
         <div className="mb-6">
           <p className="text-sm text-gray-500 font-mono">
             {displayId}
-            {isNewDraft && (
-              <span className="ml-2 text-amber-600 font-sans font-medium">New — save to create record</span>
-            )}
           </p>
         </div>
       )}
@@ -491,6 +466,7 @@ const PowerEquipmentDetail = () => {
           saving={saving}
           hideBulkActions={showNewHubTrail}
           equipmentOptions={scheduleEquipmentOptions}
+          disciplineSection={isNewHub ? specSection : null}
         />
       </div>
 
