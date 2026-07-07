@@ -19,7 +19,7 @@ const PowerRow = ({ rowLabel, children }) => (
 );
 
 const INITIAL = {
-  date: '', time: '',
+  date: '',
   Crush: '', Baggase: '',
   Hours30: '', Hours3Old: '', Hours3New: '', Hours4: '',
   PowerGen30: '', PowerGen3Old: '', PowerGen3New: '', PowerGen4MW: '',
@@ -70,10 +70,9 @@ const PhPower = () => {
           <div className="form-row flex-wrap justify-center sm:justify-start">
             <ReportDateFields
               dateValue={form.date}
-              timeValue={form.time}
               onChange={handleChange}
               dateRequired
-              timeRequired
+              showTime={false}
             />
           </div>
         </div>

@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
 const {
   getHierarchyTree,
   getNodeById,
@@ -17,8 +18,7 @@ const getTree = async (req, res) => {
     const tree = await getHierarchyTree();
     res.json({ tree, source: tree ? 'database' : 'empty' });
   } catch (err) {
-    console.error('ppnHierarchy.getTree:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'ppnHierarchy.getTree:', err, MSG.LOAD);
   }
 };
 
@@ -35,8 +35,7 @@ const getPath = async (req, res) => {
     const { category, subcategory } = categorySubcategoryFromPath(tree, String(nodeId));
     res.json({ pathIds, labels, category, subcategory, node });
   } catch (err) {
-    console.error('ppnHierarchy.getPath:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'ppnHierarchy.getPath:', err, MSG.LOAD);
   }
 };
 
@@ -99,8 +98,7 @@ const createNode = async (req, res) => {
       pathIds: tree ? pathIdsForNodeId(tree, String(result.insertId)) : [String(result.insertId)],
     });
   } catch (err) {
-    console.error('ppnHierarchy.createNode:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'ppnHierarchy.createNode:', err, MSG.SAVE);
   }
 };
 
@@ -157,8 +155,7 @@ const updateNode = async (req, res) => {
     const updated = await getNodeById(id);
     res.json({ node: updated });
   } catch (err) {
-    console.error('ppnHierarchy.updateNode:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'ppnHierarchy.updateNode:', err, MSG.SAVE);
   }
 };
 
@@ -196,8 +193,7 @@ const deleteNode = async (req, res) => {
     }
     res.json({ message: 'Node deleted.' });
   } catch (err) {
-    console.error('ppnHierarchy.deleteNode:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'ppnHierarchy.deleteNode:', err, MSG.DELETE);
   }
 };
 

@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
 
 // ─── Form configuration ──────────────────────────────────────
 // pattern:
@@ -31,8 +32,8 @@ const FORM_CONFIG = {
   stoppage_logbook: { table: 'stoppage_logbook', pattern: 'B', tsCol: 'timestamp' },
 
   // App 3 – Power Logbook
-  ph_power:         { table: 'ph_power',         pattern: 'E', tsCol: 'timestamp' },
-  ph_steam:         { table: 'ph_steam',         pattern: 'E', tsCol: 'timestamp' },
+  ph_power:         { table: 'ph_power',         pattern: 'E', tsCol: 'timestamp', autoTime: true },
+  ph_steam:         { table: 'ph_steam',         pattern: 'E', tsCol: 'timestamp', autoTime: true },
   ph_stoppage:      { table: 'ph_stoppage',      pattern: 'B', tsCol: 'timestamp' },
 
   // App 4 – Distillery
@@ -43,6 +44,7 @@ const FORM_CONFIG = {
   ehs_water_gwa:    { table: 'ehs_water_gwa',    pattern: 'G', tsCol: 'timestamp' },
   ehs_water_etp:    { table: 'ehs_water_etp',    pattern: 'G', tsCol: 'timestamp' },
   ehs_water_cpu:    { table: 'ehs_water_cpu',    pattern: 'G', tsCol: 'timestamp' },
+  ehs_toolbox_talk: { table: 'ehs_toolbox_talk', pattern: 'D', tsCol: 'timestamp' },
 
   // Production Forms
   prod_shift_chemist: { table: 'prod_shift_chemist', pattern: 'G', tsCol: 'timestamp' },
@@ -78,8 +80,13 @@ const canAccessForm = async (user, formKey) => {
   return mf.some((r) => r.form_id === formRow.id);
 };
 
+function formatMySQLDateTime(d) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 // ─── Inject date/time columns by pattern ─────────────────────
-const injectDateCols = (payload, pattern, body) => {
+const injectDateCols = (payload, pattern, body, { autoTime = false } = {}) => {
   switch (pattern) {
     case 'A':
       payload.Date  = body.date  ?? null;
@@ -102,7 +109,7 @@ const injectDateCols = (payload, pattern, body) => {
       break;
     case 'E':
       payload.Date = body.date ?? null;
-      payload.Time = body.time ?? null;
+      payload.Time = autoTime ? formatMySQLDateTime(new Date()) : (body.time ?? null);
       break;
     case 'G':
       payload.Date = body.date ?? null;
@@ -149,12 +156,63 @@ function validatePhFields(payload, keys) {
   return { ok: true };
 }
 
+function isValidHhMm(value) {
+  return typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
+}
+
 function validateFormPayload(formKey, payload) {
   switch (formKey) {
     case 'ehs_water_cpu':
       return validatePhFields(payload, ['inlet_ph_a', 'inlet_ph_b', 'inlet_ph_c', 'outlet_ph']);
     case 'ehs_water_etp':
       return validatePhFields(payload, ['ph_g_shift']);
+    case 'ehs_toolbox_talk': {
+      const shift = String(payload.Shift ?? '').trim();
+      if (!['A', 'B', 'C'].includes(shift)) {
+        return { ok: false, message: 'Shift must be A, B, or C.' };
+      }
+      payload.Shift = shift;
+
+      const start = String(payload.start_time ?? '').trim();
+      const end = String(payload.end_time ?? '').trim();
+      if (!isValidHhMm(start)) {
+        return { ok: false, message: 'Time — From is required (24-hour HH:mm).' };
+      }
+      if (!isValidHhMm(end)) {
+        return { ok: false, message: 'Time — To is required (24-hour HH:mm).' };
+      }
+      if (end <= start) {
+        return {
+          ok: false,
+          message: 'Time — To must be later than Time — From (24-hour format).',
+        };
+      }
+      payload.start_time = start;
+      payload.end_time = end;
+
+      const topic = String(payload.topic_discussed ?? '').trim();
+      if (topic.length < 20) {
+        return { ok: false, message: 'Topic discussed must be at least 20 characters.' };
+      }
+      if (topic.length > 150) {
+        return { ok: false, message: 'Topic discussed must be at most 150 characters.' };
+      }
+      payload.topic_discussed = topic;
+
+      const raw = payload.no_of_attendees;
+      if (raw === null || raw === '') {
+        return { ok: false, message: 'Number of attendees is required.' };
+      }
+      const n = Number(raw);
+      if (!Number.isInteger(n) || n < 1) {
+        return {
+          ok: false,
+          message: 'Number of attendees must be a whole number of at least 1.',
+        };
+      }
+      payload.no_of_attendees = n;
+      return { ok: true };
+    }
     default:
       return { ok: true };
   }
@@ -168,10 +226,11 @@ const DUPLICATE_OPERATION_MSG =
  * True if another row exists with the same operational key for this table/pattern.
  * Uses NULL-safe <=> so null keys match only other nulls.
  */
-async function hasDuplicateOperationRow(pool, table, pattern, payload) {
+async function hasDuplicateOperationRow(pool, table, pattern, payload, { autoTime = false } = {}) {
+  const dupPattern = autoTime ? 'G' : pattern;
   const parts = [];
   const vals = [];
-  switch (pattern) {
+  switch (dupPattern) {
     case 'A':
       parts.push('`Date` <=> ?', '`Shift` <=> ?', '`Time` <=> ?');
       vals.push(payload.Date ?? null, payload.Shift ?? null, payload.Time ?? null);
@@ -232,7 +291,11 @@ const submitForm = async (req, res) => {
   if (!allowed) return res.status(403).json({ message: 'Access denied to this form.' });
 
   const payload = sanitisePayload(req.body);
-  injectDateCols(payload, config.pattern, req.body);
+  injectDateCols(payload, config.pattern, req.body, { autoTime: config.autoTime });
+
+  if (config.autoTime && !payload.Date) {
+    return res.status(400).json({ message: 'Date is required.' });
+  }
 
   const fieldCheck = validateFormPayload(formKey, payload);
   if (!fieldCheck.ok) {
@@ -251,7 +314,9 @@ const submitForm = async (req, res) => {
   const sql = `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`;
 
   try {
-    const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload);
+    const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
+      autoTime: config.autoTime,
+    });
     if (dup) {
       return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
     }
@@ -261,8 +326,7 @@ const submitForm = async (req, res) => {
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
     }
-    console.error('Form submit error:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'Form submit error:', err, MSG.SAVE);
   }
 };
 
@@ -270,20 +334,24 @@ const submitForm = async (req, res) => {
 const getFormMeta = async (req, res) => {
   const { formKey } = req.params;
 
-  const [[row]] = await pool.query(
-    'SELECT name, description, form_key FROM forms WHERE form_key = ? AND is_active = 1',
-    [formKey],
-  );
-  if (!row) return res.status(404).json({ message: 'Form not found.' });
+  try {
+    const [[row]] = await pool.query(
+      'SELECT name, description, form_key FROM forms WHERE form_key = ? AND is_active = 1',
+      [formKey],
+    );
+    if (!row) return res.status(404).json({ message: 'Form not found.' });
 
-  const allowed = await canAccessForm(req.user, formKey);
-  if (!allowed) return res.status(403).json({ message: 'Access denied to this form.' });
+    const allowed = await canAccessForm(req.user, formKey);
+    if (!allowed) return res.status(403).json({ message: 'Access denied to this form.' });
 
-  res.json({
-    name: row.name,
-    description: row.description,
-    formKey: row.form_key,
-  });
+    res.json({
+      name: row.name,
+      description: row.description,
+      formKey: row.form_key,
+    });
+  } catch (err) {
+    sendServerError(res, 'getFormMeta', err, MSG.LOAD);
+  }
 };
 
 // ─── GET /api/forms/:formKey/records?page=1&limit=20 ─────────
@@ -311,8 +379,7 @@ const getRecords = async (req, res) => {
     );
     res.json({ total, page, limit, records: rows });
   } catch (err) {
-    console.error('Form records error:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'Form records error:', err, MSG.LOAD);
   }
 };
 
@@ -345,8 +412,7 @@ const submitBatch = async (req, res) => {
     }
     res.status(201).json({ message: `${rows.length} rows inserted.` });
   } catch (err) {
-    console.error('Batch submit error:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'Batch submit error:', err, MSG.SAVE);
   }
 };
 

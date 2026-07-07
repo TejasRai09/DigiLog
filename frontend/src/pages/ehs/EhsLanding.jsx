@@ -30,6 +30,12 @@ const EHS_FORMS = [
     name:        'Water Dashboard — CPU Water Recycle',
     description: 'CPU inlet/outlet daily report with quality parameters',
   },
+  {
+    _id:         'ehs_toolbox_talk',
+    formKey:     'ehs_toolbox_talk',
+    name:        'Daily Safety Toolbox Talk',
+    description: 'Record daily toolbox talk session with attendance and session photos',
+  },
 ];
 
 const EhsLanding = () => {

@@ -5,7 +5,7 @@ import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import ProfileModal from './ProfileModal';
 import MobileNavDrawer from './MobileNavDrawer';
-import { mediaUrl } from '../utils/mediaUrl';
+import AuthenticatedImage from './AuthenticatedImage';
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -129,7 +129,7 @@ const Navbar = () => {
               aria-label="Open profile"
             >
               {user?.avatar ? (
-                <img src={mediaUrl(user.avatar)} alt="" className="h-full w-full object-cover" />
+                <AuthenticatedImage src={user.avatar} alt="" className="h-full w-full object-cover" />
               ) : (
                 user?.name?.[0] ?? '?'
               )}

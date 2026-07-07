@@ -6,6 +6,7 @@ const {
   unlinkStoredFile,
 } = require('../utils/dataUploadFile');
 const { syncIfMillMappingFile } = require('../utils/millMappingSync');
+const { sendServerError, MSG, logServerError } = require('../utils/httpError');
 
 async function hasDataUploadAccess(user) {
   if (!user) return false;
@@ -42,8 +43,12 @@ function validateCategory(category) {
 
 /** GET /api/data-upload/access */
 async function getMyAccess(req, res) {
-  const enabled = await hasDataUploadAccess(req.user);
-  res.json({ enabled });
+  try {
+    const enabled = await hasDataUploadAccess(req.user);
+    res.json({ enabled });
+  } catch (err) {
+    sendServerError(res, 'getMyAccess', err, MSG.LOAD);
+  }
 }
 
 /** Middleware: require data upload access */
@@ -52,8 +57,8 @@ async function requireDataUploadAccess(req, res, next) {
     if (await hasDataUploadAccess(req.user)) return next();
     return res.status(403).json({ message: 'You do not have access to Data Upload.' });
   } catch (err) {
-    console.error('requireDataUploadAccess:', err.message);
-    return res.status(500).json({ message: 'Server error.' });
+    logServerError('requireDataUploadAccess', err);
+    return res.status(500).json({ message: MSG.SERVER });
   }
 }
 
@@ -68,8 +73,7 @@ async function listFiles(req, res) {
     );
     res.json({ files: rows.map(mapFileRow) });
   } catch (err) {
-    console.error('listFiles:', err.message);
-    res.status(500).json({ message: 'Failed to load uploads.' });
+    sendServerError(res, 'listFiles', err, MSG.LOAD);
   }
 }
 
@@ -124,8 +128,7 @@ async function uploadFile(req, res) {
     res.status(201).json({ file: mapFileRow(row), millMappingSync });
   } catch (err) {
     unlinkStoredFile(storedFilename);
-    console.error('uploadFile:', err.message);
-    res.status(500).json({ message: 'Failed to save upload metadata.' });
+    sendServerError(res, 'uploadFile', err, MSG.UPLOAD);
   }
 }
 
@@ -145,8 +148,7 @@ async function downloadFile(req, res) {
 
     res.download(abs, row.original_filename);
   } catch (err) {
-    console.error('downloadFile:', err.message);
-    res.status(500).json({ message: 'Download failed.' });
+    sendServerError(res, 'downloadFile', err, MSG.LOAD);
   }
 }
 
@@ -166,8 +168,7 @@ async function deleteFile(req, res) {
     unlinkStoredFile(row.stored_filename);
     res.json({ message: 'File deleted.' });
   } catch (err) {
-    console.error('deleteFile:', err.message);
-    res.status(500).json({ message: 'Delete failed.' });
+    sendServerError(res, 'deleteFile', err, MSG.DELETE);
   }
 }
 
@@ -195,8 +196,7 @@ async function getAdminDataUploadAccess(req, res) {
       }),
     });
   } catch (err) {
-    console.error('getAdminDataUploadAccess:', err.message);
-    res.status(500).json({ message: 'Failed to load data upload access.' });
+    sendServerError(res, 'getAdminDataUploadAccess', err, MSG.LOAD);
   }
 }
 
@@ -228,8 +228,7 @@ async function upsertAdminDataUploadAccess(req, res) {
 
     res.json({ message: 'Data upload access saved.', enabled });
   } catch (err) {
-    console.error('upsertAdminDataUploadAccess:', err.message);
-    res.status(500).json({ message: 'Failed to save data upload access.' });
+    sendServerError(res, 'upsertAdminDataUploadAccess', err, MSG.SAVE);
   }
 }
 

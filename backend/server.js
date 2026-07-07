@@ -1,10 +1,11 @@
-const path = require('path');
-const { PORT, CLIENT_ORIGIN } = require('./config/env');
+const { PORT, CLIENT_ORIGIN, NODE_ENV } = require('./config/env');
 const express   = require('express');
 const cors      = require('cors');
+const helmet    = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const { testMysqlConnection } = require('./config/mysql');
+const { globalErrorMessage, logServerError, mapDbError } = require('./utils/httpError');
 
 const authRoutes      = require('./routes/auth.routes');
 const adminRoutes     = require('./routes/admin.routes');
@@ -19,14 +20,25 @@ const dataUploadRoutes    = require('./routes/dataUpload.routes');
 
 const app = express();
 
+if (NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // ─── Database connections ────────────────────────────────────
 testMysqlConnection();
 
 // ─── Global middleware ───────────────────────────────────────
+app.use(helmet({
+  // JSON API — CSP is enforced by the Vite SPA, not these responses.
+  contentSecurityPolicy: false,
+  // Allow the SPA (possibly another origin) to load avatar blobs from /api.
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  // HSTS is enabled by helmet in production when the request is HTTPS (trust proxy above).
+}));
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Uploads (avatars, data-ingestion) are served only via authenticated API routes.
 
 // ─── Rate limiting ───────────────────────────────────────────
 const globalLimiter = rateLimit({
@@ -66,8 +78,12 @@ app.use((_req, res) => res.status(404).json({ message: 'Route not found.' }));
 
 // ─── Global error handler ────────────────────────────────────
 app.use((err, _req, res, _next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({ message: err.message || 'Internal server error.' });
+  logServerError('unhandled', err);
+  const mapped = mapDbError(err);
+  if (mapped) {
+    return res.status(mapped.status).json({ message: mapped.message });
+  }
+  res.status(err.status || 500).json({ message: globalErrorMessage(err) });
 });
 
 app.listen(PORT, () => console.log(`🚀  Server running on http://localhost:${PORT}`));

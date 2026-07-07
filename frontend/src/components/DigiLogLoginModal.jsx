@@ -25,7 +25,7 @@ const modalOAuthBtnClass =
   'flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-60';
 
 /**
- * Marketing-style sign-in modal; uses the same auth flows as {@link ../pages/Login.jsx}.
+ * Marketing-style sign-in modal; wraps the shared auth flows from useAuth.
  */
 export default function DigiLogLoginModal({ open, onClose }) {
   const { loginManual, loginOutlook, loginGoogle } = useAuth();

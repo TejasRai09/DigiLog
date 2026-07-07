@@ -54,6 +54,7 @@ import EhsNearMiss  from './pages/forms/ehs/EhsNearMiss';
 import EhsWaterGwa  from './pages/forms/ehs/EhsWaterGwa';
 import EhsWaterEtp  from './pages/forms/ehs/EhsWaterEtp';
 import EhsWaterCpu  from './pages/forms/ehs/EhsWaterCpu';
+import EhsToolboxTalk from './pages/forms/ehs/EhsToolboxTalk';
 
 // Production Forms
 import ProductionLanding  from './pages/production/ProductionLanding';
@@ -127,6 +128,7 @@ const App = () => {
           <Route path="/forms/ehs_water_gwa"       element={<EhsWaterGwa />} />
           <Route path="/forms/ehs_water_etp"       element={<EhsWaterEtp />} />
           <Route path="/forms/ehs_water_cpu"       element={<EhsWaterCpu />} />
+          <Route path="/forms/ehs_toolbox_talk"     element={<EhsToolboxTalk />} />
 
           {/* Production Forms */}
           <Route path="/production"                       element={<ProductionLanding />} />
