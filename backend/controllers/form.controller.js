@@ -1,5 +1,6 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
+const { validHistoryImageField } = require('../utils/historyImages');
 
 // ─── Form configuration ──────────────────────────────────────
 // pattern:
@@ -160,6 +161,26 @@ function isValidHhMm(value) {
   return typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
 }
 
+function validateStoppagePhotos(value) {
+  if (value == null || value === '') return { value: null };
+  const validated = validHistoryImageField(value);
+  if (!validated) {
+    return { error: 'Invalid stoppage photo format.' };
+  }
+  let count = 1;
+  if (validated.startsWith('[')) {
+    try {
+      count = JSON.parse(validated).length;
+    } catch {
+      return { error: 'Invalid stoppage photo format.' };
+    }
+  }
+  if (count > 2) {
+    return { error: 'Maximum 2 stoppage photos allowed.' };
+  }
+  return { value: validated };
+}
+
 function validateFormPayload(formKey, payload) {
   switch (formKey) {
     case 'ehs_water_cpu':
@@ -191,11 +212,21 @@ function validateFormPayload(formKey, payload) {
       payload.end_time = end;
 
       const topic = String(payload.topic_discussed ?? '').trim();
-      if (topic.length < 20) {
-        return { ok: false, message: 'Topic discussed must be at least 20 characters.' };
+      const topicChars = topic.replace(/\s/g, '').length;
+      if (topicChars < 20) {
+        return {
+          ok: false,
+          message: 'Topic discussed must be at least 20 characters (spaces not counted).',
+        };
+      }
+      if (topicChars > 150) {
+        return {
+          ok: false,
+          message: 'Topic discussed must be at most 150 characters (spaces not counted).',
+        };
       }
       if (topic.length > 150) {
-        return { ok: false, message: 'Topic discussed must be at most 150 characters.' };
+        return { ok: false, message: 'Topic discussed must be at most 150 characters in total.' };
       }
       payload.topic_discussed = topic;
 
@@ -211,6 +242,38 @@ function validateFormPayload(formKey, payload) {
         };
       }
       payload.no_of_attendees = n;
+      return { ok: true };
+    }
+    case 'ph_power': {
+      const remark = String(payload.remark ?? '').trim();
+      if (!remark) {
+        return { ok: false, message: 'Remark is required.' };
+      }
+      payload.remark = remark;
+      return { ok: true };
+    }
+    case 'ph_stoppage': {
+      const remarks = String(payload.remarks ?? '').trim();
+      if (!remarks) {
+        return { ok: false, message: 'Remark is required.' };
+      }
+      if (remarks.length < 20) {
+        return { ok: false, message: 'Remark must be at least 20 characters.' };
+      }
+      if (remarks.length > 150) {
+        return { ok: false, message: 'Remark must be at most 150 characters.' };
+      }
+      payload.remarks = remarks;
+
+      if (payload.stoppage_photos != null && payload.stoppage_photos !== '') {
+        const photoCheck = validateStoppagePhotos(payload.stoppage_photos);
+        if (photoCheck.error) {
+          return { ok: false, message: photoCheck.error };
+        }
+        payload.stoppage_photos = photoCheck.value;
+      } else {
+        payload.stoppage_photos = null;
+      }
       return { ok: true };
     }
     default:

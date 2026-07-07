@@ -45,11 +45,15 @@ const PhPower = () => {
         toast.error('Date is required.');
         return false;
       }
+      if (!form.remark?.trim()) {
+        toast.error('Remark is required.');
+        return false;
+      }
       return true;
     },
     submit: async () => {
       await gsmaSubmitRequest(
-        () => api.post('/forms/ph_power', form),
+        () => api.post('/forms/ph_power', { ...form, remark: form.remark.trim() }),
         'Power Details submitted!',
       );
       setForm(INITIAL);
@@ -139,8 +143,18 @@ const PhPower = () => {
               <LegacyNumField name="ExportDist30" value={form.ExportDist30} onChange={handleChange} placeholder="30.85MW STG" />
             </PowerRow>
             <div>
-              <label className="label">Remark:</label>
-              <textarea name="remark" value={form.remark} onChange={handleChange} rows={3} className="input resize-none" placeholder="" />
+              <label className="label">
+                Remark:<span className="text-red-500 ml-0.5">*</span>
+              </label>
+              <textarea
+                name="remark"
+                value={form.remark}
+                onChange={handleChange}
+                rows={3}
+                required
+                className="input resize-none"
+                placeholder=""
+              />
             </div>
           </div>
         </div>

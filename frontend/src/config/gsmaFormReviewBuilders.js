@@ -267,6 +267,14 @@ export function buildPhStoppageReview(form) {
       { key: 'category', label: 'Category' },
       { key: 'remarks', label: 'Remark' },
     ], { onlyFilled: false })),
+    section('Photos', [
+      {
+        label: 'Stoppage Photos',
+        value: form.photos?.length
+          ? `${form.photos.length} photo(s) attached`
+          : EMPTY,
+      },
+    ]),
   ]);
 }
 

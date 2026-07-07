@@ -519,6 +519,7 @@ function schemaPhStoppage() {
   push(a, 'machinery', 'GSMA Power — Stoppages', 'Machinery');
   push(a, 'category', 'GSMA Power — Stoppages', 'Category');
   push(a, 'remarks', 'GSMA Power — Stoppages', 'Remark');
+  push(a, 'stoppage_photos', 'GSMA Power — Stoppages', 'Photos');
   push(a, 'created_at', 'System', 'Created at');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
