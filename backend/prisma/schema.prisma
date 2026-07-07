@@ -464,6 +464,7 @@ model PhPower {
   PowerCon70TPH     Float?
   PowerConETP       Float?
   PowerConColony    Float?
+  PowerConSugarCPU  Float?
   PowerConOthers    Float?
   remark            String?   @db.VarChar(600)
   timestamp         DateTime? @default(now()) @db.Timestamp(0)
@@ -521,10 +522,15 @@ model PhStoppage {
   start_time  DateTime? @db.DateTime(0)
   end_Time    DateTime? @db.DateTime(0)
   section     String?   @db.VarChar(100)
+  section_specify String? @db.VarChar(100)
   sub_section String?   @db.VarChar(100)
+  sub_section_specify String? @db.VarChar(100)
   machinery   String?   @db.VarChar(100)
+  machinery_specify String? @db.VarChar(100)
   category    String?   @db.VarChar(100)
+  category_specify String? @db.VarChar(100)
   remarks     String?   @db.VarChar(300)
+  stoppage_photos String? @db.MediumText
   created_at  DateTime? @default(now()) @db.Timestamp(0)
   timestamp   DateTime? @default(now()) @db.Timestamp(0)
 

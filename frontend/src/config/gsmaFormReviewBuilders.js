@@ -241,7 +241,10 @@ export function buildLubePressureReview(form) {
 export function buildPhPowerReview(form) {
   const defs = Object.keys(form)
     .filter((k) => !['date', 'time'].includes(k))
-    .map((key) => ({ key, label: key.replace(/_/g, ' ') }));
+    .map((key) => ({
+      key,
+      label: key === 'remark' ? 'General remarks' : key.replace(/_/g, ' '),
+    }));
   return reviewMeta('Review Power Details', [
     { label: 'Report Date', value: formatDate(form.date) },
   ], [section('Power Details', fieldsFromDefs(form, defs))]);
@@ -257,16 +260,22 @@ export function buildPhSteamReview(form) {
 }
 
 export function buildPhStoppageReview(form) {
+  const detailFields = [
+    { key: 'startTime', label: 'From', dateTime: true },
+    { key: 'endTime', label: 'To', dateTime: true },
+    { key: 'section', label: 'Section' },
+    ...(form.section === 'Others' ? [{ key: 'section_specify', label: 'Please specify Section' }] : []),
+    { key: 'sub_section', label: 'Sub-Section' },
+    ...(form.sub_section === 'OTHERS' ? [{ key: 'sub_section_specify', label: 'Please specify Sub-Section' }] : []),
+    { key: 'machinery', label: 'Machinery' },
+    ...(form.machinery === 'Others' ? [{ key: 'machinery_specify', label: 'Please specify Machinery' }] : []),
+    { key: 'category', label: 'Category' },
+    ...(form.category === 'Other' ? [{ key: 'category_specify', label: 'Please specify Category' }] : []),
+    { key: 'remarks', label: 'General remarks' },
+  ];
+
   return reviewMeta('Review Power Stoppages', [{ label: 'Report Date', value: formatDate(form.date) }], [
-    section('Stoppage Details', fieldsFromDefs(form, [
-      { key: 'startTime', label: 'From', dateTime: true },
-      { key: 'endTime', label: 'To', dateTime: true },
-      { key: 'section', label: 'Section' },
-      { key: 'sub_section', label: 'Sub-Section' },
-      { key: 'machinery', label: 'Machinery' },
-      { key: 'category', label: 'Category' },
-      { key: 'remarks', label: 'Remark' },
-    ], { onlyFilled: false })),
+    section('Stoppage Details', fieldsFromDefs(form, detailFields, { onlyFilled: false })),
     section('Photos', [
       {
         label: 'Stoppage Photos',
