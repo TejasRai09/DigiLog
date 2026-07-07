@@ -1,6 +1,7 @@
 const { verifyToken } = require('../utils/jwt');
 const { pool }        = require('../config/mysql');
 const { toAuthUser }  = require('../utils/userPublic');
+const { sendServerError, MSG } = require('../utils/httpError');
 
 const authenticate = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -26,8 +27,11 @@ const authenticate = async (req, res, next) => {
     req.user = toAuthUser(row);
 
     next();
-  } catch {
-    return res.status(401).json({ message: 'Invalid or expired token.' });
+  } catch (err) {
+    if (err?.name === 'JsonWebTokenError' || err?.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Invalid or expired token.' });
+    }
+    return sendServerError(res, 'authenticate', err, MSG.SERVER);
   }
 };
 

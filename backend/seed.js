@@ -119,6 +119,7 @@ const formDefs = [
   { name: 'Water Dashboard — Ground Water Abstraction', description: 'Daily bore well extraction and usage report',                         formKey: 'ehs_water_gwa', app: 'EHS — Environment Health & Safety', sort_order: 2 },
   { name: 'Water Dashboard — ETP Working',              description: 'Effluent Treatment Plant daily quantity and quality report',          formKey: 'ehs_water_etp', app: 'EHS — Environment Health & Safety', sort_order: 3 },
   { name: 'Water Dashboard — CPU Water Recycle',        description: 'CPU inlet/outlet daily report with quality parameters',              formKey: 'ehs_water_cpu', app: 'EHS — Environment Health & Safety', sort_order: 4 },
+  { name: 'Daily Safety Toolbox Talk',                    description: 'Record daily toolbox talk session with attendance and session photos', formKey: 'ehs_toolbox_talk', app: 'EHS — Environment Health & Safety', sort_order: 5 },
 
   // Production — individual submit forms
   { name: 'Shift Chemist Job Log Book',              description: 'Log jobs done and pending tasks for each shift chemist',                      formKey: 'prod_shift_chemist',  app: 'Production', sort_order: 1 },

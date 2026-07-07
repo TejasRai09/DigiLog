@@ -1,17 +1,19 @@
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { clientErrorMessage, MSG } = require('../utils/httpError');
 
-const AVATAR_DIR = path.join(__dirname, '..', 'uploads', 'avatars');
+const { AVATAR_DIR } = require('../utils/avatarFile');
 fs.mkdirSync(AVATAR_DIR, { recursive: true });
 
 const MAX_BYTES = 450_000;
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, AVATAR_DIR),
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const ext = file.mimetype === 'image/png' ? '.png' : '.jpg';
-    cb(null, `${req.user.id}-${Date.now()}${ext}`);
+    cb(null, `${crypto.randomUUID()}${ext}`);
   },
 });
 
@@ -36,9 +38,9 @@ function uploadAvatarMiddleware(req, res, next) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ message: 'Image is too large. Try a smaller photo.' });
       }
-      return res.status(400).json({ message: err.message || 'Upload failed.' });
+      return res.status(400).json({ message: clientErrorMessage(err, MSG.UPLOAD) });
     }
-    return res.status(400).json({ message: err.message || 'Invalid upload.' });
+    return res.status(400).json({ message: clientErrorMessage(err, MSG.UPLOAD) });
   });
 }
 

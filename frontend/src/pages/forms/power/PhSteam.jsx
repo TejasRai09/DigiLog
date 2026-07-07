@@ -20,7 +20,7 @@ const StageLabel = ({ children }) => (
 );
 
 const INITIAL = {
-  date: '', time: '',
+  date: '',
   SteamGen150: '', SteamCon30MW: '',
   SteamtoSugar110_3ATAPRDS: '', Stmto3Old110_45ATAPRDS: '', Stmto3New110_45ATAPRDS: '',
   StmMillTurbine110_45ATAPRDS: '', StmtoDistil110_45ATAPRDS_o: '', Stm4MWTG110_45ATAPRDS: '',
@@ -76,10 +76,9 @@ const PhSteam = () => {
           <div className="form-row flex-wrap justify-center sm:justify-start">
             <ReportDateFields
               dateValue={form.date}
-              timeValue={form.time}
               onChange={handleChange}
               dateRequired
-              timeRequired
+              showTime={false}
             />
           </div>
         </div>

@@ -1,3 +1,16 @@
+function resolveAvatarForClient(row) {
+  const stored = row.avatar != null && row.avatar !== '' ? String(row.avatar) : null;
+  if (!stored) return null;
+  if (
+    stored.startsWith('data:')
+    || stored.startsWith('http://')
+    || stored.startsWith('https://')
+  ) {
+    return stored;
+  }
+  return `/auth/users/${row.id}/avatar`;
+}
+
 /** Shape returned on /auth/me, login, and JWT-backed req.user */
 const toAuthUser = (row) => ({
   id:           row.id,
@@ -8,7 +21,7 @@ const toAuthUser = (row) => ({
   isActive:     !!row.is_active,
   authProvider: row.auth_provider,
   department:   row.department != null && row.department !== '' ? row.department : null,
-  avatar:       row.avatar != null && row.avatar !== '' ? row.avatar : null,
+  avatar:       resolveAvatarForClient(row),
 });
 
 module.exports = { toAuthUser };

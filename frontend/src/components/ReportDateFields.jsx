@@ -10,8 +10,9 @@ export default function ReportDateFields({
   timeName = 'time',
   dateRequired = false,
   timeRequired = false,
+  showTime = true,
 }) {
-  const needsStar = dateRequired || timeRequired;
+  const needsStar = dateRequired || (showTime && timeRequired);
 
   return (
     <div className="shrink-0">
@@ -28,14 +29,16 @@ export default function ReportDateFields({
           required={dateRequired}
           className="input w-full min-w-0 sm:min-w-[11rem] sm:w-auto"
         />
-        <input
-          type="datetime-local"
-          name={timeName}
-          value={timeValue}
-          onChange={onChange}
-          required={timeRequired}
-          className="input w-full min-w-0 sm:min-w-[13rem] sm:w-auto"
-        />
+        {showTime ? (
+          <input
+            type="datetime-local"
+            name={timeName}
+            value={timeValue}
+            onChange={onChange}
+            required={timeRequired}
+            className="input w-full min-w-0 sm:min-w-[13rem] sm:w-auto"
+          />
+        ) : null}
       </div>
     </div>
   );

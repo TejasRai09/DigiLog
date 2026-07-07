@@ -38,6 +38,7 @@ export const DISTILLERY_CALCULATED_DB_KEYS = new Set([
 
 export function formatRecordCellForDisplay(dbKey, value, formKey = null) {
   if (value === null || value === undefined) return '';
+  if (typeof value === 'string' && value.startsWith('data:image/')) return 'Photo attached';
   if (
     formKey === 'distillery_ops' &&
     DISTILLERY_CALCULATED_DB_KEYS.has(dbKey) &&
@@ -623,6 +624,23 @@ function schemaEhsWaterCpu() {
   return a;
 }
 
+// ─── ehs_toolbox_talk ───────────────────────────────────────────
+function schemaEhsToolboxTalk() {
+  const a = [];
+  push(a, 'Date',                   'Toolbox Talk', 'Date');
+  push(a, 'Shift',                  'Toolbox Talk', 'Shift');
+  push(a, 'start_time',             'Toolbox Talk', 'Time From');
+  push(a, 'end_time',               'Toolbox Talk', 'Time To');
+  push(a, 'report_prepared_by',     'Report',       'Prepared By');
+  push(a, 'topic_discussed',        'Report',       'Topic Discussed');
+  push(a, 'no_of_attendees',        'Report',       'No. of Attendees');
+  push(a, 'attendance_sheet_photo','Photos',       'Attendance Sheet');
+  push(a, 'session_photo',          'Photos',       'Session Photo 1');
+  push(a, 'session_photo_2',        'Photos',       'Session Photo 2');
+  push(a, 'timestamp',              'System',       'Recorded at');
+  return a;
+}
+
 // ─── prod_shift_chemist ─────────────────────────────────────────
 function schemaProdShiftChemist() {
   const a = [];
@@ -767,6 +785,7 @@ const BUILDERS = {
   ehs_water_gwa:   schemaEhsWaterGwa,
   ehs_water_etp:   schemaEhsWaterEtp,
   ehs_water_cpu:   schemaEhsWaterCpu,
+  ehs_toolbox_talk: schemaEhsToolboxTalk,
   prod_shift_chemist:  schemaProdShiftChemist,
   prod_centrifugal:    schemaProdCentrifugal,
   prod_pan_logbook:    schemaProdPanLogbook,

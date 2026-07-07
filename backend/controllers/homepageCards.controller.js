@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
 
 /** GET /api/homepage-cards — cards visible to the signed-in user */
 const getMyHomepageCards = async (req, res) => {
@@ -15,8 +16,7 @@ const getMyHomepageCards = async (req, res) => {
     );
     res.json({ cardKeys: rows.map((r) => r.card_key) });
   } catch (err) {
-    console.error('getMyHomepageCards:', err.message);
-    res.status(500).json({ message: 'Failed to load homepage cards.' });
+    sendServerError(res, 'getMyHomepageCards', err, MSG.LOAD);
   }
 };
 

@@ -13,6 +13,7 @@ export const EHS_FORM_KEYS = new Set([
   'ehs_water_gwa',
   'ehs_water_etp',
   'ehs_water_cpu',
+  'ehs_toolbox_talk',
   'ehs_accident',
 ]);
 

@@ -3,6 +3,7 @@ const bcrypt  = require('bcryptjs');
 const { pool } = require('../config/mysql');
 const { syncUserHomepageCards } = require('../utils/syncUserHomepageCards');
 const { sendAccountActivationEmail } = require('../services/email.service');
+const { sendServerError, MSG } = require('../utils/httpError');
 
 // ─── Mappers ─────────────────────────────────────────────────
 const mapUser = (r) => ({
@@ -43,190 +44,222 @@ const mapForm = (r) => ({
 
 // GET /api/admin/users
 const getUsers = async (_req, res) => {
-  const [rows] = await pool.query(`
-    SELECT u.*, m.name AS manager_name
-    FROM users u
-    LEFT JOIN users m ON m.id = u.manager_id
-    ORDER BY u.created_at DESC
-  `);
-  res.json(rows.map(mapUser));
+  try {
+    const [rows] = await pool.query(`
+      SELECT u.*, m.name AS manager_name
+      FROM users u
+      LEFT JOIN users m ON m.id = u.manager_id
+      ORDER BY u.created_at DESC
+    `);
+    res.json(rows.map(mapUser));
+  } catch (err) {
+    sendServerError(res, 'getUsers', err, MSG.LOAD);
+  }
 };
 
 // POST /api/admin/users
 const createUser = async (req, res) => {
-  const { name, email, role, department } = req.body;
+  try {
+    const { name, email, role, department } = req.body;
 
-  if (!name || !email)
-    return res.status(400).json({ message: 'Name and email are required.' });
+    if (!name || !email)
+      return res.status(400).json({ message: 'Name and email are required.' });
 
-  const [exists] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
-  if (exists.length)
-    return res.status(409).json({ message: 'Email already registered.' });
+    const [exists] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
+    if (exists.length)
+      return res.status(409).json({ message: 'Email already registered.' });
 
-  const tempPassword = crypto.randomBytes(6).toString('hex');
-  const hashed       = await bcrypt.hash(tempPassword, 12);
-  const dept         = department != null && String(department).trim() !== '' ? String(department).trim() : null;
+    const tempPassword = crypto.randomBytes(6).toString('hex');
+    const hashed       = await bcrypt.hash(tempPassword, 12);
+    const dept         = department != null && String(department).trim() !== '' ? String(department).trim() : null;
 
-  const [result] = await pool.query(
-    `INSERT INTO users (name, department, email, password, role, auth_provider, is_active, mail_sent)
-     VALUES (?, ?, ?, ?, ?, 'local', 1, 0)`,
-    [name, dept, email.toLowerCase(), hashed, role || 'employee']
-  );
+    const [result] = await pool.query(
+      `INSERT INTO users (name, department, email, password, role, auth_provider, is_active, mail_sent)
+       VALUES (?, ?, ?, ?, ?, 'local', 1, 0)`,
+      [name, dept, email.toLowerCase(), hashed, role || 'employee']
+    );
 
-  res.status(201).json({
-    message: 'User created. Use "Send Mail" to send login credentials.',
-    user: {
-      _id: result.insertId,
-      id: result.insertId,
-      name,
-      email: email.toLowerCase(),
-      department: dept,
-      role: role || 'employee',
-      mailSent: false,
-    },
-  });
+    res.status(201).json({
+      message: 'User created. Use "Send Mail" to send login credentials.',
+      user: {
+        _id: result.insertId,
+        id: result.insertId,
+        name,
+        email: email.toLowerCase(),
+        department: dept,
+        role: role || 'employee',
+        mailSent: false,
+      },
+    });
+  } catch (err) {
+    sendServerError(res, 'createUser', err, MSG.SAVE);
+  }
 };
 
 // POST /api/admin/users/:id/send-mail
 const sendMailToUser = async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
-  const user = rows[0];
+  try {
+    const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    const user = rows[0];
 
-  if (!user) return res.status(404).json({ message: 'User not found.' });
-  if (user.auth_provider !== 'local')
-    return res.status(400).json({ message: 'Cannot send mail to SSO users (Microsoft/Google).' });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+    if (user.auth_provider !== 'local')
+      return res.status(400).json({ message: 'Cannot send mail to SSO users (Microsoft/Google).' });
 
-  const tempPassword = crypto.randomBytes(6).toString('hex');
-  const hashed       = await bcrypt.hash(tempPassword, 12);
+    const tempPassword = crypto.randomBytes(6).toString('hex');
+    const hashed       = await bcrypt.hash(tempPassword, 12);
 
-  await pool.query(
-    'UPDATE users SET password = ?, mail_sent = 1 WHERE id = ?',
-    [hashed, user.id]
-  );
+    await pool.query(
+      'UPDATE users SET password = ?, mail_sent = 1 WHERE id = ?',
+      [hashed, user.id]
+    );
 
-  await sendAccountActivationEmail({ to: user.email, name: user.name, tempPassword });
+    await sendAccountActivationEmail({ to: user.email, name: user.name, tempPassword });
 
-  res.json({ message: 'Activation email sent.', userId: user.id });
+    res.json({ message: 'Activation email sent.', userId: user.id });
+  } catch (err) {
+    sendServerError(res, 'sendMailToUser', err, MSG.SERVER);
+  }
 };
 
 // POST /api/admin/users/send-mail-bulk
 const sendMailBulk = async (req, res) => {
-  const { userIds } = req.body;
-  if (!Array.isArray(userIds) || userIds.length === 0)
-    return res.status(400).json({ message: 'userIds array is required.' });
+  try {
+    const { userIds } = req.body;
+    if (!Array.isArray(userIds) || userIds.length === 0)
+      return res.status(400).json({ message: 'userIds array is required.' });
 
-  const results = await Promise.allSettled(
-    userIds.map(async (id) => {
-      const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
-      const user = rows[0];
-      if (!user || user.auth_provider !== 'local') throw new Error(`Skipped ${id}`);
+    const results = await Promise.allSettled(
+      userIds.map(async (id) => {
+        const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
+        const user = rows[0];
+        if (!user || user.auth_provider !== 'local') throw new Error(`Skipped ${id}`);
 
-      const tempPassword = crypto.randomBytes(6).toString('hex');
-      const hashed       = await bcrypt.hash(tempPassword, 12);
+        const tempPassword = crypto.randomBytes(6).toString('hex');
+        const hashed       = await bcrypt.hash(tempPassword, 12);
 
-      await pool.query('UPDATE users SET password = ?, mail_sent = 1 WHERE id = ?', [hashed, id]);
-      await sendAccountActivationEmail({ to: user.email, name: user.name, tempPassword });
-      return id;
-    })
-  );
+        await pool.query('UPDATE users SET password = ?, mail_sent = 1 WHERE id = ?', [hashed, id]);
+        await sendAccountActivationEmail({ to: user.email, name: user.name, tempPassword });
+        return id;
+      })
+    );
 
-  const sent   = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-  const failed = results.filter((r) => r.status === 'rejected').length;
+    const sent   = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+    const failed = results.filter((r) => r.status === 'rejected').length;
 
-  res.json({ message: `Sent ${sent.length} email(s). ${failed} failed.`, sent });
+    res.json({ message: `Sent ${sent.length} email(s). ${failed} failed.`, sent });
+  } catch (err) {
+    sendServerError(res, 'sendMailBulk', err, MSG.SERVER);
+  }
 };
 
 // PUT /api/admin/users/:id
 const updateUser = async (req, res) => {
-  const { name, role, isActive, department } = req.body;
-  const fields = [];
-  const vals   = [];
+  try {
+    const { name, role, isActive, department } = req.body;
+    const fields = [];
+    const vals   = [];
 
-  if (name      !== undefined) { fields.push('name = ?');      vals.push(name); }
-  if (department !== undefined) {
-    const dept = department != null && String(department).trim() !== '' ? String(department).trim() : null;
-    fields.push('department = ?');
-    vals.push(dept);
+    if (name      !== undefined) { fields.push('name = ?');      vals.push(name); }
+    if (department !== undefined) {
+      const dept = department != null && String(department).trim() !== '' ? String(department).trim() : null;
+      fields.push('department = ?');
+      vals.push(dept);
+    }
+    if (role      !== undefined) { fields.push('role = ?');      vals.push(role); }
+    if (isActive  !== undefined) { fields.push('is_active = ?'); vals.push(isActive ? 1 : 0); }
+
+    if (!fields.length) return res.status(400).json({ message: 'Nothing to update.' });
+
+    vals.push(req.params.id);
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals);
+
+    const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: 'User not found.' });
+
+    res.json(mapUser(rows[0]));
+  } catch (err) {
+    sendServerError(res, 'updateUser', err, MSG.SAVE);
   }
-  if (role      !== undefined) { fields.push('role = ?');      vals.push(role); }
-  if (isActive  !== undefined) { fields.push('is_active = ?'); vals.push(isActive ? 1 : 0); }
-
-  if (!fields.length) return res.status(400).json({ message: 'Nothing to update.' });
-
-  vals.push(req.params.id);
-  await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals);
-
-  const [rows] = await pool.query('SELECT * FROM users WHERE id = ?', [req.params.id]);
-  if (!rows[0]) return res.status(404).json({ message: 'User not found.' });
-
-  res.json(mapUser(rows[0]));
 };
 
 // DELETE /api/admin/users/:id
 const deleteUser = async (req, res) => {
-  await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
-  res.json({ message: 'User deleted.' });
+  try {
+    await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    res.json({ message: 'User deleted.' });
+  } catch (err) {
+    sendServerError(res, 'deleteUser', err, MSG.DELETE);
+  }
 };
 
 // PUT /api/admin/users/:id/manager  — assign or clear manager
 const assignManager = async (req, res) => {
-  const targetId  = Number(req.params.id);
-  const managerId = req.body.managerId != null ? Number(req.body.managerId) : null;
+  try {
+    const targetId  = Number(req.params.id);
+    const managerId = req.body.managerId != null ? Number(req.body.managerId) : null;
 
-  const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId]);
-  if (!target) return res.status(404).json({ message: 'User not found.' });
+    const [[target]] = await pool.query('SELECT id FROM users WHERE id = ?', [targetId]);
+    if (!target) return res.status(404).json({ message: 'User not found.' });
 
-  if (managerId !== null) {
-    if (managerId === targetId)
-      return res.status(400).json({ message: 'A user cannot be their own manager.' });
+    if (managerId !== null) {
+      if (managerId === targetId)
+        return res.status(400).json({ message: 'A user cannot be their own manager.' });
 
-    const [[mgr]] = await pool.query('SELECT id FROM users WHERE id = ?', [managerId]);
-    if (!mgr) return res.status(404).json({ message: 'Manager user not found.' });
+      const [[mgr]] = await pool.query('SELECT id FROM users WHERE id = ?', [managerId]);
+      if (!mgr) return res.status(404).json({ message: 'Manager user not found.' });
+    }
+
+    await pool.query('UPDATE users SET manager_id = ? WHERE id = ?', [managerId, targetId]);
+
+    const [[updated]] = await pool.query(`
+      SELECT u.*, m.name AS manager_name
+      FROM users u
+      LEFT JOIN users m ON m.id = u.manager_id
+      WHERE u.id = ?
+    `, [targetId]);
+
+    res.json(mapUser(updated));
+  } catch (err) {
+    sendServerError(res, 'assignManager', err, MSG.SAVE);
   }
-
-  await pool.query('UPDATE users SET manager_id = ? WHERE id = ?', [managerId, targetId]);
-
-  const [[updated]] = await pool.query(`
-    SELECT u.*, m.name AS manager_name
-    FROM users u
-    LEFT JOIN users m ON m.id = u.manager_id
-    WHERE u.id = ?
-  `, [targetId]);
-
-  res.json(mapUser(updated));
 };
 
 // ─── Mapping management ──────────────────────────────────────
 
 // GET /api/admin/mappings
 const getMappings = async (_req, res) => {
-  const [mappings] = await pool.query(`
-    SELECT m.id, m.user_id, m.app_id,
-           u.name AS u_name, u.email AS u_email, u.role AS u_role,
-           a.name AS a_name
-    FROM mappings m
-    JOIN users u ON u.id = m.user_id
-    JOIN apps  a ON a.id = m.app_id
-    ORDER BY m.id
-  `);
+  try {
+    const [mappings] = await pool.query(`
+      SELECT m.id, m.user_id, m.app_id,
+             u.name AS u_name, u.email AS u_email, u.role AS u_role,
+             a.name AS a_name
+      FROM mappings m
+      JOIN users u ON u.id = m.user_id
+      JOIN apps  a ON a.id = m.app_id
+      ORDER BY m.id
+    `);
 
-  const [mf] = await pool.query(`
-    SELECT mf.mapping_id, f.id, f.name, f.form_key
-    FROM mapping_forms mf
-    JOIN forms f ON f.id = mf.form_id
-  `);
+    const [mf] = await pool.query(`
+      SELECT mf.mapping_id, f.id, f.name, f.form_key
+      FROM mapping_forms mf
+      JOIN forms f ON f.id = mf.form_id
+    `);
 
-  const result = mappings.map((m) => ({
-    _id:   m.id,
-    id:    m.id,
-    user:  { _id: m.user_id, id: m.user_id, name: m.u_name, email: m.u_email, role: m.u_role },
-    app:   { _id: m.app_id,  id: m.app_id,  name: m.a_name },
-    forms: mf.filter((f) => f.mapping_id === m.id).map((f) => ({
-      _id: f.id, id: f.id, name: f.name, formKey: f.form_key,
-    })),
-  }));
+    const result = mappings.map((m) => ({
+      _id:   m.id,
+      id:    m.id,
+      user:  { _id: m.user_id, id: m.user_id, name: m.u_name, email: m.u_email, role: m.u_role },
+      app:   { _id: m.app_id,  id: m.app_id,  name: m.a_name },
+      forms: mf.filter((f) => f.mapping_id === m.id).map((f) => ({
+        _id: f.id, id: f.id, name: f.name, formKey: f.form_key,
+      })),
+    }));
 
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    sendServerError(res, 'getMappings', err, MSG.LOAD);
+  }
 };
 
 const isDeadlock = (err) => err?.code === 'ER_LOCK_DEADLOCK' || err?.errno === 1213;
@@ -265,29 +298,28 @@ const upsertMapping = async (req, res) => {
   if (!userId || !appId)
     return res.status(400).json({ message: 'userId and appId are required.' });
 
-  const maxAttempts = 3;
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const conn = await pool.getConnection();
-    try {
-      const mappingId = await upsertMappingTransaction(conn, userId, appId, formIds);
-      return res.json({ message: 'Mapping saved.', mappingId });
-    } catch (err) {
-      if (isDeadlock(err) && attempt < maxAttempts) {
-        await sleep(50 * attempt);
-        continue;
+  try {
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const conn = await pool.getConnection();
+      try {
+        const mappingId = await upsertMappingTransaction(conn, userId, appId, formIds);
+        return res.json({ message: 'Mapping saved.', mappingId });
+      } catch (err) {
+        if (isDeadlock(err) && attempt < maxAttempts) {
+          await sleep(50 * attempt);
+          continue;
+        }
+        return sendServerError(res, 'upsertMapping', err, MSG.MAPPING_SAVE);
+      } finally {
+        conn.release();
       }
-      console.error('upsertMapping:', err.message);
-      return res.status(500).json({
-        message: isDeadlock(err)
-          ? 'Mapping save conflicted with another update. Please try again.'
-          : (err.message || 'Failed to save mapping.'),
-      });
-    } finally {
-      conn.release();
     }
-  }
 
-  return res.status(500).json({ message: 'Failed to save mapping.' });
+    return res.status(500).json({ message: 'Failed to save mapping.' });
+  } catch (err) {
+    return sendServerError(res, 'upsertMapping', err, MSG.MAPPING_SAVE);
+  }
 };
 
 // DELETE /api/admin/mappings/:id
@@ -300,8 +332,7 @@ const deleteMapping = async (req, res) => {
     await syncUserHomepageCards(pool, row.user_id);
     res.json({ message: 'Mapping removed.' });
   } catch (err) {
-    console.error('deleteMapping:', err.message);
-    res.status(500).json({ message: err.message || 'Failed to remove mapping.' });
+    sendServerError(res, 'deleteMapping', err, MSG.MAPPING_DELETE);
   }
 };
 
@@ -309,15 +340,19 @@ const deleteMapping = async (req, res) => {
 
 // GET /api/admin/apps-all  (all apps + forms, regardless of mapping)
 const getAllAppsWithForms = async (_req, res) => {
-  const [apps]  = await pool.query('SELECT * FROM apps  ORDER BY sort_order');
-  const [forms] = await pool.query('SELECT * FROM forms ORDER BY sort_order');
+  try {
+    const [apps]  = await pool.query('SELECT * FROM apps  ORDER BY sort_order');
+    const [forms] = await pool.query('SELECT * FROM forms ORDER BY sort_order');
 
-  const result = apps.map((app) => ({
-    ...mapApp(app),
-    forms: forms.filter((f) => f.app_id === app.id).map(mapForm),
-  }));
+    const result = apps.map((app) => ({
+      ...mapApp(app),
+      forms: forms.filter((f) => f.app_id === app.id).map(mapForm),
+    }));
 
-  res.json(result);
+    res.json(result);
+  } catch (err) {
+    sendServerError(res, 'getAllAppsWithForms', err, MSG.LOAD);
+  }
 };
 
 module.exports = {

@@ -1,5 +1,54 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
 const { canAccessForm } = require('./form.controller');
+
+/**
+ * Default lookback window (days) applied when no valid `from`/`to` is supplied,
+ * so a fresh dashboard load never scans the whole table.
+ */
+const DEFAULT_LOOKBACK_DAYS = 365;
+
+/** Hard safety cap on rows returned by any BI time-series query. */
+const BI_ROW_LIMIT = 200000;
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Build a parameterized `Date` bound to append after `WHERE \`Date\` IS NOT NULL`.
+ * Accepts optional `from`/`to` (ISO `YYYY-MM-DD`) from the request query.
+ *  - Both valid & from <= to → bound between them.
+ *  - Only one valid → bound on that side (upper-only keeps the default lower window).
+ *  - Neither / invalid / from > to → fall back to the default lookback window.
+ * Returns `{ clause, params }`; `clause` starts with a leading space.
+ */
+function buildDateBound(query) {
+  const q = query || {};
+  let from = typeof q.from === 'string' && ISO_DATE_RE.test(q.from) ? q.from : null;
+  let to = typeof q.to === 'string' && ISO_DATE_RE.test(q.to) ? q.to : null;
+
+  // Invalid ordering → ignore both and fall back to the default window.
+  if (from && to && from > to) {
+    from = null;
+    to = null;
+  }
+
+  if (from && to) {
+    return { clause: ' AND `Date` >= ? AND `Date` <= ?', params: [from, to] };
+  }
+  if (from) {
+    return { clause: ' AND `Date` >= ?', params: [from] };
+  }
+  if (to) {
+    return {
+      clause: ' AND `Date` <= ? AND `Date` >= DATE_SUB(?, INTERVAL ? DAY)',
+      params: [to, to, DEFAULT_LOOKBACK_DAYS],
+    };
+  }
+  return {
+    clause: ' AND `Date` >= DATE_SUB(CURDATE(), INTERVAL ? DAY)',
+    params: [DEFAULT_LOOKBACK_DAYS],
+  };
+}
 
 function dateKey(d) {
   if (!d) return null;
@@ -143,6 +192,7 @@ async function getDistilleryOperationsBi(req, res) {
       return res.status(403).json({ message: 'Access denied to distillery analytics.' });
     }
 
+    const bound = buildDateBound(req.query);
     const [rows] = await pool.query(
       `SELECT
         \`Date\`,
@@ -163,8 +213,10 @@ async function getDistilleryOperationsBi(req, res) {
         rec_bl,
         \`timestamp\`
       FROM distillery_operations
-      WHERE \`Date\` IS NOT NULL
-      ORDER BY \`Date\` ASC, \`timestamp\` DESC`,
+      WHERE \`Date\` IS NOT NULL${bound.clause}
+      ORDER BY \`Date\` ASC, \`timestamp\` DESC
+      LIMIT ${BI_ROW_LIMIT}`,
+      bound.params,
     );
 
     const deduped = dedupeLatestPerDate(rows);
@@ -176,8 +228,7 @@ async function getDistilleryOperationsBi(req, res) {
       records,
     });
   } catch (err) {
-    console.error('BI distillery error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI distillery error:', err, MSG.LOAD);
   }
 }
 
@@ -241,6 +292,7 @@ async function getMillingStoppagesBi(req, res) {
       return res.status(403).json({ message: 'Access denied to milling analytics.' });
     }
 
+    const bound = buildDateBound(req.query);
     const [rows] = await pool.query(
       `SELECT
         \`Date\`,
@@ -251,8 +303,10 @@ async function getMillingStoppagesBi(req, res) {
         \`remarks\`,
         \`timestamp\`
       FROM mill_stoppages
-      WHERE \`Date\` IS NOT NULL
-      ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC`,
+      WHERE \`Date\` IS NOT NULL${bound.clause}
+      ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC
+      LIMIT ${BI_ROW_LIMIT}`,
+      bound.params,
     );
 
     const records = rows.map(mapMillStoppageRow);
@@ -263,8 +317,7 @@ async function getMillingStoppagesBi(req, res) {
       records,
     });
   } catch (err) {
-    console.error('BI milling error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI milling error:', err, MSG.LOAD);
   }
 }
 
@@ -320,11 +373,14 @@ async function getMillingEquipmentTempBi(req, res) {
     let series = [];
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const bound = buildDateBound(req.query);
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook1
-         WHERE \`Date\` IS NOT NULL
-         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+         WHERE \`Date\` IS NOT NULL${bound.clause}
+         ORDER BY \`Date\` ASC, \`Time\` ASC
+         LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
       );
 
       series = rows.map((r) => {
@@ -357,8 +413,7 @@ async function getMillingEquipmentTempBi(req, res) {
       seriesCount: series.length,
     });
   } catch (err) {
-    console.error('BI milling equipment-temp error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI milling equipment-temp error:', err, MSG.LOAD);
   }
 }
 
@@ -422,11 +477,14 @@ async function getMillingShredderBi(req, res) {
     let series = [];
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const bound = buildDateBound(req.query);
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook2
-         WHERE \`Date\` IS NOT NULL
-         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+         WHERE \`Date\` IS NOT NULL${bound.clause}
+         ORDER BY \`Date\` ASC, \`Time\` ASC
+         LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
       );
 
       series = rows.map((r) => {
@@ -454,8 +512,7 @@ async function getMillingShredderBi(req, res) {
       seriesCount: series.length,
     });
   } catch (err) {
-    console.error('BI milling shredder error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI milling shredder error:', err, MSG.LOAD);
   }
 }
 
@@ -509,11 +566,14 @@ async function getMillingLubeRollerBi(req, res) {
 
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const bound = buildDateBound(req.query);
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook3
-         WHERE \`Date\` IS NOT NULL
-         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+         WHERE \`Date\` IS NOT NULL${bound.clause}
+         ORDER BY \`Date\` ASC, \`Time\` ASC
+         LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
       );
 
       series = rows.map((r) => {
@@ -541,8 +601,7 @@ async function getMillingLubeRollerBi(req, res) {
       seriesCount: series.length,
     });
   } catch (err) {
-    console.error('BI milling lube-roller error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI milling lube-roller error:', err, MSG.LOAD);
   }
 }
 

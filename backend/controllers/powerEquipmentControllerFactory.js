@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { enrichEquipment } = require('../utils/powerEquipmentClassification');
 
@@ -263,8 +264,7 @@ function createPowerEquipmentController(tables) {
       if (!equipment) return res.status(404).json({ message: 'Equipment not found.' });
       res.json({ equipment });
     } catch (err) {
-      console.error(`${logPrefix}.lookupEquipment:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.lookupEquipment:`, err, MSG.SERVER);
     }
   };
 
@@ -299,8 +299,7 @@ function createPowerEquipmentController(tables) {
       );
       res.json({ total, page, limit, equipment: rows });
     } catch (err) {
-      console.error(`${logPrefix}.listEquipment:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.listEquipment:`, err, MSG.LOAD);
     }
   };
 
@@ -341,8 +340,7 @@ function createPowerEquipmentController(tables) {
       const eq = await getEq(result.insertId);
       res.status(201).json({ equipment: eq });
     } catch (err) {
-      console.error(`${logPrefix}.createEquipment:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.createEquipment:`, err, MSG.SAVE);
     }
   };
 
@@ -374,8 +372,7 @@ function createPowerEquipmentController(tables) {
 
       res.json({ equipment: eq, specs, schedule, history, histTotal: total });
     } catch (err) {
-      console.error(`${logPrefix}.getEquipment:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.getEquipment:`, err, MSG.LOAD);
     }
   };
 
@@ -401,8 +398,7 @@ function createPowerEquipmentController(tables) {
       );
       res.json({ message: 'Equipment updated.' });
     } catch (err) {
-      console.error(`${logPrefix}.updateEquipment:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.updateEquipment:`, err, MSG.SAVE);
     }
   };
 
@@ -419,8 +415,7 @@ function createPowerEquipmentController(tables) {
       await pool.execute(`UPDATE \`${EQUIP}\` SET \`${type}\` = ? WHERE id = ?`, [data, id]);
       res.json({ message: `${type} updated.` });
     } catch (err) {
-      console.error(`${logPrefix}.uploadImage:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.uploadImage:`, err, MSG.UPLOAD);
     }
   };
 
@@ -433,8 +428,7 @@ function createPowerEquipmentController(tables) {
       await pool.execute(`UPDATE \`${EQUIP}\` SET \`${type}\` = NULL WHERE id = ?`, [id]);
       res.json({ message: `${type} removed.` });
     } catch (err) {
-      console.error(`${logPrefix}.deleteImage:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.deleteImage:`, err, MSG.DELETE);
     }
   };
 
@@ -473,8 +467,7 @@ function createPowerEquipmentController(tables) {
       res.json({ message: 'Specs updated.' });
     } catch (err) {
       await conn.rollback();
-      console.error(`${logPrefix}.updateSpecs:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.updateSpecs:`, err, MSG.SAVE);
     } finally {
       conn.release();
     }
@@ -507,8 +500,7 @@ function createPowerEquipmentController(tables) {
       res.json({ message: 'Schedule updated.' });
     } catch (err) {
       await conn.rollback();
-      console.error(`${logPrefix}.updateSchedule:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.updateSchedule:`, err, MSG.SAVE);
     } finally {
       conn.release();
     }
@@ -548,8 +540,7 @@ function createPowerEquipmentController(tables) {
       );
       res.json({ total, page, limit, records });
     } catch (err) {
-      console.error(`${logPrefix}.getHistory:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.getHistory:`, err, MSG.LOAD);
     }
   };
 
@@ -602,8 +593,7 @@ function createPowerEquipmentController(tables) {
       );
       res.status(201).json({ message: 'Record added.', id: result.insertId });
     } catch (err) {
-      console.error(`${logPrefix}.addHistory:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.addHistory:`, err, MSG.LOAD);
     }
   };
 
@@ -658,8 +648,7 @@ function createPowerEquipmentController(tables) {
       }
       res.json({ message: 'Record updated.' });
     } catch (err) {
-      console.error(`${logPrefix}.updateHistory:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.updateHistory:`, err, MSG.LOAD);
     }
   };
 
@@ -682,8 +671,7 @@ function createPowerEquipmentController(tables) {
 
       res.json({ message: 'Sub-group history updated.' });
     } catch (err) {
-      console.error(`${logPrefix}.deleteSubGroupHistory:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.deleteSubGroupHistory:`, err, MSG.DELETE);
     }
   };
 
@@ -707,8 +695,7 @@ function createPowerEquipmentController(tables) {
 
       res.json({ message: 'Sub-group history renamed.' });
     } catch (err) {
-      console.error(`${logPrefix}.renameSubGroupHistory:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.renameSubGroupHistory:`, err, MSG.LOAD);
     }
   };
 
@@ -723,8 +710,7 @@ function createPowerEquipmentController(tables) {
       }
       res.json({ message: 'Record deleted.' });
     } catch (err) {
-      console.error(`${logPrefix}.deleteHistory:`, err.message);
-      res.status(500).json({ message: 'Database error: ' + err.message });
+      sendServerError(res, `${logPrefix}.deleteHistory:`, err, MSG.DELETE);
     }
   };
 

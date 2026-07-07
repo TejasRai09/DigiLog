@@ -244,7 +244,6 @@ export function buildPhPowerReview(form) {
     .map((key) => ({ key, label: key.replace(/_/g, ' ') }));
   return reviewMeta('Review Power Details', [
     { label: 'Report Date', value: formatDate(form.date) },
-    { label: 'Time', value: displayValue(form.time) },
   ], [section('Power Details', fieldsFromDefs(form, defs))]);
 }
 
@@ -254,7 +253,6 @@ export function buildPhSteamReview(form) {
     .map((key) => ({ key, label: key.replace(/_/g, ' ') }));
   return reviewMeta('Review Steam Details', [
     { label: 'Report Date', value: formatDate(form.date) },
-    { label: 'Time', value: displayValue(form.time) },
   ], [section('Steam Details', fieldsFromDefs(form, defs))]);
 }
 
@@ -396,6 +394,31 @@ export function buildEhsWaterEtpReview(form) {
       { key: 'oil_grease', label: 'Oil & Grease' },
       { key: 'remarks', label: 'Remarks' },
     ])),
+  ]);
+}
+
+export function buildEhsToolboxTalkReview(form) {
+  const summary = [
+    { label: 'Report Date', value: formatDate(form.date) },
+    { label: 'Shift', value: hasValue(form.shift) ? form.shift : EMPTY, badge: true },
+  ];
+  if (hasValue(form.start_time) || hasValue(form.end_time)) {
+    summary.push({
+      label: 'Time',
+      value: `${form.start_time || EMPTY} to ${form.end_time || EMPTY}`,
+    });
+  }
+  return reviewMeta('Review Daily Safety Toolbox Talk', summary, [
+    section('Report', fieldsFromDefs(form, [
+      { key: 'report_prepared_by', label: 'Report Prepared By' },
+      { key: 'topic_discussed', label: 'Topic Discussed' },
+      { key: 'no_of_attendees', label: 'No. of Attendees' },
+    ], { onlyFilled: false })),
+    section('Photos', [
+      { label: 'Attendance Sheet', value: form.attendance_sheet_photo ? 'Photo attached' : EMPTY },
+      { label: 'Session Photo 1', value: form.session_photo ? 'Photo attached' : EMPTY },
+      { label: 'Session Photo 2', value: form.session_photo_2 ? 'Photo attached' : EMPTY },
+    ]),
   ]);
 }
 
