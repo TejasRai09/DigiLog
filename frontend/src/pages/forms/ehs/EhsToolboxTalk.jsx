@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
 import FormReviewModal from '../../../components/FormReviewModal';
-import FormPhotoField from '../../../components/FormPhotoField';
+import FormPhotoUploadRow from '../../../components/FormPhotoUploadRow';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -24,6 +24,30 @@ const getTimeRangeError = (start, end) => {
   if (!isEndTimeAfterStart(start, end)) return TIME_RANGE_ERROR;
   return '';
 };
+
+/** Character count for topic validation — whitespace is not counted. */
+const countTopicChars = (text) => String(text ?? '').replace(/\s/g, '').length;
+
+const PHOTO_ROWS = [
+  {
+    key: 'attendance_sheet_photo',
+    label: 'Attendance Sheet Photo',
+    hint: 'Scanned roster sheet verifying headcount.',
+    required: true,
+  },
+  {
+    key: 'session_photo',
+    label: 'Session Photo 1',
+    hint: 'Primary slide capture or presenter photo.',
+    required: true,
+  },
+  {
+    key: 'session_photo_2',
+    label: 'Session Photo 2',
+    hint: 'Additional session context or audience view.',
+    optional: true,
+  },
+];
 
 const buildInitial = (preparedBy = '') => ({
   date: '',
@@ -89,12 +113,17 @@ const EhsToolboxTalk = () => {
         return false;
       }
       const topic = form.topic_discussed?.trim() ?? '';
-      if (topic.length < TOPIC_MIN) {
-        toast.error(`Topic discussed must be at least ${TOPIC_MIN} characters.`);
+      const topicChars = countTopicChars(topic);
+      if (topicChars < TOPIC_MIN) {
+        toast.error(`Topic discussed must be at least ${TOPIC_MIN} characters (spaces not counted).`);
+        return false;
+      }
+      if (topicChars > TOPIC_MAX) {
+        toast.error(`Topic discussed must be at most ${TOPIC_MAX} characters (spaces not counted).`);
         return false;
       }
       if (topic.length > TOPIC_MAX) {
-        toast.error(`Topic discussed must be at most ${TOPIC_MAX} characters.`);
+        toast.error(`Topic discussed must be at most ${TOPIC_MAX} characters in total.`);
         return false;
       }
       const n = Number(form.no_of_attendees);
@@ -108,10 +137,6 @@ const EhsToolboxTalk = () => {
       }
       if (!form.session_photo) {
         toast.error('Session photo 1 is required.');
-        return false;
-      }
-      if (!form.session_photo_2) {
-        toast.error('Session photo 2 is required.');
         return false;
       }
       return true;
@@ -134,6 +159,9 @@ const EhsToolboxTalk = () => {
     () => (reviewOpen ? buildEhsToolboxTalkReview(form) : null),
     [reviewOpen, form],
   );
+
+  const topicCharCount = countTopicChars(form.topic_discussed);
+  const topicBelowMin = topicCharCount < TOPIC_MIN;
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
@@ -210,7 +238,7 @@ const EhsToolboxTalk = () => {
             <label className="label">
               Topic Discussed<span className="text-red-500 ml-0.5">*</span>
               <span className="ml-2 text-xs font-normal text-gray-400">
-                ({TOPIC_MIN}–{TOPIC_MAX} characters)
+                ({TOPIC_MIN}–{TOPIC_MAX} characters, spaces not counted)
               </span>
             </label>
             <textarea
@@ -218,14 +246,14 @@ const EhsToolboxTalk = () => {
               value={form.topic_discussed}
               onChange={handle}
               rows={3}
-              required
-              minLength={TOPIC_MIN}
-              maxLength={TOPIC_MAX}
               className="input resize-none"
               placeholder="Describe the safety topic covered in this toolbox talk…"
             />
-            <p className="mt-1 text-xs text-gray-400 text-right">
-              {form.topic_discussed.length}/{TOPIC_MAX}
+            <p
+              className={`mt-1 text-xs text-right ${topicBelowMin ? 'text-red-600 font-medium' : 'text-gray-400'}`}
+              aria-live="polite"
+            >
+              {topicCharCount}/{TOPIC_MAX}
             </p>
           </div>
           <div>
@@ -243,32 +271,19 @@ const EhsToolboxTalk = () => {
           </div>
         </div>
 
-        <div className="form-section space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Photos</h2>
-          <FormPhotoField
-            label="Attendance Sheet Photo"
-            value={form.attendance_sheet_photo}
-            onChange={(v) => setForm((p) => ({ ...p, attendance_sheet_photo: v }))}
-            required
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="min-w-0">
-              <FormPhotoField
-                label="Session Photo 1"
-                value={form.session_photo}
-                onChange={(v) => setForm((p) => ({ ...p, session_photo: v }))}
-                required
-              />
-            </div>
-            <div className="min-w-0">
-              <FormPhotoField
-                label="Session Photo 2"
-                value={form.session_photo_2}
-                onChange={(v) => setForm((p) => ({ ...p, session_photo_2: v }))}
-                required
-              />
-            </div>
-          </div>
+        <div className="form-section">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">Photos</h2>
+          {PHOTO_ROWS.map((row) => (
+            <FormPhotoUploadRow
+              key={row.key}
+              label={row.label}
+              hint={row.hint}
+              value={form[row.key]}
+              onChange={(v) => setForm((p) => ({ ...p, [row.key]: v }))}
+              required={row.required}
+              optional={row.optional}
+            />
+          ))}
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
