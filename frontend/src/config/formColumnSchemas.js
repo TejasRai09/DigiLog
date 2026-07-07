@@ -420,13 +420,14 @@ function schemaPhPower() {
   push(a, 'PowerCon70TPH', 'Power to Sugar (Breakup)', 'Power Consumption 70TPH');
   push(a, 'PowerConETP', 'Power to Sugar (Breakup)', 'Power Consp. ETP');
   push(a, 'PowerConColony', 'Power to Sugar (Breakup)', 'Power Consp. Colony');
+  push(a, 'PowerConSugarCPU', 'Power to Sugar (Breakup)', 'Sugar CPU');
   push(a, 'PowerConOthers', 'Power to Sugar (Breakup)', 'Power Consp. Others');
   push(a, 'ExportCogen30', 'Power to Cogen (Aux Consp)', '30.85MW STG');
   push(a, 'ExportCogen3Old', 'Power to Cogen (Aux Consp)', '3MW STG (O)');
   push(a, 'ExportCogen3New', 'Power to Cogen (Aux Consp)', '3MW STG (N)');
   push(a, 'ExportCogen4', 'Power to Cogen (Aux Consp)', '4MW STG');
   push(a, 'ExportDist30', 'Power to Distillery from 30MW', '30.85MW STG');
-  push(a, 'remark', 'Remark', 'Remark');
+  push(a, 'remark', 'Remark', 'General remarks');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
 }
@@ -515,10 +516,14 @@ function schemaPhStoppage() {
   push(a, 'start_time', 'GSMA Power — Stoppages', 'From');
   push(a, 'end_Time', 'GSMA Power — Stoppages', 'To');
   push(a, 'section', 'GSMA Power — Stoppages', 'Section');
+  push(a, 'section_specify', 'GSMA Power — Stoppages', 'Please specify Section');
   push(a, 'sub_section', 'GSMA Power — Stoppages', 'Sub-Section');
+  push(a, 'sub_section_specify', 'GSMA Power — Stoppages', 'Please specify Sub-Section');
   push(a, 'machinery', 'GSMA Power — Stoppages', 'Machinery');
+  push(a, 'machinery_specify', 'GSMA Power — Stoppages', 'Please specify Machinery');
   push(a, 'category', 'GSMA Power — Stoppages', 'Category');
-  push(a, 'remarks', 'GSMA Power — Stoppages', 'Remark');
+  push(a, 'category_specify', 'GSMA Power — Stoppages', 'Please specify Category');
+  push(a, 'remarks', 'GSMA Power — Stoppages', 'General remarks');
   push(a, 'stoppage_photos', 'GSMA Power — Stoppages', 'Photos');
   push(a, 'created_at', 'System', 'Created at');
   push(a, 'timestamp', 'System', 'Recorded at');

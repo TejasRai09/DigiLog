@@ -247,7 +247,7 @@ function validateFormPayload(formKey, payload) {
     case 'ph_power': {
       const remark = String(payload.remark ?? '').trim();
       if (!remark) {
-        return { ok: false, message: 'Remark is required.' };
+        return { ok: false, message: 'General remarks is required.' };
       }
       payload.remark = remark;
       return { ok: true };
@@ -255,15 +255,37 @@ function validateFormPayload(formKey, payload) {
     case 'ph_stoppage': {
       const remarks = String(payload.remarks ?? '').trim();
       if (!remarks) {
-        return { ok: false, message: 'Remark is required.' };
+        return { ok: false, message: 'General remarks is required.' };
       }
       if (remarks.length < 20) {
-        return { ok: false, message: 'Remark must be at least 20 characters.' };
+        return { ok: false, message: 'General remarks must be at least 20 characters.' };
       }
       if (remarks.length > 150) {
-        return { ok: false, message: 'Remark must be at most 150 characters.' };
+        return { ok: false, message: 'General remarks must be at most 150 characters.' };
       }
       payload.remarks = remarks;
+
+      const specifyRules = [
+        { field: 'section', other: 'Others', specify: 'section_specify', label: 'Section' },
+        { field: 'sub_section', other: 'OTHERS', specify: 'sub_section_specify', label: 'Sub-Section' },
+        { field: 'machinery', other: 'Others', specify: 'machinery_specify', label: 'Machinery' },
+        { field: 'category', other: 'Other', specify: 'category_specify', label: 'Category' },
+      ];
+      for (const { field, other, specify, label } of specifyRules) {
+        const val = String(payload[field] ?? '').trim();
+        if (val === other) {
+          const spec = String(payload[specify] ?? '').trim();
+          if (!spec) {
+            return { ok: false, message: `Please specify ${label} is required when ${other} is selected.` };
+          }
+          if (spec.length > 100) {
+            return { ok: false, message: `Please specify ${label} must be at most 100 characters.` };
+          }
+          payload[specify] = spec;
+        } else {
+          payload[specify] = null;
+        }
+      }
 
       if (payload.stoppage_photos != null && payload.stoppage_photos !== '') {
         const photoCheck = validateStoppagePhotos(payload.stoppage_photos);
@@ -291,6 +313,7 @@ const DUPLICATE_OPERATION_MSG =
  */
 async function hasDuplicateOperationRow(pool, table, pattern, payload, { autoTime = false } = {}) {
   const dupPattern = autoTime ? 'G' : pattern;
+  const endCol = table === 'ph_stoppage' ? 'end_Time' : 'end_time';
   const parts = [];
   const vals = [];
   switch (dupPattern) {
@@ -299,8 +322,12 @@ async function hasDuplicateOperationRow(pool, table, pattern, payload, { autoTim
       vals.push(payload.Date ?? null, payload.Shift ?? null, payload.Time ?? null);
       break;
     case 'B':
-      parts.push('`Date` <=> ?', '`start_time` <=> ?', '`end_time` <=> ?');
-      vals.push(payload.Date ?? null, payload.start_time ?? null, payload.end_time ?? null);
+      parts.push('`Date` <=> ?', '`start_time` <=> ?', `\`${endCol}\` <=> ?`);
+      vals.push(
+        payload.Date ?? null,
+        payload.start_time ?? null,
+        payload.end_Time ?? payload.end_time ?? null,
+      );
       break;
     case 'C':
       parts.push('`Date` <=> ?', '`Shift` <=> ?', '`Sampling_time` <=> ?');
@@ -363,6 +390,12 @@ const submitForm = async (req, res) => {
   const fieldCheck = validateFormPayload(formKey, payload);
   if (!fieldCheck.ok) {
     return res.status(400).json({ message: fieldCheck.message });
+  }
+
+  // ph_stoppage table column is end_Time (not end_time)
+  if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(payload, 'end_time')) {
+    payload.end_Time = payload.end_time;
+    delete payload.end_time;
   }
 
   const skipGenerated = GENERATED_INSERT_EXCLUDE[formKey];
