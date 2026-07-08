@@ -119,7 +119,7 @@ const PowerPlantEquipmentNew = () => {
       <AppBreadcrumb items={breadcrumbItems} />
 
       <AppFormsHeader
-        name={appName || 'Power Plant Equipment History (new)'}
+        name={appName || 'Power Plant Equipment History'}
         description="Browse boiler, turbine and water treatment equipment by cards or tree"
         icon={MdFlashOn}
         color="#D97706"

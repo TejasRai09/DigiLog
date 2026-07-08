@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `employee_category` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `name`        VARCHAR(255) NOT NULL,
+  `is_active`   TINYINT(1)   NOT NULL DEFAULT 1,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `employee_category_name_unique` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- manager_id FK is added idempotently by apply-init-sql.js (ensureManagerColumn),
 -- not inline here, because MySQL does not support ADD CONSTRAINT IF NOT EXISTS.
 

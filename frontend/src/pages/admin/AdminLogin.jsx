@@ -14,7 +14,7 @@ const AdminLogin = () => {
   const [loading, setLoading] = useState(false);
 
   // Already logged in as admin → go straight to admin area
-  if (user && user.role === 'admin') return <Navigate to="/admin/employees" replace />;
+  if (user && user.role === 'admin') return <Navigate to="/admin/config?section=employees" replace />;
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -29,7 +29,7 @@ const AdminLogin = () => {
     try {
       await loginManual(check.email, form.password, { adminPortal: true });
       toast.success('Signed in successfully.');
-      navigate('/admin/employees', { replace: true });
+      navigate('/admin/config?section=employees', { replace: true });
     } catch (err) {
       toast.error(getLoginErrorMessage(err));
     } finally {

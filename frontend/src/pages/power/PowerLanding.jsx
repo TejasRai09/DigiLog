@@ -18,7 +18,7 @@ const PowerLanding = () => {
       <AppBreadcrumb items={buildPowerLandingTrail({ appId, appName })} />
 
       <AppFormsHeader
-        name={appName || 'Power Plant Equipment History'}
+        name={appName || 'Power Plant Equipment History (old)'}
         description="Select a department to view equipment history cards"
         icon={MdFlashOn}
         color="#D97706"

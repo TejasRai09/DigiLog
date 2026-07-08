@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MdLogout, MdPeople, MdHome, MdUpload, MdMenu } from 'react-icons/md';
+import { MdLogout, MdHome, MdUpload, MdMenu, MdSettings } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import ProfileModal from './ProfileModal';
@@ -29,8 +29,15 @@ const Navbar = () => {
   const navItems = [
     { to: '/dashboard', label: 'Home', Icon: MdHome, show: true },
     { to: '/data-upload', label: 'Data Upload', Icon: MdUpload, show: dataUploadEnabled },
-    { to: '/admin/employees', label: 'Employees', Icon: MdPeople, show: user?.role === 'admin' },
+    { to: '/admin/config', label: 'Config', Icon: MdSettings, show: user?.role === 'admin' },
   ].filter((item) => item.show);
+
+  const isNavActive = (to) => {
+    if (to === '/admin/config') {
+      return pathname === '/admin/config' || pathname === '/admin/employees' || pathname === '/admin/mappings';
+    }
+    return pathname === to;
+  };
 
   const navLinkClass = (active) =>
     `flex min-h-[52px] items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
@@ -81,7 +88,7 @@ const Navbar = () => {
 
           <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex">
             {navItems.map(({ to, label, Icon }) => {
-              const active = pathname === to;
+              const active = isNavActive(to);
               return (
                 <Link
                   key={to}
@@ -180,7 +187,7 @@ const Navbar = () => {
         </div>
         <ul className="space-y-1">
           {navItems.map(({ to, label, Icon }) => {
-            const active = pathname === to;
+            const active = isNavActive(to);
             return (
               <li key={to}>
                 <Link

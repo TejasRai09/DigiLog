@@ -1,17 +1,21 @@
 import { useMemo, useState } from 'react';
-import { MdSave } from 'react-icons/md';
-import FormPageHeader from '../../../components/FormPageHeader';
+import { MdOilBarrel, MdSpeed } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import {
+  MillDateShiftCard,
+  PowerCategoryRow,
+  PowerFormCard,
+  PowerFormPage,
+  PowerMetricField,
+  usePowerCollapseAll,
+} from '../../../components/power/PowerLogbookFormUI';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
-import Spinner from '../../../components/Spinner';
-import LegacyNumField from '../../../components/LegacyNumField';
-import ReportDateFields from '../../../components/ReportDateFields';
 import { buildLubePressureReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
-const SHIFTS = ['A', 'B', 'C', 'G'];
+const SHIFTS = ['A', 'B', 'C'];
 
 const LUBE_FIELDS = [
   ['LubePressure_ACC', 'ACC (Kg/Sq.Cm)'],
@@ -30,7 +34,7 @@ const ROLLER_PLACE = [
 ];
 
 const INITIAL = {
-  date: '', shift: '', time: '',
+  date: '', shift: '',
   LubePressure_ACC: '', LubePressure_MCC: '', LubePressure_Shred: '', LubePressure_M0: '',
   M0_gsT: '', M0_gsB: '', M0_gsUF: '', M0_psT: '', M0_psB: '', M0_psUF: '',
   M1_gsT: '', M1_gsB: '', M1_gsUF: '', M1_psT: '', M1_psB: '', M1_psUF: '',
@@ -39,8 +43,12 @@ const INITIAL = {
   M4_gsT: '', M4_gsB: '', M4_gsUF: '', M4_psT: '', M4_psB: '', M4_psUF: '',
 };
 
+const F = PowerMetricField;
+const ROLLER_TONES = ['green', 'orange', 'purple', 'amber', 'blue'];
+
 const LubePressure = () => {
   const [form, setForm] = useState(INITIAL);
+  const { collapseAll, toggleCollapseAll } = usePowerCollapseAll();
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -67,73 +75,67 @@ const LubePressure = () => {
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-      <FormPageHeader formKey="mill_logbook3" fallbackTitle="Lube Pressure and Roller Temp" />
+    <>
+      <PowerFormPage
+        formKey="mill_logbook3"
+        fallbackTitle="Lube Pressure and Roller Temp"
+        title="Lube Pressure and Roller Temp"
+        onClear={() => setForm(INITIAL)}
+        submitting={submitting}
+        formId="mill-logbook-form"
+      >
+        <form id="mill-logbook-form" onSubmit={openReview} className="space-y-0">
+          <MillDateShiftCard
+            dateValue={form.date}
+            shiftValue={form.shift}
+            onChange={handleChange}
+            shifts={SHIFTS}
+          />
 
-      <form onSubmit={openReview} className="space-y-4">
-        <div className="form-section">
-          <div className="form-row flex-wrap gap-6 items-end">
-            <ReportDateFields
-              dateValue={form.date}
-              timeValue={form.time}
-              onChange={handleChange}
-              dateRequired
-            />
-            <div>
-              <label className="label">Shift:<span className="text-red-500 ml-0.5">*</span></label>
-              <select name="shift" value={form.shift} onChange={handleChange} required className="input">
-                <option value="">— Select —</option>
-                {SHIFTS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
+          <PowerFormCard icon={MdOilBarrel} title="Lube Pump Pressure:">
+            <div className="grid grid-cols-1 gap-4 py-4 sm:grid-cols-2 lg:grid-cols-4">
+              {LUBE_FIELDS.map(([nameKey, label]) => (
+                <F
+                  key={nameKey}
+                  label={label}
+                  name={nameKey}
+                  value={form[nameKey]}
+                  onChange={handleChange}
+                  placeholder={label}
+                />
+              ))}
             </div>
-          </div>
-        </div>
+          </PowerFormCard>
 
-        <div className="form-section">
-          <h3 className="section-title">Lube Pump Pressure</h3>
-          <div className="form-row flex-wrap">
-            {LUBE_FIELDS.map(([nameKey, placeholder]) => (
-              <LegacyNumField
-                key={nameKey}
-                label=""
-                name={nameKey}
-                value={form[nameKey]}
-                onChange={handleChange}
-                placeholder={placeholder}
-              />
-            ))}
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3 className="section-title">Mill Roller Temperature</h3>
-          {['M0', 'M1', 'M2', 'M3', 'M4'].map((m) => (
-            <div key={m} className="mb-5 last:mb-0">
-              <p className="text-sm font-semibold text-gray-800 mb-2">{`Mill ${m.slice(1)}:`}</p>
-              <div className="form-row flex-wrap">
-                {ROLLER_PLACE.map(([suf, placeholder]) => (
-                  <LegacyNumField
+          <PowerFormCard
+            icon={MdSpeed}
+            title="Mill Roller Temperature:"
+            collapseAll={collapseAll}
+            onToggleCollapseAll={toggleCollapseAll}
+          >
+            {['M0', 'M1', 'M2', 'M3', 'M4'].map((m, idx) => (
+              <PowerCategoryRow
+                key={m}
+                icon={MdSpeed}
+                tone={ROLLER_TONES[idx]}
+                title={`Mill ${m.slice(1)}:`}
+                columns="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+              >
+                {ROLLER_PLACE.map(([suf, label]) => (
+                  <F
                     key={`${m}_${suf}`}
-                    label=""
+                    label={label}
                     name={`${m}_${suf}`}
                     value={form[`${m}_${suf}`]}
                     onChange={handleChange}
-                    placeholder={placeholder}
+                    placeholder={label}
                   />
                 ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={() => setForm(INITIAL)} className="btn-secondary">Reset</button>
-          <button type="submit" disabled={submitting} className="btn-primary px-8">
-            {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            {submitting ? 'Submitting…' : 'Submit'}
-          </button>
-        </div>
-      </form>
+              </PowerCategoryRow>
+            ))}
+          </PowerFormCard>
+        </form>
+      </PowerFormPage>
 
       {reviewConfig ? (
         <FormReviewModal
@@ -144,7 +146,7 @@ const LubePressure = () => {
           {...reviewConfig}
         />
       ) : null}
-    </main>
+    </>
   );
 };
 

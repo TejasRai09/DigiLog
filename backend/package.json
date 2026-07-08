@@ -15,6 +15,7 @@
     "db:add-mill-house-equipment": "node scripts/add-mill-house-equipment.js",
     "db:import-power-xlsx": "node scripts/import-power-equipment-xlsx.js",
     "db:seed-ppn-hierarchy": "node scripts/seed-ppn-hierarchy.js",
+    "db:map-employee-departments": "node scripts/map-employee-departments-to-categories.js",
     "db:extract-aph-history": "python ../scripts/import_air_preheater_maintenance_history.py",
     "db:import-air-preheater-xlsx": "node ../scripts/import_air_preheater_history.js --replace",
     "db:import-aph-history": "node scripts/data_feed_power_history/import-equipment-maintenance-history.js --file scripts/data_feed_power_history/feed-data/air-pre-heater-mechanical-history.json --replace-history --create-equipment",

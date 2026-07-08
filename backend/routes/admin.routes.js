@@ -13,6 +13,10 @@ const {
   upsertMapping,
   deleteMapping,
   getAllAppsWithForms,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 } = require('../controllers/admin.controller');
 const {
   getAdminBiSettings,
@@ -45,5 +49,10 @@ router.put('/bi-settings',  updateAdminBiSettings);
 
 router.get('/data-upload-access',  getAdminDataUploadAccess);
 router.put('/data-upload-access',  upsertAdminDataUploadAccess);
+
+router.get('/categories',           getCategories);
+router.post('/categories',          createCategory);
+router.put('/categories/:id',       updateCategory);
+router.delete('/categories/:id',    deleteCategory);
 
 module.exports = router;
