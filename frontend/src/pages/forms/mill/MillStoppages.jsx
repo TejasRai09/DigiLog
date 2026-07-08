@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
-import { MdSave } from 'react-icons/md';
-import FormPageHeader from '../../../components/FormPageHeader';
+import { MdPauseCircleOutline } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import {
+  PowerFormCard,
+  PowerFormPage,
+  PowerMetricField,
+  PowerRemarkBlock,
+  PowerSelectField,
+} from '../../../components/power/PowerLogbookFormUI';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
-import Spinner from '../../../components/Spinner';
 import { buildMillStoppageReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
@@ -46,59 +51,79 @@ const MillStoppages = () => {
   );
 
   return (
-    <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-8">
-      <FormPageHeader formKey="mill_stoppages" fallbackTitle="Mill Stoppages" />
+    <>
+      <PowerFormPage
+        formKey="mill_stoppages"
+        fallbackTitle="Mill Stoppages"
+        title="Mill Stoppages"
+        onClear={() => setForm(INITIAL)}
+        submitting={submitting}
+        formId="mill-stoppages-form"
+      >
+        <form id="mill-stoppages-form" onSubmit={openReview} className="space-y-0">
+          <PowerFormCard icon={MdPauseCircleOutline} title="Stoppage Details:">
+            <div className="space-y-5 py-4">
+              <PowerMetricField
+                label="Report Date:"
+                name="date"
+                type="date"
+                value={form.date}
+                onChange={handleChange}
+                placeholder=""
+              />
 
-      <form onSubmit={openReview} className="space-y-4">
-        <div className="form-section space-y-4">
-          <div>
-            <label className="label">Report Date:<span className="text-red-500 ml-0.5">*</span></label>
-            <input type="date" name="date" value={form.date} onChange={handleChange} required className="input" />
-          </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <PowerMetricField
+                  label="From:"
+                  name="startTime"
+                  type="datetime-local"
+                  step="60"
+                  value={form.startTime}
+                  onChange={handleChange}
+                  placeholder=""
+                />
+                <PowerMetricField
+                  label="To:"
+                  name="endTime"
+                  type="datetime-local"
+                  step="60"
+                  value={form.endTime}
+                  onChange={handleChange}
+                  placeholder=""
+                />
+              </div>
 
-          <div className="form-row flex-wrap gap-4">
-            <div>
-              <label className="label">From:<span className="text-red-500 ml-0.5">*</span></label>
-              <input type="datetime-local" name="startTime" value={form.startTime} onChange={handleChange} required className="input" />
+              <PowerSelectField
+                label="Section:"
+                name="section"
+                value={form.section}
+                onChange={handleChange}
+                options={MILL_STOPPAGE_SECTION_OPTIONS}
+                required
+              />
+
+              <PowerSelectField
+                label="Machinery:"
+                name="machinery"
+                value={form.machinery}
+                onChange={handleChange}
+                options={MILL_STOPPAGE_MACHINERY_OPTIONS}
+                required
+              />
+
+              <PowerRemarkBlock
+                name="remarks"
+                value={form.remarks}
+                onChange={handleChange}
+                required
+                label="Remark:"
+                showCounter={false}
+                placeholder=""
+              />
             </div>
-            <div>
-              <label className="label">To:<span className="text-red-500 ml-0.5">*</span></label>
-              <input type="datetime-local" name="endTime" value={form.endTime} onChange={handleChange} required className="input" />
-            </div>
-          </div>
-
-          <div>
-            <label className="label">Section:<span className="text-red-500 ml-0.5">*</span></label>
-            <select name="section" value={form.section} onChange={handleChange} required className="input">
-              {MILL_STOPPAGE_SECTION_OPTIONS.map((opt) => (
-                <option key={opt || '__empty'} value={opt}>{opt || '— Select —'}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Machinery:<span className="text-red-500 ml-0.5">*</span></label>
-            <select name="machinery" value={form.machinery} onChange={handleChange} required className="input max-h-48">
-              {MILL_STOPPAGE_MACHINERY_OPTIONS.map((opt) => (
-                <option key={opt || '__empty'} value={opt}>{opt || '— Select —'}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="label">Remark:<span className="text-red-500 ml-0.5">*</span></label>
-            <textarea name="remarks" value={form.remarks} onChange={handleChange} rows={3} className="input resize-none" required />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={() => setForm(INITIAL)} className="btn-secondary">Reset</button>
-          <button type="submit" disabled={submitting} className="btn-primary px-8">
-            {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            {submitting ? 'Submitting…' : 'Submit'}
-          </button>
-        </div>
-      </form>
+          </PowerFormCard>
+        </form>
+      </PowerFormPage>
 
       {reviewConfig ? (
         <FormReviewModal
@@ -109,7 +134,7 @@ const MillStoppages = () => {
           {...reviewConfig}
         />
       ) : null}
-    </main>
+    </>
   );
 };
 

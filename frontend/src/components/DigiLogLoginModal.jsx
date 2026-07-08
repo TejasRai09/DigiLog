@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdClose, MdLock, MdPerson } from 'react-icons/md';
+import { MdClose, MdExpandLess, MdExpandMore, MdLock, MdPerson } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import Spinner from './Spinner';
@@ -33,10 +33,12 @@ export default function DigiLogLoginModal({ open, onClose }) {
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
 
   const reset = useCallback(() => {
     setForm({ email: '', password: '' });
     setLoading(false);
+    setCredentialsOpen(false);
   }, []);
 
   useEffect(() => {
@@ -162,77 +164,95 @@ export default function DigiLogLoginModal({ open, onClose }) {
               />
             </div>
 
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-slate-100" />
-              <span className="mx-4 flex-shrink text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                or sign in with credentials
-              </span>
-              <div className="flex-grow border-t border-slate-100" />
-            </div>
-
-            <form onSubmit={handleManualLogin} className="space-y-4" noValidate>
-              <div>
-                <label htmlFor="modal-login-email" className="mb-1.5 block text-xs font-bold text-slate-500">
-                  Username or corporate email
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <MdPerson />
-                  </span>
-                  <input
-                    id="modal-login-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={form.email}
-                    onChange={handleChange}
-                    placeholder="e.g., operator@zuari.com"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm transition-all focus:border-green-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-600/20"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div className="mb-1.5 flex items-center justify-between">
-                  <label htmlFor="modal-login-password" className="block text-xs font-bold text-slate-500">
-                    Security key phrase / password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => toast('Contact your IT administrator for password reset.', { icon: 'ℹ️' })}
-                    className="text-xs font-semibold text-green-700 transition-colors hover:text-green-800"
-                  >
-                    Forgot?
-                  </button>
-                </div>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                    <MdLock />
-                  </span>
-                  <input
-                    id="modal-login-password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="••••••••••••"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm transition-all focus:border-green-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-600/20"
-                  />
-                </div>
-              </div>
-
+            <div>
               <button
-                type="submit"
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-slate-800 hover:shadow-lg focus:outline-none disabled:opacity-60"
+                type="button"
+                onClick={() => setCredentialsOpen((open) => !open)}
+                aria-expanded={credentialsOpen}
+                aria-controls="modal-credentials-panel"
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-left transition-colors hover:bg-slate-100"
               >
-                {loading ? <Spinner size="sm" /> : null}
-                {loading ? 'Signing in…' : 'Sign In'}
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Sign in with credentials
+                </span>
+                {credentialsOpen ? (
+                  <MdExpandLess className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+                ) : (
+                  <MdExpandMore className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
+                )}
               </button>
-            </form>
+
+              {credentialsOpen ? (
+                <form
+                  id="modal-credentials-panel"
+                  onSubmit={handleManualLogin}
+                  className="mt-4 space-y-4"
+                  noValidate
+                >
+                  <div>
+                    <label htmlFor="modal-login-email" className="mb-1.5 block text-xs font-bold text-slate-500">
+                      Username or corporate email
+                    </label>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <MdPerson />
+                      </span>
+                      <input
+                        id="modal-login-email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={form.email}
+                        onChange={handleChange}
+                        placeholder="e.g., operator@zuari.com"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm transition-all focus:border-green-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-600/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label htmlFor="modal-login-password" className="block text-xs font-bold text-slate-500">
+                        Security key phrase / password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => toast('Contact your IT administrator for password reset.', { icon: 'ℹ️' })}
+                        className="text-xs font-semibold text-green-700 transition-colors hover:text-green-800"
+                      >
+                        Forgot?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                        <MdLock />
+                      </span>
+                      <input
+                        id="modal-login-password"
+                        name="password"
+                        type="password"
+                        autoComplete="current-password"
+                        required
+                        value={form.password}
+                        onChange={handleChange}
+                        placeholder="••••••••••••"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-4 text-sm transition-all focus:border-green-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-green-600/20"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3 text-sm font-bold text-white shadow-md transition-all hover:bg-slate-800 hover:shadow-lg focus:outline-none disabled:opacity-60"
+                  >
+                    {loading ? <Spinner size="sm" /> : null}
+                    {loading ? 'Signing in…' : 'Sign In'}
+                  </button>
+                </form>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

@@ -1,26 +1,22 @@
 import { useMemo, useState } from 'react';
-import { MdSave } from 'react-icons/md';
-import FormPageHeader from '../../../components/FormPageHeader';
+import { MdContentCut, MdSpeed } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import {
+  MillDateShiftCard,
+  PowerCategoryRow,
+  PowerFormCard,
+  PowerFormPage,
+  PowerMetricField,
+  usePowerCollapseAll,
+} from '../../../components/power/PowerLogbookFormUI';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
-import Spinner from '../../../components/Spinner';
-import LegacyNumField from '../../../components/LegacyNumField';
-import ReportDateFields from '../../../components/ReportDateFields';
 import { buildShredderOTGReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
-const SHIFTS = ['A', 'B', 'C', 'G'];
+const SHIFTS = ['A', 'B', 'C'];
 
-const Section = ({ title, children }) => (
-  <div className="form-section">
-    <h3 className="section-title">{title}</h3>
-    <div>{children}</div>
-  </div>
-);
-
-/** milling_logbook2.html — shred RHS row */
 const RHS_FIELDS = [
   ['shredR_MtrTemp', 'Motor Temp'],
   ['shredR_BearTempSite', 'Bearing Temp (Site)'],
@@ -48,7 +44,7 @@ const OTG_FIELDS = (n) => [
 ];
 
 const INITIAL = {
-  date: '', shift: '', time: '',
+  date: '', shift: '',
   shredR_MtrTemp: '', shredR_BearTempSite: '', shredR_BearTempDCS: '',
   shredR_VibH: '', shredR_VibV: '', shredR_VibA: '',
   shredL_MtrTemp: '', shredL_BearTempSite: '', shredL_BearTempDCS: '',
@@ -59,8 +55,11 @@ const INITIAL = {
   M4_InpT: '', M4_InpM: '', M4_IntT: '', M4_IntM: '', M4_OutT: '', M4_OutM: '',
 };
 
+const F = PowerMetricField;
+
 const ShreddarOTG = () => {
   const [form, setForm] = useState(INITIAL);
+  const { collapseAll, toggleCollapseAll } = usePowerCollapseAll();
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -86,85 +85,62 @@ const ShreddarOTG = () => {
     [reviewOpen, form],
   );
 
-  const rowInputs = (fields) => (
-    <div className="form-row flex-wrap">
-      {fields.map(([nameKey, placeholder]) => (
-        <LegacyNumField
-          key={nameKey}
-          label=""
-          name={nameKey}
-          value={form[nameKey]}
-          onChange={handleChange}
-          placeholder={placeholder}
-        />
-      ))}
-    </div>
-  );
+  const metricRow = (fields, columns = 'sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6') =>
+    fields.map(([nameKey, label]) => (
+      <F
+        key={nameKey}
+        label={label}
+        name={nameKey}
+        value={form[nameKey]}
+        onChange={handleChange}
+        placeholder={label}
+      />
+    ));
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-      <FormPageHeader formKey="mill_logbook2" fallbackTitle="Shredder and OTG" />
+    <>
+      <PowerFormPage
+        formKey="mill_logbook2"
+        fallbackTitle="Shredder and OTG"
+        title="Shredder and OTG"
+        onClear={() => setForm(INITIAL)}
+        submitting={submitting}
+        formId="mill-logbook-form"
+      >
+        <form id="mill-logbook-form" onSubmit={openReview} className="space-y-0">
+          <MillDateShiftCard
+            dateValue={form.date}
+            shiftValue={form.shift}
+            onChange={handleChange}
+            shifts={SHIFTS}
+          />
 
-      <form onSubmit={openReview} className="space-y-4">
-        <div className="form-section">
-          <div className="form-row flex-wrap gap-6 items-end">
-            <ReportDateFields
-              dateValue={form.date}
-              timeValue={form.time}
-              onChange={handleChange}
-              dateRequired
-            />
-            <div>
-              <label className="label">Shift:<span className="text-red-500 ml-0.5">*</span></label>
-              <select name="shift" value={form.shift} onChange={handleChange} required className="input">
-                <option value="">— Select —</option>
-                {SHIFTS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <Section title="Shredder ">
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm font-semibold text-gray-800 mb-2">Shredder RHS:</p>
-              {rowInputs(RHS_FIELDS)}
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800 mb-2">Shredder LHS:</p>
-              {rowInputs(LHS_FIELDS)}
-            </div>
-          </div>
-        </Section>
-
-        <Section title="OTG Bearing Temperature">
-          {[1, 2, 3, 4].map((n) => (
-            <div key={n} className="mb-5 last:mb-0">
-              <p className="text-sm font-semibold text-gray-800 mb-2">{`Mill ${n}:`}</p>
-              <div className="form-row flex-wrap">
-                {OTG_FIELDS(n).map(([nameKey, placeholder]) => (
-                  <LegacyNumField
-                    key={nameKey}
-                    label=""
-                    name={nameKey}
-                    value={form[nameKey]}
-                    onChange={handleChange}
-                    placeholder={placeholder}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </Section>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={() => setForm(INITIAL)} className="btn-secondary">Reset</button>
-          <button type="submit" disabled={submitting} className="btn-primary px-8">
-            {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            {submitting ? 'Submitting…' : 'Submit'}
-          </button>
-        </div>
-      </form>
+          <PowerFormCard
+            icon={MdContentCut}
+            title="Shredder and OTG:"
+            collapseAll={collapseAll}
+            onToggleCollapseAll={toggleCollapseAll}
+          >
+            <PowerCategoryRow icon={MdContentCut} tone="orange" title="Shredder RHS:" columns="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {metricRow(RHS_FIELDS)}
+            </PowerCategoryRow>
+            <PowerCategoryRow icon={MdContentCut} tone="amber" title="Shredder LHS:" columns="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              {metricRow(LHS_FIELDS)}
+            </PowerCategoryRow>
+            {[1, 2, 3, 4].map((n) => (
+              <PowerCategoryRow
+                key={n}
+                icon={MdSpeed}
+                tone={['blue', 'indigo', 'purple', 'teal'][n - 1]}
+                title={`Mill ${n}:`}
+                columns="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+              >
+                {metricRow(OTG_FIELDS(n))}
+              </PowerCategoryRow>
+            ))}
+          </PowerFormCard>
+        </form>
+      </PowerFormPage>
 
       {reviewConfig ? (
         <FormReviewModal
@@ -175,7 +151,7 @@ const ShreddarOTG = () => {
           {...reviewConfig}
         />
       ) : null}
-    </main>
+    </>
   );
 };
 

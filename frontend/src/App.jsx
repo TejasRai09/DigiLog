@@ -16,6 +16,7 @@ import MillingOperationsDashboard from './pages/bi/MillingOperationsDashboard';
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
+import AdminConfig from './pages/admin/AdminConfig';
 import DataIngestionCenter from './pages/DataIngestionCenter';
 // Mill Logbook forms
 import EquipmentTemp  from './pages/forms/mill/EquipmentTemp';
@@ -142,7 +143,8 @@ const App = () => {
         {/* Protected – admin only */}
         <Route element={<ProtectedRoute requiredRole="admin" />}>
           <Route path="/admin/employees" element={<EmployeeManagement />} />
-          <Route path="/admin/mappings" element={<Navigate to="/admin/employees" replace />} />
+          <Route path="/admin/config" element={<AdminConfig />} />
+          <Route path="/admin/mappings" element={<Navigate to="/admin/config?section=employees" replace />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

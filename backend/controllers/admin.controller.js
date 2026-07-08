@@ -65,13 +65,18 @@ const createUser = async (req, res) => {
     if (!name || !email)
       return res.status(400).json({ message: 'Name and email are required.' });
 
+    if (department == null || String(department).trim() === '')
+      return res.status(400).json({ message: 'Department category is required.' });
+
     const [exists] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase()]);
     if (exists.length)
       return res.status(409).json({ message: 'Email already registered.' });
 
     const tempPassword = crypto.randomBytes(6).toString('hex');
     const hashed       = await bcrypt.hash(tempPassword, 12);
-    const dept         = department != null && String(department).trim() !== '' ? String(department).trim() : null;
+    const deptCheck    = await normalizeDepartment(department);
+    if (deptCheck.error) return res.status(400).json({ message: deptCheck.error });
+    const dept         = deptCheck.value;
 
     const [result] = await pool.query(
       `INSERT INTO users (name, department, email, password, role, auth_provider, is_active, mail_sent)
@@ -162,9 +167,10 @@ const updateUser = async (req, res) => {
 
     if (name      !== undefined) { fields.push('name = ?');      vals.push(name); }
     if (department !== undefined) {
-      const dept = department != null && String(department).trim() !== '' ? String(department).trim() : null;
+      const deptCheck = await normalizeDepartment(department);
+      if (deptCheck.error) return res.status(400).json({ message: deptCheck.error });
       fields.push('department = ?');
-      vals.push(dept);
+      vals.push(deptCheck.value);
     }
     if (role      !== undefined) { fields.push('role = ?');      vals.push(role); }
     if (isActive  !== undefined) { fields.push('is_active = ?'); vals.push(isActive ? 1 : 0); }
@@ -355,6 +361,106 @@ const getAllAppsWithForms = async (_req, res) => {
   }
 };
 
+const mapCategory = (r) => ({
+  id: r.id,
+  name: r.name,
+  isActive: !!r.is_active,
+  sortOrder: r.sort_order,
+  createdAt: r.created_at,
+});
+
+async function normalizeDepartment(raw) {
+  if (raw == null || String(raw).trim() === '') return { value: null };
+  const name = String(raw).trim();
+  const [[row]] = await pool.query(
+    'SELECT name FROM employee_category WHERE name = ? AND is_active = 1',
+    [name],
+  );
+  if (!row) return { error: 'Please select a valid department category.' };
+  return { value: row.name };
+}
+
+// GET /api/admin/categories
+const getCategories = async (_req, res) => {
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM employee_category ORDER BY sort_order ASC, name ASC',
+    );
+    res.json(rows.map(mapCategory));
+  } catch (err) {
+    sendServerError(res, 'getCategories', err, MSG.LOAD);
+  }
+};
+
+// POST /api/admin/categories
+const createCategory = async (req, res) => {
+  try {
+    const name = String(req.body.name ?? '').trim();
+    if (!name) return res.status(400).json({ message: 'Category name is required.' });
+    if (name.length > 255) return res.status(400).json({ message: 'Category name is too long.' });
+
+    const [result] = await pool.query(
+      'INSERT INTO employee_category (name) VALUES (?)',
+      [name],
+    );
+    const [[row]] = await pool.query('SELECT * FROM employee_category WHERE id = ?', [result.insertId]);
+    res.status(201).json(mapCategory(row));
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'A category with this name already exists.' });
+    }
+    sendServerError(res, 'createCategory', err, MSG.SAVE);
+  }
+};
+
+// PUT /api/admin/categories/:id
+const updateCategory = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const name = String(req.body.name ?? '').trim();
+    if (!name) return res.status(400).json({ message: 'Category name is required.' });
+
+    const [[existing]] = await pool.query('SELECT id, name FROM employee_category WHERE id = ?', [id]);
+    if (!existing) return res.status(404).json({ message: 'Category not found.' });
+
+    await pool.query('UPDATE employee_category SET name = ? WHERE id = ?', [name, id]);
+    if (existing.name !== name) {
+      await pool.query('UPDATE users SET department = ? WHERE department = ?', [name, existing.name]);
+    }
+    const [[row]] = await pool.query('SELECT * FROM employee_category WHERE id = ?', [id]);
+    res.json(mapCategory(row));
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: 'A category with this name already exists.' });
+    }
+    sendServerError(res, 'updateCategory', err, MSG.SAVE);
+  }
+};
+
+// DELETE /api/admin/categories/:id
+const deleteCategory = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const [[cat]] = await pool.query('SELECT id, name FROM employee_category WHERE id = ?', [id]);
+    if (!cat) return res.status(404).json({ message: 'Category not found.' });
+
+    const [[usage]] = await pool.query(
+      'SELECT COUNT(*) AS n FROM users WHERE department = ?',
+      [cat.name],
+    );
+    if (usage.n > 0) {
+      return res.status(409).json({
+        message: 'Cannot delete: employees are assigned to this category.',
+      });
+    }
+
+    await pool.query('DELETE FROM employee_category WHERE id = ?', [id]);
+    res.json({ message: 'Category deleted.' });
+  } catch (err) {
+    sendServerError(res, 'deleteCategory', err, MSG.DELETE);
+  }
+};
+
 module.exports = {
   getUsers,
   createUser,
@@ -367,4 +473,8 @@ module.exports = {
   upsertMapping,
   deleteMapping,
   getAllAppsWithForms,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 };

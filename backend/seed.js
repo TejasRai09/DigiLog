@@ -50,14 +50,14 @@ const appDefs = [
     sort_order:  5,
   },
   {
-    name:        'Power Plant Equipment History',
+    name:        'Power Plant Equipment History (old)',
     description: 'Electrical, Instrument and control valve history cards for the 30MW power plant',
     icon:        'MdFlashOn',
     color:       '#D97706',
-    sort_order:  6,
+    sort_order:  11,
   },
   {
-    name:        'Power Plant Equipment History (new)',
+    name:        'Power Plant Equipment History',
     description: 'Boiler, turbine and WTP equipment hierarchy — browse by cards or tree',
     icon:        'MdFlashOn',
     color:       '#EA580C',
@@ -111,8 +111,8 @@ const formDefs = [
 
   // Hub modules — equipment history cards (single hub entry, opens card-browser)
   { name: 'Mill House equipment',  description: 'Open equipment life history cards',            formKey: 'digilog_hub_mill_equipment',  app: 'Mill House Equipment History',    sort_order: 1 },
-  { name: 'Power Plant equipment', description: 'Open power plant equipment history cards',     formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History',   sort_order: 1 },
-  { name: 'Power Plant equipment hierarchy', description: 'Browse 150TPH/70TPH boilers, STG and WTP equipment', formKey: 'digilog_hub_power_equipment_new', app: 'Power Plant Equipment History (new)', sort_order: 1 },
+  { name: 'Power Plant equipment', description: 'Open power plant equipment history cards',     formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History (old)', sort_order: 1 },
+  { name: 'Power Plant equipment hierarchy', description: 'Browse 150TPH/70TPH boilers, STG and WTP equipment', formKey: 'digilog_hub_power_equipment_new', app: 'Power Plant Equipment History', sort_order: 1 },
 
   // EHS — individual submit forms
   { name: 'Near Miss / Incident / Accident Report',    description: 'Log workplace near misses, incidents and accidents for investigation', formKey: 'ehs_near_miss',  app: 'EHS — Environment Health & Safety', sort_order: 1 },
@@ -151,6 +151,8 @@ const APP_RENAMES = [
   { oldName: 'GSMA Lab Logbook', newName: 'Lab Logbook' },
   { oldName: 'GSMA Power Logbook', newName: 'Power Logbook' },
   { oldName: 'GSMA Distillery Operations', newName: 'Distillery Operations' },
+  { oldName: 'Power Plant Equipment History', newName: 'Power Plant Equipment History (old)' },
+  { oldName: 'Power Plant Equipment History (new)', newName: 'Power Plant Equipment History' },
 ];
 
 async function mergeRenamedApps(pool) {

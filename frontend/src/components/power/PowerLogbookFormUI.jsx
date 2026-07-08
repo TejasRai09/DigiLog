@@ -75,6 +75,60 @@ export function PowerDateCard({ label = 'Report Date:', value, onChange, name = 
   );
 }
 
+export function MillDateShiftCard({
+  dateValue,
+  shiftValue,
+  onChange,
+  shifts = ['A', 'B', 'C'],
+  dateName = 'date',
+  shiftName = 'shift',
+}) {
+  const labelClass = 'mb-1.5 block text-xs font-semibold text-gray-700';
+  const inputClass =
+    'w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:max-w-xs sm:text-sm';
+
+  return (
+    <div className="mb-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <div className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+        <div>
+          <label htmlFor={dateName} className={labelClass}>
+            Report Date:
+            <span className="ml-0.5 text-red-500">*</span>
+          </label>
+          <input
+            id={dateName}
+            type="date"
+            name={dateName}
+            value={dateValue}
+            onChange={onChange}
+            required
+            className={inputClass}
+          />
+        </div>
+        <div>
+          <label htmlFor={shiftName} className={labelClass}>
+            Shift:
+            <span className="ml-0.5 text-red-500">*</span>
+          </label>
+          <select
+            id={shiftName}
+            name={shiftName}
+            value={shiftValue}
+            onChange={onChange}
+            required
+            className={inputClass}
+          >
+            <option value="">— Select —</option>
+            {shifts.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PowerFormCard({
   icon: Icon,
   title,

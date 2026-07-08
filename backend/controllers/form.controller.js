@@ -19,9 +19,9 @@ const GENERATED_INSERT_EXCLUDE = {
 // tsCol = tie-breaker column when multiple rows share the same operation Date (usually inserted-at timestamp)
 const FORM_CONFIG = {
   // App 1 – Mill Logbook
-  mill_logbook1:    { table: 'mill_logbook1',    pattern: 'A', tsCol: 'timestamp' },
-  mill_logbook2:    { table: 'mill_logbook2',    pattern: 'A', tsCol: 'timestamp' },
-  mill_logbook3:    { table: 'mill_logbook3',    pattern: 'A', tsCol: 'timestamp' },
+  mill_logbook1:    { table: 'mill_logbook1',    pattern: 'A', tsCol: 'timestamp', autoTime: true },
+  mill_logbook2:    { table: 'mill_logbook2',    pattern: 'A', tsCol: 'timestamp', autoTime: true },
+  mill_logbook3:    { table: 'mill_logbook3',    pattern: 'A', tsCol: 'timestamp', autoTime: true },
   mill_stoppages:   { table: 'mill_stoppages',   pattern: 'B', tsCol: 'timestamp' },
 
   // App 2 – Lab Logbook
@@ -92,7 +92,7 @@ const injectDateCols = (payload, pattern, body, { autoTime = false } = {}) => {
     case 'A':
       payload.Date  = body.date  ?? null;
       payload.Shift = body.shift ?? null;
-      payload.Time  = body.time  ?? null;
+      payload.Time  = autoTime ? formatMySQLDateTime(new Date()) : (body.time ?? null);
       break;
     case 'B':
       payload.Date       = body.date      ?? null;
@@ -312,7 +312,11 @@ const DUPLICATE_OPERATION_MSG =
  * Uses NULL-safe <=> so null keys match only other nulls.
  */
 async function hasDuplicateOperationRow(pool, table, pattern, payload, { autoTime = false } = {}) {
-  const dupPattern = autoTime ? 'G' : pattern;
+  let dupPattern = pattern;
+  if (autoTime) {
+    if (pattern === 'A') dupPattern = 'D'; // mill logbooks: one entry per Date + Shift
+    else if (pattern === 'E') dupPattern = 'G'; // power daily: one entry per Date
+  }
   const endCol = table === 'ph_stoppage' ? 'end_Time' : 'end_time';
   const parts = [];
   const vals = [];
