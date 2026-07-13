@@ -5,6 +5,7 @@ export const HUB_FORM_PATH = {
   digilog_hub_mill_equipment: '/equipment',
   digilog_hub_power_equipment: '/power',
   digilog_hub_power_equipment_new: '/power-plant-equipment-new',
+  digilog_hub_sugar_equipment_new: '/sugar-house-equipment-new',
 };
 
 export function hubNavState(formKey, { appId, returnTo } = {}) {

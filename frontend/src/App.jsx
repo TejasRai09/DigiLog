@@ -49,6 +49,7 @@ import PowerLanding              from './pages/power/PowerLanding';
 import PowerList                 from './pages/power/PowerList';
 import PowerEquipmentDetail      from './pages/power/PowerEquipmentDetail';
 import PowerPlantEquipmentNew    from './pages/power/PowerPlantEquipmentNew';
+import SugarHouseEquipmentNew    from './pages/sugar/SugarHouseEquipmentNew';
 
 // EHS Forms
 import EhsLanding   from './pages/ehs/EhsLanding';
@@ -124,6 +125,10 @@ const App = () => {
           <Route path="/power/:dept/:id"            element={<PowerEquipmentDetail />} />
           <Route path="/power-plant-equipment-new"      element={<PowerPlantEquipmentNew />} />
           <Route path="/power-plant-equipment-new/:id/:discipline?"  element={<PowerEquipmentDetail />} />
+
+          {/* Sugar House Equipment History */}
+          <Route path="/sugar-house-equipment-new"      element={<SugarHouseEquipmentNew />} />
+          <Route path="/sugar-house-equipment-new/:id/:discipline?"  element={<PowerEquipmentDetail />} />
 
           {/* EHS Forms */}
           <Route path="/ehs"                       element={<EhsLanding />} />

@@ -15,6 +15,7 @@
     "db:add-mill-house-equipment": "node scripts/add-mill-house-equipment.js",
     "db:import-power-xlsx": "node scripts/import-power-equipment-xlsx.js",
     "db:seed-ppn-hierarchy": "node scripts/seed-ppn-hierarchy.js",
+    "db:import-sugar-house-hierarchy": "node scripts/import-sugar-house-hierarchy.js",
     "db:map-employee-departments": "node scripts/map-employee-departments-to-categories.js",
     "db:import-purchy-grower": "node scripts/import-purchy-grower-excel.js",
     "db:validate-purchy-measures": "node scripts/validate-purchy-measures.js",

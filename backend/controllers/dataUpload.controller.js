@@ -6,6 +6,15 @@ const {
   unlinkStoredFile,
 } = require('../utils/dataUploadFile');
 const { syncIfMillMappingFile } = require('../utils/millMappingSync');
+const {
+  schedulePurchyImportBySlot,
+  getPurchyImportJob,
+} = require('../utils/purchyUploadSync');
+const {
+  PURCHY_SLOTS,
+  purchySlotFromCategory,
+  isPurchyCategory,
+} = require('../utils/purchyUploadSlots');
 const { sendServerError, MSG, logServerError } = require('../utils/httpError');
 
 async function hasDataUploadAccess(user) {
@@ -23,6 +32,7 @@ function mapFileRow(r) {
     id: r.id,
     userId: r.user_id,
     category: r.category,
+    purchySlot: purchySlotFromCategory(r.category),
     originalFilename: r.original_filename,
     storedFilename: r.stored_filename,
     mimeType: r.mime_type,
@@ -31,6 +41,18 @@ function mapFileRow(r) {
     uploadedByName: r.u_name,
     uploadedByEmail: r.u_email,
   };
+}
+
+async function replacePurchySlotRecords(category) {
+  const [rows] = await pool.query(
+    'SELECT id, stored_filename FROM data_upload_files WHERE category = ?',
+    [category],
+  );
+  for (const row of rows) {
+    await pool.query('DELETE FROM data_upload_files WHERE id = ?', [row.id]);
+    unlinkStoredFile(row.stored_filename);
+  }
+  return rows.length;
 }
 
 function validateCategory(category) {
@@ -85,6 +107,13 @@ async function uploadFile(req, res) {
 
   const storedFilename = req.file.filename;
   const originalFilename = path.basename(req.file.originalname || 'upload');
+
+  if (isPurchyCategory(parsed.value)) {
+    unlinkStoredFile(storedFilename);
+    return res.status(400).json({
+      message: 'Use the Purchy Analysis section to upload grower or staff files.',
+    });
+  }
 
   try {
     const [result] = await pool.query(
@@ -232,14 +261,122 @@ async function upsertAdminDataUploadAccess(req, res) {
   }
 }
 
+/** GET /api/data-upload/purchy-slots */
+async function getPurchySlots(req, res) {
+  try {
+    const categories = Object.values(PURCHY_SLOTS).map((s) => s.category);
+    const [rows] = await pool.query(
+      `SELECT f.*, u.name AS u_name, u.email AS u_email
+       FROM data_upload_files f
+       JOIN users u ON u.id = f.user_id
+       WHERE f.category IN (?)
+       ORDER BY f.created_at DESC`,
+      [categories],
+    );
+
+    const slots = { grower: null, staff: null };
+    for (const row of rows) {
+      const mapped = mapFileRow(row);
+      const slot = mapped.purchySlot;
+      if (slot && !slots[slot]) slots[slot] = mapped;
+    }
+
+    res.json({
+      slots,
+      meta: Object.values(PURCHY_SLOTS).map(({ slot, label, hint, category }) => ({
+        slot, label, hint, category,
+      })),
+    });
+  } catch (err) {
+    sendServerError(res, 'getPurchySlots', err, MSG.LOAD);
+  }
+}
+
+/** POST /api/data-upload/purchy — multipart: slot (grower|staff), file */
+async function uploadPurchySlot(req, res) {
+  const slot = String(req.body?.slot || '').trim().toLowerCase();
+  const meta = PURCHY_SLOTS[slot];
+  if (!meta) {
+    return res.status(400).json({ message: 'slot must be "grower" or "staff".' });
+  }
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
+
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  if (ext !== '.xlsx' && ext !== '.xls') {
+    unlinkStoredFile(req.file.filename);
+    return res.status(400).json({ message: 'Purchy files must be Excel (.xlsx or .xls).' });
+  }
+
+  const storedFilename = req.file.filename;
+  const originalFilename = path.basename(req.file.originalname || 'upload');
+
+  try {
+    const replaced = await replacePurchySlotRecords(meta.category);
+
+    const [result] = await pool.query(
+      `INSERT INTO data_upload_files
+        (user_id, category, original_filename, stored_filename, mime_type, file_size_bytes)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.id,
+        meta.category,
+        originalFilename,
+        storedFilename,
+        req.file.mimetype || null,
+        req.file.size || 0,
+      ],
+    );
+
+    const [[row]] = await pool.query(
+      `SELECT f.*, u.name AS u_name, u.email AS u_email
+       FROM data_upload_files f
+       JOIN users u ON u.id = f.user_id
+       WHERE f.id = ?`,
+      [result.insertId],
+    );
+
+    const abs = absolutePathForStored(storedFilename);
+    const purchyImport = schedulePurchyImportBySlot(slot, abs, originalFilename);
+
+    res.status(201).json({
+      file: mapFileRow(row),
+      replaced,
+      purchyImport,
+      message: replaced
+        ? `Replaced previous ${meta.label} file and started re-import.`
+        : `Uploaded ${meta.label} and started import.`,
+    });
+  } catch (err) {
+    unlinkStoredFile(storedFilename);
+    sendServerError(res, 'uploadPurchySlot', err, MSG.UPLOAD);
+  }
+}
+
+/** GET /api/data-upload/purchy-import/:jobId */
+async function getPurchyImportStatus(req, res) {
+  const { jobId } = req.params;
+  if (!jobId) return res.status(400).json({ message: 'jobId is required.' });
+
+  try {
+    const job = getPurchyImportJob(jobId);
+    if (!job) return res.status(404).json({ message: 'Import job not found.' });
+    res.json(job);
+  } catch (err) {
+    sendServerError(res, 'getPurchyImportStatus', err, MSG.LOAD);
+  }
+}
+
 module.exports = {
   hasDataUploadAccess,
   getMyAccess,
   requireDataUploadAccess,
   listFiles,
   uploadFile,
+  getPurchySlots,
+  uploadPurchySlot,
   downloadFile,
   deleteFile,
+  getPurchyImportStatus,
   getAdminDataUploadAccess,
   upsertAdminDataUploadAccess,
 };

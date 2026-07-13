@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../Spinner';
 import EngineeringDisciplineCards from './EngineeringDisciplineCards';
-import { useHierarchyManage } from './HierarchyManagePanel';
+import { useHierarchyManage, hierarchyAddAction } from './HierarchyManagePanel';
 import {
   disciplineNodesForEquipment,
   ENGINEERING_DISCIPLINES,
@@ -267,6 +267,9 @@ export default function PowerPlantHierarchyExplorer({
   appId = null,
   returnTo = '/power-plant-equipment-new',
   apiBase = '/power-new',
+  equipIdField = 'ppnEquipId',
+  detailPathFn = powerNewDetailPath,
+  getAddAction = hierarchyAddAction,
   pathIds = [],
   activeEquipmentId = null,
   onNavigationChange = null,
@@ -299,6 +302,8 @@ export default function PowerPlantHierarchyExplorer({
     activeEquipment,
     onReload: onReloadTree,
     isDbTree,
+    apiBase,
+    getAddAction,
   });
 
   const updateNavigation = (nextPathIds, nextActiveEquipmentId = null) => {
@@ -323,7 +328,7 @@ export default function PowerPlantHierarchyExplorer({
     ...(specSection ? { specSection } : {}),
   });
 
-  const equipmentDetailPath = (equipId, specSection = null) => powerNewDetailPath(equipId, specSection);
+  const equipmentDetailPath = (equipId, specSection = null) => detailPathFn(equipId, specSection);
 
   const openDraftEquipment = (node, specSection = null) => {
     if (!tree) return;
@@ -351,8 +356,9 @@ export default function PowerPlantHierarchyExplorer({
     const lookupName = node.lookupName || node.name;
     const openingKey = specSection ? `${node.id}--${specSection}` : node.id;
 
-    if (node.ppnEquipId) {
-      navigate(equipmentDetailPath(node.ppnEquipId, specSection), {
+    const linkedEquipId = node[equipIdField];
+    if (linkedEquipId) {
+      navigate(equipmentDetailPath(linkedEquipId, specSection), {
         state: buildNavState(node, specSection),
       });
       return;

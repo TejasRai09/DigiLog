@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
-import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail } from '../../utils/breadcrumbTrail';
+import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail, buildSugarHouseEquipmentNewTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
 import EquipmentSpecificationHub from '../../components/equipment/EquipmentSpecificationHub';
@@ -16,9 +16,11 @@ import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equ
 import { POWER_LIFE_HISTORY_FIELDS, powerEquipmentDisplayId, isZilEquipNo } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
 import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
+import useSugarHouseHierarchy from '../../hooks/useSugarHouseHierarchy';
 import { hierarchyBreadcrumbLabels } from '../../utils/hierarchyTreeUtils';
 import {
   powerNewDetailPath,
+  sugarNewDetailPath,
   resolveDisciplineSection,
 } from '../../utils/resolveDisciplineSection';
 
@@ -28,15 +30,18 @@ const PowerEquipmentDetail = () => {
   const { id, dept, discipline: disciplineParam } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const isNewHub = location.pathname.startsWith('/power-plant-equipment-new');
-  const apiBase = isNewHub ? '/power-new' : '/power';
-  const defaultDept = isNewHub ? 'plant' : 'electrical';
+  const isPowerNewHub = location.pathname.startsWith('/power-plant-equipment-new');
+  const isSugarNewHub = location.pathname.startsWith('/sugar-house-equipment-new');
+  const isNewHub = isPowerNewHub || isSugarNewHub;
+  const apiBase = isSugarNewHub ? '/sugar-new' : (isPowerNewHub ? '/power-new' : '/power');
+  const defaultDept = isSugarNewHub ? 'sugar_house' : (isPowerNewHub ? 'plant' : 'electrical');
   const appId = location.state?.appId;
   const fromHierarchy = Boolean(location.state?.fromHierarchy);
   const showNewHubTrail = fromHierarchy || isNewHub;
   const draftEquipment = location.state?.draftEquipment;
-  const returnTo = location.state?.returnTo || '/power-plant-equipment-new';
+  const returnTo = location.state?.returnTo || (isSugarNewHub ? '/sugar-house-equipment-new' : '/power-plant-equipment-new');
   const hierarchyPathIds = location.state?.hierarchyPathIds;
+  const detailPathFn = isSugarNewHub ? sugarNewDetailPath : powerNewDetailPath;
   const specSection = useMemo(
     () => resolveDisciplineSection({
       disciplineParam,
@@ -49,7 +54,9 @@ const PowerEquipmentDetail = () => {
   const disciplineMeta = specSection ? findDiscipline(specSection) : null;
   const disciplineSpecFocus = isNewHub && Boolean(specSection && disciplineMeta);
   const appName = useAppName(appId);
-  const { tree: hierarchyTree } = usePowerPlantHierarchy();
+  const { tree: powerHierarchyTree } = usePowerPlantHierarchy();
+  const { tree: sugarHierarchyTree } = useSugarHouseHierarchy();
+  const hierarchyTree = isSugarNewHub ? sugarHierarchyTree : powerHierarchyTree;
   const isNewDraft = id === 'new';
 
   const [eq,        setEq]        = useState(null);
@@ -70,8 +77,8 @@ const PowerEquipmentDetail = () => {
   useEffect(() => {
     if (!isNewHub || !id || id === 'new' || !specSection) return;
     if (disciplineParam === specSection) return;
-    navigate(powerNewDetailPath(id, specSection), { replace: true, state: location.state });
-  }, [isNewHub, id, specSection, disciplineParam, navigate, location.state]);
+    navigate(detailPathFn(id, specSection), { replace: true, state: location.state });
+  }, [isNewHub, id, specSection, disciplineParam, navigate, location.state, detailPathFn]);
 
   const resolveEquipmentId = useCallback(async () => {
     if (equipIdRef.current !== 'new') return equipIdRef.current;
@@ -92,7 +99,7 @@ const PowerEquipmentDetail = () => {
         equipIdRef.current = newId;
         setEq(created);
         const detailPath = isNewHub
-          ? powerNewDetailPath(newId, specSection)
+          ? detailPathFn(newId, specSection)
           : `/power/${created.dept}/${newId}`;
         navigate(detailPath, {
           replace: true,
@@ -109,7 +116,7 @@ const PowerEquipmentDetail = () => {
       })();
     }
     return createPromiseRef.current;
-  }, [draftEquipment, eq?.name, eq?.equip_no, dept, navigate, appId, returnTo, fromHierarchy, hierarchyPathIds, specSection, restoreEquipmentId, apiBase, defaultDept, isNewHub]);
+  }, [draftEquipment, eq?.name, eq?.equip_no, dept, navigate, appId, returnTo, fromHierarchy, hierarchyPathIds, specSection, restoreEquipmentId, apiBase, defaultDept, isNewHub, detailPathFn]);
 
   const [open, setOpen] = useState({ spec: false, oem: false, hist: false });
   const toggle = (s) => setOpen(o => ({ ...o, [s]: !o[s] }));
@@ -344,7 +351,11 @@ const PowerEquipmentDetail = () => {
       hierarchyPathIds,
     );
 
-    return buildPowerPlantEquipmentNewTrail({
+    const buildTrail = isSugarNewHub
+      ? buildSugarHouseEquipmentNewTrail
+      : buildPowerPlantEquipmentNewTrail;
+
+    return buildTrail({
       appId,
       appName,
       hierarchyLabels: labels,
@@ -364,6 +375,7 @@ const PowerEquipmentDetail = () => {
     disciplineMeta,
     disciplineSpecFocus,
     hierarchyTree,
+    isSugarNewHub,
   ]);
 
   const equipmentDefaults = useMemo(() => ({
