@@ -9,6 +9,7 @@ const {
   findNodeById,
   resolveShnEquipIdForNode,
   findSiblingNameConflict,
+  findGlobalSubEquipmentNameConflict,
 } = require('../utils/shnHierarchyLib');
 
 const getTree = async (req, res) => {
@@ -63,6 +64,16 @@ const createNode = async (req, res) => {
       return res.status(409).json({ message: `"${name}" already exists at this level.` });
     }
 
+    const subEquipmentName = node_type === 'equipment' ? (lookup_name || name) : null;
+    if (node_type === 'equipment') {
+      const globalConflict = await findGlobalSubEquipmentNameConflict(subEquipmentName);
+      if (globalConflict) {
+        return res.status(409).json({
+          message: `Sub equipment name "${subEquipmentName}" already exists in another section.`,
+        });
+      }
+    }
+
     const [[{ maxSort }]] = await pool.execute(
       `SELECT COALESCE(MAX(sort_order), -1) AS maxSort FROM shn_hierarchy_node
        WHERE ${parent_id ? 'parent_id = ?' : 'parent_id IS NULL'}`,
@@ -74,10 +85,11 @@ const createNode = async (req, res) => {
       : (maxSort ?? -1) + 1;
 
     let shn_equip_id = null;
+    const resolvedLookupName = node_type === 'equipment' ? (lookup_name || name) : lookup_name;
     if (node_type === 'equipment') {
       shn_equip_id = await resolveShnEquipIdForNode({
         equipNo: equip_no,
-        lookupName: lookup_name || name,
+        lookupName: resolvedLookupName,
         name,
       });
     }
@@ -86,7 +98,7 @@ const createNode = async (req, res) => {
       `INSERT INTO shn_hierarchy_node
          (parent_id, node_type, name, equip_no, lookup_name, shn_equip_id, sort_order)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [parent_id, node_type, name, equip_no, lookup_name, shn_equip_id, sort_order],
+      [parent_id, node_type, name, equip_no, resolvedLookupName, shn_equip_id, sort_order],
     );
 
     const created = await getNodeById(result.insertId);
@@ -107,6 +119,9 @@ const updateNode = async (req, res) => {
 
     const existing = await getNodeById(id);
     if (!existing) return res.status(404).json({ message: 'Node not found.' });
+    if (existing.isImported) {
+      return res.status(403).json({ message: 'Imported hierarchy items cannot be edited.' });
+    }
 
     const name = req.body.name != null ? String(req.body.name).trim() : existing.name;
     const equip_no = req.body.equip_no != null || req.body.equipNo != null
@@ -122,6 +137,16 @@ const updateNode = async (req, res) => {
     const nameConflict = await findSiblingNameConflict(parentId, name, id);
     if (nameConflict) {
       return res.status(409).json({ message: `"${name}" already exists at this level.` });
+    }
+
+    if (existing.nodeType === 'equipment') {
+      const subEquipmentName = lookup_name || name;
+      const globalConflict = await findGlobalSubEquipmentNameConflict(subEquipmentName, id);
+      if (globalConflict) {
+        return res.status(409).json({
+          message: `Sub equipment name "${subEquipmentName}" already exists in another section.`,
+        });
+      }
     }
 
     const sort_order = req.body.sort_order != null
@@ -156,6 +181,12 @@ const deleteNode = async (req, res) => {
   try {
     const id = parseInt(req.params.nodeId, 10);
     if (!id) return res.status(400).json({ message: 'Invalid node id.' });
+
+    const existing = await getNodeById(id);
+    if (!existing) return res.status(404).json({ message: 'Node not found.' });
+    if (existing.isImported) {
+      return res.status(403).json({ message: 'Imported hierarchy items cannot be deleted.' });
+    }
 
     const [[rootRow]] = await pool.execute(
       'SELECT id FROM shn_hierarchy_node WHERE parent_id IS NULL AND is_active = 1 ORDER BY id LIMIT 1',

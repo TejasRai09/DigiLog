@@ -2,17 +2,18 @@
  * Import Sugar House equipment hierarchy from Excel into shn_hierarchy_node.
  *
  * Hierarchy: Sugar Plant → Section → Location → Main Equipment → Sub Equipment (leaf)
+ * One leaf per Excel row.
+ * Unique key (import): Sub + Tag + Inst. History Location (518 rows).
+ * Unique no. (UI):    same composite — Sub · Tag · Hist Location.
  *
  * Usage (from backend/):
  *   npm run db:import-sugar-house-hierarchy
  *   npm run db:import-sugar-house-hierarchy -- --force
  *   node scripts/import-sugar-house-hierarchy.js --file "backlog-data/mill data/sugar house hierarchy.xlsx"
  *
- * Production:
- *   1. npm run db:apply-sql -- ../mysql/migrate_add_sugar_house_equipment_new_tables.sql
- *   2. npm run db:apply-sql -- ../mysql/migrate_shn_hierarchy.sql
- *   3. npm run db:apply-sql -- ../mysql/migrate_sugar_house_equipment_new_hub.sql
- *   4. npm run db:import-sugar-house-hierarchy
+ * Re-create tree (production):
+ *   cd backend
+ *   npm run db:import-sugar-house-hierarchy -- --force
  */
 require('../config/env');
 const path = require('path');
@@ -34,12 +35,20 @@ function subEquipmentColumn(row) {
   return trim(row[' Sub Equipment'] || row['Sub Equipment'] || row.sub_equipment);
 }
 
-function hierarchyKey(row) {
+function tagNoColumn(row) {
+  return trim(row['Inst. History card Tag nas.'] || row['Inst. History card Tag no.']);
+}
+
+function histLocationColumn(row) {
+  return trim(row['Inst. History card Location']);
+}
+
+/** Unique per Excel row — Sub + Tag + Inst. History Location. */
+function rowUniqueKey(row) {
   return [
-    trim(row.Section),
-    trim(row.Location),
-    trim(row['Main Equipment']),
     subEquipmentColumn(row),
+    tagNoColumn(row),
+    histLocationColumn(row),
   ].join('\0');
 }
 
@@ -59,22 +68,53 @@ function loadRows(xlsxPath) {
   const wb = XLSX.readFile(xlsxPath);
   const sheetName = wb.SheetNames[0];
   if (!sheetName) throw new Error('Workbook has no sheets.');
-  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
-  if (!rows.length) throw new Error('Sheet is empty.');
+  const sheetRows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+  if (!sheetRows.length) throw new Error('Sheet is empty.');
 
   const unique = new Map();
-  for (const row of rows) {
+  let skipped = 0;
+
+  for (const row of sheetRows) {
     const section = trim(row.Section);
     const location = trim(row.Location);
     const mainEquipment = trim(row['Main Equipment']);
     const subEquipment = subEquipmentColumn(row);
-    if (!section || !location || !mainEquipment || !subEquipment) continue;
-    const key = hierarchyKey(row);
+    const equipNo = tagNoColumn(row);
+    const histLocation = histLocationColumn(row);
+
+    if (!section || !location || !mainEquipment || !subEquipment || !equipNo || !histLocation) {
+      skipped += 1;
+      continue;
+    }
+
+    const key = rowUniqueKey(row);
     if (!unique.has(key)) {
-      unique.set(key, { section, location, mainEquipment, subEquipment });
+      unique.set(key, {
+        section,
+        location,
+        mainEquipment,
+        subEquipment,
+        equipNo,
+        histLocation,
+      });
     }
   }
+
+  if (skipped) {
+    console.log(`Skipped ${skipped} row(s) missing Section/Location/Main/Sub/Tag/HistLocation.`);
+  }
+
   return [...unique.values()];
+}
+
+function leafLabelKey(subEquipment, histLocation) {
+  return `${subEquipment}\0${histLocation}`;
+}
+
+function leafDisplayName(subEquipment, histLocation, equipNo, duplicateLabel) {
+  const base = `${subEquipment} · ${histLocation}`;
+  if (duplicateLabel) return `${base} · ${equipNo}`;
+  return base;
 }
 
 function buildTree(rows) {
@@ -82,10 +122,27 @@ function buildTree(rows) {
   const sectionMap = new Map();
   const locationMap = new Map();
   const mainEquipMap = new Map();
+  const mainLeavesMap = new Map();
+
+  for (const row of rows) {
+    const mainKey = [row.section, row.location, row.mainEquipment].join('\0');
+    if (!mainLeavesMap.has(mainKey)) mainLeavesMap.set(mainKey, []);
+    mainLeavesMap.get(mainKey).push(row);
+  }
+
+  const labelCountsByMain = new Map();
+  for (const [mainKey, leaves] of mainLeavesMap) {
+    const counts = new Map();
+    for (const row of leaves) {
+      const labelKey = leafLabelKey(row.subEquipment, row.histLocation);
+      counts.set(labelKey, (counts.get(labelKey) || 0) + 1);
+    }
+    labelCountsByMain.set(mainKey, counts);
+  }
 
   const sorted = [...rows].sort((a, b) => {
-    const ka = [a.section, a.location, a.mainEquipment, a.subEquipment].join('\0');
-    const kb = [b.section, b.location, b.mainEquipment, b.subEquipment].join('\0');
+    const ka = [a.section, a.location, a.mainEquipment, a.subEquipment, a.equipNo].join('\0');
+    const kb = [b.section, b.location, b.mainEquipment, b.subEquipment, b.equipNo].join('\0');
     return ka.localeCompare(kb);
   });
 
@@ -113,20 +170,40 @@ function buildTree(rows) {
       locationNode.children.push(mainNode);
     }
 
-    mainNode.children.push({ name: row.subEquipment, children: [] });
+    const mainIdentityKey = [row.section, row.location, row.mainEquipment].join('\0');
+    const labelKey = leafLabelKey(row.subEquipment, row.histLocation);
+    const duplicateLabel = (labelCountsByMain.get(mainIdentityKey)?.get(labelKey) || 0) > 1;
+
+    mainNode.children.push({
+      name: leafDisplayName(row.subEquipment, row.histLocation, row.equipNo, duplicateLabel),
+      lookupName: row.subEquipment,
+      equipNo: row.equipNo,
+      histLocation: row.histLocation,
+      children: [],
+    });
   }
 
   return root;
 }
 
 async function resolveShnEquipId(conn, node) {
-  const lookupName = trim(node.name);
-  if (!lookupName) return null;
-  const [rows] = await conn.execute(
-    'SELECT id FROM shn_equipment WHERE name = ? LIMIT 1',
-    [lookupName],
-  );
-  return rows[0]?.id ?? null;
+  const equipNo = trim(node.equipNo);
+  const lookupName = trim(node.lookupName || node.name);
+  if (equipNo) {
+    const [rows] = await conn.execute(
+      'SELECT id FROM shn_equipment WHERE equip_no = ? OR tag_name = ? LIMIT 1',
+      [equipNo, equipNo],
+    );
+    if (rows[0]) return rows[0].id;
+  }
+  if (lookupName) {
+    const [rows] = await conn.execute(
+      'SELECT id FROM shn_equipment WHERE name = ? LIMIT 1',
+      [lookupName],
+    );
+    if (rows[0]) return rows[0].id;
+  }
+  return null;
 }
 
 async function insertNode(conn, parentId, node, sortOrder) {
@@ -139,16 +216,18 @@ async function insertNode(conn, parentId, node, sortOrder) {
 
   const [result] = await conn.execute(
     `INSERT INTO shn_hierarchy_node
-       (parent_id, node_type, name, equip_no, lookup_name, shn_equip_id, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (parent_id, node_type, name, equip_no, lookup_name, hist_location, shn_equip_id, sort_order, is_imported)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       parentId,
       nodeType,
       node.name,
-      null,
-      nodeType === 'equipment' ? node.name : null,
+      nodeType === 'equipment' ? (node.equipNo || null) : null,
+      nodeType === 'equipment' ? (node.lookupName || node.name) : null,
+      nodeType === 'equipment' ? (node.histLocation || null) : null,
       shnEquipId,
       sortOrder,
+      1,
     ],
   );
 
@@ -162,6 +241,13 @@ async function insertNode(conn, parentId, node, sortOrder) {
 async function countNodes(conn) {
   const [[{ count }]] = await conn.execute(
     'SELECT COUNT(*) AS count FROM shn_hierarchy_node WHERE is_active = 1',
+  );
+  return count;
+}
+
+async function countLeaves(conn) {
+  const [[{ count }]] = await conn.execute(
+    "SELECT COUNT(*) AS count FROM shn_hierarchy_node WHERE node_type = 'equipment' AND is_active = 1",
   );
   return count;
 }
@@ -190,12 +276,14 @@ async function main() {
     }
 
     const tree = buildTree(rows);
-    console.log(`Loaded ${rows.length} unique sub-equipment row(s) from ${path.basename(file)}`);
+    console.log(`Loaded ${rows.length} sub-equipment row(s) from ${path.basename(file)}`);
     console.log(`Sections: ${tree.children.length}`);
 
     await conn.beginTransaction();
     if (force) {
+      await conn.execute('SET FOREIGN_KEY_CHECKS = 0');
       await conn.execute('DELETE FROM shn_hierarchy_node');
+      await conn.execute('SET FOREIGN_KEY_CHECKS = 1');
       console.log('Cleared shn_hierarchy_node.');
     }
 
@@ -203,7 +291,8 @@ async function main() {
     await conn.commit();
 
     const finalCount = await countNodes(conn);
-    console.log(`Imported ${finalCount} hierarchy node(s) into shn_hierarchy_node.`);
+    const leafCount = await countLeaves(conn);
+    console.log(`Imported ${finalCount} hierarchy node(s) (${leafCount} sub-equipment leaves).`);
   } catch (err) {
     await conn.rollback();
     console.error('Import failed:', err.message);

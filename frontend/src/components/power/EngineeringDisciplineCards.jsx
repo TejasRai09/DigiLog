@@ -1,6 +1,5 @@
 import { MdBolt, MdChevronLeft } from 'react-icons/md';
 import { ENGINEERING_DISCIPLINES } from '../../config/engineeringDisciplines';
-
 function DisciplineCard({ discipline, onOpen, opening }) {
   const isOpening = opening === discipline.id;
 
@@ -30,8 +29,7 @@ export default function EngineeringDisciplineCards({
   return (
     <div>
       <div className="flex items-center justify-between gap-3 mb-4">
-        <h3 className="text-lg font-bold text-gray-900">{equipmentNode.name}</h3>
-        {onBack && (
+        <h3 className="text-lg font-bold text-gray-900">{equipmentNode.name}</h3>        {onBack && (
           <button
             type="button"
             onClick={onBack}

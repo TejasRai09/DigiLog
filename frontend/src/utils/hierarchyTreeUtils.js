@@ -73,6 +73,45 @@ export function isHierarchyEquipment(node) {
   return Boolean(node.isLeaf && !node.children?.length);
 }
 
+/** Excel-imported sugar house node — read-only in manage UI. */
+export function isImportedHierarchyNode(node) {
+  return Boolean(node?.isImported);
+}
+
+/** Whether edit/delete should be disabled for a hierarchy node. */
+export function isHierarchyNodeLocked(tree, node, apiBase = '/power-new') {
+  if (!node) return true;
+  if (apiBase === '/sugar-new') return isImportedHierarchyNode(node);
+  return Boolean(tree && isProtectedSeededNode(tree, node.id));
+}
+
+/** Sub equipment leaf name used for global uniqueness (lookup_name or name). */
+export function subEquipmentNameKey(node) {
+  return String(node?.lookupName || node?.name || '').trim().toLowerCase();
+}
+
+/** Find another equipment leaf with the same sub equipment name anywhere in the tree. */
+export function findGlobalSubEquipmentNameInTree(tree, name, excludeNodeId = null) {
+  const target = String(name || '').trim().toLowerCase();
+  if (!target || !tree) return null;
+
+  const walk = (node) => {
+    if (!node) return null;
+    if (isHierarchyEquipment(node)) {
+      if (subEquipmentNameKey(node) === target && String(node.id) !== String(excludeNodeId)) {
+        return node;
+      }
+    }
+    for (const child of node.children || []) {
+      const found = walk(child);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  return walk(tree);
+}
+
 /** Built-in root categories (150TPH, 70TPH, 30.85MW STG, WTP) — read-only on cards. */
 export function isProtectedRootCategory(node) {
   const name = String(node?.name || '').trim();
