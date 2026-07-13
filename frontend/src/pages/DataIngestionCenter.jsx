@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
+import PurchyImportProgressModal from '../components/PurchyImportProgressModal';
+import PurchyUploadSection from '../components/PurchyUploadSection';
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 
@@ -187,6 +189,11 @@ const ViewFileModal = ({ file, onClose }) => {
   );
 };
 
+const PURCHY_CATEGORIES = new Set([
+  'Purchy Analysis — Grower Details',
+  'Purchy Analysis — Staff Mapping',
+]);
+
 const UploadModal = ({ onClose, onUploaded }) => {
   const [category, setCategory] = useState('');
   const [file, setFile] = useState(null);
@@ -210,7 +217,7 @@ const UploadModal = ({ onClose, onUploaded }) => {
 
     setUploading(true);
     try {
-      await api.post('/data-upload', form);
+      const { data } = await api.post('/data-upload', form);
       toast.success('File uploaded.');
       onUploaded();
       onClose();
@@ -279,13 +286,16 @@ export default function DataIngestionCenter() {
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewFile, setViewFile] = useState(null);
+  const [purchyImport, setPurchyImport] = useState(null);
+  const [purchyRefresh, setPurchyRefresh] = useState(0);
   const [deletingId, setDeletingId] = useState(null);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/data-upload/files');
-      setFiles(data.files || []);
+      const all = data.files || [];
+      setFiles(all.filter((f) => !PURCHY_CATEGORIES.has(f.category) && !f.purchySlot));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load uploads.');
     } finally {
@@ -325,7 +335,7 @@ export default function DataIngestionCenter() {
         </p>
         <h1 className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">Data Ingestion Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Upload CSV or Excel files with a category name. Files are stored securely and shared with everyone who has Data Upload access.
+          Use the Purchy Analysis section for grower and staff BI workbooks. Other CSV or Excel files can be uploaded below with a category name.
         </p>
 
         <Link
@@ -336,9 +346,11 @@ export default function DataIngestionCenter() {
           Back to Modules
         </Link>
 
+        <PurchyUploadSection onImportStarted={setPurchyImport} refreshToken={purchyRefresh} />
+
         <div className="card mt-6 overflow-hidden shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-6">
-            <h2 className="text-sm font-bold text-gray-900">Uploaded files</h2>
+            <h2 className="text-sm font-bold text-gray-900">Other uploaded files</h2>
             <button type="button" onClick={() => setUploadOpen(true)} className="btn-primary">
               <MdUpload className="h-4 w-4" />
               Upload file
@@ -422,6 +434,20 @@ export default function DataIngestionCenter() {
         <UploadModal
           onClose={() => setUploadOpen(false)}
           onUploaded={fetchFiles}
+        />
+      )}
+
+      {purchyImport && (
+        <PurchyImportProgressModal
+          jobId={purchyImport.jobId}
+          filename={purchyImport.filename}
+          importType={purchyImport.type}
+          onClose={() => setPurchyImport(null)}
+          onComplete={() => {
+            toast.success('Purchy data imported. Open Purchy Analysis in Live mode.');
+            fetchFiles();
+            setPurchyRefresh((n) => n + 1);
+          }}
         />
       )}
 

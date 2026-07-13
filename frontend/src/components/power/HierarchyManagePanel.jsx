@@ -97,12 +97,69 @@ export function hierarchyAddAction(tree, pathIds, activeEquipmentId) {
   return null;
 }
 
+/** Root → section → location → main equipment → sub equipment (by navigation depth). */
+export function sugarHouseHierarchyAddAction(tree, pathIds, activeEquipmentId) {
+  if (activeEquipmentId || !tree || !pathIds?.length) return null;
+
+  const depth = pathIds.length;
+  const currentNode = findNodeByPath(tree, pathIds);
+  const parentLabel = currentNode?.name || tree.name || 'Sugar Plant';
+
+  if (depth === 1) {
+    return {
+      kind: 'section',
+      nodeType: 'group',
+      buttonLabel: 'Add Section',
+      modalTitle: 'Manage Sections',
+      slotLabel: 'Section name',
+      parentLabel,
+      parentDbId: nodeDbId(currentNode),
+    };
+  }
+  if (depth === 2) {
+    return {
+      kind: 'location',
+      nodeType: 'group',
+      buttonLabel: 'Add Location',
+      modalTitle: 'Manage Locations',
+      slotLabel: 'Location name',
+      parentLabel,
+      parentDbId: nodeDbId(currentNode),
+    };
+  }
+  if (depth === 3) {
+    return {
+      kind: 'main_equipment',
+      nodeType: 'group',
+      buttonLabel: 'Add Main Equipment',
+      modalTitle: 'Manage Main Equipment',
+      slotLabel: 'Main equipment name',
+      parentLabel,
+      parentDbId: nodeDbId(currentNode),
+    };
+  }
+  if (depth === 4) {
+    return {
+      kind: 'equipment',
+      nodeType: 'equipment',
+      buttonLabel: 'Add Sub Equipment',
+      modalTitle: 'Manage Sub Equipment',
+      slotLabel: 'Sub equipment name',
+      parentLabel,
+      parentDbId: nodeDbId(currentNode),
+    };
+  }
+  return null;
+}
+
 export function useHierarchyManage({
   tree,
   pathIds,
   activeEquipment,
   onReload,
   isDbTree = false,
+  apiBase = '/power-new',
+  getAddAction = hierarchyAddAction,
 }) {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState(null);
@@ -113,8 +170,8 @@ export function useHierarchyManage({
   const draggedSlot = useRef(null);
 
   const addAction = useMemo(
-    () => hierarchyAddAction(tree, pathIds, activeEquipment),
-    [tree, pathIds, activeEquipment],
+    () => getAddAction(tree, pathIds, activeEquipment),
+    [getAddAction, tree, pathIds, activeEquipment],
   );
 
   const openAddModal = () => {
@@ -240,13 +297,13 @@ export function useHierarchyManage({
         if (entry.dbId) {
           keptIds.add(entry.dbId);
           if (!entry.locked) {
-            await api.put(`/power-new/hierarchy/${entry.dbId}`, {
+            await api.put(`${apiBase}/hierarchy/${entry.dbId}`, {
               name: entry.name,
               sort_order: i,
             });
           }
         } else {
-          await api.post('/power-new/hierarchy', {
+          await api.post(`${apiBase}/hierarchy`, {
             parent_id: modal.parentDbId,
             node_type: modal.nodeType,
             name: entry.name,
@@ -262,7 +319,7 @@ export function useHierarchyManage({
             keptIds.add(oldId);
             continue;
           }
-          await api.delete(`/power-new/hierarchy/${oldId}`);
+          await api.delete(`${apiBase}/hierarchy/${oldId}`);
         }
       }
 
@@ -285,7 +342,7 @@ export function useHierarchyManage({
     setSaving(true);
     try {
       const nodeId = modal.node?.dbId ?? Number(modal.node.id);
-      await api.put(`/power-new/hierarchy/${nodeId}`, { name });
+      await api.put(`${apiBase}/hierarchy/${nodeId}`, { name });
       toast.success('Updated.');
       closeModal();
       await onReload?.({ silent: true });
@@ -304,7 +361,7 @@ export function useHierarchyManage({
     const nodeId = node.dbId ?? Number(node.id);
     setSaving(true);
     try {
-      await api.delete(`/power-new/hierarchy/${nodeId}`);
+      await api.delete(`${apiBase}/hierarchy/${nodeId}`);
       toast.success('Deleted.');
       await onReload?.({ silent: true });
     } catch (err) {

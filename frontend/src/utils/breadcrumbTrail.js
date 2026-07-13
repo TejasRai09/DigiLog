@@ -260,6 +260,112 @@ export function buildPowerPlantEquipmentNewTrail({
   return items;
 }
 
+export function buildSugarHouseEquipmentNewTrail({
+  appId,
+  appName,
+  hierarchyLabels = null,
+  hierarchyPathIds = null,
+  restoreEquipmentId = null,
+  disciplineLabel = null,
+} = {}) {
+  const items = [DASHBOARD_CRUMB, FORMS_HUB_CRUMB];
+  const hubPath = '/sugar-house-equipment-new';
+  const hubStateBase = {
+    appId: appId != null && appId !== '' ? String(appId) : undefined,
+  };
+  const hubLabel = (appId && appName)
+    ? appName
+    : HUB_MODULE_LABELS['/sugar-house-equipment-new'];
+
+  const hasHierarchy = Array.isArray(hierarchyLabels)
+    && hierarchyLabels.length > 0
+    && Array.isArray(hierarchyPathIds)
+    && hierarchyPathIds.length > 0;
+
+  const hubRootState = { ...hubStateBase };
+
+  if (!hasHierarchy) {
+    const hasSegmentsAfterHub = Array.isArray(hierarchyLabels) && hierarchyLabels.length > 0;
+    items.push({
+      label: hubLabel,
+      ...(hasSegmentsAfterHub ? { to: hubPath, state: hubRootState } : {}),
+    });
+
+    if (hasSegmentsAfterHub) {
+      const skipRoot = hierarchyLabels[0] === 'Sugar Plant';
+      const segmentLabels = skipRoot ? hierarchyLabels.slice(1) : hierarchyLabels;
+      segmentLabels.forEach((label, i) => {
+        const isLast = i === segmentLabels.length - 1;
+        if (isLast && disciplineLabel) {
+          items.push({ label });
+          return;
+        }
+        if (!isLast) {
+          items.push({ label });
+          return;
+        }
+        items.push({ label });
+      });
+    }
+
+    if (disciplineLabel) items.push({ label: disciplineLabel });
+    return items;
+  }
+
+  items.push({
+    label: hubLabel,
+    to: hubPath,
+    state: hubRootState,
+  });
+
+  const skipRoot = hierarchyLabels[0] === 'Sugar Plant';
+  const segmentLabels = skipRoot ? hierarchyLabels.slice(1) : hierarchyLabels;
+  const rootOffset = skipRoot ? 1 : 0;
+
+  segmentLabels.forEach((label, i) => {
+    const isLastSegment = i === segmentLabels.length - 1;
+    const pathSliceEnd = i + 1 + rootOffset;
+    const crumbPathIds = hierarchyPathIds.slice(0, pathSliceEnd);
+    const equipmentState = restoreEquipmentId
+      ? { ...hubStateBase, hierarchyPathIds, restoreEquipmentId }
+      : null;
+
+    if (isLastSegment && disciplineLabel) {
+      items.push({
+        label,
+        to: hubPath,
+        state: equipmentState,
+      });
+      return;
+    }
+
+    if (isLastSegment) {
+      items.push({ label });
+      return;
+    }
+
+    items.push({
+      label,
+      to: hubPath,
+      state: {
+        ...hubStateBase,
+        hierarchyPathIds: crumbPathIds,
+      },
+    });
+  });
+
+  if (disciplineLabel) {
+    items.push({
+      label: disciplineLabel,
+      to: hubPath,
+      linkWhenLast: true,
+      state: equipmentStateForDiscipline(hubStateBase, hierarchyPathIds, restoreEquipmentId),
+    });
+  }
+
+  return items;
+}
+
 function equipmentStateForDiscipline(hubStateBase, hierarchyPathIds, restoreEquipmentId) {
   return {
     ...hubStateBase,
