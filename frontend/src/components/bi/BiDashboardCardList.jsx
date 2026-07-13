@@ -6,6 +6,7 @@ import { withoutGsmaLabel } from '../../utils/displayLabels';
 const DIVISION_BY_FORM_KEY = {
   bi_distillery_operations: 'Distillery Div',
   bi_milling_operations: 'Milling Div',
+  bi_purchy_analysis: 'Purchy',
 };
 
 function divisionLabel(form) {

@@ -86,6 +86,63 @@ function formatMySQLDateTime(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
+function normalizeRecordTimestamp(val) {
+  if (val == null) return null;
+  if (val instanceof Date) return formatMySQLDateTime(val);
+  const s = String(val);
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})/);
+  if (iso) return `${iso[1]} ${iso[2]}`;
+  return s.length >= 19 ? s.slice(0, 19) : s;
+}
+
+function decodeRecordKey(encoded) {
+  return normalizeRecordTimestamp(decodeURIComponent(encoded));
+}
+
+function requireAdmin(req, res) {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ message: 'Access denied: admin only.' });
+    return false;
+  }
+  return true;
+}
+
+const RECORD_SYSTEM_COLS = new Set(['timestamp', 'timestamp_col']);
+
+async function fetchRecordByKey(config, recordKey) {
+  const ts = decodeRecordKey(recordKey);
+  if (!ts) return null;
+  const [[row]] = await pool.query(
+    `SELECT * FROM \`${config.table}\` WHERE \`${config.tsCol}\` = ? LIMIT 1`,
+    [ts],
+  );
+  return row || null;
+}
+
+function buildAdminUpdatePayload(formKey, config, body) {
+  const payload = sanitisePayload(body);
+  for (const k of RECORD_SYSTEM_COLS) delete payload[k];
+  delete payload[config.tsCol];
+
+  const hasMeta = ['date', 'shift', 'time', 'startTime', 'endTime', 'samplingTime']
+    .some((k) => Object.prototype.hasOwnProperty.call(body, k));
+  if (hasMeta) {
+    injectDateCols(payload, config.pattern, body, { autoTime: false });
+  }
+
+  const skipGenerated = GENERATED_INSERT_EXCLUDE[formKey];
+  if (skipGenerated) {
+    for (const k of skipGenerated) delete payload[k];
+  }
+
+  if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(payload, 'end_time')) {
+    payload.end_Time = payload.end_time;
+    delete payload.end_time;
+  }
+
+  return payload;
+}
+
 // ─── Inject date/time columns by pattern ─────────────────────
 const injectDateCols = (payload, pattern, body, { autoTime = false } = {}) => {
   switch (pattern) {
@@ -311,7 +368,11 @@ const DUPLICATE_OPERATION_MSG =
  * True if another row exists with the same operational key for this table/pattern.
  * Uses NULL-safe <=> so null keys match only other nulls.
  */
-async function hasDuplicateOperationRow(pool, table, pattern, payload, { autoTime = false } = {}) {
+async function hasDuplicateOperationRow(pool, table, pattern, payload, {
+  autoTime = false,
+  tsCol = null,
+  excludeRecordKey = null,
+} = {}) {
   let dupPattern = pattern;
   if (autoTime) {
     if (pattern === 'A') dupPattern = 'D'; // mill logbooks: one entry per Date + Shift
@@ -357,10 +418,15 @@ async function hasDuplicateOperationRow(pool, table, pattern, payload, { autoTim
       return false;
   }
 
-  const [rows] = await pool.query(
-    `SELECT 1 AS x FROM \`${table}\` WHERE ${parts.join(' AND ')} LIMIT 1`,
-    vals
-  );
+  let sql = `SELECT 1 AS x FROM \`${table}\` WHERE ${parts.join(' AND ')}`;
+  const params = [...vals];
+  if (excludeRecordKey != null && tsCol) {
+    sql += ` AND NOT (\`${tsCol}\` <=> ?)`;
+    params.push(decodeRecordKey(excludeRecordKey));
+  }
+  sql += ' LIMIT 1';
+
+  const [rows] = await pool.query(sql, params);
   return rows.length > 0;
 }
 
@@ -477,7 +543,7 @@ const getRecords = async (req, res) => {
        ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC
        LIMIT ${limit} OFFSET ${offset}`
     );
-    res.json({ total, page, limit, records: rows });
+    res.json({ total, page, limit, tsCol: config.tsCol, records: rows });
   } catch (err) {
     sendServerError(res, 'Form records error:', err, MSG.LOAD);
   }
@@ -516,4 +582,100 @@ const submitBatch = async (req, res) => {
   }
 };
 
-module.exports = { submitForm, submitBatch, getRecords, getFormMeta, canAccessForm };
+// ─── GET /api/forms/:formKey/records/:recordKey (admin) ───────
+const getRecord = async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { formKey, recordKey } = req.params;
+  const config = FORM_CONFIG[formKey];
+  if (!config) return res.status(400).json({ message: 'Unknown form.' });
+
+  try {
+    const record = await fetchRecordByKey(config, recordKey);
+    if (!record) return res.status(404).json({ message: 'Record not found.' });
+    res.json({ record, tsCol: config.tsCol });
+  } catch (err) {
+    sendServerError(res, 'getRecord', err, MSG.LOAD);
+  }
+};
+
+// ─── PUT /api/forms/:formKey/records/:recordKey (admin) ───────
+const updateRecord = async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { formKey, recordKey } = req.params;
+  const config = FORM_CONFIG[formKey];
+  if (!config) return res.status(400).json({ message: 'Unknown form.' });
+
+  try {
+    const existing = await fetchRecordByKey(config, recordKey);
+    if (!existing) return res.status(404).json({ message: 'Record not found.' });
+
+    const payload = buildAdminUpdatePayload(formKey, config, req.body);
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({ message: 'No fields to update.' });
+    }
+
+    const fieldCheck = validateFormPayload(formKey, payload);
+    if (!fieldCheck.ok) {
+      return res.status(400).json({ message: fieldCheck.message });
+    }
+
+    const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
+      autoTime: config.autoTime,
+      tsCol: config.tsCol,
+      excludeRecordKey: recordKey,
+    });
+    if (dup) {
+      return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
+    }
+
+    const setParts = Object.keys(payload).map((c) => `\`${c}\` = ?`);
+    const values = [...Object.values(payload), decodeRecordKey(recordKey)];
+    await pool.execute(
+      `UPDATE \`${config.table}\` SET ${setParts.join(', ')} WHERE \`${config.tsCol}\` = ?`,
+      values,
+    );
+
+    res.json({ message: 'Record updated successfully.' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
+    }
+    sendServerError(res, 'updateRecord', err, MSG.SAVE);
+  }
+};
+
+// ─── DELETE /api/forms/:formKey/records/:recordKey (admin) ────
+const deleteRecord = async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+
+  const { formKey, recordKey } = req.params;
+  const config = FORM_CONFIG[formKey];
+  if (!config) return res.status(400).json({ message: 'Unknown form.' });
+
+  try {
+    const ts = decodeRecordKey(recordKey);
+    const [result] = await pool.execute(
+      `DELETE FROM \`${config.table}\` WHERE \`${config.tsCol}\` = ? LIMIT 1`,
+      [ts],
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Record not found.' });
+    }
+    res.json({ message: 'Record deleted successfully.' });
+  } catch (err) {
+    sendServerError(res, 'deleteRecord', err, MSG.SAVE);
+  }
+};
+
+module.exports = {
+  submitForm,
+  submitBatch,
+  getRecords,
+  getFormMeta,
+  getRecord,
+  updateRecord,
+  deleteRecord,
+  canAccessForm,
+};

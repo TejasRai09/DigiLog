@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { MAX_SUB_GROUPS } from './equipmentSpecModel';
 
 function isPlaceholderValue(val) {
   const v = String(val || '').trim().toLowerCase();
@@ -14,7 +15,7 @@ export function downloadSpecTemplate(filename = 'Equipment_Specification_Asset_T
     ['HOW TO FILL THIS SPREADSHEET:'],
     ['1. Use the Specifications sheet to edit your data rows.'],
     ['2. Column Discipline must match exactly: mechanical, civil, instrument, electrical'],
-    ['3. Maximum 20 unique sub-groups (equipment) per discipline.'],
+    [`3. Maximum ${MAX_SUB_GROUPS} unique sub-groups (equipment) per discipline.`],
     ['4. Specification Parameter and Value must both be filled to import a row.'],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(introData), 'Instructions');
@@ -67,7 +68,7 @@ export function parseSpecWorkbook(arrayBuffer) {
     if (!validDisciplines.includes(dVal)) continue;
 
     if (!parsedSubSections[dVal].includes(sVal)) {
-      if (parsedSubSections[dVal].length >= 20) continue;
+      if (parsedSubSections[dVal].length >= MAX_SUB_GROUPS) continue;
       parsedSubSections[dVal].push(sVal);
     }
 

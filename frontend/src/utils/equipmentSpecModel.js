@@ -16,7 +16,7 @@ export const DEFAULT_SUB_SECTIONS = {
 export const META_SUBSECTIONS_LBL = '__subsections__';
 export const META_SUBGROUP_META_LBL = '__subgroup_meta__';
 /** Max equipment (sub-group) cards per discipline in power-plant spec hub. */
-export const MAX_SUB_GROUPS = 20;
+export const MAX_SUB_GROUPS = 50;
 /** Equipment name inputs shown initially in the manage modal; user can reveal more via +. */
 export const INITIAL_VISIBLE_SUB_GROUP_SLOTS = 6;
 export const SUBGROUP_GALLERY_SIZE = 6;
