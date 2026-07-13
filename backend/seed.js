@@ -143,6 +143,13 @@ const formDefs = [
     app: 'BI Control Tower',
     sort_order: 2,
   },
+  {
+    name: 'Purchy Analysis',
+    description: 'Grower performance year-wise summary and purchy dishonour analysis',
+    formKey: 'bi_purchy_analysis',
+    app: 'BI Control Tower',
+    sort_order: 3,
+  },
 ];
 
 // Renamed apps (re-seed used to INSERT new rows because `name` is unique).

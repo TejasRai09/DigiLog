@@ -7,7 +7,15 @@ import {
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
+import useAuth from '../hooks/useAuth';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
+import {
+  RecordActionsButton,
+  RecordRowActionMenu,
+  RecordViewModal,
+  RecordEditModal,
+  DeleteRecordConfirmModal,
+} from './FormRecordAdminModals';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 import { isSimpleOpenForm, openFormTarget } from '../utils/formTableNav';
 import FormCardList from './FormCardList';
@@ -41,10 +49,18 @@ const downloadCSV = (filename, rows, columns, formKey = null) => {
 
 // ─── View Data Modal ──────────────────────────────────────────
 const ViewDataModal = ({ form, onClose }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [page, setPage]       = useState(1);
-  const [data, setData]       = useState(null);   // { total, records }
+  const [data, setData]       = useState(null);   // { total, records, tsCol }
   const [loading, setLoading] = useState(false);
+  const [rowMenu, setRowMenu] = useState(null);
+  const [viewRow, setViewRow] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+  const [deleteRow, setDeleteRow] = useState(null);
   const LIMIT = 20;
+  const tsCol = data?.tsCol || 'timestamp';
 
   const fetchPage = async (p) => {
     setLoading(true);
@@ -80,6 +96,22 @@ const ViewDataModal = ({ form, onClose }) => {
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0;
   const sample      = data?.records?.[0] ?? null;
   const columns     = getDisplayColumns(form.formKey, sample);
+
+  const openRowMenu = (e, row) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const menuH = 140;
+    let top = r.bottom + 4;
+    if (top + menuH > window.innerHeight - 8) {
+      top = Math.max(8, r.top - menuH - 4);
+    }
+    const useLeft = window.innerWidth < 640;
+    setRowMenu({
+      row,
+      top,
+      left: useLeft ? Math.max(8, Math.min(r.left, window.innerWidth - 200)) : undefined,
+      right: useLeft ? undefined : window.innerWidth - r.right,
+    });
+  };
 
   return (
     <div
@@ -157,6 +189,14 @@ const ViewDataModal = ({ form, onClose }) => {
                       {run.heading}
                     </th>
                   ))}
+                  {isAdmin && (
+                    <th
+                      rowSpan={2}
+                      className="sticky right-0 z-20 border-b border-l border-gray-200 bg-gray-50 px-3 py-2 text-center font-semibold text-gray-600"
+                    >
+                      Actions
+                    </th>
+                  )}
                 </tr>
                 <tr className="border-b border-gray-200">
                   {columns.map((col) => (
@@ -184,14 +224,57 @@ const ViewDataModal = ({ form, onClose }) => {
                         )}
                       </td>
                     ))}
+                    {isAdmin && (
+                      <td className="sticky right-0 z-10 border-l border-gray-100 bg-white px-2 py-2 text-center">
+                        <RecordActionsButton onOpenMenu={(e) => openRowMenu(e, row)} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Pagination */}
+      {isAdmin && (
+        <>
+          <RecordRowActionMenu
+            rowMenu={rowMenu}
+            onClose={() => setRowMenu(null)}
+            onView={setViewRow}
+            onEdit={setEditRow}
+            onDelete={setDeleteRow}
+          />
+          {viewRow && (
+            <RecordViewModal
+              form={form}
+              row={viewRow}
+              tsCol={tsCol}
+              onClose={() => setViewRow(null)}
+            />
+          )}
+          {editRow && (
+            <RecordEditModal
+              form={form}
+              row={editRow}
+              tsCol={tsCol}
+              onClose={() => setEditRow(null)}
+              onSaved={() => fetchPage(page)}
+            />
+          )}
+          {deleteRow && (
+            <DeleteRecordConfirmModal
+              form={form}
+              row={deleteRow}
+              tsCol={tsCol}
+              onClose={() => setDeleteRow(null)}
+              onDeleted={() => fetchPage(page)}
+            />
+          )}
+        </>
+      )}
+
+      {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 sm:px-6">
             <p className="text-xs text-gray-400">
