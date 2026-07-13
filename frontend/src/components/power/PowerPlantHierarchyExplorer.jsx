@@ -28,7 +28,7 @@ import {
   findNodeByPath,
   isHierarchyEquipment,
   isHierarchyGroup,
-  isProtectedSeededNode,
+  isHierarchyNodeLocked,
   pathIdsForNodeId,
   pathLabels,
 } from '../../utils/hierarchyTreeUtils';
@@ -148,9 +148,6 @@ function TreeBranch({
           )}
           <MdSettings className="h-4 w-4 text-amber-600 shrink-0" />
           <span className={isOpening ? 'text-amber-700 font-medium' : ''}>{node.name}</span>
-          {node.equipNo && (
-            <span className="text-xs font-mono text-gray-400 ml-1">{node.equipNo}</span>
-          )}
         </button>
         {open && (
           <div>
@@ -317,7 +314,7 @@ export default function PowerPlantHierarchyExplorer({
   const childCount = cards.length;
 
   const cardManageActionsEnabled = (node) =>
-    isDbTree && tree && !isProtectedSeededNode(tree, node.id);
+    isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase);
 
   const buildNavState = (node, specSection = null) => ({
     appId: appId != null && appId !== '' ? String(appId) : undefined,
@@ -347,6 +344,7 @@ export default function PowerPlantHierarchyExplorer({
           tag_name: equipNo && !isZilEquipNo(equipNo) ? equipNo : '',
           category,
           subcategory,
+          location: node.histLocation || '',
         },
       },
     });
@@ -374,6 +372,7 @@ export default function PowerPlantHierarchyExplorer({
       const params = {};
       if (node.equipNo) params.equip_no = node.equipNo;
       if (lookupName) params.name = lookupName;
+      if (node.histLocation) params.location = node.histLocation;
 
       const { data } = await api.get(`${apiBase}/lookup`, { params });
       const { id } = data.equipment;

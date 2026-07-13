@@ -217,7 +217,7 @@ function createPowerEquipmentController(tables) {
   const EQUIPMENT_LOOKUP_SELECT = `SELECT id, dept, category, subcategory, equip_no, tag_name, name, location, commissioned, drive, sort_order
        FROM \`${EQUIP}\``;
 
-  async function findEquipmentForLookup(equipNo, name) {
+  async function findEquipmentForLookup(equipNo, name, location = '') {
     const run = async (where, params) => {
       const [rows] = await pool.query(
         `${EQUIPMENT_LOOKUP_SELECT} WHERE ${where}
@@ -226,6 +226,14 @@ function createPowerEquipmentController(tables) {
       );
       return rows[0] || null;
     };
+
+    if (equipNo && name && location) {
+      const exact = await run(
+        '(equip_no = ? OR tag_name = ?) AND name = ? AND location = ?',
+        [equipNo, equipNo, name, location],
+      );
+      if (exact) return exact;
+    }
 
     if (equipNo && name) {
       const exact = await run(
@@ -255,12 +263,13 @@ function createPowerEquipmentController(tables) {
     try {
       const equipNo = String(req.query.equip_no || '').trim();
       const name = String(req.query.name || '').trim();
+      const location = String(req.query.location || '').trim();
 
       if (!equipNo && !name) {
         return res.status(400).json({ message: 'equip_no or name is required.' });
       }
 
-      const equipment = await findEquipmentForLookup(equipNo, name);
+      const equipment = await findEquipmentForLookup(equipNo, name, location);
       if (!equipment) return res.status(404).json({ message: 'Equipment not found.' });
       res.json({ equipment });
     } catch (err) {

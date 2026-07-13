@@ -1,6 +1,6 @@
 const { pool } = require('../config/mysql');
 
-const NODE_SELECT = `id, parent_id, node_type, name, equip_no, lookup_name, shn_equip_id, sort_order, is_active`;
+const NODE_SELECT = `id, parent_id, node_type, name, equip_no, lookup_name, hist_location, shn_equip_id, sort_order, is_active, is_imported`;
 
 function rowToPayload(row) {
   return {
@@ -11,9 +11,11 @@ function rowToPayload(row) {
     name: row.name,
     equipNo: row.equip_no || null,
     lookupName: row.lookup_name || null,
+    histLocation: row.hist_location || null,
     shnEquipId: row.shn_equip_id || null,
     sortOrder: row.sort_order ?? 0,
     isActive: Boolean(row.is_active),
+    isImported: Boolean(row.is_imported),
   };
 }
 
@@ -171,6 +173,28 @@ async function findSiblingNameConflict(parentId, name, excludeId = null) {
   return row || null;
 }
 
+/** Sub equipment name must be unique across all sections (equipment leaves). */
+async function findGlobalSubEquipmentNameConflict(name, excludeId = null) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return null;
+
+  const params = [trimmed, trimmed];
+  let sql = `SELECT id, name, lookup_name FROM shn_hierarchy_node
+    WHERE is_active = 1 AND node_type = 'equipment'
+      AND (
+        LOWER(TRIM(COALESCE(lookup_name, name))) = LOWER(?)
+        OR LOWER(TRIM(name)) = LOWER(?)
+      )`;
+  if (excludeId != null) {
+    sql += ' AND id != ?';
+    params.push(excludeId);
+  }
+  sql += ' LIMIT 1';
+
+  const [[row]] = await pool.execute(sql, params);
+  return row || null;
+}
+
 async function linkEquipmentToNode(nodeDbId, shnEquipId) {
   await pool.execute(
     'UPDATE shn_hierarchy_node SET shn_equip_id = ? WHERE id = ?',
@@ -192,6 +216,7 @@ module.exports = {
   getHierarchyTree,
   getNodeById,
   findSiblingNameConflict,
+  findGlobalSubEquipmentNameConflict,
   linkEquipmentToNode,
   resolveShnEquipIdForNode,
 };

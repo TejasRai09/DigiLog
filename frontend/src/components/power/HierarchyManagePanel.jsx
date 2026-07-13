@@ -7,7 +7,8 @@ import {
   isHierarchyEquipment,
   isHierarchyGroup,
   isProtectedRootCategoryName,
-  isProtectedSeededNode,
+  isHierarchyNodeLocked,
+  findGlobalSubEquipmentNameInTree,
 } from '../../utils/hierarchyTreeUtils';
 
 const MAX_SLOTS = 20;
@@ -20,6 +21,9 @@ function kindLabel(kind) {
 }
 
 function duplicateMessage(kind, name) {
+  if (kind === 'equipment') {
+    return `Sub equipment name "${name}" already exists in another section.`;
+  }
   return `Duplicate ${kindLabel(kind)} name: "${name}".`;
 }
 
@@ -30,10 +34,10 @@ function nodeDbId(node) {
   return Number.isNaN(id) ? null : id;
 }
 
-function childToSlot(child, { kind, tree }) {
+function childToSlot(child, { kind, tree, apiBase }) {
   const locked =
     (kind === 'category' && isProtectedRootCategoryName(child.name))
-    || (tree && isProtectedSeededNode(tree, child.id));
+    || isHierarchyNodeLocked(tree, child, apiBase);
   return {
     dbId: nodeDbId(child),
     name: child.name || '',
@@ -178,7 +182,7 @@ export function useHierarchyManage({
     if (!addAction || !tree) return;
     const currentNode = findNodeByPath(tree, pathIds);
     const existing = existingChildrenForKind(currentNode, addAction.kind).map((child) =>
-      childToSlot(child, { kind: addAction.kind, tree }),
+      childToSlot(child, { kind: addAction.kind, tree, apiBase }),
     );
     const existingIds = existing.map((s) => s.dbId).filter(Boolean);
     const initialVisible = Math.min(
@@ -201,7 +205,7 @@ export function useHierarchyManage({
   };
 
   const openEdit = (node) => {
-    if (tree && isProtectedSeededNode(tree, node.id)) return;
+    if (isHierarchyNodeLocked(tree, node, apiBase)) return;
     setModalError('');
     setEditForm({ name: node.name || '' });
     setModal({ mode: 'edit', node });
@@ -277,6 +281,15 @@ export function useHierarchyManage({
         toast.error(message);
         return;
       }
+      if (apiBase === '/sugar-new' && modal.nodeType === 'equipment') {
+        const globalDup = findGlobalSubEquipmentNameInTree(tree, name, slot.dbId ?? null);
+        if (globalDup) {
+          const message = duplicateMessage('equipment', name);
+          setModalError(message);
+          toast.error(message);
+          return;
+        }
+      }
       filledSlots.push({
         dbId: slot.dbId ?? null,
         name,
@@ -297,6 +310,16 @@ export function useHierarchyManage({
         if (entry.dbId) {
           keptIds.add(entry.dbId);
           if (!entry.locked) {
+            if (apiBase === '/sugar-new' && modal.nodeType === 'equipment') {
+              const globalDup = findGlobalSubEquipmentNameInTree(tree, entry.name, entry.dbId);
+              if (globalDup) {
+                const message = duplicateMessage('equipment', entry.name);
+                setModalError(message);
+                toast.error(message);
+                setSaving(false);
+                return;
+              }
+            }
             await api.put(`${apiBase}/hierarchy/${entry.dbId}`, {
               name: entry.name,
               sort_order: i,
@@ -339,6 +362,15 @@ export function useHierarchyManage({
     e.preventDefault();
     const name = editForm.name.trim();
     if (!name) return;
+    if (apiBase === '/sugar-new' && modal.node?.nodeType === 'equipment') {
+      const globalDup = findGlobalSubEquipmentNameInTree(tree, name, modal.node?.dbId ?? modal.node?.id);
+      if (globalDup) {
+        const message = duplicateMessage('equipment', name);
+        setModalError(message);
+        toast.error(message);
+        return;
+      }
+    }
     setSaving(true);
     try {
       const nodeId = modal.node?.dbId ?? Number(modal.node.id);
@@ -356,7 +388,7 @@ export function useHierarchyManage({
   };
 
   const deleteNode = async (node) => {
-    if (tree && isProtectedSeededNode(tree, node.id)) return;
+    if (isHierarchyNodeLocked(tree, node, apiBase)) return;
     if (!window.confirm(`Delete "${node.name}"?`)) return;
     const nodeId = node.dbId ?? Number(node.id);
     setSaving(true);

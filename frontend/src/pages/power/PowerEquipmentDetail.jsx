@@ -92,6 +92,7 @@ const PowerEquipmentDetail = () => {
           tag_name: eq?.tag_name || draft.tag_name || null,
           category: eq?.category || draft.category || null,
           subcategory: eq?.subcategory || draft.subcategory || null,
+          location: eq?.location || draft.location || null,
           dept: dept || defaultDept,
         });
         const created = data.equipment;
@@ -192,7 +193,7 @@ const PowerEquipmentDetail = () => {
         category: draftEquipment.category || '',
         subcategory: draftEquipment.subcategory || '',
         name: draftEquipment.name || '',
-        location: '',
+        location: draftEquipment.location || '',
         commissioned: '',
         drive: '',
         dept: dept || defaultDept,
@@ -381,7 +382,7 @@ const PowerEquipmentDetail = () => {
   const equipmentDefaults = useMemo(() => ({
     tagNo: eq?.tag_name || draftEquipment?.tag_name || '',
     equipNo: eq?.equip_no || draftEquipment?.equip_no || '',
-    location: eq?.location || '',
+    location: eq?.location || draftEquipment?.location || '',
     commissioned: eq?.commissioned || '',
   }), [eq?.tag_name, eq?.equip_no, eq?.location, eq?.commissioned, draftEquipment?.tag_name, draftEquipment?.equip_no]);
 
