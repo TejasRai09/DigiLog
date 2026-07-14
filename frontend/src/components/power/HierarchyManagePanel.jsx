@@ -11,7 +11,7 @@ import {
   findGlobalSubEquipmentNameInTree,
 } from '../../utils/hierarchyTreeUtils';
 
-const MAX_SLOTS = 20;
+const MAX_SLOTS = 200;
 const INITIAL_VISIBLE_SLOTS = 6;
 
 function kindLabel(kind) {
