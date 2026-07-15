@@ -16,6 +16,7 @@ Output: sugar-house-equipment-life-history.xlsx (or -updated if file is open)
 from __future__ import annotations
 
 import argparse
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -48,6 +49,7 @@ SPEC_COLUMNS = [
     "sheet id",
     "sheet name",
     TAG_COLUMN,
+    "NAME OF EQUIPMENT",
     "section",
     "sub_section",
     "Parameter label",
@@ -146,15 +148,43 @@ def row_value_after_label(ws, row_idx: int, label_col: int) -> str:
     return ""
 
 
+def value_from_labeled_cell(raw) -> tuple[str, str]:
+    """Split ``LABEL : value`` / ``LABEL:`` in one cell into (label_norm_hint, value)."""
+    text = cell_text(raw)
+    if not text:
+        return "", ""
+    # Prefer splitting on the first colon used as a label separator.
+    if ":" in text:
+        left, right = text.split(":", 1)
+        return left.strip(), right.strip()
+    return text.strip(), ""
+
+
+def labeled_row_value(ws, row_idx: int, label_cols: tuple[int, ...] = (1, 2)) -> tuple[str, str]:
+    """Return (normalized label key fragment, value) for a life-card field row."""
+    for col in label_cols:
+        raw = ws.cell(row_idx, col).value
+        if raw is None or str(raw).strip() == "":
+            continue
+        label_part, inline_value = value_from_labeled_cell(raw)
+        label_n = norm(label_part)
+        if not label_n:
+            continue
+        value = inline_value or row_value_after_label(ws, row_idx, col)
+        return label_n, value
+    return "", ""
+
+
 def is_equip_no_label(text) -> bool:
-    return norm(text) == "EQUIPMENT NO:"
+    return norm(text) == "EQUIPMENT NO:" or norm(text).startswith("EQUIPMENT NO")
 
 
 def find_name_row(ws, equip_row: int, label_col: int) -> int | None:
     for r in range(equip_row - 1, max(1, equip_row - 10), -1):
-        label = norm(ws.cell(r, label_col).value)
-        if "NAME OF EQUIPMENT" in label:
-            return r
+        for c in (label_col, 1, 2):
+            label = norm(ws.cell(r, c).value)
+            if "NAME OF EQUIPMENT" in label:
+                return r
     return None
 
 
@@ -236,31 +266,34 @@ def extract_life_fields(ws, block: dict) -> dict[str, str]:
         "EQUIPMENT TAG NAME/APPLICATION": "",
         "DATE OF COMMISSIONING": "",
     }
-    label_col = block["label_col"]
     scan_start = block.get("name_row", block.get("life_row", block.get("equip_row", 1)))
     scan_end = block.get("spec", block["block_end"] + 1)
     equip_no = ""
 
     for r in range(scan_start, scan_end):
-        label = norm(ws.cell(r, label_col).value)
+        label, value = labeled_row_value(ws, r)
         if not label:
             continue
-        value = row_value_after_label(ws, r, label_col)
+        value = re.sub(r"\s+", " ", value).strip() if value else ""
         if "NAME OF EQUIPMENT" in label:
-            fields["NAME OF EQUIPMENT"] = value
-        elif "LOCATION" in label:
-            fields["LOCATION"] = value
+            if value:
+                fields["NAME OF EQUIPMENT"] = value
+        elif label.startswith("LOCATION") or label == "LOCATION":
+            if value:
+                fields["LOCATION"] = value
         elif "EQUIPMENT TAG" in label or label.startswith("TAG NO") or label == "TAG NAME":
-            fields["EQUIPMENT TAG NAME/APPLICATION"] = value
+            if value:
+                fields["EQUIPMENT TAG NAME/APPLICATION"] = value
         elif "EQUIPMENT NO" in label and "TAG" not in label:
-            equip_no = value
+            if value:
+                equip_no = value
         elif "DATE OF COMMISSIONING" in label or "COMMISSIONING" in label:
-            fields["DATE OF COMMISSIONING"] = value
+            if value:
+                fields["DATE OF COMMISSIONING"] = value
 
     if not fields["EQUIPMENT TAG NAME/APPLICATION"] and equip_no:
         fields["EQUIPMENT TAG NAME/APPLICATION"] = equip_no
-    if not fields["NAME OF EQUIPMENT"]:
-        fields["NAME OF EQUIPMENT"] = ws.title.strip()
+    # Do not fall back to the Excel tab title — leave blank if the card has no name.
     return fields
 
 
@@ -277,6 +310,15 @@ def make_output_sheet_name(tab_name: str, fields: dict[str, str], card_index: in
 def insert_tag_column(rows: list[list[str]], equip_tag: str) -> list[list[str]]:
     """Insert equipment tag after sheet id and sheet name."""
     return [row[:2] + [equip_tag] + row[2:] for row in rows]
+
+
+def insert_spec_meta_columns(
+    rows: list[list[str]],
+    equip_tag: str,
+    equipment_name: str,
+) -> list[list[str]]:
+    """Insert tag + NAME OF EQUIPMENT after sheet id and sheet name."""
+    return [row[:2] + [equip_tag, equipment_name] + row[2:] for row in rows]
 
 
 def extract_specification_rows(ws, block: dict, sheet_id: str, sheet_name: str) -> list[list[str]]:
@@ -470,9 +512,10 @@ def main() -> None:
                 fields["LOCATION"],
                 fields["DATE OF COMMISSIONING"],
             ])
-            spec_rows.extend(insert_tag_column(
+            spec_rows.extend(insert_spec_meta_columns(
                 extract_specification_rows(ws, block, sheet_id, output_name),
                 equip_tag,
+                fields["NAME OF EQUIPMENT"],
             ))
             schedule_rows.extend(insert_tag_column(
                 extract_maintenance_schedule(ws, block, sheet_id, output_name),
@@ -502,7 +545,7 @@ def main() -> None:
     )
     write_data_sheet(
         out, SECTION_SPEC, SPEC_COLUMNS, spec_rows,
-        {"A": 16, "B": 52, "C": 34, "D": 14, "E": 18, "F": 28, "G": 36},
+        {"A": 16, "B": 52, "C": 34, "D": 34, "E": 14, "F": 18, "G": 28, "H": 36},
     )
     write_data_sheet(
         out, "MAINTENANCE SCHEDULE", SCHEDULE_COLUMNS, schedule_rows,

@@ -6,7 +6,8 @@
  *   - Match hierarchy leaves by Inst. History card tag (equip_no)
  *   - Do NOT overwrite equipment name — use hierarchy lookup_name
  *   - All form data is instrument discipline
- *   - Specs / schedule / history: section=instrument, sub_section=Others
+ *   - Specs / schedule / history: section=instrument;
+ *     sub_section = Excel "NAME OF EQUIPMENT" (fallback: Others)
  *
  * Usage (from backend/):
  *   npm run db:import-shn-life-history -- --dry-run
@@ -171,7 +172,7 @@ function mergeScheduleRows(rows) {
   return merged;
 }
 
-function parseScheduleSheetRows(rawRows) {
+function parseScheduleSheetRows(rawRows, subSection = SUB_SECTION) {
   const parsed = rawRows
     .map((s, index) => {
       const act = trim(s['Maintenance / Inspection Activities']);
@@ -189,8 +190,8 @@ function parseScheduleSheetRows(rawRows) {
       }
       return {
         section: SECTION,
-        sub_section: SUB_SECTION,
-        equipment_refs: [{ section: SECTION, sub_section: SUB_SECTION }],
+        sub_section: subSection,
+        equipment_refs: [{ section: SECTION, sub_section: subSection }],
         no,
         comp,
         act,
@@ -227,13 +228,26 @@ function toMysqlDate(value) {
   return null;
 }
 
-function buildSubsectionsMeta() {
+function buildSubsectionsMeta(equipmentNames = []) {
+  const names = [...new Set(
+    equipmentNames
+      .map((n) => trim(n))
+      .filter(Boolean),
+  )];
   return JSON.stringify({
     mechanical: [],
     civil: [],
-    instrument: [SUB_SECTION],
+    instrument: names.length ? names : [SUB_SECTION],
     electrical: [],
   });
+}
+
+function resolveSpecSubSection(specRow, lifeCardName) {
+  return (
+    emptyToNull(specRow['NAME OF EQUIPMENT'])
+    || emptyToNull(lifeCardName)
+    || SUB_SECTION
+  );
 }
 
 function loadWorkbook(filePath) {
@@ -252,23 +266,30 @@ function loadWorkbook(filePath) {
     const tag = trim(row['EQUIPMENT TAG NAME/APPLICATION']);
     if (!sheetId || !tag) continue;
 
-    const specs = (specById.get(sheetId) || [])
+    const lifeCardName = trim(row['NAME OF EQUIPMENT']);
+    const rawSpecs = specById.get(sheetId) || [];
+    const specs = rawSpecs
       .map((s) => ({
         section: SECTION,
-        sub_section: SUB_SECTION,
+        sub_section: resolveSpecSubSection(s, lifeCardName),
         lbl: emptyToNull(s['Parameter label']),
         val: String(s['Parameter value'] ?? ''),
       }))
       .filter((s) => s.lbl);
 
+    const equipmentNames = specs.map((s) => s.sub_section);
+    if (!equipmentNames.length && lifeCardName) equipmentNames.push(lifeCardName);
+
+    const primarySubSection = equipmentNames[0] || lifeCardName || SUB_SECTION;
+
     specs.push({
       section: null,
       sub_section: null,
       lbl: META_SUBSECTIONS_LBL,
-      val: buildSubsectionsMeta(),
+      val: buildSubsectionsMeta(equipmentNames),
     });
 
-    const schedule = parseScheduleSheetRows(scheduleById.get(sheetId) || []);
+    const schedule = parseScheduleSheetRows(scheduleById.get(sheetId) || [], primarySubSection);
 
     const history = (historyById.get(sheetId) || [])
       .map((h) => {
@@ -295,8 +316,8 @@ function loadWorkbook(filePath) {
         if (!seasonRaw && !year && !date_start && !date_finish && !obs && !act) return null;
         return {
           section: SECTION,
-          sub_section: SUB_SECTION,
-          equipment_refs: [{ section: SECTION, sub_section: SUB_SECTION }],
+          sub_section: primarySubSection,
+          equipment_refs: [{ section: SECTION, sub_section: primarySubSection }],
           season: clip(seasonRaw, 20),
           year: clip(year, 50),
           date_start,
@@ -316,7 +337,7 @@ function loadWorkbook(filePath) {
       sheetId,
       sheetName: trim(row['sheet name']),
       tag,
-      excelName: trim(row['NAME OF EQUIPMENT']),
+      excelName: lifeCardName,
       excelLocation: trim(row.LOCATION),
       commissioned: emptyToNull(row['DATE OF COMMISSIONING']),
       specs,
