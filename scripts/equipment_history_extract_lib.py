@@ -409,16 +409,35 @@ def build_spec_column_blocks(
 
 
 def is_spec_data_skip_row(row: list[str], section_headers=DEFAULT_SPEC_SECTION_HEADERS) -> bool:
+    """Skip section banners / schedule-history table headers — not label/value data rows.
+
+    Valve cards often put ``Sr.No.`` / ``Type`` on the same row as ``Make``. Matching
+    ``SR.NO`` anywhere used to drop that whole row (Make, Type, Seat Leakage Class, …).
+    """
     joined = norm(" ".join(row))
+    if not joined:
+        return True
     if "EQUIPMENT SPECIFICATION" in joined:
         return True
     if any(key in joined for key, _ in section_headers):
         return True
-    skip = (
-        "SR.NO", "SN", "NAME OF EQUIPMENT", "MAINTENANCE / INSPECTION",
-        "SEASON", "OEM MAINTENANCE", "REMARKS", "INTERVAL",
-    )
-    return any(s in joined for s in skip)
+    # OEM schedule column header (Sr.No. + Name of Equipment + Activities …)
+    if "SR.NO" in joined and (
+        "NAME OF EQUIPMENT" in joined or "MAINTENANCE / INSPECTION" in joined
+    ):
+        return True
+    if "OEM MAINTENANCE" in joined and "SCHEDULE" in joined:
+        return True
+    # Maintenance history column header
+    if "SEASON" in joined and (
+        "YEAR" in joined or "OUTAGE" in joined or "OBSERVATION" in joined or "ACTION TAKEN" in joined
+    ):
+        return True
+    if "INTERVAL" in joined and any(
+        token in joined for token in ("WEEKLY", "MONTHLY", "YEARLY", "DAILY", "QUARTERLY")
+    ):
+        return True
+    return False
 
 
 def extract_specification_rows(
