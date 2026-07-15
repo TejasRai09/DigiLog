@@ -11,7 +11,7 @@
  * Usage (from backend/):
  *   npm run db:import-shn-life-history -- --dry-run
  *   npm run db:import-shn-life-history -- --replace
- *   npm run db:import-shn-life-history -- --file "../../sugar-house-equipment-life-history-filtered.xlsx"
+ *   npm run db:import-shn-life-history -- --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx"
  */
 
 require('../config/env');
@@ -23,7 +23,7 @@ const { pool } = require('../config/mysql');
 
 const DEFAULT_FILE = path.join(
   __dirname,
-  '../../../sugar-house-equipment-life-history-filtered.xlsx',
+  '../backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx',
 );
 
 const DEPT = 'sugar_house';
@@ -80,7 +80,7 @@ function parseArgs(argv) {
 Options:
   --dry-run          Parse and match only; no DB writes
   --replace          Replace existing shn_equipment (by tag/equip_no) then re-import
-  --file <path>      Source workbook (default: sugar-house-equipment-life-history-filtered.xlsx)
+  --file <path>      Source workbook (default: backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx)
 `);
       process.exit(0);
     }
