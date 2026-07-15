@@ -31,11 +31,29 @@ import {
   isHierarchyNodeLocked,
   pathIdsForNodeId,
   pathLabels,
+  splitSugarLeafLabel,
 } from '../../utils/hierarchyTreeUtils';
 import { isZilEquipNo } from '../../config/powerEquipmentFields';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
+
+/** What the user can open next from this navigation depth. */
+function hierarchyChoiceLabel(apiBase, pathDepth, isEquipmentLeaf) {
+  if (isEquipmentLeaf) return 'discipline';
+  const isSugar = apiBase === '/sugar-new';
+  if (isSugar) {
+    if (pathDepth <= 1) return 'section';
+    if (pathDepth === 2) return 'location';
+    if (pathDepth === 3) return 'main equipment';
+    if (pathDepth === 4) return 'sub equipment';
+    return 'item';
+  }
+  if (pathDepth <= 1) return 'category';
+  if (pathDepth === 2) return 'subcategory';
+  if (pathDepth === 3) return 'equipment';
+  return 'item';
+}
 
 function EquipmentCard({
   node,
@@ -45,11 +63,15 @@ function EquipmentCard({
   onEdit,
   onDelete,
   manageSaving = false,
+  showHistLocation = false,
 }) {
   const isGroup = isHierarchyGroup(node);
   const childCount = node.children?.length ?? 0;
   const Icon = isGroup ? MdFolder : MdSettings;
   const isOpening = opening === node.id;
+  const sugarParts = !isGroup && showHistLocation ? splitSugarLeafLabel(node) : null;
+  const title = sugarParts?.equipmentName || node.name;
+  const locationLine = sugarParts?.location || '';
 
   const subtitle = () => {
     if (isOpening) return 'Opening…';
@@ -74,7 +96,19 @@ function EquipmentCard({
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-gray-900 leading-snug">{node.name}</h3>
+            <h3 className="text-sm font-semibold text-gray-900 leading-snug">{title}</h3>
+            {locationLine ? (
+              <p className="text-xs text-gray-600 mt-1 leading-snug">
+                <span className="font-semibold text-slate-500">Location:</span>{' '}
+                {locationLine}
+              </p>
+            ) : null}
+            {showHistLocation && node.equipNo ? (
+              <p className="text-xs text-gray-600 mt-1 leading-snug">
+                <span className="font-semibold text-slate-500">Tag:</span>{' '}
+                {node.equipNo}
+              </p>
+            ) : null}
             <p className="text-xs text-gray-500 mt-1">{subtitle()}</p>
           </div>
         </div>
@@ -313,6 +347,19 @@ export default function PowerPlantHierarchyExplorer({
   const cards = currentNode?.children ?? [];
   const childCount = cards.length;
 
+  const currentPosition = useMemo(() => {
+    const focusNode = activeEquipment || currentNode || tree;
+    if (!focusNode) return null;
+
+    const isLeaf = Boolean(activeEquipment);
+    const choice = hierarchyChoiceLabel(apiBase, pathIds?.length ?? 0, isLeaf);
+    const sugarParts =
+      apiBase === '/sugar-new' && isLeaf ? splitSugarLeafLabel(focusNode) : null;
+    const name = sugarParts?.equipmentName || focusNode.name || 'Unknown';
+
+    return { name, choice };
+  }, [activeEquipment, currentNode, tree, apiBase, pathIds]);
+
   const cardManageActionsEnabled = (node) =>
     isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase);
 
@@ -424,14 +471,18 @@ export default function PowerPlantHierarchyExplorer({
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-base font-semibold text-gray-800">Equipment hierarchy</h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {activeEquipment
-                ? activeEquipment.name
-                : view === VIEW_CARDS
-                  ? `${childCount} item${childCount !== 1 ? 's' : ''} at this level`
-                  : 'Full plant structure — expand equipment to choose a discipline'}
-            </p>
+            {currentPosition ? (
+              <>
+                <h2 className="text-base font-semibold text-gray-900">
+                  You are currently in {currentPosition.name}
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  You can choose any one {currentPosition.choice}
+                </p>
+              </>
+            ) : (
+              <h2 className="text-base font-semibold text-gray-900">Equipment hierarchy</h2>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {addButton}
@@ -468,6 +519,7 @@ export default function PowerPlantHierarchyExplorer({
                         onEdit={openEdit}
                         onDelete={deleteNode}
                         manageSaving={manageSaving}
+                        showHistLocation={apiBase === '/sugar-new'}
                       />
                     ))}
                   </div>

@@ -22,6 +22,29 @@ KNOWN_INTERVALS = (
 
 INTERVAL_NORM = {re.sub(r"\s+", " ", k.strip()).upper(): k for k in KNOWN_INTERVALS}
 
+# Source workbooks often use "2-Years" / "Half-Yearly" without spaced hyphens.
+_INTERVAL_ALIASES = {
+    "2-YEARS": "2 - Years",
+    "2 YEARS": "2 - Years",
+    "2YEAR": "2 - Years",
+    "2YEARS": "2 - Years",
+    "3-YEARS": "3 - Years",
+    "3 YEARS": "3 - Years",
+    "3YEAR": "3 - Years",
+    "3YEARS": "3 - Years",
+    "4-YEARS": "4 - Years",
+    "4 YEARS": "4 - Years",
+    "4YEAR": "4 - Years",
+    "4YEARS": "4 - Years",
+    "HALF-YEARLY": "Half - Yearly",
+    "HALF YEARLY": "Half - Yearly",
+    "HALFYEARLY": "Half - Yearly",
+    "BI-YEARLY": "2 - Years",
+    "BIYEARLY": "2 - Years",
+}
+for _alias, _canonical in _INTERVAL_ALIASES.items():
+    INTERVAL_NORM[_alias] = _canonical
+
 INACTIVE_INTERVAL_MARKS = frozenset({"X", "x", "-", "NO", "N", "NA", "N/A"})
 
 # Index of Action Taken in standard history output rows (after date columns).
@@ -60,9 +83,37 @@ def normalize_interval_value(raw) -> str:
         return ""
     if s in INACTIVE_INTERVAL_MARKS or norm(s) in INACTIVE_INTERVAL_MARKS:
         return ""
-    if s in ("√", "✓", "v", "V") or norm(s) in ("Y", "YES", "1"):
+    # Common tick / checkmark glyphs used in OEM schedule sheets.
+    tick_chars = {
+        "√", "✓", "✔", "☑", "■", "●", "•", "v", "V",
+        "\u221a",  # √
+        "\u2713",  # ✓
+        "\u2714",  # ✔
+    }
+    if s in tick_chars or any(ch in s for ch in tick_chars if len(ch) == 1):
+        return "Yes"
+    if norm(s) in ("Y", "YES", "TRUE", "OK"):
         return "Yes"
     return s
+
+
+def interval_label_for(text) -> str | None:
+    key = norm(text)
+    if key in INTERVAL_NORM:
+        return INTERVAL_NORM[key]
+    compact = re.sub(r"[\s\-_/]+", "", key)
+    compact_map = {
+        "DAILY": "Daily",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly",
+        "QUARTERLY": "Quarterly",
+        "HALFYEARLY": "Half - Yearly",
+        "YEARLY": "Yearly",
+        "2YEARS": "2 - Years",
+        "3YEARS": "3 - Years",
+        "4YEARS": "4 - Years",
+    }
+    return compact_map.get(compact)
 
 
 def row_cells(ws, row_idx: int) -> list[str]:
@@ -70,8 +121,8 @@ def row_cells(ws, row_idx: int) -> list[str]:
 
 
 def is_schedule_serial_header(text: str) -> bool:
-    h = norm(text)
-    return h in {"SN", "SR.NO", "SR.NO.", "S.NO.", "S.NO"} or h.startswith("SR.NO")
+    h = norm(text).rstrip(".")
+    return h in {"SN", "SR.NO", "SR.NO.", "S.NO.", "S.NO", "S NO", "SR NO"} or h.startswith("SR.NO") or h.startswith("S.NO")
 
 
 def is_schedule_table_header_row(row: list[str]) -> bool:
@@ -86,9 +137,20 @@ def is_schedule_interval_label_row(row: list[str], remarks_col: int | None) -> i
     for idx, cell in enumerate(row, start=1):
         if remarks_col and idx == remarks_col:
             continue
-        if norm(cell) in INTERVAL_NORM:
+        if interval_label_for(cell):
             count += 1
     return count
+
+
+def collect_interval_cols(ws, row_idx: int, remarks_col: int | None = None) -> dict[int, str]:
+    interval_cols: dict[int, str] = {}
+    for c in range(1, ws.max_column + 1):
+        if remarks_col and c == remarks_col:
+            continue
+        label = interval_label_for(ws.cell(row_idx, c).value)
+        if label:
+            interval_cols[c] = label
+    return interval_cols
 
 
 @dataclass
@@ -129,14 +191,20 @@ def parse_schedule_layout(
 
     interval_cols: dict[int, str] = {}
     data_start = header_row + 1
+
+    # Case A: interval labels are on the SAME row as Sr.No. / Name of Equipment
+    # (common sugar-house / turbine instrument cards).
+    header_intervals = collect_interval_cols(ws, header_row, remarks_col)
+    if len(header_intervals) >= 2:
+        interval_cols = header_intervals
+
+    # Case B: interval labels sit on the next 1–3 rows under an "Interval" merged header.
     for r in range(header_row + 1, min(header_row + 4, schedule_end)):
         row = row_cells(ws, r)
         if is_schedule_interval_label_row(row, remarks_col) >= 2:
-            for c in range(1, ws.max_column + 1):
-                key = norm(ws.cell(r, c).value)
-                if key in INTERVAL_NORM:
-                    interval_cols[c] = INTERVAL_NORM[key]
+            interval_cols = collect_interval_cols(ws, r, remarks_col)
             data_start = r + 1
+            break
 
     if remarks_col and remarks_col in interval_cols:
         del interval_cols[remarks_col]

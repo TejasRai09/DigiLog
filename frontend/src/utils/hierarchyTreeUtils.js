@@ -85,9 +85,63 @@ export function isHierarchyNodeLocked(tree, node, apiBase = '/power-new') {
   return Boolean(tree && isProtectedSeededNode(tree, node.id));
 }
 
+/** Separator used between sub-equipment name and Inst. History card location. */
+export const SUGAR_LEAF_NAME_SEP = ' · ';
+
+/** Compose stored card title: "Equipment name · Location". */
+export function composeSugarLeafDisplayName(equipmentName, location) {
+  const name = String(equipmentName || '').trim();
+  const loc = String(location || '').trim();
+  if (!name) return '';
+  if (!loc) return name;
+  return `${name}${SUGAR_LEAF_NAME_SEP}${loc}`;
+}
+
+/**
+ * Split a sugar leaf into equipment name + history-card location.
+ * Prefers explicit lookupName / histLocation when present.
+ */
+export function splitSugarLeafLabel(nodeOrName, histLocation = null) {
+  if (nodeOrName && typeof nodeOrName === 'object') {
+    const lookup = String(nodeOrName.lookupName || '').trim();
+    const hist = String(nodeOrName.histLocation || histLocation || '').trim();
+    if (lookup || hist) {
+      return {
+        equipmentName: lookup || String(nodeOrName.name || '').split(SUGAR_LEAF_NAME_SEP)[0].trim(),
+        location: hist || '',
+      };
+    }
+    return splitSugarLeafLabel(nodeOrName.name, histLocation);
+  }
+
+  const full = String(nodeOrName || '').trim();
+  const sepIdx = full.indexOf(SUGAR_LEAF_NAME_SEP);
+  if (sepIdx === -1) {
+    // Also accept a plain "." separator if users typed it.
+    const dotIdx = full.indexOf('.');
+    if (dotIdx > 0 && String(histLocation || '').trim() === '') {
+      return {
+        equipmentName: full.slice(0, dotIdx).trim(),
+        location: full.slice(dotIdx + 1).trim(),
+      };
+    }
+    return {
+      equipmentName: full,
+      location: String(histLocation || '').trim(),
+    };
+  }
+  return {
+    equipmentName: full.slice(0, sepIdx).trim(),
+    location: full.slice(sepIdx + SUGAR_LEAF_NAME_SEP.length).trim(),
+  };
+}
+
 /** Sub equipment leaf name used for global uniqueness (lookup_name or name). */
 export function subEquipmentNameKey(node) {
-  return String(node?.lookupName || node?.name || '').trim().toLowerCase();
+  if (!node) return '';
+  if (node.lookupName) return String(node.lookupName).trim().toLowerCase();
+  const { equipmentName } = splitSugarLeafLabel(node);
+  return equipmentName.toLowerCase();
 }
 
 /** Find another equipment leaf with the same sub equipment name anywhere in the tree. */

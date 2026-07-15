@@ -9,6 +9,8 @@ import {
   isProtectedRootCategoryName,
   isHierarchyNodeLocked,
   findGlobalSubEquipmentNameInTree,
+  composeSugarLeafDisplayName,
+  splitSugarLeafLabel,
 } from '../../utils/hierarchyTreeUtils';
 
 const MAX_SLOTS = 200;
@@ -34,19 +36,37 @@ function nodeDbId(node) {
   return Number.isNaN(id) ? null : id;
 }
 
-function childToSlot(child, { kind, tree, apiBase }) {
+function isSugarSubEquipmentSlots(modalOrAction) {
+  return Boolean(modalOrAction?.sugarLeafFields);
+}
+
+function childToSlot(child, { kind, tree, apiBase, sugarLeafFields }) {
   const locked =
     (kind === 'category' && isProtectedRootCategoryName(child.name))
     || isHierarchyNodeLocked(tree, child, apiBase);
+
+  if (sugarLeafFields && kind === 'equipment') {
+    const parts = splitSugarLeafLabel(child);
+    return {
+      dbId: nodeDbId(child),
+      name: parts.equipmentName,
+      location: parts.location,
+      equipNo: child.equipNo || '',
+      locked,
+    };
+  }
+
   return {
     dbId: nodeDbId(child),
     name: child.name || '',
+    location: '',
+    equipNo: '',
     locked,
   };
 }
 
 function emptySlot() {
-  return { name: '' };
+  return { name: '', location: '', equipNo: '' };
 }
 
 function existingChildrenForKind(currentNode, kind) {
@@ -149,6 +169,7 @@ export function sugarHouseHierarchyAddAction(tree, pathIds, activeEquipmentId) {
       buttonLabel: 'Add Sub Equipment',
       modalTitle: 'Manage Sub Equipment',
       slotLabel: 'Sub equipment name',
+      sugarLeafFields: true,
       parentLabel,
       parentDbId: nodeDbId(currentNode),
     };
@@ -167,7 +188,7 @@ export function useHierarchyManage({
 }) {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState(null);
-  const [editForm, setEditForm] = useState({ name: '' });
+  const [editForm, setEditForm] = useState({ name: '', location: '', equipNo: '' });
   const [slots, setSlots] = useState([]);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_SLOTS);
   const [modalError, setModalError] = useState('');
@@ -181,8 +202,9 @@ export function useHierarchyManage({
   const openAddModal = () => {
     if (!addAction || !tree) return;
     const currentNode = findNodeByPath(tree, pathIds);
+    const sugarLeafFields = Boolean(addAction.sugarLeafFields);
     const existing = existingChildrenForKind(currentNode, addAction.kind).map((child) =>
-      childToSlot(child, { kind: addAction.kind, tree, apiBase }),
+      childToSlot(child, { kind: addAction.kind, tree, apiBase, sugarLeafFields }),
     );
     const existingIds = existing.map((s) => s.dbId).filter(Boolean);
     const initialVisible = Math.min(
@@ -207,7 +229,17 @@ export function useHierarchyManage({
   const openEdit = (node) => {
     if (isHierarchyNodeLocked(tree, node, apiBase)) return;
     setModalError('');
-    setEditForm({ name: node.name || '' });
+    if (apiBase === '/sugar-new' && node.nodeType === 'equipment') {
+      const parts = splitSugarLeafLabel(node);
+      setEditForm({
+        name: parts.equipmentName,
+        location: parts.location,
+        equipNo: node.equipNo || '',
+      });
+      setModal({ mode: 'edit', node, sugarLeafFields: true });
+      return;
+    }
+    setEditForm({ name: node.name || '', location: '', equipNo: '' });
     setModal({ mode: 'edit', node });
   };
 
@@ -264,27 +296,75 @@ export function useHierarchyManage({
       return;
     }
 
+    const sugarLeafFields = isSugarSubEquipmentSlots(modal);
     const filledSlots = [];
 
     for (const slot of slots.slice(0, visibleCount)) {
-      const name = slot.name.trim();
-      if (!name) continue;
+      const equipmentName = slot.name.trim();
+      const location = (slot.location || '').trim();
+      const equipNo = (slot.equipNo || '').trim();
+      const anyFilled = Boolean(equipmentName || location || equipNo);
+
+      if (!anyFilled) continue;
+
+      if (sugarLeafFields) {
+        if (!equipmentName) {
+          setModalError('Sub equipment name is required for each filled row.');
+          toast.error('Enter Sub equipment name for every filled row.');
+          return;
+        }
+        if (!equipNo) {
+          setModalError('Equipment no. (tag) is required for each sub equipment.');
+          toast.error('Enter Equipment no. (tag) for every filled row.');
+          return;
+        }
+        if (!location) {
+          setModalError('Location is required for each sub equipment.');
+          toast.error('Enter Location for every filled row.');
+          return;
+        }
+      } else if (!equipmentName) {
+        continue;
+      }
+
+      const displayName = sugarLeafFields
+        ? composeSugarLeafDisplayName(equipmentName, location)
+        : equipmentName;
+
       if (slot.locked) {
         if (slot.dbId) {
-          filledSlots.push({ dbId: slot.dbId, name: slot.name.trim(), locked: true });
+          filledSlots.push({
+            dbId: slot.dbId,
+            name: displayName,
+            equipmentName,
+            location,
+            equipNo,
+            lookupName: equipmentName,
+            histLocation: location,
+            locked: true,
+          });
         }
         continue;
       }
-      if (filledSlots.some((e) => e.name.toLowerCase() === name.toLowerCase())) {
-        const message = duplicateMessage(modal.kind, name);
+      if (filledSlots.some((e) => e.equipmentName.toLowerCase() === equipmentName.toLowerCase())) {
+        const message = duplicateMessage(modal.kind, equipmentName);
+        setModalError(message);
+        toast.error(message);
+        return;
+      }
+      if (
+        sugarLeafFields
+        && filledSlots.some((e) => (e.equipNo || '').toLowerCase() === equipNo.toLowerCase())
+      ) {
+        const message = `Duplicate equipment no. (tag): "${equipNo}".`;
         setModalError(message);
         toast.error(message);
         return;
       }
       if (apiBase === '/sugar-new' && modal.nodeType === 'equipment') {
-        const globalDup = findGlobalSubEquipmentNameInTree(tree, name, slot.dbId ?? null);
+        const globalDup = findGlobalSubEquipmentNameInTree(tree, equipmentName, slot.dbId ?? null);
         if (globalDup) {
-          const message = duplicateMessage('equipment', name);
+          const message = duplicateMessage('equipment', equipmentName);
           setModalError(message);
           toast.error(message);
           return;
@@ -292,12 +372,19 @@ export function useHierarchyManage({
       }
       filledSlots.push({
         dbId: slot.dbId ?? null,
-        name,
+        name: displayName,
+        equipmentName,
+        location,
+        equipNo: sugarLeafFields ? equipNo : undefined,
+        lookupName: sugarLeafFields ? equipmentName : undefined,
+        histLocation: sugarLeafFields ? location : undefined,
       });
     }
 
     if (!filledSlots.length && !(modal.existingIds?.length)) {
-      setModalError('Enter at least one name.');
+      setModalError(sugarLeafFields
+        ? 'Enter at least one sub equipment name, equipment no. (tag), and location.'
+        : 'Enter at least one name.');
       return;
     }
 
@@ -311,27 +398,43 @@ export function useHierarchyManage({
           keptIds.add(entry.dbId);
           if (!entry.locked) {
             if (apiBase === '/sugar-new' && modal.nodeType === 'equipment') {
-              const globalDup = findGlobalSubEquipmentNameInTree(tree, entry.name, entry.dbId);
+              const globalDup = findGlobalSubEquipmentNameInTree(
+                tree,
+                entry.equipmentName,
+                entry.dbId,
+              );
               if (globalDup) {
-                const message = duplicateMessage('equipment', entry.name);
+                const message = duplicateMessage('equipment', entry.equipmentName);
                 setModalError(message);
                 toast.error(message);
                 setSaving(false);
                 return;
               }
             }
-            await api.put(`${apiBase}/hierarchy/${entry.dbId}`, {
+            const payload = {
               name: entry.name,
               sort_order: i,
-            });
+            };
+            if (sugarLeafFields) {
+              payload.lookup_name = entry.lookupName;
+              payload.hist_location = entry.histLocation;
+              payload.equip_no = entry.equipNo;
+            }
+            await api.put(`${apiBase}/hierarchy/${entry.dbId}`, payload);
           }
         } else {
-          await api.post(`${apiBase}/hierarchy`, {
+          const payload = {
             parent_id: modal.parentDbId,
             node_type: modal.nodeType,
             name: entry.name,
             sort_order: i,
-          });
+          };
+          if (sugarLeafFields) {
+            payload.lookup_name = entry.lookupName;
+            payload.hist_location = entry.histLocation;
+            payload.equip_no = entry.equipNo;
+          }
+          await api.post(`${apiBase}/hierarchy`, payload);
         }
       }
 
@@ -360,12 +463,41 @@ export function useHierarchyManage({
 
   const saveEdit = async (e) => {
     e.preventDefault();
-    const name = editForm.name.trim();
-    if (!name) return;
+    const equipmentName = editForm.name.trim();
+    const location = (editForm.location || '').trim();
+    const equipNo = (editForm.equipNo || '').trim();
+    const sugarLeafFields = Boolean(modal?.sugarLeafFields);
+
+    if (!equipmentName) {
+      if (sugarLeafFields) {
+        setModalError('Sub equipment name is required.');
+        toast.error('Sub equipment name is required.');
+      }
+      return;
+    }
+    if (sugarLeafFields && !location) {
+      setModalError('Location is required.');
+      toast.error('Location is required.');
+      return;
+    }
+    if (sugarLeafFields && !equipNo) {
+      setModalError('Equipment no. (tag) is required.');
+      toast.error('Equipment no. (tag) is required.');
+      return;
+    }
+
+    const name = sugarLeafFields
+      ? composeSugarLeafDisplayName(equipmentName, location)
+      : equipmentName;
+
     if (apiBase === '/sugar-new' && modal.node?.nodeType === 'equipment') {
-      const globalDup = findGlobalSubEquipmentNameInTree(tree, name, modal.node?.dbId ?? modal.node?.id);
+      const globalDup = findGlobalSubEquipmentNameInTree(
+        tree,
+        equipmentName,
+        modal.node?.dbId ?? modal.node?.id,
+      );
       if (globalDup) {
-        const message = duplicateMessage('equipment', name);
+        const message = duplicateMessage('equipment', equipmentName);
         setModalError(message);
         toast.error(message);
         return;
@@ -374,7 +506,13 @@ export function useHierarchyManage({
     setSaving(true);
     try {
       const nodeId = modal.node?.dbId ?? Number(modal.node.id);
-      await api.put(`${apiBase}/hierarchy/${nodeId}`, { name });
+      const payload = { name };
+      if (sugarLeafFields) {
+        payload.lookup_name = equipmentName;
+        payload.hist_location = location;
+        payload.equip_no = equipNo;
+      }
+      await api.put(`${apiBase}/hierarchy/${nodeId}`, payload);
       toast.success('Updated.');
       closeModal();
       await onReload?.({ silent: true });
@@ -439,7 +577,11 @@ export function useHierarchyManage({
           </div>
           <div className="flex items-center justify-between border-b border-slate-200 pb-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase">
-              {modal.kind === 'equipment' ? 'Equipment slots' : `${modal.slotLabel}s`}
+              {isSugarSubEquipmentSlots(modal)
+                ? 'Sub equipment slots'
+                : modal.kind === 'equipment'
+                  ? 'Equipment slots'
+                  : `${modal.slotLabel}s`}
             </span>
             <button
               type="button"
@@ -451,7 +593,8 @@ export function useHierarchyManage({
           </div>
           <div className="space-y-2">
             {Array.from({ length: visibleCount }, (_, i) => {
-              const slot = slots[i] ?? emptySlot();
+              const sugarLeafFields = isSugarSubEquipmentSlots(modal);
+              const slot = slots[i] ?? emptySlot(sugarLeafFields);
               return (
                 <div
                   key={slot.dbId ? `db-${slot.dbId}` : `new-${i}`}
@@ -468,7 +611,7 @@ export function useHierarchyManage({
                     <MdDragIndicator className="w-4 h-4 text-slate-400 shrink-0 mt-2" />
                   )}
                   {slot.locked && <span className="w-4 shrink-0" />}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 space-y-1.5">
                     <input
                       type="text"
                       value={slot.name}
@@ -485,12 +628,58 @@ export function useHierarchyManage({
                           return next;
                         });
                       }}
-                      placeholder={modal.slotLabel}
+                      placeholder={sugarLeafFields ? 'Sub equipment name' : modal.slotLabel}
                       className={`w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs ${
                         slot.locked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50'
                       }`}
                       title={slot.locked ? 'Built-in hierarchy — cannot rename or remove' : undefined}
                     />
+                    {sugarLeafFields && (
+                      <>
+                        <input
+                          type="text"
+                          value={slot.equipNo || ''}
+                          readOnly={slot.locked}
+                          onChange={(e) => {
+                            if (slot.locked) return;
+                            setModalError('');
+                            setSlots((prev) => {
+                              const next = [...prev];
+                              while (next.length <= i) {
+                                next.push(emptySlot());
+                              }
+                              next[i] = { ...next[i], equipNo: e.target.value };
+                              return next;
+                            });
+                          }}
+                          placeholder="Equipment no. (tag)"
+                          className={`w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs ${
+                            slot.locked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50'
+                          }`}
+                        />
+                        <input
+                          type="text"
+                          value={slot.location || ''}
+                          readOnly={slot.locked}
+                          onChange={(e) => {
+                            if (slot.locked) return;
+                            setModalError('');
+                            setSlots((prev) => {
+                              const next = [...prev];
+                              while (next.length <= i) {
+                                next.push(emptySlot());
+                              }
+                              next[i] = { ...next[i], location: e.target.value };
+                              return next;
+                            });
+                          }}
+                          placeholder="Location (Inst. History card location)"
+                          className={`w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs ${
+                            slot.locked ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50'
+                          }`}
+                        />
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -502,13 +691,15 @@ export function useHierarchyManage({
                 className="flex items-center justify-center gap-2 w-full bg-white border border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40 p-2 rounded-xl text-xs font-bold text-indigo-600 transition-colors"
               >
                 <MdAdd className="w-4 h-4" />
-                Add {modal.kind === 'equipment' ? 'equipment' : modal.kind} slot
+                Add {isSugarSubEquipmentSlots(modal) ? 'sub equipment' : modal.kind === 'equipment' ? 'equipment' : modal.kind} slot
               </button>
             )}
           </div>
           <p className="text-[10px] text-slate-400">
-            Up to {MAX_SLOTS} {modal.kind === 'equipment' ? 'equipment' : `${modal.kind} entries`} at this level.
-            Showing {visibleCount} slot{visibleCount !== 1 ? 's' : ''}. Clear a slot and save to remove an item.
+            {isSugarSubEquipmentSlots(modal)
+              ? `Saved with Equipment no. (tag). Display: “Sub equipment name · Location”. Up to ${MAX_SLOTS} sub equipment at this level.`
+              : `Up to ${MAX_SLOTS} ${modal.kind === 'equipment' ? 'equipment' : `${modal.kind} entries`} at this level.`}
+            {' '}Showing {visibleCount} slot{visibleCount !== 1 ? 's' : ''}. Clear a slot and save to remove an item.
           </p>
           {modalError && (
             <p className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
@@ -549,7 +740,9 @@ export function useHierarchyManage({
         </div>
         <form onSubmit={saveEdit} className="p-6 space-y-4">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Name</label>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+              {modal.sugarLeafFields ? 'Sub equipment name' : 'Name'}
+            </label>
             <input
               type="text"
               value={editForm.name}
@@ -561,6 +754,45 @@ export function useHierarchyManage({
               className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-xs"
             />
           </div>
+          {modal.sugarLeafFields && (
+            <>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                  Equipment no. (tag)
+                </label>
+                <input
+                  type="text"
+                  value={editForm.equipNo}
+                  onChange={(e) => {
+                    setModalError('');
+                    setEditForm((f) => ({ ...f, equipNo: e.target.value }));
+                  }}
+                  required
+                  placeholder="Inst. History card tag / equipment no."
+                  className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={editForm.location}
+                  onChange={(e) => {
+                    setModalError('');
+                    setEditForm((f) => ({ ...f, location: e.target.value }));
+                  }}
+                  required
+                  placeholder="Inst. History card location"
+                  className="w-full px-3 py-2 border border-slate-200 bg-slate-50 rounded-lg text-xs"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Tag is stored as equipment no. Display: “Sub equipment name · Location”.
+                </p>
+              </div>
+            </>
+          )}
           {modalError && (
             <p className="text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
               {modalError}
