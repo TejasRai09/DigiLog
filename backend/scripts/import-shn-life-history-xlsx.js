@@ -11,7 +11,7 @@
  * Usage (from backend/):
  *   npm run db:import-shn-life-history -- --dry-run
  *   npm run db:import-shn-life-history -- --replace
- *   npm run db:import-shn-life-history -- --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx"
+ *   npm run db:import-shn-life-history -- --replace --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx"
  */
 
 require('../config/env');
@@ -21,10 +21,30 @@ const fs = require('fs');
 const XLSX = require('xlsx');
 const { pool } = require('../config/mysql');
 
+const BACKLOG_MILL_DIR = path.join(__dirname, '../backlog-data/mill data');
 const DEFAULT_FILE = path.join(
-  __dirname,
-  '../backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx',
+  BACKLOG_MILL_DIR,
+  'sugar-house-equipment-life-history-filtered.xlsx',
 );
+
+/** Resolve --file against cwd, backend/, and backlog-data/mill data. */
+function resolveWorkbookPath(input) {
+  if (!input) return DEFAULT_FILE;
+  const raw = String(input).trim();
+  if (!raw) return DEFAULT_FILE;
+  if (path.isAbsolute(raw) && fs.existsSync(raw)) return raw;
+
+  const candidates = [
+    path.resolve(process.cwd(), raw),
+    path.resolve(__dirname, '..', raw),
+    path.join(BACKLOG_MILL_DIR, path.basename(raw)),
+    path.join(BACKLOG_MILL_DIR, raw),
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.resolve(process.cwd(), raw);
+}
 
 const DEPT = 'sugar_house';
 const SECTION = 'instrument';
@@ -73,7 +93,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === '--dry-run') opts.dryRun = true;
     else if (a === '--replace') opts.replace = true;
-    else if (a === '--file') opts.file = path.resolve(argv[++i]);
+    else if (a === '--file') opts.file = resolveWorkbookPath(argv[++i]);
     else if (a === '--help' || a === '-h') {
       console.log(`Usage: node scripts/import-shn-life-history-xlsx.js [options]
 
@@ -81,10 +101,16 @@ Options:
   --dry-run          Parse and match only; no DB writes
   --replace          Replace existing shn_equipment (by tag/equip_no) then re-import
   --file <path>      Source workbook (default: backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx)
+
+Examples (from backend/):
+  npm run db:import-shn-life-history -- --replace
+  npm run db:import-shn-life-history -- --replace --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx"
+  npm run db:import-shn-life-history -- --replace --file sugar-house-equipment-life-history-filtered-updated.xlsx
 `);
       process.exit(0);
     }
   }
+  opts.file = resolveWorkbookPath(opts.file);
   return opts;
 }
 
