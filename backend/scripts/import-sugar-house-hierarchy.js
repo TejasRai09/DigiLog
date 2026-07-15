@@ -11,8 +11,13 @@
  *   npm run db:import-sugar-house-hierarchy -- --force
  *   node scripts/import-sugar-house-hierarchy.js --file "backlog-data/mill data/sugar house hierarchy.xlsx"
  *
- * Re-create tree (production):
+ * Re-create tree (staging/production):
  *   cd backend
+ *   npm run db:apply-sql -- ../mysql/migrate_add_sugar_house_equipment_new_tables.sql
+ *   npm run db:apply-sql -- ../mysql/migrate_shn_hierarchy.sql
+ *   npm run db:apply-sql -- ../mysql/migrate_shn_hierarchy_hist_location.sql
+ *   npm run db:apply-sql -- ../mysql/migrate_shn_hierarchy_is_imported.sql
+ *   node seed.js
  *   npm run db:import-sugar-house-hierarchy -- --force
  */
 require('../config/env');

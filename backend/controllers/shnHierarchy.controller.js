@@ -45,6 +45,7 @@ const createNode = async (req, res) => {
     const name = String(req.body.name || '').trim();
     const equip_no = String(req.body.equip_no || req.body.equipNo || '').trim() || null;
     const lookup_name = String(req.body.lookup_name || req.body.lookupName || '').trim() || null;
+    const hist_location = String(req.body.hist_location || req.body.histLocation || '').trim() || null;
 
     if (!name) return res.status(400).json({ message: 'name is required.' });
     if (!['group', 'equipment'].includes(node_type)) {
@@ -86,6 +87,7 @@ const createNode = async (req, res) => {
 
     let shn_equip_id = null;
     const resolvedLookupName = node_type === 'equipment' ? (lookup_name || name) : lookup_name;
+    const resolvedHistLocation = node_type === 'equipment' ? hist_location : null;
     if (node_type === 'equipment') {
       shn_equip_id = await resolveShnEquipIdForNode({
         equipNo: equip_no,
@@ -96,9 +98,18 @@ const createNode = async (req, res) => {
 
     const [result] = await pool.execute(
       `INSERT INTO shn_hierarchy_node
-         (parent_id, node_type, name, equip_no, lookup_name, shn_equip_id, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [parent_id, node_type, name, equip_no, resolvedLookupName, shn_equip_id, sort_order],
+         (parent_id, node_type, name, equip_no, lookup_name, hist_location, shn_equip_id, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        parent_id,
+        node_type,
+        name,
+        equip_no,
+        resolvedLookupName,
+        resolvedHistLocation,
+        shn_equip_id,
+        sort_order,
+      ],
     );
 
     const created = await getNodeById(result.insertId);
@@ -130,6 +141,9 @@ const updateNode = async (req, res) => {
     const lookup_name = req.body.lookup_name != null || req.body.lookupName != null
       ? (String(req.body.lookup_name || req.body.lookupName || '').trim() || null)
       : existing.lookupName;
+    const hist_location = req.body.hist_location != null || req.body.histLocation != null
+      ? (String(req.body.hist_location || req.body.histLocation || '').trim() || null)
+      : existing.histLocation;
 
     if (!name) return res.status(400).json({ message: 'name is required.' });
 
@@ -165,9 +179,9 @@ const updateNode = async (req, res) => {
 
     await pool.execute(
       `UPDATE shn_hierarchy_node
-       SET name = ?, equip_no = ?, lookup_name = ?, shn_equip_id = ?, sort_order = ?
+       SET name = ?, equip_no = ?, lookup_name = ?, hist_location = ?, shn_equip_id = ?, sort_order = ?
        WHERE id = ?`,
-      [name, equip_no, lookup_name, shn_equip_id, sort_order, id],
+      [name, equip_no, lookup_name, hist_location, shn_equip_id, sort_order, id],
     );
 
     const updated = await getNodeById(id);
