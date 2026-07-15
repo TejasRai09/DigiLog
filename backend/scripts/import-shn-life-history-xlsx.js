@@ -115,6 +115,73 @@ function normalizeIvMark(value) {
   return s.length <= 1 ? s : 'X';
 }
 
+const SCHEDULE_IV_KEYS = ['iv_W', 'iv_M', 'iv_Q', 'iv_H', 'iv_Y', 'iv_T', 'iv_3Y'];
+
+/** Excel often emits one activity per row for the same Sr.No. + component — merge into one schedule row. */
+function mergeScheduleRows(rows) {
+  const merged = [];
+  const indexByKey = new Map();
+
+  for (const row of rows) {
+    const compKey = trim(row.comp).toLowerCase();
+    const key = `${row.no}::${compKey}`;
+
+    if (indexByKey.has(key)) {
+      const existing = merged[indexByKey.get(key)];
+      const act = trim(row.act);
+      if (act) {
+        existing.act = existing.act ? `${existing.act} || ${act}` : act;
+      }
+      for (const ivKey of SCHEDULE_IV_KEYS) {
+        if (row[ivKey] && !existing[ivKey]) existing[ivKey] = row[ivKey];
+      }
+      continue;
+    }
+
+    indexByKey.set(key, merged.length);
+    merged.push({ ...row });
+  }
+
+  return merged;
+}
+
+function parseScheduleSheetRows(rawRows) {
+  const parsed = rawRows
+    .map((s, index) => {
+      const act = trim(s['Maintenance / Inspection Activities']);
+      const comp = trim(s['Name of Equipment']);
+      const no = Number(s['Sr.No.']) || index + 1;
+      const iv_W = normalizeIvMark(s.Weekly) || normalizeIvMark(s.Daily);
+      const iv_M = normalizeIvMark(s.Monthly);
+      const iv_Q = normalizeIvMark(s.Quarterly);
+      const iv_H = normalizeIvMark(s['Half - Yearly']);
+      const iv_Y = normalizeIvMark(s.Yearly);
+      const iv_T = normalizeIvMark(s['2 - Years']);
+      const iv_3Y = normalizeIvMark(s['3 - Years']) || normalizeIvMark(s['4 - Years']);
+      if (!act && !comp && !iv_W && !iv_M && !iv_Q && !iv_H && !iv_Y && !iv_T && !iv_3Y) {
+        return null;
+      }
+      return {
+        section: SECTION,
+        sub_section: SUB_SECTION,
+        equipment_refs: [{ section: SECTION, sub_section: SUB_SECTION }],
+        no,
+        comp,
+        act,
+        iv_W,
+        iv_M,
+        iv_Q,
+        iv_H,
+        iv_Y,
+        iv_T,
+        iv_3Y,
+      };
+    })
+    .filter(Boolean);
+
+  return mergeScheduleRows(parsed);
+}
+
 function toMysqlDate(value) {
   const s = trim(value);
   if (!s) return null;
@@ -175,38 +242,7 @@ function loadWorkbook(filePath) {
       val: buildSubsectionsMeta(),
     });
 
-    const schedule = (scheduleById.get(sheetId) || [])
-      .map((s, index) => {
-        const act = trim(s['Maintenance / Inspection Activities']);
-        const comp = trim(s['Name of Equipment']);
-        const no = Number(s['Sr.No.']) || index + 1;
-        const iv_W = normalizeIvMark(s.Weekly) || normalizeIvMark(s.Daily);
-        const iv_M = normalizeIvMark(s.Monthly);
-        const iv_Q = normalizeIvMark(s.Quarterly);
-        const iv_H = normalizeIvMark(s['Half - Yearly']);
-        const iv_Y = normalizeIvMark(s.Yearly);
-        const iv_T = normalizeIvMark(s['2 - Years']);
-        const iv_3Y = normalizeIvMark(s['3 - Years']) || normalizeIvMark(s['4 - Years']);
-        if (!act && !comp && !iv_W && !iv_M && !iv_Q && !iv_H && !iv_Y && !iv_T && !iv_3Y) {
-          return null;
-        }
-        return {
-          section: SECTION,
-          sub_section: SUB_SECTION,
-          equipment_refs: [{ section: SECTION, sub_section: SUB_SECTION }],
-          no,
-          comp,
-          act,
-          iv_W,
-          iv_M,
-          iv_Q,
-          iv_H,
-          iv_Y,
-          iv_T,
-          iv_3Y,
-        };
-      })
-      .filter(Boolean);
+    const schedule = parseScheduleSheetRows(scheduleById.get(sheetId) || []);
 
     const history = (historyById.get(sheetId) || [])
       .map((h) => {
