@@ -12,7 +12,7 @@
  * Usage (from backend/):
  *   npm run db:import-shn-life-history -- --dry-run
  *   npm run db:import-shn-life-history -- --replace
- *   npm run db:import-shn-life-history -- --replace --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx"
+ *   npm run db:import-shn-life-history -- --replace --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered-updated.xlsx"
  */
 
 require('../config/env');
@@ -25,7 +25,7 @@ const { pool } = require('../config/mysql');
 const BACKLOG_MILL_DIR = path.join(__dirname, '../backlog-data/mill data');
 const DEFAULT_FILE = path.join(
   BACKLOG_MILL_DIR,
-  'sugar-house-equipment-life-history-filtered.xlsx',
+  'sugar-house-equipment-life-history-filtered-updated.xlsx',
 );
 
 /** Resolve --file against cwd, backend/, and backlog-data/mill data. */
@@ -101,12 +101,12 @@ function parseArgs(argv) {
 Options:
   --dry-run          Parse and match only; no DB writes
   --replace          Replace existing shn_equipment (by tag/equip_no) then re-import
-  --file <path>      Source workbook (default: backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx)
+  --file <path>      Source workbook (default: backlog-data/mill data/sugar-house-equipment-life-history-filtered-updated.xlsx)
 
 Examples (from backend/):
   npm run db:import-shn-life-history -- --replace
-  npm run db:import-shn-life-history -- --replace --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered.xlsx"
-  npm run db:import-shn-life-history -- --replace --file sugar-house-equipment-life-history-filtered-updated.xlsx
+  npm run db:import-shn-life-history -- --replace --file "backlog-data/mill data/sugar-house-equipment-life-history-filtered-updated.xlsx"
+  npm run db:import-shn-life-history -- --replace --file sugar-house-equipment-life-history-filtered-updated-updated.xlsx
 `);
       process.exit(0);
     }

@@ -1,5 +1,6 @@
 const { createPowerEquipmentController } = require('./powerEquipmentControllerFactory');
 
+
 module.exports = createPowerEquipmentController({
   equipment: 'pp_equipment',
   specs: 'pp_specs',

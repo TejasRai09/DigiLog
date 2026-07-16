@@ -64,6 +64,16 @@ def extract_plant_tags(path: Path) -> list[str]:
     return tags
 
 
+def is_equip_no_label(text) -> bool:
+    """Accept EQUIPMENT NO / EQUIPMENT NO: / EQUIPMENT NO : (colon optional)."""
+    label = norm(text)
+    if not label:
+        return False
+    if label == "EQUIPMENT NO:" or label == "EQUIPMENT NO":
+        return True
+    return label.startswith("EQUIPMENT NO")
+
+
 def extract_turbine_equipment_tags(path: Path) -> list[str]:
     wb = openpyxl.load_workbook(path, data_only=True)
     tags: list[str] = []
@@ -71,8 +81,7 @@ def extract_turbine_equipment_tags(path: Path) -> list[str]:
         ws = wb[sheet_name]
         for r in range(1, ws.max_row + 1):
             for c in (1, 2):
-                label = norm(ws.cell(r, c).value)
-                if label != "EQUIPMENT NO:":
+                if not is_equip_no_label(ws.cell(r, c).value):
                     continue
                 val = row_value_after_label(ws, r, c)
                 if val:
