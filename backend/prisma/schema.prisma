@@ -484,6 +484,8 @@ model PhSteam {
   StmMillTurbine110_45ATAPRDS     Float?
   StmtoDistil110_45ATAPRDS_o      Float?
   Stm4MWTG110_45ATAPRDS           Float?
+  DSHWater110_3ATA                Float?
+  DSHWater110_45ATA               Float?
   ExtractionStm30MW               Float?
   Bleed2HPH1Stm                   Float?
   Bleed1HPH2Stm                   Float?
@@ -493,6 +495,7 @@ model PhSteam {
   StmCons4                        Float?
   StmCons45_55ATAPRDS             Float?
   Stm45_55ATADeareatorEjectorPRDS Float?
+  DSHWater5_5ATA                  Float?
   Extractionstm4                  Float?
   TotalStmdistil                  Float?
   StmtoEjector                    Float?
@@ -503,6 +506,7 @@ model PhSteam {
   StmCons3New35                   Float?
   StmDist70                       Float?
   Stmto4_70TPH                    Float?
+  DSHWater2ATA                    Float?
   TotalStmtoSug70                 Float?
   Firewood150                     Float?
   Baggase150                      Float?

@@ -478,6 +478,8 @@ function schemaPhSteam() {
   push(a, 'StmMillTurbine110_45ATAPRDS', '150 TPH — Stage 2', 'Steam to Mill Turbine through 110/45 ATA PRDS');
   push(a, 'StmtoDistil110_45ATAPRDS_o', '150 TPH — Stage 2', 'Steam to Distillery Process through 110/45 ATA PRDS');
   push(a, 'Stm4MWTG110_45ATAPRDS', '150 TPH — Stage 2', 'Steam to 4MW TG through 110/45 ATA PRDS');
+  push(a, 'DSHWater110_3ATA', '150 TPH — Stage 2', 'DSH Water to 110/3 ATA Steam');
+  push(a, 'DSHWater110_45ATA', '150 TPH — Stage 2', 'DSH Water to 110/45 ATA Steam');
   push(a, 'ExtractionStm30MW', '150 TPH — Stage 3', 'Extraction Steam from 30MW TG');
   push(a, 'Bleed2HPH1Stm', '150 TPH — Stage 3', 'Bleed 2 to HP H1 Steam');
   push(a, 'Bleed1HPH2Stm', '150 TPH — Stage 3', 'Bleed 1 to HP H2 Steam');
@@ -490,6 +492,7 @@ function schemaPhSteam() {
   push(a, 'StmCons3New35', '70 TPH — Stage 2', 'Steam Consp. 3 MW TG New');
   push(a, 'StmDist70', '70 TPH — Stage 2', 'Steam to Distillery Process from 70 TPH');
   push(a, 'Stmto4_70TPH', '70 TPH — Stage 2', 'Steam to 4 MW Turbine from 70 TPH');
+  push(a, 'DSHWater2ATA', '70 TPH — Stage 2', 'DSH Water to 2 ATA Steam');
   push(a, 'TotalStmtoSug70', '70 TPH — Stage 3', 'Total Steam to Sugar');
   push(a, 'Firewood70', '70 TPH — Fuel Consumption', 'Firewood (MT)');
   push(a, 'Baggase70', '70 TPH — Fuel Consumption', 'Baggase (MT)');
@@ -497,6 +500,7 @@ function schemaPhSteam() {
   push(a, 'StmCons4', '35 TPH — Stage 2', 'Steam Consumption 4 MW Turbine');
   push(a, 'StmCons45_55ATAPRDS', '35 TPH — Stage 2', 'Steam through 45/5.5 ATA Process PRDS');
   push(a, 'Stm45_55ATADeareatorEjectorPRDS', '35 TPH — Stage 2', 'Steam through 45/5.5 ATA Deareator & Ejector PRDS');
+  push(a, 'DSHWater5_5ATA', '35 TPH — Stage 2', 'DSH Water to 5.5 ATA Steam');
   push(a, 'Extractionstm4', '35 TPH — Stage 3', 'Extraction steam from 4MW TG');
   push(a, 'TotalStmdistil', '35 TPH — Stage 4', 'Total Steam to distillery process');
   push(a, 'StmtoEjector', '35 TPH — Stage 4', 'Steam to Ejector');

@@ -21,13 +21,16 @@ const INITIAL = {
   SteamGen150: '', SteamCon30MW: '',
   SteamtoSugar110_3ATAPRDS: '', Stmto3Old110_45ATAPRDS: '', Stmto3New110_45ATAPRDS: '',
   StmMillTurbine110_45ATAPRDS: '', StmtoDistil110_45ATAPRDS_o: '', Stm4MWTG110_45ATAPRDS: '',
+  DSHWater110_3ATA: '', DSHWater110_45ATA: '',
   ExtractionStm30MW: '', Bleed2HPH1Stm: '', Bleed1HPH2Stm: '',
   TotalStmtoSug150: '', Stmtodeareator150: '',
   SteamGen70: '',
   StmCons3Old35: '', StmCons3New35: '', StmDist70: '', Stmto4_70TPH: '',
+  DSHWater2ATA: '',
   TotalStmtoSug70: '',
   SteamGen35: '',
   StmCons4: '', StmCons45_55ATAPRDS: '', Stm45_55ATADeareatorEjectorPRDS: '',
+  DSHWater5_5ATA: '',
   Extractionstm4: '',
   TotalStmdistil: '', StmtoEjector: '', Stm35TDeareator: '', StmtoSugDisti: '',
   Firewood150: '', Baggase150: '',
@@ -94,6 +97,8 @@ const PhSteam = () => {
               <F label="Steam to Mill Turbine through 110/45 ATA PRDS:" name="StmMillTurbine110_45ATAPRDS" value={form.StmMillTurbine110_45ATAPRDS} onChange={handleChange} placeholder="" />
               <F label="Steam to Distillery Process through 110/45 ATA PRDS:" name="StmtoDistil110_45ATAPRDS_o" value={form.StmtoDistil110_45ATAPRDS_o} onChange={handleChange} placeholder="" />
               <F label="Steam to 4MW TG through 110/45 ATA PRDS:" name="Stm4MWTG110_45ATAPRDS" value={form.Stm4MWTG110_45ATAPRDS} onChange={handleChange} placeholder="" />
+              <F label="DSH Water to 110/3 ATA Steam" name="DSHWater110_3ATA" value={form.DSHWater110_3ATA} onChange={handleChange} placeholder="" />
+              <F label="DSH Water to 110/45 ATA Steam" name="DSHWater110_45ATA" value={form.DSHWater110_45ATA} onChange={handleChange} placeholder="" />
               <PowerStageLabel>Stage 3</PowerStageLabel>
               <F label="Extraction Steam from 30MW TG" name="ExtractionStm30MW" value={form.ExtractionStm30MW} onChange={handleChange} placeholder="30 MW" />
               <F label="Bleed 2 to HP H1 Steam" name="Bleed2HPH1Stm" value={form.Bleed2HPH1Stm} onChange={handleChange} placeholder="30 MW" />
@@ -114,6 +119,7 @@ const PhSteam = () => {
               <F label="Steam Consp. 3 MW TG New:" name="StmCons3New35" value={form.StmCons3New35} onChange={handleChange} placeholder="" />
               <F label="Steam to Distillery Process from 70 TPH:" name="StmDist70" value={form.StmDist70} onChange={handleChange} placeholder="" />
               <F label="Steam to 4 MW Turbine from 70 TPH:" name="Stmto4_70TPH" value={form.Stmto4_70TPH} onChange={handleChange} placeholder="" />
+              <F label="DSH Water to 2 ATA Steam" name="DSHWater2ATA" value={form.DSHWater2ATA} onChange={handleChange} placeholder="" />
               <PowerStageLabel>Stage 3</PowerStageLabel>
               <F label="Total Steam to Sugar:" name="TotalStmtoSug70" value={form.TotalStmtoSug70} onChange={handleChange} placeholder="" />
               <PowerStageLabel>Fuel Consumption:</PowerStageLabel>
@@ -128,6 +134,7 @@ const PhSteam = () => {
               <F label="Steam Consumption 4 MW Turbine:" name="StmCons4" value={form.StmCons4} onChange={handleChange} placeholder="" />
               <F label="Steam through 45/5.5 ATA Process PRDS:" name="StmCons45_55ATAPRDS" value={form.StmCons45_55ATAPRDS} onChange={handleChange} placeholder="" />
               <F label="Steam through 45/5.5 ATA Deareator & Ejector PRDS:" name="Stm45_55ATADeareatorEjectorPRDS" value={form.Stm45_55ATADeareatorEjectorPRDS} onChange={handleChange} placeholder="" />
+              <F label="DSH Water to 5.5 ATA Steam" name="DSHWater5_5ATA" value={form.DSHWater5_5ATA} onChange={handleChange} placeholder="" />
               <PowerStageLabel>Stage 3</PowerStageLabel>
               <F label="Extraction steam from 4MW TG:" name="Extractionstm4" value={form.Extractionstm4} onChange={handleChange} placeholder="" />
               <PowerStageLabel>Stage 4</PowerStageLabel>
