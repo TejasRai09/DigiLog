@@ -20,6 +20,7 @@
     "db:map-employee-departments": "node scripts/map-employee-departments-to-categories.js",
     "db:import-purchy-grower": "node scripts/import-purchy-grower-excel.js",
     "db:validate-purchy-measures": "node scripts/validate-purchy-measures.js",
+    "db:import-ehs-accident": "node scripts/import-ehs-accident-excel.js",
     "db:generate-purchy-formulas": "node scripts/generate-purchy-formula-excel.js",
     "db:extract-aph-history": "python ../scripts/import_air_preheater_maintenance_history.py",
     "db:import-air-preheater-xlsx": "node ../scripts/import_air_preheater_history.js --replace",
