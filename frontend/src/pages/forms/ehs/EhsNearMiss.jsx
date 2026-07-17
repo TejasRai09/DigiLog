@@ -61,8 +61,8 @@ const EhsNearMiss = () => {
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
       <FormPageHeader
         formKey="ehs_near_miss"
-        fallbackTitle="Near Miss / Incident / Accident Report"
-        fallbackDescription="Log workplace near misses, incidents and accidents for investigation"
+        fallbackTitle="Accident Report"
+        fallbackDescription="Log workplace accidents for investigation"
       />
 
       <form onSubmit={openReview} className="space-y-6">
