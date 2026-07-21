@@ -227,33 +227,40 @@ function createPowerEquipmentController(tables) {
       return rows[0] || null;
     };
 
-    if (equipNo && name && location) {
-      const exact = await run(
-        '(equip_no = ? OR tag_name = ?) AND name = ? AND location = ?',
-        [equipNo, equipNo, name, location],
-      );
-      if (exact) return exact;
+    if (equipNo) {
+      if (name && location) {
+        const exact = await run(
+          '(equip_no = ? OR tag_name = ?) AND name = ? AND location = ?',
+          [equipNo, equipNo, name, location],
+        );
+        if (exact) return exact;
+      }
+
+      if (name) {
+        const exact = await run(
+          '(equip_no = ? OR tag_name = ?) AND name = ?',
+          [equipNo, equipNo, name],
+        );
+        if (exact) return exact;
+      }
+
+      const byTag = await run('equip_no = ? OR tag_name = ?', [equipNo, equipNo]);
+      if (byTag) return byTag;
+
+      const byTagPrefix = await run('name LIKE ?', [`${equipNo} (%`]);
+      if (byTagPrefix) return byTagPrefix;
+
+      return null;
     }
 
-    if (equipNo && name) {
-      const exact = await run(
-        '(equip_no = ? OR tag_name = ?) AND name = ?',
-        [equipNo, equipNo, name],
-      );
+    if (name && location) {
+      const exact = await run('name = ? AND location = ?', [name, location]);
       if (exact) return exact;
     }
 
     if (name) {
       const byName = await run('name = ?', [name]);
       if (byName) return byName;
-    }
-
-    if (equipNo) {
-      const byTag = await run('equip_no = ? OR tag_name = ?', [equipNo, equipNo]);
-      if (byTag) return byTag;
-
-      const byTagPrefix = await run('name LIKE ?', [`${equipNo} (%`]);
-      if (byTagPrefix) return byTagPrefix;
     }
 
     return null;

@@ -1,0 +1,233 @@
+[
+  {
+    "id": 828,
+    "name": "VAPOUR CELL-2500 M2 FLD INST · I/II2500 Robert body",
+    "equip_no": "ZIL/SUG./01/FT-203",
+    "lookup_name": "VAPOUR CELL-2500 M2 FLD INST",
+    "hist_location": "I/II2500 Robert body"
+  },
+  {
+    "id": 833,
+    "name": "SEMI KESTNER-2500 M2 FLD INST · DS Exhaust Flow",
+    "equip_no": "ZIL/SUG./01/DS_EX_FLOW",
+    "lookup_name": "SEMI KESTNER-2500 M2 FLD INST",
+    "hist_location": "DS Exhaust Flow"
+  },
+  {
+    "id": 850,
+    "name": "MUD REMOVAL SYSTEM FLD INST · Decanter-2 Mud I/L Valve",
+    "equip_no": "ZIL/SUG./001/DECANTER-2/CV1",
+    "lookup_name": "MUD REMOVAL SYSTEM FLD INST",
+    "hist_location": "Decanter-2 Mud I/L Valve"
+  },
+  {
+    "id": 862,
+    "name": "EXHAUST COND. PUMP FLD INST · DS Exhaust Flow",
+    "equip_no": "ZIL/SUG./01/DS_EX_FLOW",
+    "lookup_name": "EXHAUST COND. PUMP FLD INST",
+    "hist_location": "DS Exhaust Flow"
+  },
+  {
+    "id": 863,
+    "name": "EXHAUST COND. PUMP FLD INST · Exhaust Condensate Flow",
+    "equip_no": "ZIL/SUG./01/FT-201",
+    "lookup_name": "EXHAUST COND. PUMP FLD INST",
+    "hist_location": "Exhaust Condensate Flow"
+  },
+  {
+    "id": 919,
+    "name": "SHREDDER FIELD INST 1 · Shreder RHS Side",
+    "equip_no": "ZIL/SUG./015  (VIB103,VIB104,VIB105)",
+    "lookup_name": "SHREDDER FIELD INST 1",
+    "hist_location": "Shreder RHS Side"
+  },
+  {
+    "id": 949,
+    "name": "MILL UPS 1 · UPS FOR SUGAR PLANT  MILL HOUSE",
+    "equip_no": "ZIL/GSM/UPS-1",
+    "lookup_name": "MILL UPS 1",
+    "hist_location": "UPS FOR SUGAR PLANT  MILL HOUSE"
+  },
+  {
+    "id": 950,
+    "name": "MILL UPS 2 · UPS FOR SUGAR PLANT  MILL HOUSE",
+    "equip_no": "ZIL/GSM/UPS-2",
+    "lookup_name": "MILL UPS 2",
+    "hist_location": "UPS FOR SUGAR PLANT  MILL HOUSE"
+  },
+  {
+    "id": 959,
+    "name": "MILL NO 2 STEAM TURBINE · SUGAR PLANT",
+    "equip_no": "ZIL/SUG/04",
+    "lookup_name": "MILL NO 2 STEAM TURBINE",
+    "hist_location": "SUGAR PLANT"
+  },
+  {
+    "id": 962,
+    "name": "MILL NO 3 STEAM TURBINE · SUGAR PLANT",
+    "equip_no": "ZIL/SUG/04",
+    "lookup_name": "MILL NO 3 STEAM TURBINE",
+    "hist_location": "SUGAR PLANT"
+  },
+  {
+    "id": 970,
+    "name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST · Rotary screen Valve 02(A)",
+    "equip_no": "ZIL/SUG./006  (XV_RJ1_SOV2)",
+    "lookup_name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST",
+    "hist_location": "Rotary screen Valve 02(A)"
+  },
+  {
+    "id": 971,
+    "name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST · Rotary screen Valve 02(B)",
+    "equip_no": "ZIL/SUG./007  (XV_RJ1_SOV3)",
+    "lookup_name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST",
+    "hist_location": "Rotary screen Valve 02(B)"
+  },
+  {
+    "id": 972,
+    "name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST · Rotary screen Valve 03(A)",
+    "equip_no": "ZIL/SUG./008  (XV_RJ1_SOV2)",
+    "lookup_name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST",
+    "hist_location": "Rotary screen Valve 03(A)"
+  },
+  {
+    "id": 973,
+    "name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST · Rotary screen Valve 03(B)",
+    "equip_no": "ZIL/SUG./009  (XV_RJ1_SOV3)",
+    "lookup_name": "SECONDARY JUICE ROTARY SCREEN 2 FLD INST",
+    "hist_location": "Rotary screen Valve 03(B)"
+  },
+  {
+    "id": 1007,
+    "name": "B CONTI PAN PLC PANEL ENG/OP STATION · B & C CONTINUOUS PAN",
+    "equip_no": "ZIL/GSM/B&C",
+    "lookup_name": "B CONTI PAN PLC PANEL ENG/OP STATION",
+    "hist_location": "B & C CONTINUOUS PAN"
+  },
+  {
+    "id": 1119,
+    "name": "SRT FLD INST · D Scuitnnig Water Line",
+    "equip_no": "ZIL/SUG./016",
+    "lookup_name": "SRT FLD INST",
+    "hist_location": "D Scuitnnig Water Line"
+  },
+  {
+    "id": 1120,
+    "name": "SRT FLD INST · SRT O/L valve",
+    "equip_no": "ZIL/SUG./017",
+    "lookup_name": "SRT FLD INST",
+    "hist_location": "SRT O/L valve"
+  },
+  {
+    "id": 1147,
+    "name": "BRS IST STAGE FLD INST · Refinery BRS 1st Stage Permit Tank",
+    "equip_no": "ZIL/SUG./01/FT-201",
+    "lookup_name": "BRS IST STAGE FLD INST",
+    "hist_location": "Refinery BRS 1st Stage Permit Tank"
+  },
+  {
+    "id": 1149,
+    "name": "BRS IST STAGE FLD INST · Refinery BRS 1st Stage Recycle",
+    "equip_no": "ZIL/SUG./01/FT-203",
+    "lookup_name": "BRS IST STAGE FLD INST",
+    "hist_location": "Refinery BRS 1st Stage Recycle"
+  },
+  {
+    "id": 1209,
+    "name": "RAW HOUSE UPS 1 · UPS FOR SUGAR PLANT  RAW HOUSE",
+    "equip_no": "ZIL/GSM/UPS-1",
+    "lookup_name": "RAW HOUSE UPS 1",
+    "hist_location": "UPS FOR SUGAR PLANT  RAW HOUSE"
+  },
+  {
+    "id": 1210,
+    "name": "RAW HOUSE UPS 2 · UPS FOR SUGAR PLANT  RAW HOUSE",
+    "equip_no": "ZIL/GSM/UPS-2",
+    "lookup_name": "RAW HOUSE UPS 2",
+    "hist_location": "UPS FOR SUGAR PLANT  RAW HOUSE"
+  },
+  {
+    "id": 1290,
+    "name": "RAW PAN N.5 & CONDENSER FLD INST · Cooling condenser spray valve RAW. Pan.no.5 (Refinery)",
+    "equip_no": "ZIL/SUG./001  (22XV025G01)",
+    "lookup_name": "RAW PAN N.5 & CONDENSER FLD INST",
+    "hist_location": "Cooling condenser spray valve RAW. Pan.no.5 (Refinery)"
+  },
+  {
+    "id": 1305,
+    "name": "RAW PAN N.1 & CONDENSER FLD INST · Raw Pan Hot Water Line",
+    "equip_no": "ZIL/SUG./01/22FT220B01",
+    "lookup_name": "RAW PAN N.1 & CONDENSER FLD INST",
+    "hist_location": "Raw Pan Hot Water Line"
+  },
+  {
+    "id": 1306,
+    "name": "RAW PAN N.2 & CONDENSER FLD INST · Cooling condenser Main valve RAW. Pan.no.2 (Refinery)",
+    "equip_no": "ZIL/SUG./001  (22XV023B01)",
+    "lookup_name": "RAW PAN N.2 & CONDENSER FLD INST",
+    "hist_location": "Cooling condenser Main valve RAW. Pan.no.2 (Refinery)"
+  },
+  {
+    "id": 1311,
+    "name": "RAW PAN N.3 & CONDENSER FLD INST · Cooling condenser Spray valve Raw. Pan.no.3 · ZIL/SUG./001  (22XV020B01)",
+    "equip_no": "ZIL/SUG./001  (22XV020B01)",
+    "lookup_name": "RAW PAN N.3 & CONDENSER FLD INST",
+    "hist_location": "Cooling condenser Spray valve Raw. Pan.no.3"
+  },
+  {
+    "id": 1312,
+    "name": "RAW PAN N.3 & CONDENSER FLD INST · Cooling condenser Spray valve Raw. Pan.no.3 · ZIL/SUG./001  (22XV020B02)",
+    "equip_no": "ZIL/SUG./001  (22XV020B02)",
+    "lookup_name": "RAW PAN N.3 & CONDENSER FLD INST",
+    "hist_location": "Cooling condenser Spray valve Raw. Pan.no.3"
+  },
+  {
+    "id": 1313,
+    "name": "RAW PAN N.3 & CONDENSER FLD INST · Cooling condenser Spray valve Raw. Pan.no.3 · ZIL/SUG./001  (22XV020B03)",
+    "equip_no": "ZIL/SUG./001  (22XV020B03)",
+    "lookup_name": "RAW PAN N.3 & CONDENSER FLD INST",
+    "hist_location": "Cooling condenser Spray valve Raw. Pan.no.3"
+  },
+  {
+    "id": 1315,
+    "name": "RAW PAN N.3 & CONDENSER FLD INST · Cooling condenser Main valve Raw. Pan.no.3",
+    "equip_no": "ZIL/SUG./001  (22XV020B05)",
+    "lookup_name": "RAW PAN N.3 & CONDENSER FLD INST",
+    "hist_location": "Cooling condenser Main valve Raw. Pan.no.3"
+  },
+  {
+    "id": 1345,
+    "name": "REFINERY PAN 1 & PAN CONDENSER FLD INST · Refinary PAN No 1  Auto feed Valve",
+    "equip_no": "ZIL/SUG./001  (17 BCV.030B01)",
+    "lookup_name": "REFINERY PAN 1 & PAN CONDENSER FLD INST",
+    "hist_location": "Refinary PAN No 1  Auto feed Valve"
+  },
+  {
+    "id": 1350,
+    "name": "REFINERY PAN 1 & PAN CONDENSER FLD INST · Refinery Pan Hot water flow",
+    "equip_no": "ZIL/SUG./01/22FT220B01",
+    "lookup_name": "REFINERY PAN 1 & PAN CONDENSER FLD INST",
+    "hist_location": "Refinery Pan Hot water flow"
+  },
+  {
+    "id": 1356,
+    "name": "REFINERY PAN 3 & PAN CONDENSER FLD INST · Refinary PAN No 3 Auto feed Valve",
+    "equip_no": "ZIL/SUG./001  (11 BCV 030B01)",
+    "lookup_name": "REFINERY PAN 3 & PAN CONDENSER FLD INST",
+    "hist_location": "Refinary PAN No 3 Auto feed Valve"
+  },
+  {
+    "id": 1381,
+    "name": "REFINERY HOUSE UPS 1 · UPS FOR SUGAR PLANT  REFINERY HOUSE",
+    "equip_no": "ZIL/GSM/UPS-1",
+    "lookup_name": "REFINERY HOUSE UPS 1",
+    "hist_location": "UPS FOR SUGAR PLANT  REFINERY HOUSE"
+  },
+  {
+    "id": 1382,
+    "name": "REFINERY HOUSE UPS 2 · UPS FOR SUGAR PLANT  REFINERY HOUSE",
+    "equip_no": "ZIL/GSM/UPS-2",
+    "lookup_name": "REFINERY HOUSE UPS 2",
+    "hist_location": "UPS FOR SUGAR PLANT  REFINERY HOUSE"
+  }
+]

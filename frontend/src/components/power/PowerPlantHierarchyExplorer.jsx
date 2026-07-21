@@ -5,12 +5,14 @@ import {
   MdArrowForward,
   MdBolt,
   MdChevronRight,
+  MdClose,
   MdDashboard,
   MdDelete,
   MdEdit,
   MdExpandLess,
   MdExpandMore,
   MdFolder,
+  MdSearch,
   MdSettings,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
@@ -37,6 +39,25 @@ import { isZilEquipNo } from '../../config/powerEquipmentFields';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
+
+function matchesNodeSearch(n, query) {
+  if (!query) return true;
+  const q = query.toLowerCase();
+  const name = (n.name || '').toLowerCase();
+  const tag = (n.equipNo || '').toLowerCase();
+  const lookup = (n.lookupName || '').toLowerCase();
+  const loc = (n.histLocation || '').toLowerCase();
+  return name.includes(q) || tag.includes(q) || lookup.includes(q) || loc.includes(q);
+}
+
+function hasMatchingDescendant(n, query) {
+  if (!query) return true;
+  if (matchesNodeSearch(n, query)) return true;
+  for (const child of n.children || []) {
+    if (hasMatchingDescendant(child, query)) return true;
+  }
+  return false;
+}
 
 /** What the user can open next from this navigation depth. */
 function hierarchyChoiceLabel(apiBase, pathDepth, isEquipmentLeaf) {
@@ -153,12 +174,21 @@ function TreeBranch({
   onOpenDiscipline,
   opening,
   activeDisciplineId = null,
+  searchTerm = '',
 }) {
+  const query = searchTerm.trim().toLowerCase();
+  if (query && !hasMatchingDescendant(node, query)) {
+    return null;
+  }
+
   const isGroup = isHierarchyGroup(node);
   const isEquipment = isHierarchyEquipment(node);
   const hierarchyChildren = node.children ?? [];
   const disciplineChildren = isEquipment ? disciplineNodesForEquipment(node) : [];
+
+  const isSearchExpanding = Boolean(query && isGroup && hasMatchingDescendant(node, query));
   const [open, setOpen] = useState(defaultOpen || depth < 1);
+  const effectiveOpen = isSearchExpanding || open;
   const isOpening = opening === node.id;
 
   if (isEquipment) {
@@ -175,7 +205,7 @@ function TreeBranch({
           }`}
           style={{ paddingLeft: `${depth * 1.25}rem` }}
         >
-          {open ? (
+          {effectiveOpen ? (
             <MdExpandLess className="h-5 w-5 text-gray-500 shrink-0" />
           ) : (
             <MdExpandMore className="h-5 w-5 text-gray-500 shrink-0" />
@@ -183,7 +213,7 @@ function TreeBranch({
           <MdSettings className="h-4 w-4 text-amber-600 shrink-0" />
           <span className={isOpening ? 'text-amber-700 font-medium' : ''}>{node.name}</span>
         </button>
-        {open && (
+        {effectiveOpen && (
           <div>
             {disciplineChildren.map((disciplineNode) => {
               const isActive = activeDisciplineId === disciplineNode.disciplineId;
@@ -226,7 +256,7 @@ function TreeBranch({
         className="flex w-full items-center gap-2 py-1.5 text-sm text-left text-gray-800 hover:bg-amber-50/80 rounded-md pr-2"
         style={{ paddingLeft: `${depth * 1.25}rem` }}
       >
-        {open ? (
+        {effectiveOpen ? (
           <MdExpandLess className="h-5 w-5 text-gray-500 shrink-0" />
         ) : (
           <MdExpandMore className="h-5 w-5 text-gray-500 shrink-0" />
@@ -235,7 +265,7 @@ function TreeBranch({
         <span className="font-medium">{node.name}</span>
         <span className="text-xs text-gray-400 ml-1">({hierarchyChildren.length})</span>
       </button>
-      {open && hierarchyChildren.length > 0 && (
+      {effectiveOpen && hierarchyChildren.length > 0 && (
         <div>
           {hierarchyChildren.map((child) => (
             <TreeBranch
@@ -245,6 +275,7 @@ function TreeBranch({
               onOpenDiscipline={onOpenDiscipline}
               opening={opening}
               activeDisciplineId={activeDisciplineId}
+              searchTerm={searchTerm}
             />
           ))}
         </div>
@@ -308,6 +339,7 @@ export default function PowerPlantHierarchyExplorer({
   const navigate = useNavigate();
   const [view, setView] = useState(VIEW_CARDS);
   const [opening, setOpening] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const isDbTree = hierarchySource === 'database';
 
@@ -344,8 +376,30 @@ export default function PowerPlantHierarchyExplorer({
     });
   };
 
-  const cards = currentNode?.children ?? [];
-  const childCount = cards.length;
+  const displayCards = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    const directChildren = currentNode?.children ?? [];
+    if (!query) return directChildren;
+
+    const collectDescendants = (node) => {
+      let list = [];
+      for (const child of node.children || []) {
+        list.push(child);
+        if (isHierarchyGroup(child)) {
+          list = list.concat(collectDescendants(child));
+        }
+      }
+      return list;
+    };
+
+    const searchTargetNodes = currentNode
+      ? collectDescendants(currentNode)
+      : (tree ? collectDescendants(tree) : []);
+
+    return searchTargetNodes.filter((n) => matchesNodeSearch(n, query));
+  }, [currentNode, tree, searchTerm]);
+
+  const childCount = displayCards.length;
 
   const currentPosition = useMemo(() => {
     const focusNode = activeEquipment || currentNode || tree;
@@ -486,6 +540,26 @@ export default function PowerPlantHierarchyExplorer({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {addButton}
+            <div className="relative">
+              <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search tag or name..."
+                className="w-44 sm:w-56 pl-8 pr-7 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-amber-500 focus:outline-none transition-colors"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                  title="Clear search"
+                >
+                  <MdClose className="h-4 w-4" />
+                </button>
+              )}
+            </div>
             <ViewToggle view={view} onChange={setView} />
           </div>
         </div>
@@ -503,13 +577,22 @@ export default function PowerPlantHierarchyExplorer({
               <>
                 {childCount === 0 ? (
                   <p className="text-sm text-gray-500 py-8 text-center">
-                    No sub-equipment under{' '}
-                    <span className="font-medium text-gray-700">{currentNode?.name}</span>.
-                    {isDbTree && !activeEquipment && ' Use the add button above to create items here.'}
+                    {searchTerm ? (
+                      <>
+                        No items matching &ldquo;<span className="font-medium text-gray-700">{searchTerm}</span>&rdquo; under{' '}
+                        <span className="font-medium text-gray-700">{currentNode?.name}</span>.
+                      </>
+                    ) : (
+                      <>
+                        No sub-equipment under{' '}
+                        <span className="font-medium text-gray-700">{currentNode?.name}</span>.
+                        {isDbTree && !activeEquipment && ' Use the add button above to create items here.'}
+                      </>
+                    )}
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {cards.map((node) => (
+                    {displayCards.map((node) => (
                       <EquipmentCard
                         key={node.id}
                         node={node}
@@ -536,6 +619,7 @@ export default function PowerPlantHierarchyExplorer({
                 defaultOpen
                 onOpenDiscipline={handleDisciplineOpen}
                 opening={opening}
+                searchTerm={searchTerm}
               />
             </div>
           )}
