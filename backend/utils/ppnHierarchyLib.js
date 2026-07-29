@@ -134,18 +134,13 @@ async function getNodeById(dbId) {
 async function resolvePpnEquipIdForNode(node) {
   if (node.ppnEquipId) return node.ppnEquipId;
   const equipNo = String(node.equipNo || '').trim();
-  const lookupName = String(node.lookupName || node.name || '').trim();
+  // Only auto-link via equip_no / tag_name — never by name alone.
+  // Name-only lookup is ambiguous across boilers (same leaf name, different path).
+  // Path-aware linking is handled by the write-back after first equipment creation.
   if (equipNo) {
     const [[row]] = await pool.execute(
       'SELECT id FROM ppn_equipment WHERE equip_no = ? OR tag_name = ? LIMIT 1',
       [equipNo, equipNo],
-    );
-    if (row) return row.id;
-  }
-  if (lookupName) {
-    const [[row]] = await pool.execute(
-      'SELECT id FROM ppn_equipment WHERE name = ? LIMIT 1',
-      [lookupName],
     );
     if (row) return row.id;
   }

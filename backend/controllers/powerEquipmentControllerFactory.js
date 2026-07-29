@@ -217,7 +217,14 @@ function createPowerEquipmentController(tables) {
   const EQUIPMENT_LOOKUP_SELECT = `SELECT id, dept, category, subcategory, equip_no, tag_name, name, location, commissioned, drive, sort_order
        FROM \`${EQUIP}\``;
 
-  async function findEquipmentForLookup(equipNo, name, location = '') {
+  /**
+   * @param {string} equipNo
+   * @param {string} name
+   * @param {string} [location]
+   * @param {string} [category]    - boiler/section branch, e.g. "150TPH BLR"
+   * @param {string} [subcategory] - subsection branch, e.g. "Pressure Parts"
+   */
+  async function findEquipmentForLookup(equipNo, name, location = '', category = '', subcategory = '') {
     const run = async (where, params) => {
       const [rows] = await pool.query(
         `${EQUIPMENT_LOOKUP_SELECT} WHERE ${where}
@@ -253,30 +260,45 @@ function createPowerEquipmentController(tables) {
       return null;
     }
 
+    // No equip_no — scope name lookup by full path context (category + subcategory + name)
+    // to prevent cross-boiler collisions when two leaves share the same name.
+    if (name && category && subcategory) {
+      const exact = await run(
+        'name = ? AND category = ? AND subcategory = ?',
+        [name, category, subcategory],
+      );
+      if (exact) return exact;
+    }
+
+    if (name && category) {
+      const exact = await run('name = ? AND category = ?', [name, category]);
+      if (exact) return exact;
+    }
+
     if (name && location) {
       const exact = await run('name = ? AND location = ?', [name, location]);
       if (exact) return exact;
     }
 
-    if (name) {
-      const byName = await run('name = ?', [name]);
-      if (byName) return byName;
-    }
-
+    // Name-only fallback intentionally removed — ambiguous across boilers/sections.
+    // If category/subcategory context was not provided and no equip_no, return null
+    // so the caller opens a fresh draft scoped to the correct hierarchy path.
     return null;
   }
 
   const lookupEquipment = async (req, res) => {
     try {
-      const equipNo = String(req.query.equip_no || '').trim();
-      const name = String(req.query.name || '').trim();
-      const location = String(req.query.location || '').trim();
+      const equipNo   = String(req.query.equip_no   || '').trim();
+      const name      = String(req.query.name       || '').trim();
+      const location  = String(req.query.location   || '').trim();
+      const category  = String(req.query.category   || '').trim();
+      const subcategory = String(req.query.subcategory || '').trim();
 
       if (!equipNo && !name) {
         return res.status(400).json({ message: 'equip_no or name is required.' });
       }
 
-      const equipment = await findEquipmentForLookup(equipNo, name, location);
+      const equipment = await findEquipmentForLookup(equipNo, name, location, category, subcategory);
       if (!equipment) return res.status(404).json({ message: 'Equipment not found.' });
       res.json({ equipment });
     } catch (err) {

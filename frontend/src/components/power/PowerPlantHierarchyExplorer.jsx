@@ -475,6 +475,16 @@ export default function PowerPlantHierarchyExplorer({
       if (lookupName) params.name = lookupName;
       if (node.histLocation) params.location = node.histLocation;
 
+      // Pass full path context (category = boiler branch, subcategory = section)
+      // so lookup is scoped to this exact hierarchy position, preventing cross-boiler collisions.
+      const nodePathIds = pathIdsForNodeId(tree, node.id);
+      const nodeLabels = pathLabels(tree, nodePathIds);
+      // nodeLabels[0] = root ("Power Plant"), [1] = category (e.g. "150TPH BLR"), [2] = subcategory
+      const categoryLabel = nodeLabels[1] || '';
+      const subcategoryLabel = nodeLabels[2] || '';
+      if (categoryLabel) params.category = categoryLabel;
+      if (subcategoryLabel) params.subcategory = subcategoryLabel;
+
       const { data } = await api.get(`${apiBase}/lookup`, { params });
       const { id } = data.equipment;
       navigate(equipmentDetailPath(id, specSection), { state: buildNavState(node, specSection) });
