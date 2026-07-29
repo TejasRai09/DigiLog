@@ -99,6 +99,20 @@ const PowerEquipmentDetail = () => {
         const newId = String(created.id);
         equipIdRef.current = newId;
         setEq(created);
+
+        // Write ppn_equip_id back to the hierarchy node so future opens
+        // go directly to this equipment without any name/lookup lookup.
+        // restoreEquipmentId is the hierarchy node id set by the explorer.
+        if (isNewHub && restoreEquipmentId) {
+          try {
+            await api.patch(`${apiBase}/hierarchy/${restoreEquipmentId}/link`, {
+              ppn_equip_id: parseInt(newId, 10),
+            });
+          } catch {
+            // Non-fatal — equipment is created; link write-back can be retried on next save
+          }
+        }
+
         const detailPath = isNewHub
           ? detailPathFn(newId, specSection)
           : `/power/${created.dept}/${newId}`;

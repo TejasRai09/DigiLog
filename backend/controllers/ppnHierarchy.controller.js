@@ -159,6 +159,32 @@ const updateNode = async (req, res) => {
   }
 };
 
+/**
+ * PATCH /hierarchy/:nodeId/link
+ * Write ppn_equip_id back to a hierarchy node after equipment is created from a draft.
+ * This is the path-aware link that prevents future name-collision lookups.
+ */
+const linkNode = async (req, res) => {
+  try {
+    const id = parseInt(req.params.nodeId, 10);
+    if (!id) return res.status(400).json({ message: 'Invalid node id.' });
+
+    const ppnEquipId = req.body.ppn_equip_id != null ? parseInt(req.body.ppn_equip_id, 10) : null;
+    if (!ppnEquipId) return res.status(400).json({ message: 'ppn_equip_id is required.' });
+
+    const existing = await getNodeById(id);
+    if (!existing) return res.status(404).json({ message: 'Node not found.' });
+    if (existing.nodeType !== 'equipment') {
+      return res.status(400).json({ message: 'Only equipment nodes can be linked.' });
+    }
+
+    await linkEquipmentToNode(id, ppnEquipId);
+    res.json({ message: 'Node linked.', nodeId: id, ppnEquipId });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.linkNode:', err, MSG.SAVE);
+  }
+};
+
 const deleteNode = async (req, res) => {
   try {
     const id = parseInt(req.params.nodeId, 10);
@@ -203,4 +229,5 @@ module.exports = {
   createNode,
   updateNode,
   deleteNode,
+  linkNode,
 };
