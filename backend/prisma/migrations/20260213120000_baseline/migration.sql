@@ -208,6 +208,7 @@ CREATE TABLE `ds_logbook` (
     `Bag_Pol` DOUBLE NULL,
     `Bag_Moisture` DOUBLE NULL,
     `FCake_Pol` DOUBLE NULL,
+    `DecanterMud_Pol` DOUBLE NULL,
     `op_mode` VARCHAR(10) NULL,
     `A1_Mol_Pol` DOUBLE NULL,
     `A1_Mol_Brix` DOUBLE NULL,

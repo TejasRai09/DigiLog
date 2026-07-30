@@ -54,9 +54,10 @@ const PowerEquipmentDetail = () => {
   const disciplineMeta = specSection ? findDiscipline(specSection) : null;
   const disciplineSpecFocus = isNewHub && Boolean(specSection && disciplineMeta);
   const appName = useAppName(appId);
-  const { tree: powerHierarchyTree } = usePowerPlantHierarchy();
-  const { tree: sugarHierarchyTree } = useSugarHouseHierarchy();
+  const { tree: powerHierarchyTree, reload: reloadPowerHierarchy } = usePowerPlantHierarchy();
+  const { tree: sugarHierarchyTree, reload: reloadSugarHierarchy } = useSugarHouseHierarchy();
   const hierarchyTree = isSugarNewHub ? sugarHierarchyTree : powerHierarchyTree;
+  const reloadHierarchy = isSugarNewHub ? reloadSugarHierarchy : reloadPowerHierarchy;
   const isNewDraft = id === 'new';
 
   const [eq,        setEq]        = useState(null);
@@ -228,6 +229,9 @@ const PowerEquipmentDetail = () => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
+      const previousName = String(eq?.name || draftEquipment?.name || '').trim();
+      const nextName = fields?.name != null ? String(fields.name).trim() : previousName;
+
       await api.put(`${apiBase}/${equipId}`, fields);
       const imageUpdates = {};
       for (const type of ['photo', 'plate']) {
@@ -242,6 +246,22 @@ const PowerEquipmentDetail = () => {
         }
       }
       setEq((e) => ({ ...e, ...fields, ...imageUpdates }));
+
+      // Keep hierarchy leaf name in sync so breadcrumb / cards show the renamed equipment
+      if (isNewHub && nextName && nextName !== previousName) {
+        try {
+          const nodeId = restoreEquipmentId || '0';
+          await api.patch(`${apiBase}/hierarchy/${nodeId}/sync-name`, {
+            name: nextName,
+            ppn_equip_id: parseInt(equipId, 10),
+            shn_equip_id: parseInt(equipId, 10),
+          });
+          await reloadHierarchy({ silent: true });
+        } catch {
+          // Non-fatal — equipment rename already saved
+        }
+      }
+
       toast.success('Equipment history details updated successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');

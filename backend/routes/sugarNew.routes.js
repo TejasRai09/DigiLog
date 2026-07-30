@@ -9,6 +9,7 @@ router.get('/hierarchy/path/:nodeId', authenticate, hier.getPath);
 router.post('/hierarchy',           authenticate, hier.createNode);
 router.put('/hierarchy/:nodeId',    authenticate, hier.updateNode);
 router.delete('/hierarchy/:nodeId', authenticate, hier.deleteNode);
+router.patch('/hierarchy/:nodeId/sync-name', authenticate, hier.syncNodeName);
 router.get('/',                     authenticate, ctrl.listEquipment);
 router.post('/',                    authenticate, ctrl.createEquipment);
 router.get('/:id',                  authenticate, ctrl.getEquipment);
