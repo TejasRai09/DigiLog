@@ -45,7 +45,10 @@ async function main() {
 
   let conn;
   try {
-    conn = await mysql.createConnection(serverOpts);
+    conn = await mysql.createConnection({
+      ...serverOpts,
+      database: databaseName,
+    });
     await conn.query(sql);
     console.log('Done.');
   } catch (err) {
