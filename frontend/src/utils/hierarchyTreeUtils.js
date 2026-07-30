@@ -277,7 +277,13 @@ export function hierarchyBreadcrumbLabels(root, equipment, navPathIds) {
 
   if (pathIds?.length && root) {
     const labels = pathLabels(root, pathIds);
-    if (labels.length) labels[labels.length - 1] = equipmentName;
+    // Prefer live hierarchy leaf name for navigation. Overwriting with
+    // ppn_equipment.name caused stale crumbs after hierarchy renames
+    // (new hub has no Life History card to keep both names in sync).
+    const leafFromTree = labels[labels.length - 1];
+    if (!leafFromTree && equipmentName) {
+      labels[labels.length - 1] = equipmentName;
+    }
     return { labels, pathIds };
   }
 
