@@ -212,6 +212,7 @@ function schemaDSLogbook() {
   push(a, 'Bag_Pol', 'Bagasse', 'Pol');
   push(a, 'Bag_Moisture', 'Bagasse', 'Moisture');
   push(a, 'FCake_Pol', 'Filter Cake', 'Filter Cake Pol');
+  push(a, 'DecanterMud_Pol', 'Decanter Mud Pol', 'Decanter Mud Pol');
   push(a, 'MillDrain_Pol', 'Drains', 'Mill Drain Pol');
   push(a, 'BoilHouseDrain_Pol', 'Drains', 'Boil House Drain Pol');
   push(a, 'timestamp', 'System', 'Recorded at');
@@ -776,6 +777,42 @@ function schemaProdClarification() {
   return a;
 }
 
+// ─── brix_yard_sampling ─────────────────────────────────────────
+const schemaBrixYardSampling = () => [
+  { dbKey: 'Date', heading: 'Record Info', subheading: 'Date' },
+  { dbKey: 'Name', heading: 'Record Info', subheading: 'Submitted By' },
+  { dbKey: 'DeliveryPoint', heading: 'Origin', subheading: 'Delivery Point' },
+  { dbKey: 'VillageOrCenterCode', heading: 'Origin', subheading: 'Village/Center Code' },
+  { dbKey: 'GrowerCode', heading: 'Origin', subheading: 'Grower Code' },
+  { dbKey: 'TruckNumber', heading: 'Transport', subheading: 'Truck Number' },
+  { dbKey: 'VehicleType', heading: 'Transport', subheading: 'Vehicle Type' },
+  { dbKey: 'VarietyOfCane', heading: 'Cane Details', subheading: 'Variety' },
+  { dbKey: 'CropType', heading: 'Cane Details', subheading: 'Crop Type' },
+  { dbKey: 'MiddleBrix', heading: 'Quality', subheading: 'Middle Brix %' },
+  { dbKey: 'DiseasedCane', heading: 'Quality', subheading: 'Diseased Cane' },
+  { dbKey: 'StaleCane', heading: 'Quality', subheading: 'Stale Cane' },
+  { dbKey: 'ConsignmentConditions', heading: 'Quality', subheading: 'Conditions' },
+];
+
+// ─── brix_field_sampling ─────────────────────────────────────────
+const schemaBrixFieldSampling = () => [
+  { dbKey: 'Date', heading: 'Record Info', subheading: 'Date' },
+  { dbKey: 'Name', heading: 'Record Info', subheading: 'Submitted By' },
+  { dbKey: 'TestType', heading: 'Record Info', subheading: 'Test Type' },
+  { dbKey: 'GrowerName', heading: 'Origin', subheading: 'Grower Name' },
+  { dbKey: 'VillageName', heading: 'Origin', subheading: 'Village Name' },
+  { dbKey: 'Variety', heading: 'Cane Details', subheading: 'Variety' },
+  { dbKey: 'LandType', heading: 'Field Details', subheading: 'Land Type' },
+  { dbKey: 'SoilType', heading: 'Field Details', subheading: 'Soil Type' },
+  { dbKey: 'CropType', heading: 'Cane Details', subheading: 'Crop Type' },
+  { dbKey: 'FieldCondition', heading: 'Field Details', subheading: 'Field Condition' },
+  { dbKey: 'CropCondition', heading: 'Field Details', subheading: 'Crop Condition' },
+  { dbKey: 'SamplingPoint', heading: 'Quality', subheading: 'Sampling Point' },
+  { dbKey: 'BottomBrix', heading: 'Quality', subheading: 'Bottom Brix %' },
+  { dbKey: 'MiddleBrix', heading: 'Quality', subheading: 'Middle Brix %' },
+  { dbKey: 'TopBrix', heading: 'Quality', subheading: 'Top Brix %' },
+];
+
 const BUILDERS = {
   mill_logbook1: schemaMillLogbook1,
   mill_logbook2: schemaMillLogbook2,
@@ -801,6 +838,8 @@ const BUILDERS = {
   prod_pan_logbook:    schemaProdPanLogbook,
   prod_decanter:       schemaProdDecanter,
   prod_clarification:  schemaProdClarification,
+  brix_yard_sampling:  schemaBrixYardSampling,
+  brix_field_sampling: schemaBrixFieldSampling,
 };
 
 export function getColumnDescriptors(formKey) {

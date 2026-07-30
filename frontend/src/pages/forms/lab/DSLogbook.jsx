@@ -50,6 +50,7 @@ const buildInitial = () => {
   init.Bag_Pol = '';
   init.Bag_Moisture = '';
   init.FCake_Pol = '';
+  init.DecanterMud_Pol = '';
   init.MillDrain_Pol = '';
   init.BoilHouseDrain_Pol = '';
   return init;
@@ -129,6 +130,10 @@ const DSLogbook = () => {
 
         <Section title="Filter Cake:">
           <LegacyNumField label="" placeholder="Pol (To be added at shift end)" name="FCake_Pol" value={form.FCake_Pol} onChange={handleChange} />
+        </Section>
+
+        <Section title="Decanter Mud Pol:">
+          <LegacyNumField label="" placeholder="Pol" name="DecanterMud_Pol" value={form.DecanterMud_Pol} onChange={handleChange} />
         </Section>
 
         <Section title="Drain Pol:">

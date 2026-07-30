@@ -10,6 +10,8 @@ const {
   resolveShnEquipIdForNode,
   findSiblingNameConflict,
   findGlobalSubEquipmentNameConflict,
+  NODE_SELECT,
+  rowToPayload,
 } = require('../utils/shnHierarchyLib');
 
 const getTree = async (req, res) => {
@@ -230,10 +232,78 @@ const deleteNode = async (req, res) => {
   }
 };
 
+/**
+ * PATCH /hierarchy/:nodeId/sync-name
+ * Sync hierarchy leaf name when equipment is renamed from the detail form.
+ */
+const syncNodeName = async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim();
+    if (!name) return res.status(400).json({ message: 'name is required.' });
+
+    let nodeId = parseInt(req.params.nodeId, 10);
+    const shnEquipId = req.body.shn_equip_id != null || req.body.ppn_equip_id != null
+      ? parseInt(req.body.shn_equip_id || req.body.ppn_equip_id, 10)
+      : null;
+
+    let existing = nodeId ? await getNodeById(nodeId) : null;
+
+    if (!existing && shnEquipId) {
+      const [[row]] = await pool.execute(
+        `SELECT ${NODE_SELECT}
+         FROM shn_hierarchy_node
+         WHERE shn_equip_id = ? AND is_active = 1 AND node_type = 'equipment'
+         ORDER BY id ASC LIMIT 1`,
+        [shnEquipId],
+      );
+      if (row) {
+        existing = rowToPayload(row);
+        nodeId = existing.dbId;
+      }
+    }
+
+    if (!existing) return res.status(404).json({ message: 'Hierarchy node not found.' });
+    if (existing.nodeType !== 'equipment') {
+      return res.status(400).json({ message: 'Only equipment nodes can be renamed via sync.' });
+    }
+    if (existing.isImported) {
+      return res.status(403).json({ message: 'Imported hierarchy items cannot be renamed.' });
+    }
+
+    const parentId = existing.parentId != null ? parseInt(existing.parentId, 10) : null;
+    const nameConflict = await findSiblingNameConflict(parentId, name, nodeId);
+    if (nameConflict) {
+      return res.status(409).json({ message: `"${name}" already exists at this level.` });
+    }
+
+    const globalConflict = await findGlobalSubEquipmentNameConflict(name, nodeId);
+    if (globalConflict) {
+      return res.status(409).json({
+        message: `Sub equipment name "${name}" already exists in another section.`,
+      });
+    }
+
+    const nextEquipId = shnEquipId || existing.shnEquipId || null;
+
+    await pool.execute(
+      `UPDATE shn_hierarchy_node
+       SET name = ?, lookup_name = ?, shn_equip_id = COALESCE(?, shn_equip_id)
+       WHERE id = ?`,
+      [name, name, nextEquipId, nodeId],
+    );
+
+    const updated = await getNodeById(nodeId);
+    res.json({ message: 'Hierarchy name synced.', node: updated });
+  } catch (err) {
+    sendServerError(res, 'shnHierarchy.syncNodeName:', err, MSG.SAVE);
+  }
+};
+
 module.exports = {
   getTree,
   getPath,
   createNode,
   updateNode,
   deleteNode,
+  syncNodeName,
 };

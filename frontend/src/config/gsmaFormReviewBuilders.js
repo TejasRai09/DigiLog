@@ -139,6 +139,7 @@ export function buildDSLogbookReview(form) {
     { key: 'Bag_Pol', label: 'Bagasse — Pol' },
     { key: 'Bag_Moisture', label: 'Bagasse — Moisture' },
     { key: 'FCake_Pol', label: 'Filter Cake — Pol' },
+    { key: 'DecanterMud_Pol', label: 'Decanter Mud Pol' },
     { key: 'MillDrain_Pol', label: 'Mill House Drain — Pol' },
     { key: 'BoilHouseDrain_Pol', label: 'Boiling House Drain — Pol' },
   ];

@@ -69,6 +69,8 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
     }
     setEnabledApps(enabled);
     setFormChecked(checked);
+    // Collapse all app form lists by default
+    setCollapsedApps(new Set(appsWithForms.map((a) => String(a._id))));
   }, [userMappings, appsWithForms]);
 
   // ── Derived counts ───────────────────────────────────────────
