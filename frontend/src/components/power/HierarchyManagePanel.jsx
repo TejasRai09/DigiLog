@@ -513,6 +513,25 @@ export function useHierarchyManage({
         payload.equip_no = equipNo;
       }
       await api.put(`${apiBase}/hierarchy/${nodeId}`, payload);
+
+      // Keep linked equipment record name in sync so breadcrumbs/detail match the leaf
+      const linkedEquipId = modal.node?.ppnEquipId || modal.node?.shnEquipId;
+      if (modal.node?.nodeType === 'equipment' && linkedEquipId) {
+        try {
+          const equipPayload = { name: sugarLeafFields ? equipmentName : name };
+          if (sugarLeafFields && equipNo) {
+            equipPayload.equip_no = equipNo;
+            equipPayload.tag_name = equipNo;
+          }
+          if (sugarLeafFields && location) {
+            equipPayload.location = location;
+          }
+          await api.put(`${apiBase}/${linkedEquipId}`, equipPayload);
+        } catch {
+          // Non-fatal — hierarchy rename already saved
+        }
+      }
+
       toast.success('Updated.');
       closeModal();
       await onReload?.({ silent: true });
