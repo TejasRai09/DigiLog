@@ -44,7 +44,6 @@ import {
   computePriorPeriodRange,
   formatDMYShort,
   formatYMD,
-  getPresetDateRange,
   getSeasonComparisonLabels,
   isSeasonComparisonType,
   alignSeasonCompareRange,
@@ -58,6 +57,17 @@ import {
 } from '../../utils/millingBiComparison';
 import MillThermalReportsTab from './MillThermalReportsTab';
 import MillLubeRollerTab from './MillLubeRollerTab';
+
+function getCockpitPresetDateRange(preset, now = new Date()) {
+  const to = formatYMD(now);
+  if (preset === 'MTD') return { from: formatYMD(new Date(now.getFullYear(), now.getMonth(), 1)), to };
+  if (preset === 'STD') {
+    const seasonStartYear = now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
+    return { from: formatYMD(new Date(seasonStartYear, 9, 1)), to };
+  }
+  if (preset === 'YTD') return { from: formatYMD(new Date(now.getFullYear(), 0, 1)), to };
+  return { from: formatYMD(new Date(now.getFullYear(), now.getMonth(), 1)), to };
+}
 
 /** Section → bar/badge color (matches the milling stoppage option list). */
 const SECTION_COLORS = {
@@ -271,7 +281,7 @@ export default function MillingOperationsDashboard() {
   const [comparisonType, setComparisonType] = useState('PP');
   const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const [rangePreset, setRangePreset] = useState('MTD');
-  const initial = () => getPresetDateRange('MTD');
+  const initial = () => getCockpitPresetDateRange('MTD');
   const [fromDate, setFromDate] = useState(() => initial().from);
   const [toDate, setToDate] = useState(() => initial().to);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -319,9 +329,8 @@ export default function MillingOperationsDashboard() {
 
   /**
    * Data bounds are kept for display hints (e.g. "Data available: Mar 2023 – Mar 2026")
-   * but presets anchor to *today* so QTD/MTD/YTD mean the current Indian FY window,
-   * matching how users (and ERP reports) read those acronyms.
-   * Q1 Apr–Jun, Q2 Jul–Sep, Q3 Oct–Dec, Q4 Jan–Mar.
+   * but presets anchor to *today* so MTD / STD / YTD resolve against the
+   * current month, season start (Oct 1), and calendar year respectively.
    */
   const dataBounds = useMemo(() => {
     const isos = rawData.map((r) => r.dateIso).filter(Boolean).sort();
@@ -331,7 +340,7 @@ export default function MillingOperationsDashboard() {
   // Presets re-pin to today whenever the user switches preset (no data-anchor side-effect).
   useEffect(() => {
     if (rangePreset === 'Custom') return;
-    const { from, to } = getPresetDateRange(rangePreset, new Date());
+    const { from, to } = getCockpitPresetDateRange(rangePreset, new Date());
     setFromDate(from);
     setToDate(to);
   }, [rangePreset]);
@@ -348,7 +357,7 @@ export default function MillingOperationsDashboard() {
     if (loading) return;
     if (!dataBounds.max) return;
     initialFallbackRef.current = true;
-    const mtd = getPresetDateRange('MTD', new Date());
+    const mtd = getCockpitPresetDateRange('MTD', new Date());
     const hasInMtd = rawData.some((r) => r.dateIso && r.dateIso >= mtd.from && r.dateIso <= mtd.to);
     if (!hasInMtd) {
       setRangePreset('Custom');
@@ -362,7 +371,7 @@ export default function MillingOperationsDashboard() {
   };
 
   const applyPreset = (preset) => {
-    const { from, to } = getPresetDateRange(preset, new Date());
+    const { from, to } = getCockpitPresetDateRange(preset, new Date());
     setRangePreset(preset);
     setFromDate(from);
     setToDate(to);
@@ -400,7 +409,7 @@ export default function MillingOperationsDashboard() {
 
   const dynamicPPLabel = useMemo(() => {
     if (rangePreset === 'MTD') return 'Prev. Month';
-    if (rangePreset === 'QTD') return 'Prev. Quarter';
+    if (rangePreset === 'STD') return 'Prev. Season';
     if (rangePreset === 'YTD') return 'Prev. Year';
     return 'Prev. Period';
   }, [rangePreset]);
@@ -752,7 +761,7 @@ export default function MillingOperationsDashboard() {
               <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
                 <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
                 <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
-                  {['MTD', 'QTD', 'YTD'].map((preset) => (
+                  {['MTD', 'STD', 'YTD'].map((preset) => (
                     <button
                       key={preset}
                       type="button"

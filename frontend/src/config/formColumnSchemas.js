@@ -76,11 +76,11 @@ const M1_EQUIP = [
   { key: 'Mill4', label: 'Mill 4' },
 ];
 const M1_TEMPS = [
-  ['MtrTemp', 'Motor Temp'],
-  ['GearTempDE', 'Gear Temp (DE)'],
-  ['GearTempNDE', 'Gear Temp (NDE)'],
-  ['BearTempDE', 'Bearing Temp (DE)'],
-  ['BearTempNDE', 'Bearing Temp (NDE)'],
+  ['MtrTemp', 'Motor Temp (DE)'],
+  ['GearTempDE', 'Gear Box BRG Temp (DE)'],
+  ['GearTempNDE', 'Gear Box BRG Temp (NDE)'],
+  ['BearTempDE', 'PB BRG Temp (DE)'],
+  ['BearTempNDE', 'PB BRG Temp (NDE)'],
 ];
 
 function schemaMillLogbook1() {
@@ -104,30 +104,30 @@ function schemaMillLogbook2() {
   push(a, 'Shift', 'GSMA Mill Logbook', 'Shift');
   push(a, 'Time', 'GSMA Mill Logbook', 'Time');
   const sr = [
-    ['shredR_MtrTemp', 'Motor Temp'],
-    ['shredR_BearTempSite', 'Bearing Temp (Site)'],
-    ['shredR_BearTempDCS', 'Bearing Temp (DCS)'],
-    ['shredR_VibH', 'Vibrations-H'],
-    ['shredR_VibV', 'Vibrations-V'],
-    ['shredR_VibA', 'Vibrations-A'],
+    ['shredR_MtrTemp', 'Motor BRG Temp [RHS]'],
+    ['shredR_BearTempSite', 'Bearing Temp (DCS) [RHS]'],
+    ['shredR_BearTempDCS', 'Bearing Temp (Site) [RHS]'],
+    ['shredR_VibH', 'Vibrations-H [RHS]'],
+    ['shredR_VibV', 'Vibrations-V [RHS]'],
+    ['shredR_VibA', 'Vibrations-A [RHS]'],
   ];
   const sl = [
-    ['shredL_MtrTemp', 'Motor Temp'],
-    ['shredL_BearTempSite', 'Bearing Temp (Site)'],
-    ['shredL_BearTempDCS', 'Bearing Temp (DCS)'],
-    ['shredL_VibH', 'Vibrations-H'],
-    ['shredL_VibV', 'Vibrations-V'],
-    ['shredL_VibA', 'Vibrations-A'],
+    ['shredL_MtrTemp', 'Motor BRG Temp [LHS]'],
+    ['shredL_BearTempSite', 'Bearing Temp (DCS) [LHS]'],
+    ['shredL_BearTempDCS', 'Bearing Temp (Site) [LHS]'],
+    ['shredL_VibH', 'Vibrations-H [LHS]'],
+    ['shredL_VibV', 'Vibrations-V [LHS]'],
+    ['shredL_VibA', 'Vibrations-A [LHS]'],
   ];
   for (const [k, s] of sr) push(a, k, 'Shredder RHS', s);
   for (const [k, s] of sl) push(a, k, 'Shredder LHS', s);
   const rollers = [
-    ['InpT', 'Input-T'],
-    ['InpM', 'Input-M'],
-    ['IntT', 'Intermediate-T'],
-    ['IntM', 'Intermediate-M'],
-    ['OutT', 'Output-T'],
-    ['OutM', 'Output-M'],
+    ['InpM', 'Input - Mill Side'],
+    ['InpT', 'Input - Turbine Side'],
+    ['IntM', 'Intermediate - Mill Side'],
+    ['IntT', 'Intermediate - Turbine Side'],
+    ['OutM', 'Output - Mill Side'],
+    ['OutT', 'Output - Turbine Side'],
   ];
   for (let n = 1; n <= 4; n++) {
     for (const [suf, sub] of rollers) {

@@ -17,6 +17,10 @@
     "db:seed-ppn-hierarchy": "node scripts/seed-ppn-hierarchy.js",
     "db:import-sugar-house-hierarchy": "node scripts/import-sugar-house-hierarchy.js",
     "db:import-shn-life-history": "node scripts/import-shn-life-history-xlsx.js",
+    "db:import-shn-electrical-hierarchy": "node scripts/import-shn-electrical-hierarchy.js",
+    "db:import-shn-electrical-life-history": "node scripts/import-shn-electrical-life-history.js",
+    "db:import-shn-mechanical-hierarchy": "node scripts/import-shn-mechanical-hierarchy.js",
+    "db:import-shn-mechanical-life-history": "node scripts/import-shn-mechanical-life-history.js",
     "db:map-employee-departments": "node scripts/map-employee-departments-to-categories.js",
     "db:import-purchy-grower": "node scripts/import-purchy-grower-excel.js",
     "db:validate-purchy-measures": "node scripts/validate-purchy-measures.js",
@@ -45,7 +49,8 @@
     "backlog:import-lab": "node scripts/import-backlog-lab-csv.js",
     "backlog:import-lab:truncate": "node scripts/import-backlog-lab-csv.js --truncate",
     "backlog:import": "node scripts/import-backlog-lab-csv.js",
-    "": "node scripts/import-backlog-lab-csv.js --truncate"
+    "": "node scripts/import-backlog-lab-csv.js --truncate",
+    "db:import-cane-performance": "node --max-old-space-size=4096 scripts/import-cane-performance.js"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",
@@ -60,6 +65,7 @@
     "google-auth-library": "^9.15.1",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
+    "mssql": "^12.7.0",
     "multer": "^2.1.1",
     "mysql2": "^3.10.0",
     "nodemailer": "^6.9.14",

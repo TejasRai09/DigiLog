@@ -1,7 +1,9 @@
-import { MdCategory, MdInsights, MdPeople } from 'react-icons/md';
+import { MdCategory, MdHistory, MdInsights, MdPeople, MdCalendarToday } from 'react-icons/md';
 import EmployeeCategoriesSection from './EmployeeCategoriesSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import BiDashboardSettingsSection from './BiDashboardSettingsSection';
+import SeasonMappingSection from './SeasonMappingSection';
+import AuditLogSection from './AuditLogSection';
 
 /**
  * Registry of admin Config sections. Add new entries here to expose
@@ -23,11 +25,25 @@ export const ADMIN_CONFIG_SECTIONS = [
     Component: EmployeeCategoriesSection,
   },
   {
+    id: 'season-mapping',
+    label: 'Season Mapping',
+    description: 'Manage seasons and their exact start/end dates for BI filtering.',
+    Icon: MdCalendarToday,
+    Component: SeasonMappingSection,
+  },
+  {
     id: 'bi-dashboards',
     label: 'BI Dashboards',
     description: 'Season comparison and analytics portal options.',
     Icon: MdInsights,
     Component: BiDashboardSettingsSection,
+  },
+  {
+    id: 'audit-log',
+    label: 'Audit Log',
+    description: 'Detailed records of create, update, and delete actions from DigiLog.',
+    Icon: MdHistory,
+    Component: AuditLogSection,
   },
 ];
 

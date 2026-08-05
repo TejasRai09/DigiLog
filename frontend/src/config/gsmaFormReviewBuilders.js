@@ -84,11 +84,11 @@ const EQUIP_LIST = [
 ];
 
 const TEMP_SUFFIXES = [
-  { suffix: 'MtrTemp', label: 'Motor Temp' },
-  { suffix: 'GearTempDE', label: 'Gear Temp (DE)' },
-  { suffix: 'GearTempNDE', label: 'Gear Temp (NDE)' },
-  { suffix: 'BearTempDE', label: 'Bearing Temp (DE)' },
-  { suffix: 'BearTempNDE', label: 'Bearing Temp (NDE)' },
+  { suffix: 'MtrTemp', label: 'Motor Temp (DE)' },
+  { suffix: 'GearTempDE', label: 'Gear Box BRG Temp (DE)' },
+  { suffix: 'GearTempNDE', label: 'Gear Box BRG Temp (NDE)' },
+  { suffix: 'BearTempDE', label: 'PB BRG Temp (DE)' },
+  { suffix: 'BearTempNDE', label: 'PB BRG Temp (NDE)' },
 ];
 
 function equipmentTempFields(form) {
@@ -221,10 +221,41 @@ export function buildEquipmentTempReview(form) {
   ]);
 }
 
+const SHREDDER_OTG_LABELS = {
+  shredR_MtrTemp: 'Motor BRG Temp [RHS]',
+  shredR_BearTempSite: 'Bearing Temp (DCS) [RHS]',
+  shredR_BearTempDCS: 'Bearing Temp (Site) [RHS]',
+  shredR_VibH: 'Vibrations-H [RHS]',
+  shredR_VibV: 'Vibrations-V [RHS]',
+  shredR_VibA: 'Vibrations-A [RHS]',
+  shredL_MtrTemp: 'Motor BRG Temp [LHS]',
+  shredL_BearTempSite: 'Bearing Temp (DCS) [LHS]',
+  shredL_BearTempDCS: 'Bearing Temp (Site) [LHS]',
+  shredL_VibH: 'Vibrations-H [LHS]',
+  shredL_VibV: 'Vibrations-V [LHS]',
+  shredL_VibA: 'Vibrations-A [LHS]',
+};
+
+const OTG_ROLLER_LABELS = {
+  InpM: 'Input - Mill Side',
+  InpT: 'Input - Turbine Side',
+  IntM: 'Intermediate - Mill Side',
+  IntT: 'Intermediate - Turbine Side',
+  OutM: 'Output - Mill Side',
+  OutT: 'Output - Turbine Side',
+};
+
+function shredderOtgFieldLabel(key) {
+  if (SHREDDER_OTG_LABELS[key]) return SHREDDER_OTG_LABELS[key];
+  const m = key.match(/^M([1-4])_(InpT|InpM|IntT|IntM|OutT|OutM)$/);
+  if (m) return `Mill ${m[1]} — ${OTG_ROLLER_LABELS[m[2]]}`;
+  return key.replace(/_/g, ' ');
+}
+
 export function buildShredderOTGReview(form) {
   const defs = Object.keys(form)
     .filter((k) => !['date', 'shift', 'time'].includes(k))
-    .map((key) => ({ key, label: key.replace(/_/g, ' ') }));
+    .map((key) => ({ key, label: shredderOtgFieldLabel(key) }));
   return reviewMeta('Review Shredder and OTG', millSummary(form), [
     section('Readings', fieldsFromDefs(form, defs)),
   ]);

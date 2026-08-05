@@ -75,12 +75,24 @@ function compactTag(t) {
   return normTag(t).replace(/\s+/g, '');
 }
 
+function canonicalTag(t) {
+  let s = String(t ?? '').trim().toUpperCase();
+  s = s.replace(/\s+/g, '');
+  s = s.replace(/SUG\./g, 'SUG');
+  s = s.replace(/SUG\/0*1\//g, 'SUG/');
+  s = s.replace(/(\/SUG\/)+0*(\d+)/g, '$1$2');
+  s = s.replace(/\(0*(\d+)\)/g, '($1)');
+  s = s.replace(/-/g, '');
+  return s;
+}
+
 function tagsMatch(a, b) {
   const na = normTag(a);
   const nb = normTag(b);
   if (!na || !nb) return false;
   if (na === nb) return true;
   if (compactTag(a) === compactTag(b)) return true;
+  if (canonicalTag(a) === canonicalTag(b)) return true;
   return false;
 }
 

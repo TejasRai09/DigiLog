@@ -1100,6 +1100,44 @@ model ppn_specs {
   @@index([equip_id], map: "equip_id")
 }
 
+model brix_yard_sampling {
+  id                      Int       @id @default(autoincrement())
+  Date                    DateTime? @db.Date
+  Name                    String?   @db.VarChar(100)
+  DeliveryPoint           String?   @db.VarChar(50)
+  VillageOrCenterCode     String?   @db.VarChar(50)
+  GrowerCode              String?   @db.VarChar(50)
+  TruckNumber             String?   @db.VarChar(50)
+  VehicleType             String?   @db.VarChar(50)
+  VarietyOfCane           String?   @db.VarChar(100)
+  CropType                String?   @db.VarChar(50)
+  MiddleBrix              Decimal?  @db.Decimal(5, 2)
+  DiseasedCane            String?   @db.VarChar(10)
+  StaleCane               String?   @db.VarChar(10)
+  ConsignmentConditions   String?   @db.VarChar(50)
+  timestamp               DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model brix_field_sampling {
+  id              Int       @id @default(autoincrement())
+  Date            DateTime? @db.Date
+  Name            String?   @db.VarChar(100)
+  TestType        String?   @db.VarChar(50)
+  GrowerName      String?   @db.VarChar(150)
+  VillageName     String?   @db.VarChar(100)
+  Variety         String?   @db.VarChar(100)
+  LandType        String?   @db.VarChar(50)
+  SoilType        String?   @db.VarChar(50)
+  CropType        String?   @db.VarChar(50)
+  FieldCondition  String?   @db.VarChar(50)
+  CropCondition   String?   @db.VarChar(50)
+  SamplingPoint   String?   @db.VarChar(50)
+  BottomBrix      Decimal?  @db.Decimal(5, 2)
+  MiddleBrix      Decimal?  @db.Decimal(5, 2)
+  TopBrix         Decimal?  @db.Decimal(5, 2)
+  timestamp       DateTime? @default(now()) @db.Timestamp(0)
+}
+
 model prod_centrifugal {
   id                  Int       @id @default(autoincrement())
   Date                DateTime? @db.Date
@@ -1244,4 +1282,13 @@ enum UserRole {
 enum ppn_hierarchy_node_node_type {
   group
   equipment
+}
+
+model season_mapping {
+  id           Int      @id @default(autoincrement())
+  season_label String   @unique @db.VarChar(50)
+  start_date   DateTime @db.Date
+  end_date     DateTime @db.Date
+  created_at   DateTime @default(now()) @db.Timestamp(0)
+  updated_at   DateTime @default(now()) @updatedAt @db.Timestamp(0)
 }

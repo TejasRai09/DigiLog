@@ -18,29 +18,29 @@ import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 const SHIFTS = ['A', 'B', 'C'];
 
 const RHS_FIELDS = [
-  ['shredR_MtrTemp', 'Motor Temp'],
-  ['shredR_BearTempSite', 'Bearing Temp (Site)'],
-  ['shredR_BearTempDCS', 'Bearing Temp (DCS)'],
-  ['shredR_VibH', 'Vibrations-H'],
-  ['shredR_VibV', 'Vibrations-V'],
-  ['shredR_VibA', 'Vibrations-A'],
+  ['shredR_MtrTemp', 'Motor BRG Temp [RHS]'],
+  ['shredR_BearTempSite', 'Bearing Temp (DCS) [RHS]'],
+  ['shredR_BearTempDCS', 'Bearing Temp (Site) [RHS]'],
+  ['shredR_VibH', 'Vibrations-H [RHS]'],
+  ['shredR_VibV', 'Vibrations-V [RHS]'],
+  ['shredR_VibA', 'Vibrations-A [RHS]'],
 ];
 const LHS_FIELDS = [
-  ['shredL_MtrTemp', 'Motor Temp'],
-  ['shredL_BearTempSite', 'Bearing Temp (Site)'],
-  ['shredL_BearTempDCS', 'Bearing Temp (DCS)'],
-  ['shredL_VibH', 'Vibrations-H'],
-  ['shredL_VibV', 'Vibrations-V'],
-  ['shredL_VibA', 'Vibrations-A'],
+  ['shredL_MtrTemp', 'Motor BRG Temp [LHS]'],
+  ['shredL_BearTempSite', 'Bearing Temp (DCS) [LHS]'],
+  ['shredL_BearTempDCS', 'Bearing Temp (Site) [LHS]'],
+  ['shredL_VibH', 'Vibrations-H [LHS]'],
+  ['shredL_VibV', 'Vibrations-V [LHS]'],
+  ['shredL_VibA', 'Vibrations-A [LHS]'],
 ];
 
 const OTG_FIELDS = (n) => [
-  [`M${n}_InpT`, 'Input-T'],
-  [`M${n}_InpM`, 'Input-M'],
-  [`M${n}_IntT`, 'Intermediate-T'],
-  [`M${n}_IntM`, 'Intermediate-M'],
-  [`M${n}_OutT`, 'Output-T'],
-  [`M${n}_OutM`, 'Output-M'],
+  [`M${n}_InpM`, 'Input - Mill Side'],
+  [`M${n}_InpT`, 'Input - Turbine Side'],
+  [`M${n}_IntM`, 'Intermediate - Mill Side'],
+  [`M${n}_IntT`, 'Intermediate - Turbine Side'],
+  [`M${n}_OutM`, 'Output - Mill Side'],
+  [`M${n}_OutT`, 'Output - Turbine Side'],
 ];
 
 const INITIAL = {

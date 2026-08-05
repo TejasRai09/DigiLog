@@ -40,7 +40,7 @@ function isSugarSubEquipmentSlots(modalOrAction) {
   return Boolean(modalOrAction?.sugarLeafFields);
 }
 
-function childToSlot(child, { kind, tree, apiBase, sugarLeafFields }) {
+function childToSlot(child, { kind, tree, apiBase, sugarLeafFields, sortOrder = 0 }) {
   const locked =
     (kind === 'category' && isProtectedRootCategoryName(child.name))
     || isHierarchyNodeLocked(tree, child, apiBase);
@@ -53,6 +53,10 @@ function childToSlot(child, { kind, tree, apiBase, sugarLeafFields }) {
       location: parts.location,
       equipNo: child.equipNo || '',
       locked,
+      originalName: parts.equipmentName,
+      originalLocation: parts.location,
+      originalEquipNo: child.equipNo || '',
+      originalSortOrder: sortOrder,
     };
   }
 
@@ -62,6 +66,10 @@ function childToSlot(child, { kind, tree, apiBase, sugarLeafFields }) {
     location: '',
     equipNo: '',
     locked,
+    originalName: child.name || '',
+    originalLocation: '',
+    originalEquipNo: '',
+    originalSortOrder: sortOrder,
   };
 }
 
@@ -203,8 +211,14 @@ export function useHierarchyManage({
     if (!addAction || !tree) return;
     const currentNode = findNodeByPath(tree, pathIds);
     const sugarLeafFields = Boolean(addAction.sugarLeafFields);
-    const existing = existingChildrenForKind(currentNode, addAction.kind).map((child) =>
-      childToSlot(child, { kind: addAction.kind, tree, apiBase, sugarLeafFields }),
+    const existing = existingChildrenForKind(currentNode, addAction.kind).map((child, index) =>
+      childToSlot(child, {
+        kind: addAction.kind,
+        tree,
+        apiBase,
+        sugarLeafFields,
+        sortOrder: index,
+      }),
     );
     const existingIds = existing.map((s) => s.dbId).filter(Boolean);
     const initialVisible = Math.min(
@@ -342,6 +356,10 @@ export function useHierarchyManage({
             lookupName: equipmentName,
             histLocation: location,
             locked: true,
+            originalName: slot.originalName,
+            originalLocation: slot.originalLocation,
+            originalEquipNo: slot.originalEquipNo,
+            originalSortOrder: slot.originalSortOrder,
           });
         }
         continue;
@@ -378,6 +396,10 @@ export function useHierarchyManage({
         equipNo: sugarLeafFields ? equipNo : undefined,
         lookupName: sugarLeafFields ? equipmentName : undefined,
         histLocation: sugarLeafFields ? location : undefined,
+        originalName: slot.originalName,
+        originalLocation: slot.originalLocation,
+        originalEquipNo: slot.originalEquipNo,
+        originalSortOrder: slot.originalSortOrder,
       });
     }
 
@@ -411,6 +433,23 @@ export function useHierarchyManage({
                 return;
               }
             }
+
+            const nameChanged = sugarLeafFields
+              ? false
+              : entry.name !== (entry.originalName ?? '');
+            const orderChanged = entry.originalSortOrder == null
+              || Number(entry.originalSortOrder) !== i;
+            const sugarChanged = sugarLeafFields && (
+              entry.equipmentName !== (entry.originalName ?? '')
+              || (entry.histLocation || '') !== (entry.originalLocation || '')
+              || (entry.equipNo || '') !== (entry.originalEquipNo || '')
+            );
+
+            // Skip no-op PUTs so Audit Log only records real changes
+            if (!nameChanged && !orderChanged && !sugarChanged) {
+              continue;
+            }
+
             const payload = {
               name: entry.name,
               sort_order: i,
