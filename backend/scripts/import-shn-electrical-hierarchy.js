@@ -19,11 +19,11 @@ const XLSX = require('xlsx');
 const { pool } = require('../config/mysql');
 
 const DEFAULT_XLSX_LIST = [
-  path.join(__dirname, '../../../electrical -mill house-herarchy-30072026.xlsx'),
-  path.join(__dirname, '../../../2_70 TPH boiler life history.xlsx'),
-  path.join(__dirname, '../../../3_Power House life history.xlsx'),
-  path.join(__dirname, '../../../4_DS Electrical Equipment Life History - MOTORS.xlsx'),
-  path.join(__dirname, '../../../5_DS Electrical Equipment Live  History - VFD PANEL.xlsx'),
+  path.join(__dirname, '../backlog-data/electrical -mill house-herarchy-30072026.xlsx'),
+  path.join(__dirname, '../backlog-data/2_70 TPH boiler life history.xlsx'),
+  path.join(__dirname, '../backlog-data/3_Power House life history.xlsx'),
+  path.join(__dirname, '../backlog-data/4_DS Electrical Equipment Life History - MOTORS.xlsx'),
+  path.join(__dirname, '../backlog-data/5_DS Electrical Equipment Live  History - VFD PANEL.xlsx'),
 ];
 
 const ROOT_NAME = 'Sugar Plant';

@@ -20,7 +20,7 @@ const XLSX = require('xlsx');
 const { pool } = require('../config/mysql');
 
 const DEFAULT_XLSX_LIST = [
-  path.join(__dirname, '../../../BOILING HOUSE MECHANICAL  EQUIPMENT LIST -30-07-2026.xlsx'),
+  path.join(__dirname, '../backlog-data/BOILING HOUSE MECHANICAL  EQUIPMENT LIST -30-07-2026.xlsx'),
 ];
 
 const ROOT_NAME = 'Sugar Plant';

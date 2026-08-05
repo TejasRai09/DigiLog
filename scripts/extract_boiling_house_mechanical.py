@@ -3,7 +3,7 @@
 Extract boiling-house mechanical life history cards.
 
 Filter tags from:
-  BOILING HOUSE MECHANICAL  EQUIPMENT LIST -30-07-2026.xlsx
+  DigiLog/backend/backlog-data/BOILING HOUSE MECHANICAL  EQUIPMENT LIST -30-07-2026.xlsx
   - Department = MECHANICAL, or INSTRUMENT + MECHANICAL
   - If a cell has both instrument and mechanical tags, keep ONLY the mechanical tag
     (prefer ZIL/GSM/... over ZIL/SUG...)
@@ -42,9 +42,10 @@ from extract_mill_house_electrical import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-HIERARCHY_FILE = ROOT / "BOILING HOUSE MECHANICAL  EQUIPMENT LIST -30-07-2026.xlsx"
+BACKLOG = ROOT / "DigiLog" / "backend" / "backlog-data"
+HIERARCHY_FILE = BACKLOG / "BOILING HOUSE MECHANICAL  EQUIPMENT LIST -30-07-2026.xlsx"
 DATA_FILE = ROOT / "HISTORY SHEET 28.07.2026.xlsx"
-OUTPUT_DIR = ROOT / "DigiLog" / "backend" / "backlog-data"
+OUTPUT_DIR = BACKLOG
 OUTPUT = OUTPUT_DIR / "boiling-house-mechanical-equipment-history.xlsx"
 AUDIT_OUTPUT = OUTPUT_DIR / "boiling-house-mechanical-extract-audit.xlsx"
 
