@@ -36,11 +36,11 @@ const equipList = [
 ];
 
 const TEMP_FIELDS = [
-  { suffix: 'MtrTemp', label: 'Motor Temp' },
-  { suffix: 'GearTempDE', label: 'Gear Temp (DE)' },
-  { suffix: 'GearTempNDE', label: 'Gear Temp (NDE)' },
-  { suffix: 'BearTempDE', label: 'Bearing Temp (DE)' },
-  { suffix: 'BearTempNDE', label: 'Bearing Temp (NDE)' },
+  { suffix: 'MtrTemp', label: 'Motor Temp (DE)' },
+  { suffix: 'GearTempDE', label: 'Gear Box BRG Temp (DE)' },
+  { suffix: 'GearTempNDE', label: 'Gear Box BRG Temp (NDE)' },
+  { suffix: 'BearTempDE', label: 'PB BRG Temp (DE)' },
+  { suffix: 'BearTempNDE', label: 'PB BRG Temp (NDE)' },
 ];
 
 const buildInitial = () => {

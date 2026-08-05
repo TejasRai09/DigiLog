@@ -14,6 +14,9 @@ import BiControlTower     from './pages/BiControlTower';
 import DistilleryAnalyticsDashboard from './pages/bi/DistilleryAnalyticsDashboard';
 import MillingOperationsDashboard from './pages/bi/MillingOperationsDashboard';
 import PurchyAnalysisDashboard from './pages/bi/PurchyAnalysisDashboard';
+import BrixSamplingDashboard from './pages/bi/BrixSamplingDashboard';
+import CentreMaturityDashboard from './pages/bi/CentreMaturityDashboard';
+import CanePerformanceDashboard from './pages/bi/CanePerformanceDashboard';
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
@@ -39,6 +42,10 @@ import PhSteam    from './pages/forms/power/PhSteam';
 import PhStoppage from './pages/forms/power/PhStoppage';
 
 import DistilleryOperations from './pages/forms/distillery/DistilleryOperations';
+
+// Brix Sampling Forms
+import BrixYardSampling from './pages/forms/brix/BrixYardSampling';
+import BrixFieldSampling from './pages/forms/brix/BrixFieldSampling';
 
 // Equipment History Cards
 import EquipmentList   from './pages/equipment/EquipmentList';
@@ -90,6 +97,9 @@ const App = () => {
           <Route path="/bi/distillery-operations" element={<DistilleryAnalyticsDashboard />} />
           <Route path="/bi/milling-operations" element={<MillingOperationsDashboard />} />
           <Route path="/bi/purchy-analysis" element={<PurchyAnalysisDashboard />} />
+          <Route path="/bi/brix-sampling" element={<BrixSamplingDashboard />} />
+          <Route path="/bi/centre-maturity" element={<CentreMaturityDashboard />} />
+          <Route path="/bi/cane-performance" element={<CanePerformanceDashboard />} />
           <Route path="/apps/:appId"  element={<AppDetail />} />
 
           {/* Mill Logbook */}
@@ -145,6 +155,10 @@ const App = () => {
           <Route path="/forms/prod_pan_logbook"           element={<ProdPanLogbook />} />
           <Route path="/forms/prod_decanter"              element={<ProdDecanter />} />
           <Route path="/forms/prod_clarification"         element={<ProdClarification />} />
+
+          {/* Brix Sampling Forms */}
+          <Route path="/forms/brix_yard_sampling"         element={<BrixYardSampling />} />
+          <Route path="/forms/brix_field_sampling"        element={<BrixFieldSampling />} />
         </Route>
 
         {/* Protected – admin only */}

@@ -53,6 +53,10 @@ const FORM_CONFIG = {
   prod_pan_logbook:   { table: 'prod_pan_logbook',   pattern: 'G', tsCol: 'timestamp' },
   prod_decanter:      { table: 'prod_decanter',      pattern: 'G', tsCol: 'timestamp' },
   prod_clarification: { table: 'prod_clarification', pattern: 'G', tsCol: 'timestamp' },
+
+  // Brix Sampling Forms
+  brix_yard_sampling:  { table: 'brix_yard_sampling', pattern: 'G', tsCol: 'timestamp' },
+  brix_field_sampling: { table: 'brix_field_sampling', pattern: 'G', tsCol: 'timestamp' },
 };
 
 // ─── Access guard ─────────────────────────────────────────────

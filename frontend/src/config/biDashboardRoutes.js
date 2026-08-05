@@ -6,6 +6,9 @@ export const BI_DASHBOARD_PATH = {
   bi_distillery_operations: '/bi/distillery-operations',
   bi_milling_operations: '/bi/milling-operations',
   bi_purchy_analysis: '/bi/purchy-analysis',
+  bi_brix_sampling: '/bi/brix-sampling',
+  bi_centre_maturity: '/bi/centre-maturity',
+  bi_cane_performance: '/bi/cane-performance',
 };
 
 export function isBiDashboardFormKey(formKey) {

@@ -319,11 +319,62 @@ def clean_param_label(label: str) -> str:
     return re.sub(r"\s*:\s*$", "", label.strip())
 
 
+def looks_like_spec_param_label(text: str) -> bool:
+    """True for parameter labels (incl. empty-value ones), not subsection titles or values.
+
+    Examples to reject as subsection / treat as labels:
+      Feeder No., VFD Sr. No., Year of Manufacture, Make, Model, Code No.
+    Examples that are NOT labels:
+      BRUSHLESS EXCITER, AVR PANEL, STARTER,
+      Distillery Syrup weightment Pump no.1 VFD
+    """
+    title = clean_param_label(text)
+    n = norm(title)
+    if not n:
+        return True
+    words = n.split()
+    # Activity / sentence lines (schedule rows that can leak into the scan).
+    if title.endswith(".") and len(words) >= 3:
+        return True
+    if any(
+        verb in n
+        for verb in (
+            "CLEANING",
+            "CHECKING",
+            "CHECK ",
+            "MEASURE ",
+            "INSPECTION OF",
+            "TIGHTNESS",
+        )
+    ):
+        return True
+    # Long free-text values (may contain "no.1") are not labels.
+    if len(words) >= 5:
+        return False
+    # Label-shaped endings: Feeder No., Code No. / SN., VFD Sr. No.
+    if re.search(r"(?i)\b(no\.?|number|name|sr\.?\s*no\.?)(?:\s*/\s*sn\.?)?\s*$", title):
+        return True
+    # Common short life-card parameter labels.
+    if re.fullmatch(
+        r"(?i)("
+        r"make|model|type|rating|vfd\s+rating|rated\s+(?:voltage|current|power|rpm)|"
+        r"voltage|current|rpm|frame(?:\s*no\.?)?|protection|duty|bearings?|"
+        r"year(?:\s+of\s+manufacture)?|capacity|size|class|connection|"
+        r"winding\s+insulation(?:\s+class)?|vfd\s+panel\s+code|"
+        r"module-\d+\b.*"
+        r")",
+        title,
+    ):
+        return True
+    return False
+
+
 def non_empty_indexed(row: list[str]) -> list[tuple[int, str]]:
     return [(i, x) for i, x in enumerate(row) if x]
 
 
 def extract_spec_pairs_from_row(row: list[str]) -> list[tuple[str, str]]:
+    """Extract label/value pairs. Labels with no value are kept as (label, "")."""
     ne = non_empty_indexed(row)
     if not ne:
         return []
@@ -342,11 +393,19 @@ def extract_spec_pairs_from_row(row: list[str]) -> list[tuple[str, str]]:
         except ValueError:
             pass
         if i + 1 < len(ne):
-            val_text = ne[i + 1][1]
-            if val_text and val_text != lbl_clean:
+            val_text = str(ne[i + 1][1] or "").strip()
+            # Next filled cell is another parameter label → current has empty value.
+            if looks_like_spec_param_label(val_text):
+                pairs.append((lbl_clean, ""))
+                i += 1
+                continue
+            if val_text != lbl_clean:
                 pairs.append((lbl_clean, val_text))
+            else:
+                pairs.append((lbl_clean, ""))
             i += 2
         else:
+            pairs.append((lbl_clean, ""))
             i += 1
     return pairs
 
@@ -440,6 +499,73 @@ def is_spec_data_skip_row(row: list[str], section_headers=DEFAULT_SPEC_SECTION_H
     return False
 
 
+def parse_equipment_specification_banner(row: list[str]) -> str | None:
+    """Return suffix after EQUIPMENT SPECIFICATION if this row is a spec banner, else None.
+
+    Examples:
+      'EQUIPMENT SPECIFICATION' -> ''
+      'EQUIPMENT SPECIFICATION UNIT-1' -> 'UNIT-1'
+      'EQUIPMENT SPECIFICATION ASR PANEL' -> 'ASR PANEL'
+      'EQUIPMENT SPECIFICATION (ACB)' -> '(ACB)'
+    """
+    for cell in row:
+        text = str(cell or "").strip()
+        if not text:
+            continue
+        if "EQUIPMENT SPECIFICATION" not in norm(text):
+            continue
+        match = re.match(
+            r"(?i)^\s*equipment\s+specification\s*(.*?)\s*$",
+            text,
+        )
+        if match:
+            return re.sub(r"\s+", " ", match.group(1)).strip(" :-")
+        # Phrase embedded with extra noise — take text after the phrase.
+        upper = text.upper()
+        idx = upper.find("EQUIPMENT SPECIFICATION")
+        if idx >= 0:
+            suffix = text[idx + len("EQUIPMENT SPECIFICATION") :]
+            return re.sub(r"\s+", " ", suffix).strip(" :-")
+    return None
+
+
+def parse_inline_spec_subsection_title(
+    row: list[str],
+    section_stop_markers: tuple[str, ...],
+    section_headers=DEFAULT_SPEC_SECTION_HEADERS,
+) -> str | None:
+    """Detect a single-cell subsection title inside the spec block.
+
+    Used when cards name blocks without repeating EQUIPMENT SPECIFICATION, e.g.:
+      BRUSHLESS EXCITER
+      AVR PANEL
+      STARTER
+    """
+    non_empty = [str(cell or "").strip() for cell in row if str(cell or "").strip()]
+    if len(non_empty) != 1:
+        return None
+    title = non_empty[0]
+    n = norm(title)
+    if not n or len(title) < 2 or len(title) > 80:
+        return None
+    if "EQUIPMENT SPECIFICATION" in n:
+        return None
+    if any(marker in n for marker in section_stop_markers):
+        return None
+    if any(key in n for key, _ in section_headers):
+        return None
+    if title.endswith(":") or title.endswith(":-"):
+        return None
+    if re.fullmatch(r"[\d.]+", title):
+        return None
+    if is_schedule_serial_header(title):
+        return None
+    # Empty/unpaired param labels (Feeder No., Make, …) are data rows, not banners.
+    if looks_like_spec_param_label(title):
+        return None
+    return re.sub(r"\s+", " ", title).strip()
+
+
 def extract_specification_rows(
     ws,
     spec_start: int,
@@ -449,8 +575,20 @@ def extract_specification_rows(
     section_stop_markers: tuple[str, ...],
     section_headers=DEFAULT_SPEC_SECTION_HEADERS,
 ) -> list[list[str]]:
+    """Extract spec label/value rows.
+
+    Multiple ``EQUIPMENT SPECIFICATION …`` banners on one card:
+      - The first banner is the main block (``sub_section`` left blank).
+      - Each later banner sets ``sub_section`` from the text after
+        ``EQUIPMENT SPECIFICATION`` (e.g. UNIT-2, ASR PANEL).
+
+    Also treats single-cell titles inside the spec region (e.g. BRUSHLESS EXCITER,
+    AVR PANEL) as subsection banners.
+    """
     rows: list[list[str]] = []
     current_section = ""
+    # Blank = main (first) specification block.
+    named_sub_section = ""
     spec_blocks: list[tuple[int, int, str]] = []
 
     for r in range(spec_start + 1, spec_end):
@@ -460,6 +598,22 @@ def extract_specification_rows(
 
         joined = norm(" ".join(row))
         if any(marker in joined for marker in section_stop_markers):
+            continue
+
+        banner_suffix = parse_equipment_specification_banner(row)
+        if banner_suffix is not None:
+            # spec_start already consumed the first EQUIPMENT SPECIFICATION header,
+            # so every banner inside this loop is a later block → subsection.
+            named_sub_section = banner_suffix
+            spec_blocks = []
+            continue
+
+        inline_title = parse_inline_spec_subsection_title(
+            row, section_stop_markers, section_headers,
+        )
+        if inline_title is not None:
+            named_sub_section = inline_title
+            spec_blocks = []
             continue
 
         sec = detect_spec_section(row, section_headers)
@@ -480,17 +634,19 @@ def extract_specification_rows(
             continue
 
         if spec_blocks:
-            for start, end, sub_section in spec_blocks:
+            for start, end, col_sub in spec_blocks:
                 slice_row = row[start : end + 1]
+                # Prefer named EQUIPMENT SPECIFICATION / inline title over column titles.
+                sub = named_sub_section or col_sub
                 for label, value in extract_spec_pairs_from_row(slice_row):
-                    if not label or not value:
+                    if not label:
                         continue
-                    rows.append([sheet_id, sheet_name, current_section, sub_section, label, value])
+                    rows.append([sheet_id, sheet_name, current_section, sub, label, value])
         else:
             for label, value in extract_spec_pairs_from_row(row):
-                if not label or not value:
+                if not label:
                     continue
-                rows.append([sheet_id, sheet_name, current_section, "", label, value])
+                rows.append([sheet_id, sheet_name, current_section, named_sub_section, label, value])
 
     return rows
 

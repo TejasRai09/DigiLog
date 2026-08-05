@@ -63,10 +63,10 @@ export function formatDMYShort(iso) {
 }
 
 /**
- * Prior-period window for PP comparison (aligned with MTD / QTD / YTD / Custom selection).
+ * Prior-period window for PP comparison (aligned with MTD / QTD / STD / YTD / Custom selection).
  * @param {string} startDate - YYYY-MM-DD
  * @param {string} endDate - YYYY-MM-DD
- * @param {'MTD' | 'QTD' | 'YTD' | 'Custom'} rangePreset
+ * @param {'MTD' | 'QTD' | 'STD' | 'YTD' | 'Custom'} rangePreset
  */
 export function computePriorPeriodRange(startDate, endDate, rangePreset) {
   const startD = new Date(`${startDate}T12:00:00`);
@@ -85,6 +85,10 @@ export function computePriorPeriodRange(startDate, endDate, rangePreset) {
     if (pStart.getMonth() === startD.getMonth()) pStart.setDate(0);
     if (pEnd.getMonth() === endD.getMonth()) pEnd.setDate(0);
     label = 'Prev. Month';
+  } else if (rangePreset === 'STD') {
+    pStart.setFullYear(startD.getFullYear() - 1);
+    pEnd.setFullYear(endD.getFullYear() - 1);
+    label = 'Prev. Season';
   } else if (rangePreset === 'QTD') {
     pStart.setMonth(startD.getMonth() - 3);
     pEnd.setMonth(endD.getMonth() - 3);

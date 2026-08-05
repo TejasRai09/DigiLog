@@ -35,7 +35,9 @@ from equipment_history_extract_lib import (
 from shn_tag_match import load_tag_filter, matches_any_filter, norm_tag
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-SOURCE = ROOT / "Turbine & Instrument Equipment life histroy 20-06-2026.xlsx"
+SOURCE_NEW = ROOT / "Turbine & Instrument Equipment life histroy 20-06-2026 - new.xlsx"
+SOURCE_OLD = ROOT / "Turbine & Instrument Equipment life histroy 20-06-2026.xlsx"
+SOURCE = SOURCE_NEW if SOURCE_NEW.exists() else SOURCE_OLD
 OUTPUT = ROOT / "sugar-house-equipment-life-history.xlsx"
 
 SECTION_LIFE = "EQUIPMENT LIFE HISTORY CARD"

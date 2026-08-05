@@ -91,6 +91,13 @@ const appDefs = [
     color:       '#6366F1',
     sort_order:  9,
   },
+  {
+    name:        'Brix Sampling Forms',
+    description: 'Yard and Field Area Brix measurement and Analysis',
+    icon:        'MdScience',
+    color:       '#0284C7',
+    sort_order:  10,
+  },
 ];
 
 const formDefs = [
@@ -136,6 +143,10 @@ const formDefs = [
   { name: 'Decanter Log Book',                       description: 'Hourly 1st and 2nd stage decanter readings per shift',                       formKey: 'prod_decanter',       app: 'Production', sort_order: 4 },
   { name: 'Clarification Log Book',                  description: 'Hourly juice clarification readings and process parameters',                 formKey: 'prod_clarification',  app: 'Production', sort_order: 5 },
 
+  // Brix Sampling Forms
+  { name: 'GSMA Yard Brix Sampling Form 23-24',      description: 'Yard Area Brix measurement and Analysis Form',                               formKey: 'brix_yard_sampling',  app: 'Brix Sampling Forms', sort_order: 1 },
+  { name: 'GSMA Field Brix Sampling Form 23-24',     description: 'Cane Area Brix measurement and Analysis Form',                               formKey: 'brix_field_sampling', app: 'Brix Sampling Forms', sort_order: 2 },
+
   // BI dashboards (routes under /bi/…; mapped via forms like other apps)
   {
     name: 'Distillery Operations — Analytics',
@@ -157,6 +168,27 @@ const formDefs = [
     formKey: 'bi_purchy_analysis',
     app: 'BI Control Tower',
     sort_order: 3,
+  },
+  {
+    name: 'Brix Sampling Analytics',
+    description: 'Field & Yard intelligence — Brix sampling trends, crop maturity, and consignment quality',
+    formKey: 'bi_brix_sampling',
+    app: 'BI Control Tower',
+    sort_order: 4,
+  },
+  {
+    name: 'Centre Maturity Dashboard',
+    description: 'Centre maturity analysis and season vs season indent and purchase metrics',
+    formKey: 'bi_centre_maturity',
+    app: 'BI Control Tower',
+    sort_order: 5,
+  },
+  {
+    name: 'Cane Performance Dashboard',
+    description: 'Procurement Summary, Gate and Center Handling, Vehicle Transit and Holding Analytics',
+    formKey: 'bi_cane_performance',
+    app: 'BI Control Tower',
+    sort_order: 6,
   },
 ];
 

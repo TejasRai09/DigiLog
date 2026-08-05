@@ -50,9 +50,24 @@ router.put('/bi-settings',  updateAdminBiSettings);
 router.get('/data-upload-access',  getAdminDataUploadAccess);
 router.put('/data-upload-access',  upsertAdminDataUploadAccess);
 
+const {
+  getAllSeasons,
+  createSeason,
+  updateSeason,
+  deleteSeason,
+} = require('../controllers/seasonMapping.controller');
+const { listAuditLogs } = require('../controllers/auditLog.controller');
+
 router.get('/categories',           getCategories);
 router.post('/categories',          createCategory);
 router.put('/categories/:id',       updateCategory);
 router.delete('/categories/:id',    deleteCategory);
+
+router.get('/season-mapping',           getAllSeasons);
+router.post('/season-mapping',          createSeason);
+router.put('/season-mapping/:id',       updateSeason);
+router.delete('/season-mapping/:id',    deleteSeason);
+
+router.get('/audit-logs', listAuditLogs);
 
 module.exports = router;

@@ -40,6 +40,42 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- Application audit trail (mutating API calls from the SPA).
+CREATE TABLE IF NOT EXISTS `audit_logs` (
+  `id`             BIGINT       NOT NULL AUTO_INCREMENT,
+  `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_id`        INT          NULL DEFAULT NULL,
+  `user_name`      VARCHAR(200) NULL DEFAULT NULL,
+  `user_email`     VARCHAR(200) NULL DEFAULT NULL,
+  `user_role`      VARCHAR(20)  NULL DEFAULT NULL,
+  `user_department` VARCHAR(255) NULL DEFAULT NULL,
+  `method`         VARCHAR(10)  NOT NULL,
+  `path`           VARCHAR(500) NOT NULL,
+  `status_code`    INT          NULL DEFAULT NULL,
+  `success`        TINYINT(1)   NULL DEFAULT NULL,
+  `action_type`    VARCHAR(20)  NULL DEFAULT NULL,
+  `action_summary` VARCHAR(255) NULL DEFAULT NULL,
+  `module`         VARCHAR(100) NULL DEFAULT NULL,
+  `module_key`     VARCHAR(64)  NULL DEFAULT NULL,
+  `resource_type`  VARCHAR(64)  NULL DEFAULT NULL,
+  `resource_id`    VARCHAR(64)  NULL DEFAULT NULL,
+  `resource_name`  VARCHAR(255) NULL DEFAULT NULL,
+  `display_path`   VARCHAR(500) NULL DEFAULT NULL,
+  `screen`         VARCHAR(100) NULL DEFAULT NULL,
+  `duration_ms`    INT          NULL DEFAULT NULL,
+  `request_body`   MEDIUMTEXT   NULL DEFAULT NULL,
+  `ip`             VARCHAR(64)  NULL DEFAULT NULL,
+  `user_agent`     VARCHAR(500) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `audit_logs_created_at_idx` (`created_at`),
+  KEY `audit_logs_user_id_idx` (`user_id`),
+  KEY `audit_logs_method_idx` (`method`),
+  KEY `audit_logs_action_type_idx` (`action_type`),
+  KEY `audit_logs_module_key_idx` (`module_key`),
+  KEY `audit_logs_status_code_idx` (`status_code`),
+  KEY `audit_logs_success_idx` (`success`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS `employee_category` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `name`        VARCHAR(255) NOT NULL,
