@@ -45,39 +45,40 @@ from equipment_history_extract_lib import (
 )
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-OUTPUT_DIR = ROOT / "DigiLog" / "backend" / "backlog-data" / "mill data"
+BACKLOG_DIR = ROOT / "DigiLog" / "backend" / "backlog-data"
+OUTPUT_DIR = BACKLOG_DIR / "mill data"
 OUTPUT = OUTPUT_DIR / "mill-house-electrical-equipment-history.xlsx"
 AUDIT_OUTPUT = OUTPUT_DIR / "mill-house-electrical-extract-audit.xlsx"
 
 SOURCES = [
     {
         "label": "Mill House Electrical",
-        "hierarchy_file": ROOT / "electrical -mill house-herarchy-30072026.xlsx",
+        "hierarchy_file": BACKLOG_DIR / "electrical -mill house-herarchy-30072026.xlsx",
         "data_file": ROOT / "electrical Mill house life history Data-30072026.xlsx",
         "skip_sheets": {"summary index", "link", "sheet1"},
     },
     {
         "label": "70 TPH Boiler Electrical",
-        "hierarchy_file": ROOT / "2_70 TPH boiler life history.xlsx",
-        "data_file": ROOT / "2_70 TPH boiler life history.xlsx",
+        "hierarchy_file": BACKLOG_DIR / "2_70 TPH boiler life history.xlsx",
+        "data_file": BACKLOG_DIR / "2_70 TPH boiler life history.xlsx",
         "skip_sheets": {"summary index", "summary link", "sheet1"},
     },
     {
         "label": "Power House Electrical",
-        "hierarchy_file": ROOT / "3_Power House life history.xlsx",
-        "data_file": ROOT / "3_Power House life history.xlsx",
+        "hierarchy_file": BACKLOG_DIR / "3_Power House life history.xlsx",
+        "data_file": BACKLOG_DIR / "3_Power House life history.xlsx",
         "skip_sheets": {"summary index", "summary link", "sheet1"},
     },
     {
         "label": "DS House Motors Electrical",
-        "hierarchy_file": ROOT / "4_DS Electrical Equipment Life History - MOTORS.xlsx",
-        "data_file": ROOT / "4_DS Electrical Equipment Life History - MOTORS.xlsx",
+        "hierarchy_file": BACKLOG_DIR / "4_DS Electrical Equipment Life History - MOTORS.xlsx",
+        "data_file": BACKLOG_DIR / "4_DS Electrical Equipment Life History - MOTORS.xlsx",
         "skip_sheets": {"index", "summary index", "summary link", "sheet1"},
     },
     {
         "label": "DS House VFD Panel Electrical",
-        "hierarchy_file": ROOT / "5_DS Electrical Equipment Live  History - VFD PANEL.xlsx",
-        "data_file": ROOT / "5_DS Electrical Equipment Live  History - VFD PANEL.xlsx",
+        "hierarchy_file": BACKLOG_DIR / "5_DS Electrical Equipment Live  History - VFD PANEL.xlsx",
+        "data_file": BACKLOG_DIR / "5_DS Electrical Equipment Live  History - VFD PANEL.xlsx",
         "skip_sheets": {"index", "summary index", "summary link", "sheet1"},
     },
 ]
