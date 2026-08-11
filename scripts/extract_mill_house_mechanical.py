@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections import defaultdict
 from pathlib import Path
 
 import openpyxl
@@ -106,6 +107,44 @@ def first_tag_map(rows: list[dict]) -> dict[str, dict]:
     return tag_map
 
 
+def rows_by_tag(rows: list[dict]) -> dict[str, list[dict]]:
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for meta in rows:
+        grouped[norm_tag(meta["raw_tag"])].append(meta)
+    return grouped
+
+
+def name_key(value) -> str:
+    return re.sub(r"\s+", " ", str(value or "")).strip().lower()
+
+
+def pick_sheet_for_row(meta: dict, sheets: list[dict]) -> dict:
+    """Prefer a history sheet whose title matches this hierarchy row."""
+    sub = name_key(meta.get("sub_equipment"))
+    main = name_key(meta.get("main_equipment"))
+    hist = name_key(meta.get("hist_location"))
+    for info in sheets:
+        title = name_key(info["sheet_name"])
+        loc = name_key(info["fields"].get("LOCATION"))
+        if sub and (sub in title or title in sub):
+            return info
+        if main and (main in title or title in main):
+            return info
+        if hist and loc and hist == loc:
+            return info
+    return sheets[0]
+
+
+def retarget_rows(rows: list[list[str]], sheet_id: str) -> list[list[str]]:
+    cloned = []
+    for row in rows:
+        next_row = list(row)
+        if next_row:
+            next_row[0] = sheet_id
+        cloned.append(next_row)
+    return cloned
+
+
 def extract_life_fields(ws) -> dict[str, str]:
     fields = {
         "NAME OF EQUIPMENT": ws.title.strip(),
@@ -178,13 +217,16 @@ def extract_life_fields(ws) -> dict[str, str]:
 
 def save_workbook_to(out: openpyxl.Workbook, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        out.save(path)
-    except PermissionError as exc:
-        raise PermissionError(
-            f"Could not write {path.name}. Close it in Excel and retry."
-        ) from exc
-    return path
+    fallback = path.with_name(f"{path.stem}-updated{path.suffix}")
+    for candidate in (path, fallback):
+        try:
+            out.save(candidate)
+            return candidate
+        except PermissionError:
+            continue
+    raise PermissionError(
+        f"Could not write {path.name} or {fallback.name}. Close them in Excel and retry."
+    )
 
 
 def write_audit(hierarchy_rows: list[dict], matched_sheets: dict[str, list[str]]) -> Path:
@@ -267,6 +309,7 @@ def main() -> None:
 
     hierarchy_rows = load_hierarchy_rows(HIERARCHY_FILE)
     hierarchy_tags = first_tag_map(hierarchy_rows)
+    hierarchy_by_tag = rows_by_tag(hierarchy_rows)
     print(f"Hierarchy rows: {len(hierarchy_rows)} | unique tags: {len(hierarchy_tags)}")
 
     if not DATA_FILE.exists():
@@ -282,6 +325,7 @@ def main() -> None:
     all_history: list[list[str]] = []
     matched_sheets: dict[str, list[str]] = {}
     unmatched_sheets: list[str] = []
+    sheets_by_tag: dict[str, list[dict]] = defaultdict(list)
 
     for sheet_name in src.sheetnames:
         if should_skip_sheet(sheet_name):
@@ -291,8 +335,7 @@ def main() -> None:
         fields = extract_life_fields(ws)
         equip_tag = fields["EQUIPMENT TAG NO"]
         nt = norm_tag(equip_tag)
-        meta = hierarchy_tags.get(nt)
-        if meta is None:
+        if nt not in hierarchy_by_tag:
             unmatched_sheets.append(f"{sheet_name} (tag={equip_tag or '(blank)'})")
             continue
 
@@ -301,57 +344,68 @@ def main() -> None:
             continue
         matched_sheets[nt].append(sheet_name)
 
-        sheet_id = uuid.uuid4().hex[:12]
-        out_tag = meta["raw_tag"]
-
-        all_mappings.append((source_name, sheet_name, sheet_id, out_tag))
-        all_life.append(
-            [
-                source_name,
-                sheet_id,
-                sheet_name,
-                out_tag,
-                fields["NAME OF EQUIPMENT"] or meta["sub_equipment"],
-                fields["LOCATION"] or meta["hist_location"] or meta["location"],
-                fields["DATE OF COMMISSIONING"],
-                meta["main_equipment"],
-                meta["sub_equipment"],
-                meta["department"],
-            ]
-        )
-        all_spec.extend(
-            prepend_source_file(
-                insert_tag_column(
-                    extract_specification_rows(ws, sheet_id, sheet_name),
+        out_tag = hierarchy_by_tag[nt][0]["raw_tag"]
+        sheets_by_tag[nt].append(
+            {
+                "sheet_name": sheet_name,
+                "fields": fields,
+                "tag": out_tag,
+                "spec": insert_tag_column(
+                    extract_specification_rows(ws, "ID", sheet_name),
                     out_tag,
                 ),
-                source_name,
-            )
-        )
-        all_schedule.extend(
-            prepend_source_file(
-                insert_tag_column(
-                    extract_maintenance_schedule(ws, sheet_id, sheet_name),
+                "schedule": insert_tag_column(
+                    extract_maintenance_schedule(ws, "ID", sheet_name),
                     out_tag,
                 ),
-                source_name,
-            )
-        )
-        all_history.extend(
-            prepend_source_file(
-                insert_tag_column(
-                    extract_maintenance_history(ws, sheet_id, sheet_name),
+                "history": insert_tag_column(
+                    extract_maintenance_history(ws, "ID", sheet_name),
                     out_tag,
                 ),
-                source_name,
-            )
+            }
         )
 
     src.close()
 
+    # One output card per hierarchy row whose tag has at least one history sheet.
+    for nt, metas in hierarchy_by_tag.items():
+        sheets = sheets_by_tag.get(nt) or []
+        if not sheets:
+            continue
+        for meta in metas:
+            info = pick_sheet_for_row(meta, sheets)
+            sheet_id = uuid.uuid4().hex[:12]
+            sheet_name = info["sheet_name"]
+            fields = info["fields"]
+            out_tag = meta["raw_tag"]
+
+            all_mappings.append((source_name, sheet_name, sheet_id, out_tag))
+            all_life.append(
+                [
+                    source_name,
+                    sheet_id,
+                    sheet_name,
+                    out_tag,
+                    fields["NAME OF EQUIPMENT"] or meta["sub_equipment"],
+                    fields["LOCATION"] or meta["hist_location"] or meta["location"],
+                    fields["DATE OF COMMISSIONING"],
+                    meta["main_equipment"],
+                    meta["sub_equipment"],
+                    meta["department"],
+                    meta["hist_location"],
+                ]
+            )
+            all_spec.extend(prepend_source_file(retarget_rows(info["spec"], sheet_id), source_name))
+            all_schedule.extend(
+                prepend_source_file(retarget_rows(info["schedule"], sheet_id), source_name)
+            )
+            all_history.extend(
+                prepend_source_file(retarget_rows(info["history"], sheet_id), source_name)
+            )
+
     missing = sorted(set(hierarchy_tags) - set(matched_sheets))
     print(f"Matched unique tags: {len(matched_sheets)} | Missing: {len(missing)}")
-    print(f"Extracted history sheets: {len(all_mappings)}")
+    print(f"Extracted hierarchy rows with data: {len(all_mappings)}")
     if unmatched_sheets:
         print("Data sheets not in hierarchy:")
         for line in unmatched_sheets:
@@ -359,6 +413,8 @@ def main() -> None:
 
     out = openpyxl.Workbook()
     out.remove(out.active)
+
+    mech_life_columns = [*LIFE_COLUMNS, "History card Location"]
 
     map_ws = out.create_sheet("Sheet Map")
     map_ws.append(["source file", "sheet name", "id", "EQUIPMENT TAG NO"])
@@ -374,11 +430,11 @@ def main() -> None:
     write_data_sheet(
         out,
         "EQUIPMENT LIFE HISTORY CARD",
-        LIFE_COLUMNS,
+        mech_life_columns,
         all_life,
         {
             "A": 48, "B": 16, "C": 28, "D": 28, "E": 36, "F": 22,
-            "G": 20, "H": 28, "I": 36, "J": 22,
+            "G": 20, "H": 28, "I": 36, "J": 22, "K": 28,
         },
     )
     write_data_sheet(
