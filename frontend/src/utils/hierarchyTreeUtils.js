@@ -144,17 +144,21 @@ export function subEquipmentNameKey(node) {
   return equipmentName.toLowerCase();
 }
 
-/** Find another equipment leaf with the same sub equipment name anywhere in the tree. */
-export function findGlobalSubEquipmentNameInTree(tree, name, excludeNodeId = null) {
-  const target = String(name || '').trim().toLowerCase();
-  if (!target || !tree) return null;
+/** Tag uniqueness: trim outer/inner spaces, then lowercase. */
+export function normalizeEquipTag(value) {
+  return String(value || '').replace(/\s+/g, '').toLowerCase();
+}
 
+export function subEquipmentTagKey(node) {
+  return normalizeEquipTag(node?.equipNo || node?.equip_no);
+}
+
+function walkEquipmentLeaves(tree, visit) {
   const walk = (node) => {
     if (!node) return null;
     if (isHierarchyEquipment(node)) {
-      if (subEquipmentNameKey(node) === target && String(node.id) !== String(excludeNodeId)) {
-        return node;
-      }
+      const hit = visit(node);
+      if (hit) return hit;
     }
     for (const child of node.children || []) {
       const found = walk(child);
@@ -162,8 +166,33 @@ export function findGlobalSubEquipmentNameInTree(tree, name, excludeNodeId = nul
     }
     return null;
   };
-
   return walk(tree);
+}
+
+/** Find another equipment leaf with the same sub equipment name anywhere in the tree. */
+export function findGlobalSubEquipmentNameInTree(tree, name, excludeNodeId = null) {
+  const target = String(name || '').trim().toLowerCase();
+  if (!target || !tree) return null;
+
+  return walkEquipmentLeaves(tree, (node) => {
+    if (subEquipmentNameKey(node) === target && String(node.id) !== String(excludeNodeId)) {
+      return node;
+    }
+    return null;
+  });
+}
+
+/** Find another equipment leaf with the same tag anywhere in the tree (all disciplines). */
+export function findGlobalSubEquipmentTagInTree(tree, tag, excludeNodeId = null) {
+  const target = normalizeEquipTag(tag);
+  if (!target || !tree) return null;
+
+  return walkEquipmentLeaves(tree, (node) => {
+    if (subEquipmentTagKey(node) === target && String(node.id) !== String(excludeNodeId)) {
+      return node;
+    }
+    return null;
+  });
 }
 
 /** Built-in root categories (150TPH, 70TPH, 30.85MW STG, WTP) — read-only on cards. */

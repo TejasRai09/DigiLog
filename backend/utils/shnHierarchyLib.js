@@ -195,6 +195,28 @@ async function findGlobalSubEquipmentNameConflict(name, excludeId = null) {
   return row || null;
 }
 
+function compactEquipTag(value) {
+  return String(value || '').replace(/\s+/g, '').toLowerCase();
+}
+
+/** Equipment tag must be unique across all disciplines / sections. */
+async function findGlobalSubEquipmentTagConflict(equipNo, excludeId = null) {
+  const target = compactEquipTag(equipNo);
+  if (!target) return null;
+
+  const [rows] = await pool.execute(
+    `SELECT id, name, lookup_name, equip_no
+     FROM shn_hierarchy_node
+     WHERE is_active = 1 AND node_type = 'equipment'
+       AND equip_no IS NOT NULL AND TRIM(equip_no) <> ''`,
+  );
+
+  return rows.find((row) => {
+    if (excludeId != null && Number(row.id) === Number(excludeId)) return false;
+    return compactEquipTag(row.equip_no) === target;
+  }) || null;
+}
+
 async function linkEquipmentToNode(nodeDbId, shnEquipId) {
   await pool.execute(
     'UPDATE shn_hierarchy_node SET shn_equip_id = ? WHERE id = ?',
@@ -217,6 +239,7 @@ module.exports = {
   getNodeById,
   findSiblingNameConflict,
   findGlobalSubEquipmentNameConflict,
+  findGlobalSubEquipmentTagConflict,
   linkEquipmentToNode,
   resolveShnEquipIdForNode,
 };
