@@ -249,6 +249,9 @@ function createPowerEquipmentController(tables) {
           [equipNo, equipNo, name],
         );
         if (exact) return exact;
+        // Name was given but does not belong to this tag. Do not fall
+        // back to tag-only — that would open another equipment's card.
+        return null;
       }
 
       const byTag = await run('equip_no = ? OR tag_name = ?', [equipNo, equipNo]);

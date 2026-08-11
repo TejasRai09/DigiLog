@@ -9,6 +9,8 @@ import {
   isProtectedRootCategoryName,
   isHierarchyNodeLocked,
   findGlobalSubEquipmentNameInTree,
+  findGlobalSubEquipmentTagInTree,
+  normalizeEquipTag,
   composeSugarLeafDisplayName,
   splitSugarLeafLabel,
 } from '../../utils/hierarchyTreeUtils';
@@ -27,6 +29,10 @@ function duplicateMessage(kind, name) {
     return `Sub equipment name "${name}" already exists in another section.`;
   }
   return `Duplicate ${kindLabel(kind)} name: "${name}".`;
+}
+
+function duplicateTagMessage(tag) {
+  return `Equipment no. (tag) "${tag}" already exists in another section or discipline.`;
 }
 
 function nodeDbId(node) {
@@ -372,7 +378,7 @@ export function useHierarchyManage({
       }
       if (
         sugarLeafFields
-        && filledSlots.some((e) => (e.equipNo || '').toLowerCase() === equipNo.toLowerCase())
+        && filledSlots.some((e) => normalizeEquipTag(e.equipNo) === normalizeEquipTag(equipNo))
       ) {
         const message = `Duplicate equipment no. (tag): "${equipNo}".`;
         setModalError(message);
@@ -386,6 +392,15 @@ export function useHierarchyManage({
           setModalError(message);
           toast.error(message);
           return;
+        }
+        if (sugarLeafFields) {
+          const globalTagDup = findGlobalSubEquipmentTagInTree(tree, equipNo, slot.dbId ?? null);
+          if (globalTagDup) {
+            const message = duplicateTagMessage(equipNo);
+            setModalError(message);
+            toast.error(message);
+            return;
+          }
         }
       }
       filledSlots.push({
@@ -431,6 +446,20 @@ export function useHierarchyManage({
                 toast.error(message);
                 setSaving(false);
                 return;
+              }
+              if (sugarLeafFields && entry.equipNo) {
+                const globalTagDup = findGlobalSubEquipmentTagInTree(
+                  tree,
+                  entry.equipNo,
+                  entry.dbId,
+                );
+                if (globalTagDup) {
+                  const message = duplicateTagMessage(entry.equipNo);
+                  setModalError(message);
+                  toast.error(message);
+                  setSaving(false);
+                  return;
+                }
               }
             }
 
@@ -530,16 +559,26 @@ export function useHierarchyManage({
       : equipmentName;
 
     if (apiBase === '/sugar-new' && modal.node?.nodeType === 'equipment') {
+      const excludeId = modal.node?.dbId ?? modal.node?.id;
       const globalDup = findGlobalSubEquipmentNameInTree(
         tree,
         equipmentName,
-        modal.node?.dbId ?? modal.node?.id,
+        excludeId,
       );
       if (globalDup) {
         const message = duplicateMessage('equipment', equipmentName);
         setModalError(message);
         toast.error(message);
         return;
+      }
+      if (sugarLeafFields && equipNo) {
+        const globalTagDup = findGlobalSubEquipmentTagInTree(tree, equipNo, excludeId);
+        if (globalTagDup) {
+          const message = duplicateTagMessage(equipNo);
+          setModalError(message);
+          toast.error(message);
+          return;
+        }
       }
     }
     setSaving(true);

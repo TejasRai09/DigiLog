@@ -29,6 +29,10 @@ function trim(value) {
   return String(value ?? '').trim();
 }
 
+function cleanName(value) {
+  return trim(value).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ');
+}
+
 function normTag(t) {
   return trim(t).toUpperCase().replace(/\s+/g, ' ');
 }
@@ -56,6 +60,8 @@ function tagNoColumn(row) {
     || row['History card Tag nas.']
     || row['History card Tag Nos.']
     || row[' History card Tag Nos.']
+    || row['History card Tag No.']
+    || row[' History card Tag No.']
     || row['Inst. History card Tag nas.']
     || row['Inst. History card Tag no.']
   );
@@ -151,12 +157,12 @@ function loadRows(xlsxPath) {
   let skipped = 0;
 
   for (const row of sheetRows) {
-    const section = trim(row.Section);
-    const location = trim(row.Location);
-    const mainEquipment = trim(row['Main Equipment']);
-    const subEquipment = subEquipmentColumn(row);
-    const department = departmentColumn(row);
-    const histLocation = histLocationColumn(row);
+    const section = cleanName(row.Section);
+    const location = cleanName(row.Location);
+    const mainEquipment = cleanName(row['Main Equipment']);
+    const subEquipment = cleanName(subEquipmentColumn(row));
+    const department = cleanName(departmentColumn(row));
+    const histLocation = cleanName(histLocationColumn(row));
 
     if (!isMechanicalDept(department)) {
       skipped += 1;
@@ -171,7 +177,7 @@ function loadRows(xlsxPath) {
       continue;
     }
 
-    const key = `${subEquipment}\0${equipNo}\0${histLocation}`;
+    const key = [section, location, mainEquipment, subEquipment, equipNo, histLocation].join('\0');
     if (!unique.has(key)) {
       unique.set(key, {
         section,
@@ -278,21 +284,34 @@ function buildTree(rows) {
 async function resolveShnEquipId(conn, node) {
   const equipNo = trim(node.equipNo);
   const lookupName = trim(node.lookupName || node.name);
-  if (equipNo) {
+  const location = trim(node.histLocation);
+
+  if (equipNo && lookupName && location) {
     const [rows] = await conn.execute(
-      'SELECT id FROM shn_equipment WHERE equip_no = ? OR tag_name = ? LIMIT 1',
-      [equipNo, equipNo],
+      `SELECT id FROM shn_equipment
+       WHERE (equip_no = ? OR tag_name = ?) AND name = ? AND location = ?
+       LIMIT 1`,
+      [equipNo, equipNo, lookupName, location],
+    );
+    if (rows[0]) return rows[0].id;
+  } else if (equipNo && lookupName) {
+    const [rows] = await conn.execute(
+      `SELECT id FROM shn_equipment
+       WHERE (equip_no = ? OR tag_name = ?) AND name = ?
+       LIMIT 1`,
+      [equipNo, equipNo, lookupName],
     );
     if (rows[0]) return rows[0].id;
   }
-  if (lookupName) {
-    const [rows] = await conn.execute(
-      'SELECT id FROM shn_equipment WHERE name = ? LIMIT 1',
-      [lookupName],
-    );
-    if (rows[0]) return rows[0].id;
-  }
-  return null;
+
+  if (!lookupName) return null;
+
+  const [result] = await conn.execute(
+    `INSERT INTO shn_equipment (dept, equip_no, tag_name, name, location)
+     VALUES ('sugar_house', ?, ?, ?, ?)`,
+    [equipNo || null, equipNo || null, lookupName, location || null],
+  );
+  return result.insertId || null;
 }
 
 async function insertNode(conn, parentId, node, sortOrder) {
@@ -515,8 +534,18 @@ async function importFile(conn, file, root, force) {
           const leaf = main.children[si];
           const existingLeaf = await (async () => {
             const [found] = await conn.execute(
-              'SELECT id FROM shn_hierarchy_node WHERE parent_id = ? AND equip_no = ? AND is_active = 1 LIMIT 1',
-              [mainId, leaf.equipNo || ''],
+              `SELECT id FROM shn_hierarchy_node
+               WHERE parent_id = ? AND is_active = 1 AND node_type = 'equipment'
+                 AND LOWER(TRIM(COALESCE(lookup_name, ''))) = LOWER(?)
+                 AND LOWER(TRIM(COALESCE(equip_no, ''))) = LOWER(?)
+                 AND LOWER(TRIM(COALESCE(hist_location, ''))) = LOWER(?)
+               LIMIT 1`,
+              [
+                mainId,
+                leaf.lookupName || leaf.name || '',
+                leaf.equipNo || '',
+                leaf.histLocation || '',
+              ],
             );
             return found[0] || null;
           })();
