@@ -4,7 +4,7 @@
  * hierarchy leaves.
  *
  * Rules:
- *   - Match hierarchy leaves by equip_no (tag)
+ *   - Match every hierarchy leaf whose tag has history data (not unique-tag only)
  *   - Do NOT overwrite equipment name — use hierarchy lookup_name
  *   - All form data is mechanical discipline
  *   - Specs / schedule / history: section=mechanical;
@@ -331,6 +331,8 @@ function loadWorkbook(filePath) {
       tag,
       excelName: lifeCardName,
       excelLocation: trim(row.LOCATION),
+      subEquipment: trim(row['Sub Equipment']),
+      histLocation: trim(row['History card Location']),
       commissioned: emptyToNull(row['DATE OF COMMISSIONING']),
       specs,
       schedule,
@@ -350,27 +352,50 @@ async function loadHierarchyLeaves(conn) {
   return rows;
 }
 
-function findHierarchyLeaf(leaves, tag) {
-  const exact = leaves.filter((leaf) => normTag(leaf.equip_no) === normTag(tag));
-  if (exact.length === 1) return exact[0];
-  if (exact.length > 1) return exact[0];
-
-  const compact = leaves.filter((leaf) => tagsMatch(leaf.equip_no, tag));
-  if (compact.length >= 1) return compact[0];
-  return null;
+function namesMatch(a, b) {
+  const na = trim(a).toLowerCase().replace(/\s+/g, ' ');
+  const nb = trim(b).toLowerCase().replace(/\s+/g, ' ');
+  return Boolean(na && nb && na === nb);
 }
 
-async function findExistingEquipId(conn, tag) {
-  const [byEquip] = await conn.execute(
-    'SELECT id, name FROM shn_equipment WHERE equip_no = ? OR tag_name = ? LIMIT 1',
-    [tag, tag],
-  );
-  if (byEquip[0]) return byEquip[0];
+/** Every hierarchy leaf whose tag has history data — not unique-tag only. */
+function findHierarchyLeaves(leaves, card) {
+  const byTag = leaves.filter((leaf) => tagsMatch(leaf.equip_no, card.tag));
+  if (!byTag.length) return [];
 
-  const [all] = await conn.execute(
-    'SELECT id, name, equip_no, tag_name FROM shn_equipment WHERE equip_no IS NOT NULL OR tag_name IS NOT NULL',
-  );
-  return all.find((row) => tagsMatch(row.equip_no, tag) || tagsMatch(row.tag_name, tag)) || null;
+  const name = trim(card.subEquipment || card.excelName);
+  const loc = trim(card.histLocation || card.excelLocation);
+  const precise = byTag.filter((leaf) => {
+    const leafName = trim(leaf.lookup_name || leaf.name);
+    const leafLoc = trim(leaf.hist_location);
+    const nameOk = !name || namesMatch(leafName, name);
+    const locOk = !loc || namesMatch(leafLoc, loc);
+    return nameOk && locOk;
+  });
+  if (precise.length) return precise;
+  return byTag;
+}
+
+async function findExistingEquipId(conn, tag, name, location) {
+  if (tag && name && location) {
+    const [rows] = await conn.execute(
+      `SELECT id, name FROM shn_equipment
+       WHERE (equip_no = ? OR tag_name = ?) AND name = ? AND location = ?
+       LIMIT 1`,
+      [tag, tag, name, location],
+    );
+    if (rows[0]) return rows[0];
+  }
+  if (tag && name) {
+    const [rows] = await conn.execute(
+      `SELECT id, name FROM shn_equipment
+       WHERE (equip_no = ? OR tag_name = ?) AND name = ?
+       LIMIT 1`,
+      [tag, tag, name],
+    );
+    if (rows[0]) return rows[0];
+  }
+  return null;
 }
 
 async function deleteEquipmentTree(conn, equipId) {
@@ -503,82 +528,90 @@ async function main() {
 
     for (let i = 0; i < cards.length; i += 1) {
       const card = cards[i];
-      const leaf = findHierarchyLeaf(leaves, card.tag);
-
-      const equipmentName = leaf
-        ? trim(leaf.lookup_name || leaf.name)
-        : card.excelName || card.tag;
-
-      const location = leaf
-        ? (emptyToNull(leaf.hist_location) || emptyToNull(card.excelLocation))
-        : emptyToNull(card.excelLocation);
-
-      if (!leaf) {
-        unmatched.push(card.tag);
-        stats.orphan += 1;
+      const matchedLeaves = findHierarchyLeaves(leaves, card);
+      let targets = matchedLeaves;
+      if (!opts.replace) {
+        targets = matchedLeaves.filter((leaf) => !leaf.shn_equip_id);
       }
 
-      if (opts.dryRun) {
-        stats.imported += 1;
-        stats.specs += Math.max(0, card.specs.length - 1);
-        stats.schedule += card.schedule.length;
-        stats.history += card.history.length;
-        if (i < 3 || !leaf) {
-          console.log(
-            `[dry-run] ${card.tag} -> name="${equipmentName}" leaf=${leaf ? leaf.id : 'NONE'} `
-            + `specs=${card.specs.length - 1} sched=${card.schedule.length} hist=${card.history.length}`,
-          );
+      if (!matchedLeaves.length) {
+        unmatched.push(card.tag);
+        stats.orphan += 1;
+        if (opts.dryRun && i < 3) {
+          console.log(`[dry-run] ${card.tag} -> no hierarchy leaf`);
         }
         continue;
       }
+      if (!targets.length) {
+        stats.skipped += 1;
+        continue;
+      }
 
-      await conn.beginTransaction();
-      try {
-        const existing = await findExistingEquipId(conn, card.tag);
-        if (existing) {
-          if (!opts.replace) {
-            await conn.rollback();
-            stats.skipped += 1;
-            console.log(`[skip] ${card.tag} already exists as shn_equipment#${existing.id} (${existing.name})`);
-            continue;
+      for (const leaf of targets) {
+        const equipmentName = trim(leaf.lookup_name || leaf.name) || card.excelName || card.tag;
+        const location = emptyToNull(leaf.hist_location) || emptyToNull(card.histLocation)
+          || emptyToNull(card.excelLocation);
+
+        if (opts.dryRun) {
+          stats.imported += 1;
+          stats.specs += Math.max(0, card.specs.length - 1);
+          stats.schedule += card.schedule.length;
+          stats.history += card.history.length;
+          if (stats.imported <= 5) {
+            console.log(
+              `[dry-run] ${card.tag} -> name="${equipmentName}" loc="${location || ''}" leaf=${leaf.id} `
+              + `specs=${card.specs.length - 1} sched=${card.schedule.length} hist=${card.history.length}`,
+            );
           }
-          await deleteEquipmentTree(conn, existing.id);
-          stats.replaced += 1;
+          leaf.shn_equip_id = -1;
+          continue;
         }
 
-        const equipId = await insertEquipment(conn, {
-          category: null,
-          subcategory: null,
-          equip_no: card.tag,
-          tag_name: card.tag,
-          name: equipmentName,
-          location,
-          commissioned: card.commissioned,
-          sort_order: i,
-        });
+        await conn.beginTransaction();
+        try {
+          const existing = await findExistingEquipId(conn, card.tag, equipmentName, location);
+          if (existing) {
+            if (!opts.replace) {
+              await conn.rollback();
+              stats.skipped += 1;
+              leaf.shn_equip_id = existing.id;
+              continue;
+            }
+            await deleteEquipmentTree(conn, existing.id);
+            stats.replaced += 1;
+          }
 
-        await insertSpecs(conn, equipId, card.specs);
-        await insertSchedule(conn, equipId, card.schedule);
-        await insertHistory(conn, equipId, card.history);
+          const equipId = await insertEquipment(conn, {
+            category: null,
+            subcategory: null,
+            equip_no: card.tag,
+            tag_name: card.tag,
+            name: equipmentName,
+            location,
+            commissioned: card.commissioned,
+            sort_order: i,
+          });
 
-        if (leaf) {
+          await insertSpecs(conn, equipId, card.specs);
+          await insertSchedule(conn, equipId, card.schedule);
+          await insertHistory(conn, equipId, card.history);
           await linkHierarchy(conn, leaf.id, equipId);
           leaf.shn_equip_id = equipId;
-        }
 
-        await conn.commit();
-        stats.imported += 1;
-        stats.specs += Math.max(0, card.specs.length - 1);
-        stats.schedule += card.schedule.length;
-        stats.history += card.history.length;
-
-        if ((i + 1) % 10 === 0 || i === cards.length - 1) {
-          console.log(`Progress ${i + 1}/${cards.length}…`);
+          await conn.commit();
+          stats.imported += 1;
+          stats.specs += Math.max(0, card.specs.length - 1);
+          stats.schedule += card.schedule.length;
+          stats.history += card.history.length;
+        } catch (err) {
+          await conn.rollback();
+          stats.failed += 1;
+          console.error(`[fail] ${card.tag} / ${equipmentName}: ${err.message}`);
         }
-      } catch (err) {
-        await conn.rollback();
-        stats.failed += 1;
-        console.error(`[fail] ${card.tag}: ${err.message}`);
+      }
+
+      if ((i + 1) % 10 === 0 || i === cards.length - 1) {
+        console.log(`Progress ${i + 1}/${cards.length} cards → imported ${stats.imported}…`);
       }
     }
 
