@@ -39,6 +39,7 @@ from equipment_history_extract_lib import (
     extract_history_rows_flexible,
     extract_schedule_rows,
     extract_specification_rows as extract_spec_rows_lib,
+    is_history_header_row,
     norm,
     parse_schedule_layout,
     row_cells,
@@ -265,6 +266,19 @@ def find_section_rows(ws) -> dict[str, tuple[int, int]]:
                 continue
             if SECTION_HISTORY in text and "history" not in found:
                 found["history"] = (r, c)
+
+    # Cardian / Rotary style: no "EQUIPMENT MAINTENANCE HISTORY" title — history
+    # starts at a "Season / OFF Season" header row after the schedule block.
+    if "history" not in found:
+        start = 1
+        if "schedule" in found:
+            start = found["schedule"][0] + 1
+        elif "spec" in found:
+            start = found["spec"][0] + 1
+        for r in range(start, ws.max_row + 1):
+            if is_history_header_row(row_cells(ws, r)):
+                found["history"] = (r, 1)
+                break
     return found
 
 
