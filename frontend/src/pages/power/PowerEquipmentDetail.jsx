@@ -13,6 +13,7 @@ import EquipmentMaintenanceHistoryHub from '../../components/equipment/Equipment
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
+import { saveHistoryWithDocuments } from '../../utils/historyDocuments';
 import { POWER_LIFE_HISTORY_FIELDS, powerEquipmentDisplayId, isZilEquipNo } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
 import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
@@ -317,14 +318,17 @@ const PowerEquipmentDetail = () => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
-      const body = historyRecordToApi(form);
-      if (mode === 'add') {
-        await api.post(`${apiBase}/${equipId}/history`, body);
-        toast.success('Record added.');
+      if (isNewHub) {
+        await saveHistoryWithDocuments({ apiBase, equipId, form, mode, recordId });
       } else {
-        await api.put(`${apiBase}/${equipId}/history/${recordId}`, body);
-        toast.success('Record updated.');
+        const body = historyRecordToApi(form);
+        if (mode === 'add') {
+          await api.post(`${apiBase}/${equipId}/history`, body);
+        } else {
+          await api.put(`${apiBase}/${equipId}/history/${recordId}`, body);
+        }
       }
+      toast.success(mode === 'add' ? 'Record added.' : 'Record updated.');
       await loadHistory(equipId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed.');
@@ -528,6 +532,9 @@ const PowerEquipmentDetail = () => {
         onDelete={deleteMaintenanceRecord}
         equipmentOptions={isNewHub ? equipmentOptions : []}
         exportFileName={eq?.name || eq?.tag_name || 'Equipment_Maintenance_History'}
+        enableDocuments={isNewHub}
+        historyApiBase={apiBase}
+        equipId={eq?.id || id}
       />
     </main>
   );

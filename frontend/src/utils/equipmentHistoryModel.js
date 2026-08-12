@@ -14,6 +14,56 @@ export function parseHistoryPhotos(value) {
   return [];
 }
 
+/** Parse stored documents JSON → metadata[]. */
+export function parseHistoryDocuments(value) {
+  if (!value) return [];
+  try {
+    let raw = value;
+    if (typeof Buffer !== 'undefined' && Buffer.isBuffer(raw)) {
+      raw = raw.toString('utf8');
+    }
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((raw) => {
+        const storageKey = String(raw?.storageKey || '').trim();
+        const displayName = String(raw?.displayName || raw?.originalName || '').trim();
+        if (!storageKey || !displayName) return null;
+        return {
+          storageKey,
+          displayName,
+          originalName: String(raw?.originalName || displayName).trim(),
+          mimeType: String(raw?.mimeType || 'application/octet-stream').trim(),
+          size: Number(raw?.size) || 0,
+          pending: false,
+          file: null,
+        };
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** Saved documents → API JSON array (no pending uploads). */
+export function serializeHistoryDocumentsForApi(documents) {
+  const list = (documents || [])
+    .filter((doc) => doc && !doc.pending && doc.storageKey)
+    .map(({ storageKey, displayName, originalName, mimeType, size }) => ({
+      storageKey,
+      displayName: String(displayName || originalName || '').trim(),
+      originalName: String(originalName || displayName || '').trim(),
+      mimeType: mimeType || 'application/octet-stream',
+      size: Number(size) || 0,
+    }))
+    .filter((doc) => doc.displayName);
+  return list.length ? list : null;
+}
+
+export const MAX_HISTORY_DOCUMENTS = 2;
+
+export const HISTORY_DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.txt,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
 /** string[] → API image field (single or JSON array). */
 export function serializeHistoryPhotos(photos) {
   const list = (photos || []).filter((x) => x && String(x).startsWith('data:image'));
@@ -195,6 +245,7 @@ export function historyRecordFromApi(row) {
     remarks: isPlaceholderNo(rawRem) ? '' : rawRem,
     photosBefore: parseHistoryPhotos(row.img_before),
     photosAfter: parseHistoryPhotos(row.img_after),
+    documents: parseHistoryDocuments(row.documents),
   };
 }
 
@@ -224,6 +275,7 @@ export function historyRecordToApi(form) {
     rem: form.remarks?.trim() || null,
     img_before: serializeHistoryPhotos(form.photosBefore),
     img_after: serializeHistoryPhotos(form.photosAfter),
+    documents: serializeHistoryDocumentsForApi(form.documents),
     equipment_refs,
   };
 
@@ -251,6 +303,7 @@ export const EMPTY_HISTORY_FORM = {
   remarks: '',
   photosBefore: [],
   photosAfter: [],
+  documents: [],
 };
 
 export const HISTORY_SERVICE_OPTIONS = [
