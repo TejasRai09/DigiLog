@@ -47,15 +47,7 @@ const BiControlTower = () => {
 
       <AppFormsHeader
         name={BI_CONTROL_TOWER_APP_NAME}
-        description={
-          <>
-            Analytics dashboards you are mapped to—same employee access as{' '}
-            <Link to="/forms-hub" className="text-blue-600 hover:underline font-medium">
-              Forms Hub
-            </Link>
-            . Pick a dashboard below to open it.
-          </>
-        }
+        description="Centralized command center for real-time business intelligence, KPIs, and operational analytics. Select a dashboard below to explore your data."
         icon={MdInsights}
         color="#6366f1"
       />
@@ -77,16 +69,8 @@ const BiControlTower = () => {
               {app.forms.length} dashboard{app.forms.length !== 1 ? 's' : ''} available
             </p>
           </div>
-          <div className="md:hidden">
+          <div className="p-4 sm:p-5 bg-slate-50">
             <BiDashboardCardList forms={app.forms} appId={app._id ?? app.id} />
-          </div>
-          <div className="hidden p-0 md:block">
-            <FormTable
-              forms={app.forms}
-              appId={app._id ?? app.id}
-              nameColumnHeader="Dashboard name"
-              emptyMessage="No dashboards are assigned to you for this app."
-            />
           </div>
         </div>
       )}

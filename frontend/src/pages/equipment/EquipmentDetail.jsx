@@ -188,10 +188,6 @@ const EquipmentDetail = () => {
         })}
       />
 
-      <div className="mb-6">
-        <p className="text-sm text-gray-500 font-mono">{eq.equip_no} · {eq.plant}</p>
-      </div>
-
       <EquipmentLifeHistoryCard
         equipment={eq}
         saving={saving}
