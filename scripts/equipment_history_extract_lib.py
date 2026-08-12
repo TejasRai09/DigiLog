@@ -126,9 +126,19 @@ def is_schedule_serial_header(text: str) -> bool:
 
 
 def is_schedule_table_header_row(row: list[str]) -> bool:
+    """
+    Accept normal OEM headers and mill variants where the activity column is
+    labeled with an equipment group name (e.g. 'CUNO.2,3&5') instead of
+    'Maintenance / Inspection Activities'.
+    """
     joined = norm(" ".join(row))
     has_serial = any(is_schedule_serial_header(cell) for cell in row if cell)
-    return has_serial and "NAME OF EQUIPMENT" in joined and "MAINTENANCE" in joined
+    if not has_serial or "NAME OF EQUIPMENT" not in joined:
+        return False
+    if "MAINTENANCE" in joined and "ACTIVIT" in joined:
+        return True
+    # Variant: Sr.No + Name of Equipment + interval labels on same row.
+    return is_schedule_interval_label_row(row, None) >= 2
 
 
 def is_schedule_interval_label_row(row: list[str], remarks_col: int | None) -> int:
@@ -209,6 +219,24 @@ def parse_schedule_layout(
     if remarks_col and remarks_col in interval_cols:
         del interval_cols[remarks_col]
 
+    # Mill cane-unloader variant: activity column header is 'CUNO.2' / 'CUNO.2,3&5'
+    # instead of 'Maintenance / Inspection Activities'.
+    if act_col is None:
+        for c in range(1, ws.max_column + 1):
+            if c in {sr_col, comp_col, remarks_col}:
+                continue
+            if c in interval_cols:
+                continue
+            h = norm(ws.cell(header_row, c).value)
+            if not h:
+                continue
+            if is_schedule_serial_header(h) or "NAME OF EQUIPMENT" in h or "REMARKS" in h:
+                continue
+            if interval_label_for(h):
+                continue
+            act_col = c
+            break
+
     while data_start < schedule_end:
         row = row_cells(ws, data_start)
         if is_schedule_table_header_row(row):
@@ -264,6 +292,9 @@ def extract_schedule_rows(
             continue
         if is_schedule_interval_label_row(row, layout.remarks_col) >= 2:
             continue
+        # History banner / header that sits just above the history block.
+        if is_history_header_row(row) or is_history_separator_row(row):
+            continue
 
         sr = cell_text(ws.cell(r, layout.sr_col).value) if layout.sr_col else ""
         comp = cell_text(ws.cell(r, layout.comp_col).value) if layout.comp_col else ""
@@ -273,6 +304,12 @@ def extract_schedule_rows(
             if layout.remarks_col
             else ""
         )
+
+        # Baner text sometimes lands in Sr.No. column (e.g. 'OFF SEASON 2025').
+        if sr and not re.search(r"\d", sr) and "SEASON" in norm(sr):
+            continue
+        if sr and "SEASON" in norm(sr) and not comp and not activity:
+            continue
 
         interval_values: dict[str, str] = {}
         for col_idx, label in layout.interval_cols.items():
@@ -299,6 +336,16 @@ def extract_schedule_rows(
             and not resolved_remarks
             and not sr
             and not comp
+        ):
+            continue
+
+        # Skip rows that only carried a season banner into Sr.No.
+        if (
+            not activity
+            and not any(resolved_intervals)
+            and not comp
+            and sr
+            and "SEASON" in norm(sr)
         ):
             continue
 
@@ -661,6 +708,9 @@ def map_history_header_columns(ws, header_row: int) -> dict[str, int]:
             mapping["season"] = c
         elif h in ("YEAR", "YEAR ") or h.startswith("YEAR/") or h.startswith("YEAR /"):
             mapping["year"] = c
+        elif h in {"DATE", "DATES"}:
+            # Cardian / rotary mill cards use a single DATE column.
+            mapping.setdefault("year", c)
         elif "DATE OF START" in h:
             mapping["date_start"] = c
         elif "DATE OF FINISH" in h:
@@ -671,11 +721,11 @@ def map_history_header_columns(ws, header_row: int) -> dict[str, int]:
             mapping["act"] = c
         elif "REPAIR COST" in h:
             mapping["cost"] = c
-        elif "SERVICE" in h and "INTERNAL" in h:
+        elif "SERVICE" in h and ("INTERNAL" in h or "EXTERNAL" in h):
             mapping["svc"] = c
         elif "RESPONSIBILITY" in h:
             mapping["resp"] = c
-        elif "REMARKS" in h:
+        elif "REMARKS" in h or h == "REMARK":
             mapping["rem"] = c
     return mapping
 
@@ -695,6 +745,26 @@ def is_history_continuation_row(row: list[str], cols: dict[str, int]) -> bool:
     return not season and not year and not obs and bool(act)
 
 
+def is_history_separator_row(row: list[str]) -> bool:
+    """
+    Yellow banner rows like 'OFF SEASON 2026' / 'NO ISSUE IN SEASON 2023-2024'
+    that are not real maintenance entries.
+    """
+    cells = [norm(c) for c in row if c and norm(c)]
+    if not cells:
+        return False
+    if len(cells) > 2:
+        return False
+    joined = " ".join(cells)
+    if re.fullmatch(r"(OFF[-\s]?SEASON|ON[-\s]?SEASON|SEASON)(\s*\d{4}([./-]\d{2,4})?)?", joined):
+        return True
+    if "NO ISSUE" in joined and "SEASON" in joined:
+        return True
+    if joined.startswith("OFF SEASON") and len(joined) <= 24:
+        return True
+    return False
+
+
 def extract_history_rows_flexible(
     ws,
     history_row: int,
@@ -703,14 +773,20 @@ def extract_history_rows_flexible(
     stop_markers: tuple[str, ...],
 ) -> list[list[str]]:
     header_row = None
-    for r in range(history_row + 1, min(history_row + 6, ws.max_row + 1)):
-        if is_history_header_row(row_cells(ws, r)):
-            header_row = r
-            break
+    # Section pointer may already be the header row (Cardian / Rotary style).
+    if is_history_header_row(row_cells(ws, history_row)):
+        header_row = history_row
+    else:
+        for r in range(history_row + 1, min(history_row + 8, ws.max_row + 1)):
+            if is_history_header_row(row_cells(ws, r)):
+                header_row = r
+                break
     if header_row is None:
         return []
 
     cols = map_history_header_columns(ws, header_row)
+    if not cols.get("season") and not cols.get("obs"):
+        return []
     rows: list[list[str]] = []
 
     for r in range(header_row + 1, ws.max_row + 1):
@@ -718,6 +794,11 @@ def extract_history_rows_flexible(
         if not any(row):
             continue
         if is_history_header_row(row):
+            # Repeated season-block headers inside the same sheet — keep going,
+            # but refresh column map in case layout shifts slightly.
+            cols = map_history_header_columns(ws, r) or cols
+            continue
+        if is_history_separator_row(row):
             continue
         joined = norm(" ".join(row))
         if any(marker in joined for marker in stop_markers):
@@ -748,6 +829,26 @@ def extract_history_rows_flexible(
         if norm(season) in {"SR.NO.", "SR NO", "SR.NO"}:
             continue
 
+        cost = cell_text(ws.cell(r, cols["cost"]).value) if cols.get("cost") else ""
+        svc = cell_text(ws.cell(r, cols["svc"]).value) if cols.get("svc") else ""
+        resp = cell_text(ws.cell(r, cols["resp"]).value) if cols.get("resp") else ""
+        rem = cell_text(ws.cell(r, cols["rem"]).value) if cols.get("rem") else ""
+
+        # Season-only marker with no other fields (blank OFF Season lines).
+        if (
+            season
+            and not year
+            and not date_start
+            and not date_finish
+            and not obs
+            and not act
+            and not cost
+            and not svc
+            and not resp
+            and not rem
+        ):
+            continue
+
         rows.append([
             sheet_id,
             sheet_name,
@@ -757,10 +858,10 @@ def extract_history_rows_flexible(
             date_finish,
             obs,
             act,
-            cell_text(ws.cell(r, cols["cost"]).value) if cols.get("cost") else "",
-            cell_text(ws.cell(r, cols["svc"]).value) if cols.get("svc") else "",
-            cell_text(ws.cell(r, cols["resp"]).value) if cols.get("resp") else "",
-            cell_text(ws.cell(r, cols["rem"]).value) if cols.get("rem") else "",
+            cost,
+            svc,
+            resp,
+            rem,
         ])
 
     return rows

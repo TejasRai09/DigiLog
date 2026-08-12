@@ -119,19 +119,61 @@ def name_key(value) -> str:
 
 
 def pick_sheet_for_row(meta: dict, sheets: list[dict]) -> dict:
-    """Prefer a history sheet whose title matches this hierarchy row."""
+    """
+    Prefer a history sheet whose life-card name matches this hierarchy row.
+
+    Same tag can have multiple sheets (e.g. MILL 2 + T 2 transmission). Match
+    specialized sheets only to specialized sub-equipment; other children keep
+    the main mill sheet.
+    """
+    if len(sheets) == 1:
+        return sheets[0]
+
     sub = name_key(meta.get("sub_equipment"))
     main = name_key(meta.get("main_equipment"))
-    hist = name_key(meta.get("hist_location"))
+
+    def card_name(info: dict) -> str:
+        return name_key((info.get("fields") or {}).get("NAME OF EQUIPMENT"))
+
+    def title(info: dict) -> str:
+        return name_key(info.get("sheet_name"))
+
+    def norm_eq(a: str, b: str) -> bool:
+        if not a or not b:
+            return False
+        return a == b or a.replace(".", "") == b.replace(".", "")
+
+    # 1) Exact / near-exact life-card name vs sub-equipment.
     for info in sheets:
-        title = name_key(info["sheet_name"])
-        loc = name_key(info["fields"].get("LOCATION"))
-        if sub and (sub in title or title in sub):
+        name = card_name(info)
+        if norm_eq(name, sub):
             return info
-        if main and (main in title or title in main):
+        if name and sub and (name in sub or sub in name) and abs(len(name) - len(sub)) <= 6:
             return info
-        if hist and loc and hist == loc:
-            return info
+
+    # 2) Exact life-card / sheet title vs main when this row IS the main machine.
+    if sub and main and (norm_eq(sub, main) or sub.replace(".", "") == main.replace(".", "")):
+        for info in sheets:
+            if norm_eq(card_name(info), main) or norm_eq(title(info), main):
+                return info
+
+    specialized_keys = ("transmis", "planetor", "planetary")
+    specialized = []
+    general = []
+    for info in sheets:
+        blob = f"{card_name(info)} {title(info)}"
+        if any(k in blob for k in specialized_keys):
+            specialized.append(info)
+        else:
+            general.append(info)
+
+    # 3) Transmission / planetory rows → specialized sheet only.
+    if any(k in sub for k in specialized_keys) and specialized:
+        return specialized[0]
+
+    # 4) All other children under the same tag → main mill sheet.
+    if general:
+        return general[0]
     return sheets[0]
 
 
