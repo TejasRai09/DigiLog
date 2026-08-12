@@ -14,7 +14,7 @@ import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../util
 import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
 import { saveHistoryWithDocuments } from '../../utils/historyDocuments';
-import { POWER_LIFE_HISTORY_FIELDS, powerEquipmentDisplayId, isZilEquipNo } from '../../config/powerEquipmentFields';
+import { POWER_LIFE_HISTORY_FIELDS } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
 import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
 import useSugarHouseHierarchy from '../../hooks/useSugarHouseHierarchy';
@@ -457,19 +457,9 @@ const PowerEquipmentDetail = () => {
   if (loading) return <div className="flex justify-center py-32"><Spinner size="lg" /></div>;
   if (!eq)     return <p className="text-center py-20 text-gray-400">Equipment not found.</p>;
 
-  const displayId = powerEquipmentDisplayId(eq);
-
   return (
     <main className="app-main">
       <AppBreadcrumb items={breadcrumbItems} />
-
-      {displayId && (
-        <div className="mb-6">
-          <p className="text-sm text-gray-500 font-mono">
-            {displayId}
-          </p>
-        </div>
-      )}
 
       {!isNewHub && (
         <EquipmentLifeHistoryCard
