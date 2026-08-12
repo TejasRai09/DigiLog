@@ -433,7 +433,7 @@ function toReadableAuditPayload(body, opts = {}) {
         });
         continue;
       }
-      if (SENSITIVE_KEY_RE.test(key) || key === 'img_before' || key === 'img_after') {
+      if (SENSITIVE_KEY_RE.test(key) || key === 'img_before' || key === 'img_after' || key === 'documents') {
         if (val == null || val === '') {
           fields.push({ field: label, value: '—', group });
         } else if (typeof val === 'string' && (val.startsWith('[') || val.startsWith('data:'))) {
@@ -912,6 +912,13 @@ function shouldSkipAudit(method, path) {
   const p = String(path || '').split('?')[0];
   if (p === '/api/health') return true;
   if (p.startsWith('/api/admin/audit-logs')) return true;
+  if (p.startsWith('/api/admin/activity-logs')) return true;
+  if (p.startsWith('/api/admin/sessions')) return true;
+  if (p.startsWith('/api/admin/audit-filter-options')) return true;
+  if (p.startsWith('/api/activity')) return true;
+  if (p === '/api/auth/session/start') return true;
+  if (p === '/api/auth/session/heartbeat') return true;
+  if (p === '/api/auth/logout') return true;
   // Internal hierarchy bookkeeping — not a user-facing edit to log
   if (/^\/api\/(power-new|sugar-new)\/hierarchy\/\d+\/link$/.test(p)) return true;
   if (/^\/api\/(power-new|sugar-new)\/hierarchy\/\d+\/sync-name$/.test(p)) return true;

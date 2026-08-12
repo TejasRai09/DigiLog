@@ -24,5 +24,7 @@ router.get('/:id/history',          authenticate, ctrl.getHistory);
 router.post('/:id/history',         authenticate, ctrl.addHistory);
 router.put('/:id/history/:hid',     authenticate, ctrl.updateHistory);
 router.delete('/:id/history/:hid',  authenticate, ctrl.deleteHistory);
+router.post('/:id/history/:hid/documents', authenticate, ctrl.uploadHistoryDocumentMiddleware, ctrl.uploadHistoryDocument);
+router.get('/:id/history/:hid/documents/:fileName', authenticate, ctrl.downloadHistoryDocument);
 
 module.exports = router;

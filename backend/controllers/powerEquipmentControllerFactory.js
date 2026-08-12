@@ -1,7 +1,20 @@
+const fs = require('fs');
+const path = require('path');
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { enrichEquipment } = require('../utils/powerEquipmentClassification');
+const { createHistoryDocumentUploadMiddleware } = require('../middleware/historyDocumentUpload');
+const {
+  MAX_HISTORY_DOCUMENTS,
+  historyDocumentStorageKey,
+  resolveHistoryDocumentAbsPath,
+  unlinkRemovedHistoryDocuments,
+  parseHistoryDocuments,
+  parseHistoryDocumentsFromBody,
+  serializeHistoryDocumentsColumn,
+  historyDocumentsRemoved,
+} = require('../utils/historyDocuments');
 
 const META_SUBSECTIONS_LBL = '__subsections__';
 
@@ -208,6 +221,8 @@ function createPowerEquipmentController(tables) {
     historySubGroupScoped = false,
     scheduleEquipmentScoped = false,
   } = tables;
+
+  const uploadHistoryDocumentMiddleware = createHistoryDocumentUploadMiddleware(HIST);
 
   const getEq = async (id) => {
     const [[eq]] = await pool.execute(`SELECT * FROM \`${EQUIP}\` WHERE id = ?`, [id]);
@@ -593,12 +608,17 @@ function createPowerEquipmentController(tables) {
 
       const {
         season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after,
-        section, sub_section: subSectionBody, subSection, equipment_refs,
+        section, sub_section: subSectionBody, subSection, equipment_refs, documents,
       } = req.body;
       const equipmentRefs = parseEquipmentRefsFromBody({ equipment_refs, section, sub_section: subSectionBody ?? subSection });
 
       if (historySubGroupScoped && equipmentRefs.length === 0) {
         return res.status(400).json({ message: 'At least one equipment mapping is required.' });
+      }
+
+      const parsedDocuments = parseHistoryDocumentsFromBody(documents, null);
+      if (parsedDocuments === null) {
+        return res.status(400).json({ message: `Invalid documents (max ${MAX_HISTORY_DOCUMENTS} files).` });
       }
 
       const cols = ['equip_id'];
@@ -617,15 +637,16 @@ function createPowerEquipmentController(tables) {
 
       cols.push(
         'season', 'year', 'date_start', 'date_finish', 'obs', 'act', 'cost', 'svc', 'maintenance_type', 'provider', 'resp', 'rem',
-        'img_before', 'img_after',
+        'img_before', 'img_after', 'documents',
       );
-      placeholders.push('?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?');
+      placeholders.push('?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?', '?');
       values.push(
         season || null, year || null,
         date_start || null, date_finish || null,
         obs || null, act || null, cost || null,
         svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
         validHistoryImageField(img_before), validHistoryImageField(img_after),
+        serializeHistoryDocumentsColumn(parsedDocuments),
       );
 
       const [result] = await pool.execute(
@@ -643,13 +664,29 @@ function createPowerEquipmentController(tables) {
       const { id, hid } = req.params;
       const {
         season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after,
-        section, sub_section: subSectionBody, subSection, equipment_refs,
+        section, sub_section: subSectionBody, subSection, equipment_refs, documents,
       } = req.body;
+
+      const [[existingRow]] = await pool.execute(
+        `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
+        [hid, id],
+      );
+      if (!existingRow) {
+        return res.status(404).json({ message: 'Record not found.' });
+      }
+
+      const parsedDocuments = parseHistoryDocumentsFromBody(documents, existingRow.documents);
+      if (parsedDocuments === null) {
+        return res.status(400).json({ message: `Invalid documents (max ${MAX_HISTORY_DOCUMENTS} files).` });
+      }
+      unlinkRemovedHistoryDocuments(
+        historyDocumentsRemoved(existingRow.documents, parsedDocuments),
+      );
 
       const setParts = [
         'season=?', 'year=?', 'date_start=?', 'date_finish=?',
         'obs=?', 'act=?', 'cost=?', 'svc=?', 'maintenance_type=?', 'provider=?', 'resp=?', 'rem=?',
-        'img_before=?', 'img_after=?',
+        'img_before=?', 'img_after=?', 'documents=?',
       ];
       const values = [
         season || null, year || null,
@@ -657,6 +694,7 @@ function createPowerEquipmentController(tables) {
         obs || null, act || null, cost || null,
         svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
         validHistoryImageField(img_before), validHistoryImageField(img_after),
+        serializeHistoryDocumentsColumn(parsedDocuments),
       ];
 
       if (historySubGroupScoped) {
@@ -743,6 +781,15 @@ function createPowerEquipmentController(tables) {
   const deleteHistory = async (req, res) => {
     try {
       const { id, hid } = req.params;
+      const [[existingRow]] = await pool.execute(
+        `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
+        [hid, id],
+      );
+      if (!existingRow) {
+        return res.status(404).json({ message: 'Record not found.' });
+      }
+      unlinkRemovedHistoryDocuments(parseHistoryDocuments(existingRow.documents));
+
       const [result] = await pool.execute(
         `DELETE FROM \`${HIST}\` WHERE id=? AND equip_id=?`, [hid, id],
       );
@@ -752,6 +799,84 @@ function createPowerEquipmentController(tables) {
       res.json({ message: 'Record deleted.' });
     } catch (err) {
       sendServerError(res, `${logPrefix}.deleteHistory:`, err, MSG.DELETE);
+    }
+  };
+
+  const uploadHistoryDocument = async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Document file is required (field name: document).' });
+    }
+
+    try {
+      const { id, hid } = req.params;
+      const [[existingRow]] = await pool.execute(
+        `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
+        [hid, id],
+      );
+      if (!existingRow) {
+        fs.unlink(req.file.path, () => {});
+        return res.status(404).json({ message: 'Record not found.' });
+      }
+
+      const docs = parseHistoryDocuments(existingRow.documents);
+      if (docs.length >= MAX_HISTORY_DOCUMENTS) {
+        fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ message: `Maximum ${MAX_HISTORY_DOCUMENTS} documents allowed.` });
+      }
+
+      const displayName = String(req.body.displayName || req.file.originalname || 'Document').trim()
+        || req.file.originalname;
+      const document = {
+        storageKey: historyDocumentStorageKey(HIST, id, hid, req.file.filename),
+        displayName,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+      };
+      docs.push(document);
+
+      await pool.execute(
+        `UPDATE \`${HIST}\` SET documents=? WHERE id=? AND equip_id=?`,
+        [serializeHistoryDocumentsColumn(docs), hid, id],
+      );
+      res.status(201).json({ document });
+    } catch (err) {
+      if (req.file?.path) fs.unlink(req.file.path, () => {});
+      sendServerError(res, `${logPrefix}.uploadHistoryDocument:`, err, MSG.UPLOAD);
+    }
+  };
+
+  const downloadHistoryDocument = async (req, res) => {
+    try {
+      const { id, hid, fileName } = req.params;
+      const safeName = path.basename(String(fileName || ''));
+      if (!safeName) {
+        return res.status(400).json({ message: 'Invalid document name.' });
+      }
+
+      const [[existingRow]] = await pool.execute(
+        `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
+        [hid, id],
+      );
+      if (!existingRow) {
+        return res.status(404).json({ message: 'Record not found.' });
+      }
+
+      const docs = parseHistoryDocuments(existingRow.documents);
+      const document = docs.find((doc) => path.basename(doc.storageKey) === safeName);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found.' });
+      }
+
+      const absPath = resolveHistoryDocumentAbsPath(document.storageKey);
+      if (!absPath || !fs.existsSync(absPath)) {
+        return res.status(404).json({ message: 'Document file not found.' });
+      }
+
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      res.download(absPath, document.displayName);
+    } catch (err) {
+      sendServerError(res, `${logPrefix}.downloadHistoryDocument:`, err, MSG.LOAD);
     }
   };
 
@@ -771,6 +896,9 @@ function createPowerEquipmentController(tables) {
     deleteHistory,
     deleteSubGroupHistory,
     renameSubGroupHistory,
+    uploadHistoryDocumentMiddleware,
+    uploadHistoryDocument,
+    downloadHistoryDocument,
   };
 }
 

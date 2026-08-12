@@ -11,6 +11,13 @@ import {
   MdSearch,
   MdVisibility,
 } from 'react-icons/md';
+import {
+  FaFile,
+  FaFileExcel,
+  FaFileLines,
+  FaFilePdf,
+  FaFileWord,
+} from 'react-icons/fa6';
 import Spinner from '../Spinner';
 import EquipmentSectionShell from './EquipmentSectionShell';
 import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
@@ -20,6 +27,8 @@ import {
   EMPTY_HISTORY_FORM,
   HISTORY_MAINTENANCE_TYPE_OPTIONS,
   HISTORY_SERVICE_OPTIONS,
+  HISTORY_DOCUMENT_ACCEPT,
+  MAX_HISTORY_DOCUMENTS,
   equipmentKeysFromRecord,
   compareMaintenanceHistoryByDate,
   formatDateDisplay,
@@ -31,6 +40,7 @@ import {
   serviceLabel,
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
+import { downloadHistoryDocument } from '../../utils/historyDocuments';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
@@ -55,7 +65,18 @@ function formSnapshotFromRecord(record) {
     remarks: record.remarks || '',
     photosBefore: [...(record.photosBefore || [])],
     photosAfter: [...(record.photosAfter || [])],
+    documents: (record.documents || []).map((doc) => ({ ...doc })),
   };
+}
+
+function documentsFormEqual(aDocs, bDocs) {
+  const normalize = (docs) => (docs || []).map((doc) => ({
+    storageKey: doc.storageKey || '',
+    displayName: doc.displayName || '',
+    pending: Boolean(doc.pending),
+    fileName: doc.file?.name || '',
+  }));
+  return JSON.stringify(normalize(aDocs)) === JSON.stringify(normalize(bDocs));
 }
 
 function historyFormsEqual(a, b) {
@@ -72,7 +93,8 @@ function historyFormsEqual(a, b) {
     return false;
   }
   return JSON.stringify(a?.photosBefore || []) === JSON.stringify(b?.photosBefore || [])
-    && JSON.stringify(a?.photosAfter || []) === JSON.stringify(b?.photosAfter || []);
+    && JSON.stringify(a?.photosAfter || []) === JSON.stringify(b?.photosAfter || [])
+    && documentsFormEqual(a?.documents, b?.documents);
 }
 
 function SeasonBadge({ season }) {
@@ -140,6 +162,110 @@ function PhotoUploadGrid({ label, photos, onChange, inputRef }) {
   );
 }
 
+function documentFileKind(doc) {
+  const name = String(doc?.originalName || doc?.file?.name || doc?.displayName || '').toLowerCase();
+  const mime = String(doc?.mimeType || doc?.file?.type || '').toLowerCase();
+  if (name.endsWith('.pdf') || mime.includes('pdf')) return 'pdf';
+  if (name.endsWith('.doc') || name.endsWith('.docx') || mime.includes('word')) return 'word';
+  if (name.endsWith('.xls') || name.endsWith('.xlsx') || mime.includes('excel') || mime.includes('spreadsheet')) {
+    return 'excel';
+  }
+  if (name.endsWith('.txt') || mime.startsWith('text/')) return 'text';
+  return 'generic';
+}
+
+function DocumentFileIcon({ doc, className = 'w-9 h-9' }) {
+  switch (documentFileKind(doc)) {
+    case 'pdf':
+      return <FaFilePdf className={`${className} text-red-500`} aria-hidden />;
+    case 'word':
+      return <FaFileWord className={`${className} text-blue-600`} aria-hidden />;
+    case 'excel':
+      return <FaFileExcel className={`${className} text-emerald-600`} aria-hidden />;
+    case 'text':
+      return <FaFileLines className={`${className} text-slate-600`} aria-hidden />;
+    default:
+      return <FaFile className={`${className} text-slate-400`} aria-hidden />;
+  }
+}
+
+function DocumentUploadGrid({ documents, onChange, inputRef }) {
+  const handleUpload = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || documents.length >= MAX_HISTORY_DOCUMENTS) return;
+    onChange([
+      ...documents,
+      {
+        storageKey: null,
+        displayName: file.name,
+        originalName: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        pending: true,
+        file,
+      },
+    ]);
+  };
+
+  const updateDisplayName = (index, displayName) => {
+    onChange(documents.map((doc, idx) => (idx === index ? { ...doc, displayName } : doc)));
+  };
+
+  const removeDocument = (index) => {
+    onChange(documents.filter((_, idx) => idx !== index));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-3 gap-2">
+        {documents.map((doc, index) => (
+          <div key={doc.storageKey || `pending-${index}`} className="min-w-0 space-y-1">
+            <div className="relative aspect-square bg-slate-50 rounded-xl overflow-hidden border border-slate-200 shadow-sm flex items-center justify-center">
+              <DocumentFileIcon doc={doc} />
+              <button
+                type="button"
+                onClick={() => removeDocument(index)}
+                className="absolute top-1 right-1 bg-slate-950/80 hover:bg-slate-950 text-white p-1 rounded-full"
+              >
+                <MdClose className="w-2.5 h-2.5" />
+              </button>
+            </div>
+            <input
+              type="text"
+              value={doc.displayName || ''}
+              onChange={(e) => updateDisplayName(index, e.target.value)}
+              className="w-full px-1 py-0.5 border border-slate-200 rounded-md outline-none text-[10px] text-center bg-white truncate"
+              placeholder="Name"
+              title={doc.displayName || ''}
+            />
+          </div>
+        ))}
+        {documents.length < MAX_HISTORY_DOCUMENTS && (
+          <div className="min-w-0 space-y-1">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="aspect-square w-full border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-slate-50/50 rounded-xl flex flex-col items-center justify-center text-slate-400 hover:text-blue-500 transition-all"
+            >
+              <MdAdd className="w-5 h-5 mb-1" />
+              <span className="text-[10px] font-bold uppercase tracking-wide">Add</span>
+            </button>
+            <span className="block text-[10px] font-semibold text-slate-400 text-center">Document</span>
+          </div>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={HISTORY_DOCUMENT_ACCEPT}
+        className="hidden"
+        onChange={handleUpload}
+      />
+    </div>
+  );
+}
+
 export default function EquipmentMaintenanceHistoryHub({
   apiRecords = [],
   totalCount,
@@ -150,6 +276,9 @@ export default function EquipmentMaintenanceHistoryHub({
   onSave,
   equipmentOptions = [],
   exportFileName,
+  enableDocuments = false,
+  historyApiBase = '',
+  equipId = null,
 }) {
   const showEquipmentPicker = equipmentOptions.length > 0;
   const records = useMemo(
@@ -209,6 +338,7 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const fileBeforeRef = useRef(null);
   const fileAfterRef = useRef(null);
+  const fileDocRef = useRef(null);
   const editBaselineRef = useRef(null);
 
   const badge = totalCount ?? records.length;
@@ -283,6 +413,7 @@ export default function EquipmentMaintenanceHistoryHub({
       remarks: snapshot.remarks,
       photosBefore: [...snapshot.photosBefore],
       photosAfter: [...snapshot.photosAfter],
+      documents: (snapshot.documents || []).map((doc) => ({ ...doc })),
     });
     setDetailOpen(false);
     setFormOpen(true);
@@ -327,6 +458,15 @@ export default function EquipmentMaintenanceHistoryHub({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+  };
+
+  const handleDownloadDocument = async (record, doc) => {
+    if (!enableDocuments || !historyApiBase || !equipId || !record?.id || doc.pending) return;
+    try {
+      await downloadHistoryDocument(historyApiBase, equipId, record.id, doc);
+    } catch {
+      /* caller may toast */
+    }
   };
 
   const handleDownloadExcel = () => {
@@ -807,6 +947,23 @@ export default function EquipmentMaintenanceHistoryHub({
                 />
               </div>
             </div>
+
+            {enableDocuments && (
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+                  Documents (max {MAX_HISTORY_DOCUMENTS})
+                </label>
+                {/* Match photo thumb size: half-width column + 3-col grid (same as Before/After) */}
+                <div className="w-full sm:w-1/2">
+                  <DocumentUploadGrid
+                    documents={form.documents || []}
+                    onChange={(documents) => setForm((f) => ({ ...f, documents }))}
+                    inputRef={fileDocRef}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">PDF, Word, text, or Excel · max 10 MB each</p>
+              </div>
+            )}
           </div>
 
           <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
@@ -907,6 +1064,28 @@ export default function EquipmentMaintenanceHistoryHub({
             <span className="block text-xs font-bold text-slate-400 uppercase mb-1">Remarks</span>
             <span className="text-sm text-slate-600 italic block">{selectedRecord.remarks || 'No notes'}</span>
           </div>
+
+          {enableDocuments && selectedRecord.documents?.length > 0 && (
+            <div className="border-t border-slate-100 pt-4">
+              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-2">
+                Documents ({selectedRecord.documents.length})
+              </span>
+              <div className="space-y-2">
+                {selectedRecord.documents.map((doc, idx) => (
+                  <button
+                    key={doc.storageKey || idx}
+                    type="button"
+                    onClick={() => handleDownloadDocument(selectedRecord, doc)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border border-slate-200 bg-slate-50/70 hover:bg-blue-50 hover:border-blue-200 text-left transition-colors"
+                  >
+                    <DocumentFileIcon doc={doc} className="w-6 h-6 shrink-0" />
+                    <span className="text-sm font-semibold text-slate-700 truncate flex-1">{doc.displayName}</span>
+                    <MdDownload className="w-4 h-4 text-slate-400 shrink-0" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {(selectedRecord.photosBefore?.length > 0 || selectedRecord.photosAfter?.length > 0) && (
             <div className="border-t border-slate-100 pt-4 space-y-4">

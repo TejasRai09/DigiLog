@@ -76,6 +76,65 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   KEY `audit_logs_success_idx` (`success`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- Login sessions (duration / online status).
+CREATE TABLE IF NOT EXISTS `user_sessions` (
+  `id`                 BIGINT       NOT NULL AUTO_INCREMENT,
+  `session_id`         VARCHAR(64)  NOT NULL,
+  `user_id`            INT          NOT NULL,
+  `user_name`          VARCHAR(200) NULL DEFAULT NULL,
+  `user_email`         VARCHAR(200) NULL DEFAULT NULL,
+  `user_role`          VARCHAR(20)  NULL DEFAULT NULL,
+  `user_department`    VARCHAR(255) NULL DEFAULT NULL,
+  `login_at`           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `logout_at`          TIMESTAMP    NULL DEFAULT NULL,
+  `duration_minutes`   INT          NULL DEFAULT NULL,
+  `is_active`          TINYINT(1)   NOT NULL DEFAULT 1,
+  `last_heartbeat`     TIMESTAMP    NULL DEFAULT NULL,
+  `ip`                 VARCHAR(64)  NULL DEFAULT NULL,
+  `user_agent`         VARCHAR(500) NULL DEFAULT NULL,
+  `pages_visited`      INT          NOT NULL DEFAULT 0,
+  `actions_performed`  INT          NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_sessions_session_id_uq` (`session_id`),
+  KEY `user_sessions_user_id_idx` (`user_id`),
+  KEY `user_sessions_is_active_idx` (`is_active`),
+  KEY `user_sessions_login_at_idx` (`login_at`),
+  KEY `user_sessions_last_heartbeat_idx` (`last_heartbeat`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Page / navigation activity (usage insight).
+CREATE TABLE IF NOT EXISTS `user_activity_logs` (
+  `id`                 BIGINT       NOT NULL AUTO_INCREMENT,
+  `session_id`         VARCHAR(64)  NOT NULL,
+  `user_id`            INT          NOT NULL,
+  `user_name`          VARCHAR(200) NULL DEFAULT NULL,
+  `user_email`         VARCHAR(200) NULL DEFAULT NULL,
+  `user_role`          VARCHAR(20)  NULL DEFAULT NULL,
+  `user_department`    VARCHAR(255) NULL DEFAULT NULL,
+  `event_type`         VARCHAR(30)  NOT NULL,
+  `section`            VARCHAR(100) NULL DEFAULT NULL,
+  `card`               VARCHAR(200) NULL DEFAULT NULL,
+  `form_or_dashboard`  VARCHAR(200) NULL DEFAULT NULL,
+  `page_path`          VARCHAR(500) NULL DEFAULT NULL,
+  `display_path`       VARCHAR(500) NULL DEFAULT NULL,
+  `element_id`         VARCHAR(200) NULL DEFAULT NULL,
+  `element_label`      VARCHAR(200) NULL DEFAULT NULL,
+  `metadata`           TEXT         NULL DEFAULT NULL,
+  `entered_at`         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `exited_at`          TIMESTAMP    NULL DEFAULT NULL,
+  `dwell_seconds`      INT          NULL DEFAULT NULL,
+  `ip`                 VARCHAR(64)  NULL DEFAULT NULL,
+  `user_agent`         VARCHAR(500) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_activity_session_idx` (`session_id`),
+  KEY `user_activity_user_id_idx` (`user_id`),
+  KEY `user_activity_entered_at_idx` (`entered_at`),
+  KEY `user_activity_section_idx` (`section`),
+  KEY `user_activity_card_idx` (`card`),
+  KEY `user_activity_form_idx` (`form_or_dashboard`),
+  KEY `user_activity_event_type_idx` (`event_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE IF NOT EXISTS `employee_category` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `name`        VARCHAR(255) NOT NULL,
@@ -834,6 +893,7 @@ CREATE TABLE IF NOT EXISTS `ppn_history` (
   `rem`         TEXT         DEFAULT NULL,
   `img_before`  MEDIUMTEXT   DEFAULT NULL,
   `img_after`   MEDIUMTEXT   DEFAULT NULL,
+  `documents`   JSON         DEFAULT NULL,
   `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE,
@@ -930,6 +990,7 @@ CREATE TABLE IF NOT EXISTS `shn_history` (
   `rem`         TEXT         DEFAULT NULL,
   `img_before`  MEDIUMTEXT   DEFAULT NULL,
   `img_after`   MEDIUMTEXT   DEFAULT NULL,
+  `documents`   JSON         DEFAULT NULL,
   `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`equip_id`) REFERENCES `shn_equipment`(`id`) ON DELETE CASCADE,
