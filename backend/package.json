@@ -50,7 +50,7 @@
     "backlog:import-lab:truncate": "node scripts/import-backlog-lab-csv.js --truncate",
     "backlog:import": "node scripts/import-backlog-lab-csv.js",
     "": "node scripts/import-backlog-lab-csv.js --truncate",
-    "db:import-cane-performance": "node --max-old-space-size=4096 scripts/import-cane-performance.js"
+    "db:import-cane-performance": "node --max-old-space-size=768 scripts/import-cane-performance.js"
   },
   "dependencies": {
     "@prisma/client": "^7.8.0",

@@ -1,9 +1,26 @@
+/**
+ * Cane Performance Excel → MySQL (cnt_performance + g_ctc)
+ *
+ * Low-RAM (Lightsail 2GB): streams sheets with ExcelJS — does NOT load whole workbook
+ * into memory like the old xlsx.readFile + sheet_to_json path.
+ *
+ *   npm run db:import-cane-performance
+ *   npm run db:import-cane-performance -- --only=cnt
+ *   npm run db:import-cane-performance -- --only=g_ctc
+ *   npm run db:import-cane-performance -- --batch=300
+ *   npm run db:import-cane-performance -- --cnt=/path/CntPerformance.xlsx --gctc=/path/G_CTC.xlsx
+ *
+ * Tips on 2GB RAM:
+ *   1) Import one file at a time (--only=cnt then --only=g_ctc)
+ *   2) Prefer --batch=300 (default)
+ *   3) Do NOT use --max-old-space-size=4096 (larger than RAM → swap death)
+ */
+
 const fs = require('fs');
 const path = require('path');
-const xlsx = require('xlsx');
+const ExcelJS = require('exceljs');
 const { pool } = require('../config/mysql');
 
-/** Resolve Excel under backend/backlog-data (works on Windows + Linux staging/prod). */
 function resolveDataFile(relOrAbs) {
   if (path.isAbsolute(relOrAbs)) return relOrAbs;
   return path.resolve(__dirname, '..', relOrAbs);
@@ -19,82 +36,116 @@ function requireFile(filePath, label) {
   return filePath;
 }
 
-function excelDateToISO(excelDate) {
-  if (!excelDate) return null;
-  if (typeof excelDate === 'string') {
-    const cleanStr = excelDate.trim();
+function argValue(prefix) {
+  const hit = process.argv.find((a) => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : '';
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+
+function formatDateParts(y, m, d) {
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+function formatDateTimeParts(y, m, d, hh, mm, ss) {
+  return `${formatDateParts(y, m, d)} ${pad2(hh)}:${pad2(mm)}:${pad2(ss)}`;
+}
+
+/** ExcelJS / Date / serial / string → YYYY-MM-DD */
+function excelDateToISO(val) {
+  if (val == null || val === '') return null;
+
+  if (val instanceof Date && !Number.isNaN(val.getTime())) {
+    return formatDateParts(val.getUTCFullYear(), val.getUTCMonth() + 1, val.getUTCDate());
+  }
+
+  if (typeof val === 'number' && Number.isFinite(val)) {
+    // Excel serial (days since 1899-12-30)
+    const ms = Date.UTC(1899, 11, 30) + Math.round(val) * 86400000;
+    const d = new Date(ms);
+    return formatDateParts(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
+  }
+
+  if (typeof val === 'string') {
+    const cleanStr = val.trim();
     if (cleanStr.includes('-')) {
       const parts = cleanStr.split('-');
       if (parts[0].length === 4) return parts.slice(0, 3).join('-');
-      if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      if (parts[2] && parts[2].length >= 4) {
+        const y = parts[2].slice(0, 4);
+        return `${y}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
     }
     if (cleanStr.includes('/')) {
       const parts = cleanStr.split('/');
-      // MM/DD/YYYY HH:MM:SS
-      const firstPart = parts[0];
-      const secondPart = parts[1];
-      const thirdPartWithTime = parts[2].split(' ');
+      const thirdPartWithTime = String(parts[2] || '').split(' ');
       const year = thirdPartWithTime[0];
-      if (year.length === 4) {
-        return `${year}-${firstPart.padStart(2, '0')}-${secondPart.padStart(2, '0')}`;
+      if (year && year.length === 4) {
+        return `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
       }
     }
     return cleanStr;
   }
-  try {
-    const dateObj = xlsx.SSF.parse_date_code(excelDate);
-    if (!dateObj) return null;
-    const y = dateObj.y;
-    const m = String(dateObj.m).padStart(2, '0');
-    const d = String(dateObj.d).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  } catch (e) {
-    return null;
-  }
+
+  return null;
 }
 
-function excelDateTimeToISO(excelDate) {
-  if (!excelDate) return null;
-  if (typeof excelDate === 'string') {
-    const cleanStr = excelDate.trim();
+/** ExcelJS / Date / serial / string → YYYY-MM-DD HH:MM:SS */
+function excelDateTimeToISO(val) {
+  if (val == null || val === '') return null;
+
+  if (val instanceof Date && !Number.isNaN(val.getTime())) {
+    return formatDateTimeParts(
+      val.getUTCFullYear(),
+      val.getUTCMonth() + 1,
+      val.getUTCDate(),
+      val.getUTCHours(),
+      val.getUTCMinutes(),
+      val.getUTCSeconds()
+    );
+  }
+
+  if (typeof val === 'number' && Number.isFinite(val)) {
+    const ms = Date.UTC(1899, 11, 30) + val * 86400000;
+    const d = new Date(ms);
+    return formatDateTimeParts(
+      d.getUTCFullYear(),
+      d.getUTCMonth() + 1,
+      d.getUTCDate(),
+      d.getUTCHours(),
+      d.getUTCMinutes(),
+      d.getUTCSeconds()
+    );
+  }
+
+  if (typeof val === 'string') {
+    const cleanStr = val.trim();
     if (cleanStr.includes('/')) {
       const parts = cleanStr.split('/');
-      const firstPart = parts[0];
-      const secondPart = parts[1];
-      const thirdPartWithTime = parts[2].split(' ');
+      const thirdPartWithTime = String(parts[2] || '').split(' ');
       const year = thirdPartWithTime[0];
       const timeStr = thirdPartWithTime[1] || '00:00:00';
-      if (year.length === 4) {
-        // MM/DD/YYYY to YYYY-MM-DD
-        return `${year}-${firstPart.padStart(2, '0')}-${secondPart.padStart(2, '0')} ${timeStr}`;
+      if (year && year.length === 4) {
+        return `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')} ${timeStr}`;
       }
     }
     return cleanStr;
   }
-  try {
-    const dateObj = xlsx.SSF.parse_date_code(excelDate);
-    if (!dateObj) return null;
-    const y = dateObj.y;
-    const m = String(dateObj.m).padStart(2, '0');
-    const d = String(dateObj.d).padStart(2, '0');
-    const hh = String(dateObj.hh || 0).padStart(2, '0');
-    const mm = String(dateObj.mm || 0).padStart(2, '0');
-    const ss = String(dateObj.ss || 0).padStart(2, '0');
-    return `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
-  } catch (e) {
-    return null;
-  }
+
+  return null;
 }
 
 function parseVal(val, type) {
   if (val === undefined || val === null || val === '') return null;
   if (type === 'int') {
     const parsed = parseInt(val, 10);
-    return isNaN(parsed) ? null : parsed;
+    return Number.isNaN(parsed) ? null : parsed;
   }
   if (type === 'float') {
     const parsed = parseFloat(val);
-    return isNaN(parsed) ? null : parsed;
+    return Number.isNaN(parsed) ? null : parsed;
   }
   if (type === 'str') {
     return String(val).trim();
@@ -106,13 +157,6 @@ function isTransportMode(val) {
   return typeof val === 'string' && /QCART|QTROLLY|QTRUCK/i.test(val);
 }
 
-/**
- * G_CTC.xlsx has two layouts under the same headers:
- *  - Normal: v_code=number, SUP_MOD='63 QTROLLY', Purchase_QTL=qty
- *  - Shifted: v_code=center name, purchyno='45 QTROLLY', PUR_ISSUE_DT=qty
- * Bug: isNaN(null)===false, so shifted rows were treated as normal and date serials
- * landed in sup_mod (e.g. '46031').
- */
 function isShiftedGctcRow(r) {
   if (isTransportMode(r.purchyno) && !isTransportMode(r.SUP_MOD)) return true;
   if (r.v_code !== null && r.v_code !== undefined && r.v_code !== '' && Number.isNaN(Number(r.v_code))) return true;
@@ -121,27 +165,26 @@ function isShiftedGctcRow(r) {
 
 function mapGctcRow(r) {
   if (isShiftedGctcRow(r)) {
-    // Columns are offset: mode lives in purchyno, qty in PUR_ISSUE_DT, hours in "Yard Waiting Time"/"Unloading Time"
     return [
-      null, // v_code
-      parseVal(r['v_name'], 'str'), // village
-      null, // g_code
-      parseVal(r['g_code'], 'str'), // grower name
-      parseVal(r['g_name'], 'str'), // father
-      parseVal(r['g_father'], 'int'), // purchyno
-      parseVal(r['purchyno'], 'str'), // SUP_MOD e.g. '45 QTROLLY'
+      null,
+      parseVal(r['v_name'], 'str'),
+      null,
+      parseVal(r['g_code'], 'str'),
+      parseVal(r['g_name'], 'str'),
+      parseVal(r['g_father'], 'int'),
+      parseVal(r['purchyno'], 'str'),
       excelDateToISO(r['m_date']),
-      excelDateTimeToISO(r['SUP_MOD']), // pur_issue_dt
-      excelDateTimeToISO(r['m_date']), // pur_weight_dt
+      excelDateTimeToISO(r['SUP_MOD']),
+      excelDateTimeToISO(r['m_date']),
       excelDateTimeToISO(r['CutDate']),
       excelDateTimeToISO(r['KACHATOKENDATETIME']),
-      excelDateTimeToISO(r['Grossdatetime']), // Tokendatetime is often junk id in shifted rows
-      excelDateTimeToISO(r['Purchase_QTL']), // mill/gross datetime parked in Purchase_QTL col
+      excelDateTimeToISO(r['Grossdatetime']),
+      excelDateTimeToISO(r['Purchase_QTL']),
       excelDateTimeToISO(r['TAREdatetime']),
-      parseVal(r['PUR_ISSUE_DT'], 'float'), // actual cane qty
-      parseVal(r['Yard Waiting Time'], 'float'), // yard_holding_time (NOT "Yard Holding Time" datetime)
+      parseVal(r['PUR_ISSUE_DT'], 'float'),
+      parseVal(r['Yard Waiting Time'], 'float'),
       parseVal(r['CuttoCenterTime'], 'float'),
-      parseVal(r['Unloading Time'], 'float'), // hours (NOT UnloadingTime datetime)
+      parseVal(r['Unloading Time'], 'float'),
       excelDateTimeToISO(r['CentreArr']),
       excelDateTimeToISO(r['Truck @ Yard (GPS Based) (Date/Time)']),
       excelDateToISO(r['Report Date']),
@@ -194,10 +237,167 @@ function mapGctcRow(r) {
   ];
 }
 
+function mapCntRow(r) {
+  return [
+    parseVal(r['Center'], 'str'),
+    parseVal(r['V.Name'], 'str'),
+    parseVal(r['Grower'], 'str'),
+    parseVal(r['G.Father'], 'str'),
+    parseVal(r['Purchy No.'], 'int'),
+    parseVal(r['Transport Mode'], 'str'),
+    excelDateToISO(r['Purchy Issue Date']),
+    excelDateToISO(r['Weighment Date (Purchy)']),
+    parseVal(r['Cane Qty (Qtls)'], 'float'),
+    excelDateToISO(r['Harvest Date']),
+    excelDateTimeToISO(r['Gross Weighment @ Centre (Grower) (Date/Time)']),
+    excelDateTimeToISO(r['Tare Weighment @ Centre']),
+    parseVal(r['Challan No.'], 'int'),
+    excelDateTimeToISO(r['Challan Issue Time']),
+    excelDateTimeToISO(r['Vehicle Arrival @ Center']),
+    excelDateTimeToISO(r['Truck @ Yard (Token Time)']),
+    excelDateTimeToISO(r['Truck @ Yard (Kaccha Token)']),
+    excelDateTimeToISO(r['Gate Weighment Time']),
+    excelDateTimeToISO(r['Tare Weighment @ Mill']),
+    excelDateTimeToISO(r['CentreArr']),
+    excelDateTimeToISO(r['Truck @ Yard (GPS Based) (Date/Time)']),
+    excelDateToISO(r['Report Date']),
+    parseVal(r['Holding Time (Center)'], 'float'),
+    parseVal(r['Truck Holding Time @ Center (Minutes)'], 'int'),
+    parseVal(r['Truck Transit Time'], 'float'),
+    parseVal(r['Yard Waiting Time'], 'float'),
+    parseVal(r['Unloading Time'], 'float'),
+    parseVal(r['TruckHoldingTime(Center)'], 'float'),
+    excelDateToISO(r['Crush Date']),
+    parseVal(r['CuttoCenterTime'], 'float'),
+    parseVal(r['Mode Code of Transport'], 'int'),
+    parseVal(r['Cane Holding Time'], 'float'),
+  ];
+}
+
+function normalizeCell(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return v;
+  if (typeof v === 'object') {
+    if (v.result != null) return normalizeCell(v.result);
+    if (typeof v.text === 'string') return v.text;
+    if (Array.isArray(v.richText)) return v.richText.map((t) => t.text).join('');
+  }
+  return v;
+}
+
+/**
+ * Stream first worksheet row-by-row (low RAM).
+ * onRow(obj) may be async; awaited per row so batches flush without huge backlog.
+ */
+async function streamFirstSheet(filePath, onRow) {
+  const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(filePath, {
+    entries: 'emit',
+    sharedStrings: 'cache',
+    styles: 'ignore',
+    hyperlinks: 'ignore',
+    worksheets: 'emit',
+  });
+
+  let headers = null;
+  let rowIndex = 0;
+  let sheetCount = 0;
+
+  for await (const worksheetReader of workbookReader) {
+    sheetCount += 1;
+    if (sheetCount > 1) {
+      // Drain extra sheets without keeping rows.
+      // eslint-disable-next-line no-unused-vars
+      for await (const _row of worksheetReader) {
+        /* skip */
+      }
+      continue;
+    }
+
+    for await (const row of worksheetReader) {
+      const values = row.values || [];
+      if (!headers) {
+        headers = [];
+        for (let i = 1; i < values.length; i += 1) {
+          const h = normalizeCell(values[i]);
+          headers.push(h == null ? '' : String(h).trim());
+        }
+        continue;
+      }
+
+      const obj = {};
+      let any = false;
+      for (let i = 0; i < headers.length; i += 1) {
+        const key = headers[i];
+        if (!key) continue;
+        const cell = normalizeCell(values[i + 1]);
+        if (cell != null && cell !== '') any = true;
+        obj[key] = cell;
+      }
+      if (!any) continue;
+
+      rowIndex += 1;
+      await onRow(obj, rowIndex);
+    }
+  }
+
+  return rowIndex;
+}
+
+async function dropIndexes(conn, table, indexNames) {
+  for (const name of indexNames) {
+    try {
+      await conn.query(`ALTER TABLE \`${table}\` DROP INDEX \`${name}\``);
+    } catch (e) {
+      if (e && e.code !== 'ER_CANT_DROP_FIELD_OR_KEY') {
+        // ignore missing index
+      }
+    }
+  }
+}
+
+async function ensureCntIndexes(conn) {
+  const indexes = [
+    ['idx_center', 'center'],
+    ['idx_weighment_date_purchy', 'weighment_date_purchy'],
+    ['idx_challan_no', 'challan_no'],
+    ['idx_purchy_no', 'purchy_no'],
+  ];
+  for (const [name, col] of indexes) {
+    try {
+      await conn.query(`CREATE INDEX \`${name}\` ON \`cnt_performance\` (\`${col}\`)`);
+    } catch (e) {
+      if (e && e.code !== 'ER_DUP_KEYNAME') throw e;
+    }
+  }
+}
+
+async function ensureGctcIndexes(conn) {
+  const indexes = [
+    ['idx_v_name', 'v_name'],
+    ['idx_m_date', 'm_date'],
+    ['idx_purchyno', 'purchyno'],
+    ['idx_sup_mod', 'sup_mod'],
+  ];
+  for (const [name, col] of indexes) {
+    try {
+      await conn.query(`CREATE INDEX \`${name}\` ON \`g_ctc\` (\`${col}\`)`);
+    } catch (e) {
+      if (e && e.code !== 'ER_DUP_KEYNAME') throw e;
+    }
+  }
+}
+
+async function flushBatch(conn, sql, batch) {
+  if (!batch.length) return;
+  await conn.query(sql, [batch]);
+  batch.length = 0;
+}
+
 async function runImport() {
-  const only = (process.argv.find((a) => a.startsWith('--only=')) || '').split('=')[1] || 'all';
-  const cntArg = (process.argv.find((a) => a.startsWith('--cnt=')) || '').slice('--cnt='.length);
-  const gctcArg = (process.argv.find((a) => a.startsWith('--gctc=')) || '').slice('--gctc='.length);
+  const only = argValue('--only=') || 'all';
+  const cntArg = argValue('--cnt=');
+  const gctcArg = argValue('--gctc=');
+  const batchSize = Math.max(50, parseInt(argValue('--batch=') || '300', 10) || 300);
 
   const needCnt = only === 'all' || only === 'cnt';
   const needGctc = only === 'all' || only === 'g_ctc';
@@ -215,215 +415,180 @@ async function runImport() {
       )
     : null;
 
-  console.log(`🚀 Starting Cane Performance Excel Data Import (only=${only})...`);
+  const heapMb = Math.round(process.memoryUsage().heapTotal / 1024 / 1024);
+  console.log(`🚀 Cane Performance import (only=${only}, batch=${batchSize}, heap≈${heapMb}MB)`);
   if (cntPath) console.log(`   cnt:  ${cntPath}`);
   if (gctcPath) console.log(`   gctc: ${gctcPath}`);
+  console.log('   mode: ExcelJS stream (low RAM)');
+
   const conn = await pool.getConnection();
 
   try {
-    // 1. Create cnt_performance table
-    if (only === 'all' || only === 'cnt') {
-    console.log('Creating cnt_performance table in MySQL...');
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS \`cnt_performance\` (
-        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-        \`center\` VARCHAR(150) NULL,
-        \`v_name\` VARCHAR(150) NULL,
-        \`grower\` VARCHAR(150) NULL,
-        \`g_father\` VARCHAR(150) NULL,
-        \`purchy_no\` BIGINT NULL,
-        \`transport_mode\` VARCHAR(100) NULL,
-        \`purchy_issue_date\` DATE NULL,
-        \`weighment_date_purchy\` DATE NULL,
-        \`cane_qty_qtls\` DECIMAL(12,2) NULL,
-        \`harvest_date\` DATE NULL,
-        \`gross_weighment_centre\` DATETIME NULL,
-        \`tare_weighment_centre\` DATETIME NULL,
-        \`challan_no\` BIGINT NULL,
-        \`challan_issue_time\` DATETIME NULL,
-        \`vehicle_arrival_center\` DATETIME NULL,
-        \`truck_yard_token_time\` DATETIME NULL,
-        \`truck_yard_kaccha_token\` DATETIME NULL,
-        \`gate_weighment_time\` DATETIME NULL,
-        \`tare_weighment_mill\` DATETIME NULL,
-        \`centre_arr\` DATETIME NULL,
-        \`truck_yard_gps_based\` DATETIME NULL,
-        \`report_date\` DATE NULL,
-        \`holding_time_center\` DECIMAL(10,4) NULL,
-        \`truck_holding_time_center_minutes\` INT NULL,
-        \`truck_transit_time\` DECIMAL(10,4) NULL,
-        \`yard_waiting_time\` DECIMAL(10,4) NULL,
-        \`unloading_time\` DECIMAL(10,4) NULL,
-        \`truck_holding_time_center\` DECIMAL(10,4) NULL,
-        \`crush_date\` DATE NULL,
-        \`cut_to_center_time\` DECIMAL(10,4) NULL,
-        \`mode_code_of_transport\` INT NULL,
-        \`cane_holding_time\` DECIMAL(10,4) NULL,
-        INDEX idx_center (\`center\`),
-        INDEX idx_weighment_date_purchy (\`weighment_date_purchy\`),
-        INDEX idx_challan_no (\`challan_no\`),
-        INDEX idx_purchy_no (\`purchy_no\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-    } // end cnt create
+    await conn.query('SET SESSION unique_checks=0');
+    await conn.query('SET SESSION foreign_key_checks=0');
 
-    // 2. Create g_ctc table
-    console.log('Creating g_ctc table in MySQL...');
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS \`g_ctc\` (
-        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
-        \`v_code\` INT NULL,
-        \`v_name\` VARCHAR(150) NULL,
-        \`g_code\` INT NULL,
-        \`g_name\` VARCHAR(150) NULL,
-        \`g_father\` VARCHAR(150) NULL,
-        \`purchyno\` BIGINT NULL,
-        \`sup_mod\` VARCHAR(100) NULL,
-        \`m_date\` DATE NULL,
-        \`pur_issue_dt\` DATETIME NULL,
-        \`pur_weight_dt\` DATETIME NULL,
-        \`cut_date\` DATETIME NULL,
-        \`kacha_token_datetime\` DATETIME NULL,
-        \`token_datetime\` DATETIME NULL,
-        \`gross_datetime\` DATETIME NULL,
-        \`tare_datetime\` DATETIME NULL,
-        \`purchase_qtl\` DECIMAL(12,2) NULL,
-        \`yard_holding_time\` DECIMAL(10,4) NULL,
-        \`cut_to_token_time\` DECIMAL(10,4) NULL,
-        \`unloading_time\` DECIMAL(10,4) NULL,
-        \`centre_arr\` DATETIME NULL,
-        \`truck_yard_gps_based\` DATETIME NULL,
-        \`report_date\` DATE NULL,
-        \`holding_time_center\` DECIMAL(10,4) NULL,
-        \`truck_holding_time_center_minutes\` INT NULL,
-        \`truck_transit_time\` DECIMAL(10,4) NULL,
-        \`yard_waiting_time\` DECIMAL(10,4) NULL,
-        \`unloading_time_2\` DECIMAL(10,4) NULL,
-        \`truck_holding_time_center\` DECIMAL(10,4) NULL,
-        \`crush_date\` DATE NULL,
-        \`cut_to_center_time\` DECIMAL(10,4) NULL,
-        \`mode_code_of_transport\` INT NULL,
-        \`cane_holding_time\` DECIMAL(10,4) NULL,
-        INDEX idx_v_name (\`v_name\`),
-        INDEX idx_m_date (\`m_date\`),
-        INDEX idx_purchyno (\`purchyno\`),
-        INDEX idx_sup_mod (\`sup_mod\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
+    if (needCnt) {
+      console.log('Creating cnt_performance (no secondary indexes yet)...');
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS \`cnt_performance\` (
+          \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+          \`center\` VARCHAR(150) NULL,
+          \`v_name\` VARCHAR(150) NULL,
+          \`grower\` VARCHAR(150) NULL,
+          \`g_father\` VARCHAR(150) NULL,
+          \`purchy_no\` BIGINT NULL,
+          \`transport_mode\` VARCHAR(100) NULL,
+          \`purchy_issue_date\` DATE NULL,
+          \`weighment_date_purchy\` DATE NULL,
+          \`cane_qty_qtls\` DECIMAL(12,2) NULL,
+          \`harvest_date\` DATE NULL,
+          \`gross_weighment_centre\` DATETIME NULL,
+          \`tare_weighment_centre\` DATETIME NULL,
+          \`challan_no\` BIGINT NULL,
+          \`challan_issue_time\` DATETIME NULL,
+          \`vehicle_arrival_center\` DATETIME NULL,
+          \`truck_yard_token_time\` DATETIME NULL,
+          \`truck_yard_kaccha_token\` DATETIME NULL,
+          \`gate_weighment_time\` DATETIME NULL,
+          \`tare_weighment_mill\` DATETIME NULL,
+          \`centre_arr\` DATETIME NULL,
+          \`truck_yard_gps_based\` DATETIME NULL,
+          \`report_date\` DATE NULL,
+          \`holding_time_center\` DECIMAL(10,4) NULL,
+          \`truck_holding_time_center_minutes\` INT NULL,
+          \`truck_transit_time\` DECIMAL(10,4) NULL,
+          \`yard_waiting_time\` DECIMAL(10,4) NULL,
+          \`unloading_time\` DECIMAL(10,4) NULL,
+          \`truck_holding_time_center\` DECIMAL(10,4) NULL,
+          \`crush_date\` DATE NULL,
+          \`cut_to_center_time\` DECIMAL(10,4) NULL,
+          \`mode_code_of_transport\` INT NULL,
+          \`cane_holding_time\` DECIMAL(10,4) NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await dropIndexes(conn, 'cnt_performance', [
+        'idx_center',
+        'idx_weighment_date_purchy',
+        'idx_challan_no',
+        'idx_purchy_no',
+      ]);
+      await conn.query('TRUNCATE TABLE `cnt_performance`');
+    }
 
-    // Truncate tables for fresh import
-    if (only === 'all' || only === 'cnt') await conn.query('TRUNCATE TABLE `cnt_performance`');
-    if (only === 'all' || only === 'g_ctc') await conn.query('TRUNCATE TABLE `g_ctc`');
+    if (needGctc) {
+      console.log('Creating g_ctc (no secondary indexes yet)...');
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS \`g_ctc\` (
+          \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+          \`v_code\` INT NULL,
+          \`v_name\` VARCHAR(150) NULL,
+          \`g_code\` INT NULL,
+          \`g_name\` VARCHAR(150) NULL,
+          \`g_father\` VARCHAR(150) NULL,
+          \`purchyno\` BIGINT NULL,
+          \`sup_mod\` VARCHAR(100) NULL,
+          \`m_date\` DATE NULL,
+          \`pur_issue_dt\` DATETIME NULL,
+          \`pur_weight_dt\` DATETIME NULL,
+          \`cut_date\` DATETIME NULL,
+          \`kacha_token_datetime\` DATETIME NULL,
+          \`token_datetime\` DATETIME NULL,
+          \`gross_datetime\` DATETIME NULL,
+          \`tare_datetime\` DATETIME NULL,
+          \`purchase_qtl\` DECIMAL(12,2) NULL,
+          \`yard_holding_time\` DECIMAL(10,4) NULL,
+          \`cut_to_token_time\` DECIMAL(10,4) NULL,
+          \`unloading_time\` DECIMAL(10,4) NULL,
+          \`centre_arr\` DATETIME NULL,
+          \`truck_yard_gps_based\` DATETIME NULL,
+          \`report_date\` DATE NULL,
+          \`holding_time_center\` DECIMAL(10,4) NULL,
+          \`truck_holding_time_center_minutes\` INT NULL,
+          \`truck_transit_time\` DECIMAL(10,4) NULL,
+          \`yard_waiting_time\` DECIMAL(10,4) NULL,
+          \`unloading_time_2\` DECIMAL(10,4) NULL,
+          \`truck_holding_time_center\` DECIMAL(10,4) NULL,
+          \`crush_date\` DATE NULL,
+          \`cut_to_center_time\` DECIMAL(10,4) NULL,
+          \`mode_code_of_transport\` INT NULL,
+          \`cane_holding_time\` DECIMAL(10,4) NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+      `);
+      await dropIndexes(conn, 'g_ctc', ['idx_v_name', 'idx_m_date', 'idx_purchyno', 'idx_sup_mod']);
+      await conn.query('TRUNCATE TABLE `g_ctc`');
+    }
+
     console.log('✅ Tables cleared/prepared.');
 
-    const batchSize = 2500;
+    const cntInsertSql = `INSERT INTO \`cnt_performance\`
+      (center, v_name, grower, g_father, purchy_no, transport_mode, purchy_issue_date, weighment_date_purchy, cane_qty_qtls, harvest_date, gross_weighment_centre, tare_weighment_centre, challan_no, challan_issue_time, vehicle_arrival_center, truck_yard_token_time, truck_yard_kaccha_token, gate_weighment_time, tare_weighment_mill, centre_arr, truck_yard_gps_based, report_date, holding_time_center, truck_holding_time_center_minutes, truck_transit_time, yard_waiting_time, unloading_time, truck_holding_time_center, crush_date, cut_to_center_time, mode_code_of_transport, cane_holding_time)
+      VALUES ?`;
 
-    // 3. Import CntPerformance.xlsx
-    if (only === 'all' || only === 'cnt') {
-    console.log('📄 Reading CntPerformance.xlsx...');
-    const cntWb = xlsx.readFile(cntPath);
-    const cntRows = xlsx.utils.sheet_to_json(cntWb.Sheets[cntWb.SheetNames[0]]);
-    console.log(`Processing ${cntRows.length} CntPerformance rows...`);
+    const gctcInsertSql = `INSERT INTO \`g_ctc\`
+      (v_code, v_name, g_code, g_name, g_father, purchyno, sup_mod, m_date, pur_issue_dt, pur_weight_dt, cut_date, kacha_token_datetime, token_datetime, gross_datetime, tare_datetime, purchase_qtl, yard_holding_time, cut_to_token_time, unloading_time, centre_arr, truck_yard_gps_based, report_date, holding_time_center, truck_holding_time_center_minutes, truck_transit_time, yard_waiting_time, unloading_time_2, truck_holding_time_center, crush_date, cut_to_center_time, mode_code_of_transport, cane_holding_time)
+      VALUES ?`;
 
-    let cntValues = [];
-    for (let i = 0; i < cntRows.length; i++) {
-      const r = cntRows[i];
-      cntValues.push([
-        parseVal(r['Center'], 'str'),
-        parseVal(r['V.Name'], 'str'),
-        parseVal(r['Grower'], 'str'),
-        parseVal(r['G.Father'], 'str'),
-        parseVal(r['Purchy No.'], 'int'),
-        parseVal(r['Transport Mode'], 'str'),
-        excelDateToISO(r['Purchy Issue Date']),
-        excelDateToISO(r['Weighment Date (Purchy)']),
-        parseVal(r['Cane Qty (Qtls)'], 'float'),
-        excelDateToISO(r['Harvest Date']),
-        excelDateTimeToISO(r['Gross Weighment @ Centre (Grower) (Date/Time)']),
-        excelDateTimeToISO(r['Tare Weighment @ Centre']),
-        parseVal(r['Challan No.'], 'int'),
-        excelDateTimeToISO(r['Challan Issue Time']),
-        excelDateTimeToISO(r['Vehicle Arrival @ Center']),
-        excelDateTimeToISO(r['Truck @ Yard (Token Time)']),
-        excelDateTimeToISO(r['Truck @ Yard (Kaccha Token)']),
-        excelDateTimeToISO(r['Gate Weighment Time']),
-        excelDateTimeToISO(r['Tare Weighment @ Mill']),
-        excelDateTimeToISO(r['CentreArr']),
-        excelDateTimeToISO(r['Truck @ Yard (GPS Based) (Date/Time)']),
-        excelDateToISO(r['Report Date']),
-        parseVal(r['Holding Time (Center)'], 'float'),
-        parseVal(r['Truck Holding Time @ Center (Minutes)'], 'int'),
-        parseVal(r['Truck Transit Time'], 'float'),
-        parseVal(r['Yard Waiting Time'], 'float'),
-        parseVal(r['Unloading Time'], 'float'),
-        parseVal(r['TruckHoldingTime(Center)'], 'float'),
-        excelDateToISO(r['Crush Date']),
-        parseVal(r['CuttoCenterTime'], 'float'),
-        parseVal(r['Mode Code of Transport'], 'int'),
-        parseVal(r['Cane Holding Time'], 'float'),
-      ]);
-
-      if (cntValues.length >= batchSize || i === cntRows.length - 1) {
-        await conn.query(
-          `INSERT INTO \`cnt_performance\` 
-          (center, v_name, grower, g_father, purchy_no, transport_mode, purchy_issue_date, weighment_date_purchy, cane_qty_qtls, harvest_date, gross_weighment_centre, tare_weighment_centre, challan_no, challan_issue_time, vehicle_arrival_center, truck_yard_token_time, truck_yard_kaccha_token, gate_weighment_time, tare_weighment_mill, centre_arr, truck_yard_gps_based, report_date, holding_time_center, truck_holding_time_center_minutes, truck_transit_time, yard_waiting_time, unloading_time, truck_holding_time_center, crush_date, cut_to_center_time, mode_code_of_transport, cane_holding_time)
-          VALUES ?`,
-          [cntValues]
-        );
-        cntValues = [];
-        if (i % 50000 === 0 || i === cntRows.length - 1) {
-          console.log(`  Processed ${i} / ${cntRows.length} cnt_performance rows`);
+    if (needCnt) {
+      console.log('📄 Streaming CntPerformance.xlsx...');
+      const batch = [];
+      const total = await streamFirstSheet(cntPath, async (obj, i) => {
+        batch.push(mapCntRow(obj));
+        if (batch.length >= batchSize) {
+          await flushBatch(conn, cntInsertSql, batch);
+          if (i % 20000 === 0) {
+            const used = Math.round(process.memoryUsage().rss / 1024 / 1024);
+            console.log(`  cnt_performance: ${i} rows (rss≈${used}MB)`);
+          }
         }
-      }
+      });
+      await flushBatch(conn, cntInsertSql, batch);
+      console.log(`✅ Imported ${total} rows into cnt_performance. Building indexes...`);
+      await ensureCntIndexes(conn);
+      console.log('✅ cnt_performance indexes ready.');
     }
-    console.log(`✅ Successfully imported ${cntRows.length} rows into cnt_performance.`);
-    }
 
-    // 4. Import G_CTC.xlsx
-    if (only === 'all' || only === 'g_ctc') {
-    console.log('📄 Reading G_CTC.xlsx...');
-    const gWb = xlsx.readFile(gctcPath);
-    const gRows = xlsx.utils.sheet_to_json(gWb.Sheets[gWb.SheetNames[0]]);
-    console.log(`Processing ${gRows.length} G_CTC rows...`);
-
-    let shiftedCount = 0;
-    let normalCount = 0;
-    let gValues = [];
-    for (let i = 0; i < gRows.length; i++) {
-      const r = gRows[i];
-      if (isShiftedGctcRow(r)) shiftedCount++;
-      else normalCount++;
-      gValues.push(mapGctcRow(r));
-
-      if (gValues.length >= batchSize || i === gRows.length - 1) {
-        await conn.query(
-          `INSERT INTO \`g_ctc\` 
-          (v_code, v_name, g_code, g_name, g_father, purchyno, sup_mod, m_date, pur_issue_dt, pur_weight_dt, cut_date, kacha_token_datetime, token_datetime, gross_datetime, tare_datetime, purchase_qtl, yard_holding_time, cut_to_token_time, unloading_time, centre_arr, truck_yard_gps_based, report_date, holding_time_center, truck_holding_time_center_minutes, truck_transit_time, yard_waiting_time, unloading_time_2, truck_holding_time_center, crush_date, cut_to_center_time, mode_code_of_transport, cane_holding_time)
-          VALUES ?`,
-          [gValues]
-        );
-        gValues = [];
-        if (i % 50000 === 0 || i === gRows.length - 1) {
-          console.log(`  Processed ${i} / ${gRows.length} g_ctc rows`);
+    if (needGctc) {
+      console.log('📄 Streaming G_CTC.xlsx...');
+      let shiftedCount = 0;
+      let normalCount = 0;
+      const batch = [];
+      const total = await streamFirstSheet(gctcPath, async (obj, i) => {
+        if (isShiftedGctcRow(obj)) shiftedCount += 1;
+        else normalCount += 1;
+        batch.push(mapGctcRow(obj));
+        if (batch.length >= batchSize) {
+          await flushBatch(conn, gctcInsertSql, batch);
+          if (i % 20000 === 0) {
+            const used = Math.round(process.memoryUsage().rss / 1024 / 1024);
+            console.log(`  g_ctc: ${i} rows (rss≈${used}MB)`);
+          }
         }
-      }
-    }
-    console.log(`✅ Successfully imported ${gRows.length} rows into g_ctc (normal=${normalCount}, shifted=${shiftedCount}).`);
+      });
+      await flushBatch(conn, gctcInsertSql, batch);
+      console.log(
+        `✅ Imported ${total} rows into g_ctc (normal=${normalCount}, shifted=${shiftedCount}). Building indexes...`
+      );
+      await ensureGctcIndexes(conn);
+      console.log('✅ g_ctc indexes ready.');
 
-    const [modeCheck] = await conn.query(`
-      SELECT IFNULL(sup_mod,'NULL') as mode, COUNT(*) as cnt
-      FROM g_ctc GROUP BY sup_mod ORDER BY cnt DESC LIMIT 15
-    `);
-    console.log('sup_mod distribution after import:');
-    console.table(modeCheck);
+      const [modeCheck] = await conn.query(`
+        SELECT IFNULL(sup_mod,'NULL') as mode, COUNT(*) as cnt
+        FROM g_ctc GROUP BY sup_mod ORDER BY cnt DESC LIMIT 15
+      `);
+      console.log('sup_mod distribution after import:');
+      console.table(modeCheck);
     }
+
+    await conn.query('SET SESSION unique_checks=1');
+    await conn.query('SET SESSION foreign_key_checks=1');
 
     console.log('🎉 ALL IMPORTS COMPLETED SUCCESSFULLY!');
   } catch (err) {
     console.error('❌ Import Error:', err);
+    process.exitCode = 1;
   } finally {
     conn.release();
-    process.exit(0);
+    await pool.end();
   }
 }
 
