@@ -1,18 +1,60 @@
+/**
+ * Centre Maturity indent + purchase Excel → MySQL
+ *
+ *   node scripts/import_centre_maturity.js
+ *   node scripts/import_centre_maturity.js --indent=/path/indent1.xlsx --purchase=/path/purchase2.xlsx
+ *
+ * Default files (under backend/backlog-data/Center maturity/):
+ *   indent1.xlsx
+ *   purchase2.xlsx
+ */
+
+const fs = require('fs');
+const path = require('path');
 const xlsx = require('xlsx');
 const { pool } = require('../config/mysql');
 
+const DATA_DIR = path.join(__dirname, '..', 'backlog-data', 'Center maturity');
+
+function argValue(prefix) {
+  const hit = process.argv.find((a) => a.startsWith(prefix));
+  return hit ? hit.slice(prefix.length) : '';
+}
+
+function resolveDataFile(relOrAbs) {
+  if (!relOrAbs) return null;
+  if (path.isAbsolute(relOrAbs)) return relOrAbs;
+  return path.resolve(__dirname, '..', relOrAbs);
+}
+
+function requireFile(filePath, label) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(
+      `${label} not found: ${filePath}\n` +
+        `Place files under backlog-data/Center maturity/ or pass --indent= / --purchase=.`
+    );
+  }
+  return filePath;
+}
+
 function excelDateToISO(excelDate) {
   if (!excelDate) return null;
+  if (excelDate instanceof Date && !Number.isNaN(excelDate.getTime())) {
+    const y = excelDate.getUTCFullYear();
+    const m = String(excelDate.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(excelDate.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
   if (typeof excelDate === 'string') {
-    // If already in DD-MM-YYYY or YYYY-MM-DD string
     if (excelDate.includes('-')) {
       const parts = excelDate.split('-');
-      if (parts[0].length === 4) return excelDate; // YYYY-MM-DD
-      if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`; // DD-MM-YYYY -> YYYY-MM-DD
+      if (parts[0].length === 4) return parts.slice(0, 3).join('-');
+      if (parts[2] && parts[2].length >= 4) {
+        return `${parts[2].slice(0, 4)}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
     }
     return excelDate;
   }
-  // Serial date number
   const dateObj = xlsx.SSF.parse_date_code(excelDate);
   if (!dateObj) return null;
   const y = dateObj.y;
@@ -22,11 +64,22 @@ function excelDateToISO(excelDate) {
 }
 
 async function runImport() {
+  const indentPath = requireFile(
+    resolveDataFile(argValue('--indent=')) || path.join(DATA_DIR, 'indent1.xlsx'),
+    'indent1.xlsx'
+  );
+  const purchasePath = requireFile(
+    resolveDataFile(argValue('--purchase=')) || path.join(DATA_DIR, 'purchase2.xlsx'),
+    'purchase2.xlsx'
+  );
+
   console.log('🚀 Starting Centre Maturity & Purchase Data Import...');
+  console.log(`   indent:   ${indentPath}`);
+  console.log(`   purchase: ${purchasePath}`);
+
   const conn = await pool.getConnection();
 
   try {
-    // 1. Create tables
     await conn.query(`
       CREATE TABLE IF NOT EXISTS \`centre_indent_data\` (
         \`id\` INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,7 +96,7 @@ async function runImport() {
         INDEX idx_center_name (\`center_name\`),
         INDEX idx_indent_date (\`indent_date\`),
         INDEX idx_season_label (\`season_label\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
     await conn.query(`
@@ -62,17 +115,15 @@ async function runImport() {
         INDEX idx_center_name (\`center_name\`),
         INDEX idx_purchase_date (\`purchase_date\`),
         INDEX idx_season_label (\`season_label\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     `);
 
-    // Truncate tables for fresh import
     await conn.query('TRUNCATE TABLE `centre_indent_data`');
     await conn.query('TRUNCATE TABLE `centre_purchase_data`');
     console.log('✅ MySQL tables created & cleared.');
 
-    // 2. Import indent1.xlsx
     console.log('📄 Reading indent1.xlsx...');
-    const indWb = xlsx.readFile('c:/vivek/PLANT/DigiLog/backend/backlog-data/Center maturity/indent1.xlsx');
+    const indWb = xlsx.readFile(indentPath);
     const indRows = xlsx.utils.sheet_to_json(indWb.Sheets[indWb.SheetNames[0]]);
     console.log(`Processing ${indRows.length} indent rows...`);
 
@@ -95,8 +146,8 @@ async function runImport() {
 
       if (indValues.length >= indBatchSize || i === indRows.length - 1) {
         await conn.query(
-          `INSERT INTO \`centre_indent_data\` 
-          (code, center_name, indent_date, no_of_purchy, indent_qty, category, unique_id, bonding_id, season_label) 
+          `INSERT INTO \`centre_indent_data\`
+          (code, center_name, indent_date, no_of_purchy, indent_qty, category, unique_id, bonding_id, season_label)
           VALUES ?`,
           [indValues]
         );
@@ -105,9 +156,8 @@ async function runImport() {
     }
     console.log(`✅ Successfully imported ${indRows.length} rows into centre_indent_data.`);
 
-    // 3. Import purchase2.xlsx
     console.log('📄 Reading purchase2.xlsx...');
-    const purWb = xlsx.readFile('c:/vivek/PLANT/DigiLog/backend/backlog-data/Center maturity/purchase2.xlsx');
+    const purWb = xlsx.readFile(purchasePath);
     const purRows = xlsx.utils.sheet_to_json(purWb.Sheets[purWb.SheetNames[0]]);
     console.log(`Processing ${purRows.length} purchase rows...`);
 
@@ -130,8 +180,8 @@ async function runImport() {
 
       if (purValues.length >= purBatchSize || i === purRows.length - 1) {
         await conn.query(
-          `INSERT INTO \`centre_purchase_data\` 
-          (code, center_name, purchase_date, indent_date, no_of_purchy, purchase_qty, category, unique_id, season_label) 
+          `INSERT INTO \`centre_purchase_data\`
+          (code, center_name, purchase_date, indent_date, no_of_purchy, purchase_qty, category, unique_id, season_label)
           VALUES ?`,
           [purValues]
         );
@@ -143,9 +193,10 @@ async function runImport() {
     console.log('🎉  ALL IMPORTS COMPLETED SUCCESSFULLY!');
   } catch (err) {
     console.error('❌  Import Error:', err);
+    process.exitCode = 1;
   } finally {
     conn.release();
-    process.exit(0);
+    await pool.end();
   }
 }
 
