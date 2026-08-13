@@ -1,5 +1,23 @@
+const fs = require('fs');
+const path = require('path');
 const xlsx = require('xlsx');
 const { pool } = require('../config/mysql');
+
+/** Resolve Excel under backend/backlog-data (works on Windows + Linux staging/prod). */
+function resolveDataFile(relOrAbs) {
+  if (path.isAbsolute(relOrAbs)) return relOrAbs;
+  return path.resolve(__dirname, '..', relOrAbs);
+}
+
+function requireFile(filePath, label) {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(
+      `${label} not found: ${filePath}\n` +
+        `Place files under backlog-data/Cane Performance/ or pass --cnt= / --gctc= paths.`
+    );
+  }
+  return filePath;
+}
 
 function excelDateToISO(excelDate) {
   if (!excelDate) return null;
@@ -178,7 +196,28 @@ function mapGctcRow(r) {
 
 async function runImport() {
   const only = (process.argv.find((a) => a.startsWith('--only=')) || '').split('=')[1] || 'all';
+  const cntArg = (process.argv.find((a) => a.startsWith('--cnt=')) || '').slice('--cnt='.length);
+  const gctcArg = (process.argv.find((a) => a.startsWith('--gctc=')) || '').slice('--gctc='.length);
+
+  const needCnt = only === 'all' || only === 'cnt';
+  const needGctc = only === 'all' || only === 'g_ctc';
+
+  const cntPath = needCnt
+    ? requireFile(
+        resolveDataFile(cntArg || path.join('backlog-data', 'Cane Performance', 'CntPerformance.xlsx')),
+        'CntPerformance.xlsx'
+      )
+    : null;
+  const gctcPath = needGctc
+    ? requireFile(
+        resolveDataFile(gctcArg || path.join('backlog-data', 'Cane Performance', 'G_CTC.xlsx')),
+        'G_CTC.xlsx'
+      )
+    : null;
+
   console.log(`🚀 Starting Cane Performance Excel Data Import (only=${only})...`);
+  if (cntPath) console.log(`   cnt:  ${cntPath}`);
+  if (gctcPath) console.log(`   gctc: ${gctcPath}`);
   const conn = await pool.getConnection();
 
   try {
@@ -282,7 +321,7 @@ async function runImport() {
     // 3. Import CntPerformance.xlsx
     if (only === 'all' || only === 'cnt') {
     console.log('📄 Reading CntPerformance.xlsx...');
-    const cntWb = xlsx.readFile('c:/vivek/PLANT/DigiLog/backend/backlog-data/Cane Performance/CntPerformance.xlsx');
+    const cntWb = xlsx.readFile(cntPath);
     const cntRows = xlsx.utils.sheet_to_json(cntWb.Sheets[cntWb.SheetNames[0]]);
     console.log(`Processing ${cntRows.length} CntPerformance rows...`);
 
@@ -343,7 +382,7 @@ async function runImport() {
     // 4. Import G_CTC.xlsx
     if (only === 'all' || only === 'g_ctc') {
     console.log('📄 Reading G_CTC.xlsx...');
-    const gWb = xlsx.readFile('c:/vivek/PLANT/DigiLog/backend/backlog-data/Cane Performance/G_CTC.xlsx');
+    const gWb = xlsx.readFile(gctcPath);
     const gRows = xlsx.utils.sheet_to_json(gWb.Sheets[gWb.SheetNames[0]]);
     console.log(`Processing ${gRows.length} G_CTC rows...`);
 
