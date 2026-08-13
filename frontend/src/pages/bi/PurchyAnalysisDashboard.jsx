@@ -184,7 +184,7 @@ export default function PurchyAnalysisDashboard() {
             iconColor="#7c3aed"
             isDarkMode={isDarkMode}
           />
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 shrink items-center gap-4">
             <BiKeyMetricBox
               value={growerDetail?.total ?? 0}
               title="Total Growers"

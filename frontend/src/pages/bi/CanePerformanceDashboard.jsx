@@ -17,6 +17,7 @@ import BiDashboardHeader from "../../components/bi/BiDashboardHeader";
 import BiKpiCard from "../../components/bi/BiKpiCard";
 import { BiKeyMetricBox, BiFilterBarLayout } from "../../components/bi/BiLayoutElements";
 import ProcurementCutToCrushScene from "../../components/bi/ProcurementCutToCrushScene";
+import { getMtdRangeForDashboard, resolveDashboardToDate } from "../../utils/distilleryBiDateRange";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
@@ -1447,7 +1448,7 @@ export default function CanePerformanceDashboard(){
   const[modeFilter, setModeFilter] = useState("All");
   const[centerFilter, setCenterFilter] = useState("All");
   const[challanFilter, setChallanFilter] = useState("");
-  const[rangePreset, setRangePreset] = useState("Custom"); // MTD | STD | YTD | Custom
+  const[rangePreset, setRangePreset] = useState("MTD"); // MTD | STD | YTD | Custom
   const[dbMinDateStr, setDbMinDateStr] = useState("");
   const[dbMaxDateStr, setDbMaxDateStr] = useState("");
   const[dbMaxDate, setDbMaxDate] = useState(null);
@@ -1488,10 +1489,18 @@ export default function CanePerformanceDashboard(){
       });
     }
     if (dateRangeSeeded.current) return;
-    const from = toInputDate(dateRange.effectiveFrom || dateRange.minDate);
-    const to = toInputDate(dateRange.effectiveTo || dateRange.maxDate);
-    if (!from && !to) return;
+    if (!minStr && !maxStr) return;
     dateRangeSeeded.current = true;
+    const mtd = getMtdRangeForDashboard(null, maxStr || minStr);
+    const clamp = (iso) => {
+      if (!iso) return iso;
+      if (minStr && iso < minStr) return minStr;
+      if (maxStr && iso > maxStr) return maxStr;
+      return iso;
+    };
+    const from = clamp(mtd.from) || minStr;
+    const to = clamp(mtd.to) || maxStr;
+    setRangePreset("MTD");
     if (from) setFromDate(from);
     if (to) setToDate(to);
   }, []);
@@ -1604,24 +1613,21 @@ export default function CanePerformanceDashboard(){
   }, [queryKey, filterKey, applyDateRange]);
 
   const handleQuickDate = (type) => {
-    // Anchor "today" to latest date present in DB (not a hard-coded calendar day)
-    const today = (dbMaxDate instanceof Date && !isNaN(dbMaxDate))
-      ? dbMaxDate
-      : (dbMaxDateStr ? new Date(`${dbMaxDateStr}T00:00:00`) : null);
+    const toIso = resolveDashboardToDate(null, dbMaxDateStr);
+    const today = toIso
+      ? new Date(`${toIso}T12:00:00`)
+      : ((dbMaxDate instanceof Date && !isNaN(dbMaxDate))
+        ? dbMaxDate
+        : null);
     if (!today) return;
 
     const year = today.getFullYear();
     const month = today.getMonth();
 
-    // STD: Starts from season start (Oct 1st)
     let stdYear = year;
     if (month < 9) stdYear -= 1;
     const stdStart = new Date(stdYear, 9, 1);
-
-    // YTD: Starts from Jan 1st of the current calendar year
     const ytdStart = new Date(year, 0, 1);
-
-    // MTD: Starts 1st of current month
     const mtdStart = new Date(year, month, 1);
 
     const formatDate = (d) => {

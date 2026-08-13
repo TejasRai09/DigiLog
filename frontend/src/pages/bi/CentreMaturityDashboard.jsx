@@ -3,6 +3,7 @@ import { MdNaturePeople } from 'react-icons/md';
 import api from '../../api/axios';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
 import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { getMtdRangeForDashboard, resolveDashboardToDate } from '../../utils/distilleryBiDateRange';
 import {
   TrendingUp,
   TrendingDown,
@@ -246,7 +247,7 @@ export default function CentreMaturityDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [rangePreset, setRangePreset] = useState('Custom'); // MTD | STD | YTD | Custom
+  const [rangePreset, setRangePreset] = useState('MTD'); // MTD | STD | YTD | Custom
   const [selectedSeason, setSelectedSeason] = useState('');
   const [selectedCompSeason, setSelectedCompSeason] = useState('');
   
@@ -299,8 +300,16 @@ export default function CentreMaturityDashboard() {
           if (maxStr) setDbMaxDateStr(maxStr);
           if (minStr && maxStr && !dateFrom && !dateTo) {
             dateSeededRef.current = true;
-            setDateFrom(minStr);
-            setDateTo(maxStr);
+            const mtd = getMtdRangeForDashboard(null, maxStr);
+            const clamp = (iso) => {
+              if (!iso) return iso;
+              if (iso < minStr) return minStr;
+              if (iso > maxStr) return maxStr;
+              return iso;
+            };
+            setRangePreset('MTD');
+            setDateFrom(clamp(mtd.from) || minStr);
+            setDateTo(clamp(mtd.to) || maxStr);
           }
         }
       }
@@ -316,7 +325,10 @@ export default function CentreMaturityDashboard() {
   }, [fetchData]);
 
   const handleQuickDate = (type) => {
-    const today = dbMaxDate || new Date();
+    const toIso = resolveDashboardToDate(null, dbMaxDateStr);
+    const today = toIso
+      ? new Date(`${toIso}T12:00:00`)
+      : (dbMaxDate || new Date());
     const year = today.getFullYear();
     const month = today.getMonth(); // 0-indexed: 9 is October
     

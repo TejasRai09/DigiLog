@@ -26,9 +26,12 @@ export function DistilleryChartTooltip({ active, payload, label, isDarkMode }) {
   if (!active || !payload?.length) return null;
   const fmt = (v, name) => {
     if (typeof v !== 'number') return String(v);
-    const suffix = name.includes('%') || name.includes('Eff') ? '%' : '';
-    const body = v > 1000 ? v.toLocaleString() : v.toFixed(2);
-    return `${body}${suffix}`;
+    const n = String(name || '');
+    const isPct = n.includes('%') || n.includes('Eff') || n.includes('Sugar') || n.includes('Alcohol');
+    const isRecBl = n.includes('REC BL') || n === 'Recovery';
+    const body = Math.abs(v) >= 1000 ? v.toLocaleString(undefined, { maximumFractionDigits: 2 }) : v.toFixed(2);
+    if (isRecBl) return body;
+    return `${body}${isPct ? '%' : ''}`;
   };
   return (
     <div
@@ -83,15 +86,16 @@ export function EthanolVolChart({ data, isDarkMode, axisStyle, gridStyle, idPref
         axisLine={false}
         tickLine={false}
         tick={axisStyle}
-        domain={['dataMin - 1', 'dataMax + 1']}
-        tickFormatter={(v) => `${v.toFixed(0)}%`}
+        domain={['auto', 'auto']}
+        tickFormatter={(v) => `${Number(v).toFixed(0)}`}
       />
       <RechartsTooltip wrapperStyle={CHART_TOOLTIP_WRAPPER_STYLE} content={<DistilleryChartTooltip isDarkMode={isDarkMode} />} />
       <Legend wrapperStyle={CHART_LEGEND_WRAPPER_STYLE} iconType="circle" />
       <Bar yAxisId="left" dataKey="bHeavyProd" stackId="a" name="B Heavy (BL)" fill="#60a5fa" />
       <Bar yAxisId="left" dataKey="cHeavyProd" stackId="a" name="C Heavy (BL)" fill="#34d399" />
-      <Bar yAxisId="left" dataKey="syrupProd" stackId="a" name="Syrup (BL)" fill="#6366f1" radius={[4, 4, 0, 0]} />
-      <Line yAxisId="right" type="monotone" dataKey="recovery" name="Recovery %" stroke="#22c55e" strokeWidth={2.5} dot={false} />
+      <Bar yAxisId="left" dataKey="syrupProd" stackId="a" name="Syrup (BL)" fill="#6366f1" />
+      <Bar yAxisId="left" dataKey="mixedProd" stackId="a" name="Mixed (BL)" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+      <Line yAxisId="right" type="monotone" dataKey="recovery" name="REC BL" stroke="#22c55e" strokeWidth={2.5} dot={false} />
     </ComposedChart>
   ) });
 }
@@ -120,6 +124,7 @@ export function OverallEfficiencyChart({ data, isDarkMode, axisStyle, gridStyle,
       <Legend wrapperStyle={CHART_LEGEND_WRAPPER_STYLE} iconType="circle" />
       <Line type="monotone" dataKey="fermEff" name="Ferm. Efficiency" stroke="#eab308" strokeWidth={2.5} dot={false} />
       <Line type="monotone" dataKey="distEff" name="Dist. Efficiency" stroke="#22c55e" strokeWidth={2.5} dot={false} />
+      <Line type="monotone" dataKey="overallEff" name="Overall Eff (OE)" stroke="#6366f1" strokeWidth={2} strokeDasharray="4 3" dot={false} />
     </LineChart>
   ) });
 }
@@ -185,21 +190,21 @@ export const DISTILLERY_CHART_META = {
   'ethanol-vol': {
     title: 'Ethanol Vol',
     definition:
-      'Total accumulated volume of Ethanol produced, segmented by raw material mode, alongside overall recovery percentage.',
+      'Daily ethanol produced by operation mode (B Heavy / C Heavy / Syrup / Mixed), with PBI REC BL (BL per quintal feed).',
     dataKey: 'totalProd',
     higherIsBetter: true,
   },
   'ferm-sugar': {
     title: 'Ferm. Sugar',
     definition:
-      'Tracks the percentage of fermentable sugar relative to the resulting alcohol percentage in the wash over time.',
+      'Tracks fermentable sugar as FS/TRS × 100 (PBI FS %) against wash alcohol %.',
     dataKey: 'fermSugar',
     higherIsBetter: true,
   },
   'overall-efficiency': {
     title: 'Overall Efficiency',
     definition:
-      'Side-by-side comparison of Fermentation Efficiency (yield based on sugar) and Distillation Efficiency (alcohol recovery).',
+      'Fermentation Efficiency (FE), Distillation Efficiency (DE), and Overall Efficiency OE = FE×DE.',
     dataKey: 'fermEff',
     higherIsBetter: true,
   },
@@ -211,14 +216,14 @@ export const DISTILLERY_CHART_META = {
   },
   'molasses-stock': {
     title: 'Molasses Stock',
-    definition: 'Current inventory levels of Molasses raw material holding in storage tanks.',
+    definition: 'BH + CH molasses inventory (PBI Total Mol in Store).',
     dataKey: 'molInStore',
     higherIsBetter: false,
   },
   'ethanol-stock': {
     title: 'Ethanol Stock',
     definition:
-      'Current inventory levels of finished Ethanol product holding in storage tanks awaiting dispatch.',
+      'Finished ethanol inventory (PBI Ethanol in Storage).',
     dataKey: 'ethInStore',
     higherIsBetter: false,
   },
@@ -234,8 +239,10 @@ export const DISTILLERY_CHART_PLOTS = {
       { key: 'bHeavyProd', label: 'B Heavy (BL)' },
       { key: 'cHeavyProd', label: 'C Heavy (BL)' },
       { key: 'syrupProd', label: 'Syrup (BL)' },
+      { key: 'mixedProd', label: 'Mixed (BL)' },
       { key: 'totalProd', label: 'Total ethanol (BL)' },
-      { key: 'recovery', label: 'Recovery %' },
+      { key: 'recovery', label: 'REC BL' },
+      { key: 'alBlRatioPct', label: 'AL to BL Ratio (%)' },
     ],
     Plot: EthanolVolChart,
   },
@@ -244,7 +251,7 @@ export const DISTILLERY_CHART_PLOTS = {
     csvColumns: [
       { key: 'dateFull', label: 'Date' },
       { key: 'date', label: 'Date label' },
-      { key: 'fermSugar', label: 'Ferm. Sugar %' },
+      { key: 'fermSugar', label: 'Ferm. Sugar % (FS/TRS)' },
       { key: 'alcohol', label: 'Alcohol %' },
     ],
     Plot: FermSugarChart,
@@ -256,6 +263,7 @@ export const DISTILLERY_CHART_PLOTS = {
       { key: 'date', label: 'Date label' },
       { key: 'fermEff', label: 'Ferm. Efficiency %' },
       { key: 'distEff', label: 'Dist. Efficiency %' },
+      { key: 'overallEff', label: 'Overall Eff % (OE)' },
     ],
     Plot: OverallEfficiencyChart,
   },

@@ -22,6 +22,7 @@ import Spinner from '../../components/Spinner';
 import {
   formatDMYShort,
   getPresetDateRange,
+  resolveDashboardToDate,
   computePriorPeriodRange,
   getSeasonComparisonLabels,
   isSeasonComparisonType,
@@ -30,6 +31,7 @@ import {
 } from '../../utils/distilleryBiDateRange';
 import {
   aggregateKpisFromRows,
+  averageNonBlank,
   filterSeasonCompareRowsBySeason,
 } from '../../utils/distilleryBiComparison';
 import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
@@ -48,21 +50,23 @@ const DISTILLERY_BI_RAW_COLUMNS = [
   { key: 'alcohol', label: 'Alcohol %', kind: 'num' },
   { key: 'totalProd', label: 'Actual ethanol (BL)', kind: 'num' },
   { key: 'alBlRatioPct', label: 'Al / BL ratio %', kind: 'num' },
-  { key: 'recovery', label: 'Recovery %', kind: 'num' },
+  { key: 'recovery', label: 'REC BL', kind: 'num' },
   { key: 'totalBhMolassesQtls', label: 'Total BH molasses (Q)', kind: 'num' },
   { key: 'totalChMolassesQtls', label: 'Total CH molasses (Q)', kind: 'num' },
   { key: 'molInStore', label: 'Mol in store (Q)', kind: 'num' },
   { key: 'ethInStore', label: 'Ethanol storage (BL)', kind: 'num' },
   { key: 'fs', label: 'FS', kind: 'num' },
-  { key: 'fermSugar', label: 'Ferm. sugar (calc.)', kind: 'num' },
+  { key: 'fermSugar', label: 'Ferm. sugar FS%×100', kind: 'num' },
   { key: 'feRaw', label: 'FE (stored)', kind: 'num' },
   { key: 'deRaw', label: 'DE (stored)', kind: 'num' },
   { key: 'fermEff', label: 'Ferm. eff %', kind: 'num' },
   { key: 'distEff', label: 'Dist. eff %', kind: 'num' },
+  { key: 'overallEff', label: 'Overall eff % (OE)', kind: 'num' },
   { key: 'recBl', label: 'Rec (BL)', kind: 'num' },
   { key: 'bHeavyProd', label: 'B Heavy (BL, alloc.)', kind: 'num' },
   { key: 'cHeavyProd', label: 'C Heavy (BL, alloc.)', kind: 'num' },
   { key: 'syrupProd', label: 'Syrup (BL, alloc.)', kind: 'num' },
+  { key: 'mixedProd', label: 'Mixed (BL, alloc.)', kind: 'num' },
   { key: 'recordedAt', label: 'Timestamp', kind: 'ts' },
 ];
 
@@ -589,30 +593,28 @@ export default function DistilleryAnalyticsDashboard() {
 
   const dataBounds = useMemo(() => {
     const isos = rawData.map(rowDateIso).filter(Boolean).sort();
-    return { min: isos[0] || null, max: isos[isos.length - 1] || null };
+    return { min: isos[0] || null, max: isos[isos.length - 1] || null, isos };
   }, [rawData]);
 
-  const initialFallbackRef = useRef(false);
-  useEffect(() => {
-    if (initialFallbackRef.current) return;
-    if (loading) return;
-    if (!dataBounds.max || !dataBounds.min) return;
-    initialFallbackRef.current = true;
-    setRangePreset('Custom');
-    setFromDate(dataBounds.min);
-    setToDate(dataBounds.max);
-  }, [loading, dataBounds.min, dataBounds.max]);
+  /** To-date for presets: today if present in data, else latest data day. */
+  const rangeToIso = useMemo(() => {
+    if (!dataBounds.max) return null;
+    return resolveDashboardToDate(dataBounds.isos, dataBounds.max);
+  }, [dataBounds.isos, dataBounds.max]);
 
-  // Update dates when preset changes
+  const presetRefDate = useMemo(() => {
+    if (!rangeToIso) return new Date();
+    return new Date(`${rangeToIso}T12:00:00`);
+  }, [rangeToIso]);
+
+  // Default MTD (and other presets) with To = today-if-in-data else latest data day.
   useEffect(() => {
-    if (!dataBounds.max) return;
-    const ref = new Date(`${dataBounds.max}T12:00:00`);
-    if (rangePreset !== 'Custom') {
-      const { from, to } = getPresetDateRange(rangePreset, ref);
-      setFromDate(from);
-      setToDate(to);
-    }
-  }, [dataBounds.max, rangePreset]);
+    if (!rangeToIso) return;
+    if (rangePreset === 'Custom') return;
+    const { from, to } = getPresetDateRange(rangePreset, presetRefDate);
+    setFromDate(from);
+    setToDate(to);
+  }, [rangeToIso, rangePreset, presetRefDate]);
 
   const filteredData = useMemo(() => {
     const from = fromDate <= toDate ? fromDate : toDate;
@@ -634,8 +636,7 @@ export default function DistilleryAnalyticsDashboard() {
   }, [rawData, fromDate, toDate, selectedModes]);
 
   const applyRangePreset = (preset) => {
-    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-    const { from, to } = getPresetDateRange(preset, ref);
+    const { from, to } = getPresetDateRange(preset, presetRefDate);
     setRangePreset(preset);
     setFromDate(from);
     setToDate(to);
@@ -650,8 +651,7 @@ export default function DistilleryAnalyticsDashboard() {
     setFromDate(v);
     if (nextTo !== toDate) setToDate(nextTo);
     if (rangePreset !== 'Custom') {
-      const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-      const c = getPresetDateRange(rangePreset, ref);
+      const c = getPresetDateRange(rangePreset, presetRefDate);
       if (v !== c.from || nextTo !== c.to) setRangePreset('Custom');
     }
   };
@@ -663,8 +663,7 @@ export default function DistilleryAnalyticsDashboard() {
     setToDate(v);
     if (nextFrom !== fromDate) setFromDate(nextFrom);
     if (rangePreset !== 'Custom') {
-      const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-      const c = getPresetDateRange(rangePreset, ref);
+      const c = getPresetDateRange(rangePreset, presetRefDate);
       if (nextFrom !== c.from || v !== c.to) setRangePreset('Custom');
     }
   };
@@ -680,10 +679,7 @@ export default function DistilleryAnalyticsDashboard() {
     return 'Prev. Period';
   }, [rangePreset]);
 
-  const seasonLabels = useMemo(() => {
-    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-    return getSeasonComparisonLabels(ref);
-  }, [dataBounds.max]);
+  const seasonLabels = useMemo(() => getSeasonComparisonLabels(presetRefDate), [presetRefDate]);
 
   const comparisonOptions = useMemo(() => {
     const opts = [
@@ -756,21 +752,55 @@ export default function DistilleryAnalyticsDashboard() {
 
   const currentKPIs = useMemo(() => aggregateKpisFromRows(filteredData), [filteredData]);
 
+  /** Match Power BI: count days with ethanol production > 0 (not every logged date). */
+  const operatingDaysCount = useMemo(
+    () => filteredData.filter((row) => Number(row.totalProd) > 0).length,
+    [filteredData],
+  );
+
   const pyKPIs = useMemo(
     () => aggregateKpisFromRows(comparisonDataSlice),
     [comparisonDataSlice],
   );
 
-  const formatMetric = (val) => {
-    if (val > 1000000) return `${(val / 1000000).toFixed(2)}M`;
-    if (val > 1000) return `${(val / 1000).toFixed(2)}K`;
-    return `${val.toFixed(1)}%`;
+  const formatMetric = (val, { asPercent = true } = {}) => {
+    if (val == null || !Number.isFinite(Number(val))) return '—';
+    const n = Number(val);
+    if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(2)}M`;
+    if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(2)}K`;
+    if (asPercent) return `${n.toFixed(1)}%`;
+    return n.toFixed(2);
   };
+
+  // Efficiency / recovery: blanks stored as 0 → skip zeros (Power BI AVERAGE).
+  const AVG_SKIP_ZERO_KEYS = new Set([
+    'fermEff',
+    'distEff',
+    'overallEff',
+    'recovery',
+    'recBl',
+    'fermSugar',
+    'alcohol',
+    'trs',
+    'ufs',
+    'fs',
+  ]);
+  // Stock: blanks are null; keep real 0 inventory in the average.
+  const AVG_SKIP_NULL_KEYS = new Set(['molInStore', 'ethInStore']);
 
   const getChartMetric = (dataKey, isSum = false, sourceData = filteredData) => {
     if (sourceData.length === 0) return 0;
-    const total = sourceData.reduce((sum, item) => sum + item[dataKey], 0);
-    return isSum ? total : total / sourceData.length;
+    if (isSum) {
+      return sourceData.reduce((sum, item) => sum + (Number(item[dataKey]) || 0), 0);
+    }
+    if (AVG_SKIP_ZERO_KEYS.has(dataKey)) {
+      return averageNonBlank(sourceData, (item) => item[dataKey], { skipZero: true });
+    }
+    if (AVG_SKIP_NULL_KEYS.has(dataKey)) {
+      return averageNonBlank(sourceData, (item) => item[dataKey], { skipZero: false });
+    }
+    const total = sourceData.reduce((sum, item) => sum + (Number(item[dataKey]) || 0), 0);
+    return total / sourceData.length;
   };
 
   const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800';
@@ -837,11 +867,11 @@ export default function DistilleryAnalyticsDashboard() {
 
           <div className="flex items-center gap-4">
             <BiKeyMetricBox
-              value={filteredData.length}
+              value={operatingDaysCount}
               title="Operating Days"
               subtitle={rangePreset === 'Custom' ? timeFilterLabel : rangePreset}
               isDarkMode={isDarkMode}
-              tooltip={`${filteredData.length} operating days — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
+              tooltip={`${operatingDaysCount} days with ethanol production > 0 — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
             />
             <BiViewTabs
               activeTab={activeTab}

@@ -56,6 +56,39 @@ export function getPresetDateRange(preset, now = new Date()) {
   return { from: formatYMD(fromD), to };
 }
 
+/**
+ * Dashboard "To" date: today if that day exists in data, else the latest data date.
+ * When no date list is available (bounds-only APIs), use today if it is on/before
+ * the latest data day, otherwise the latest data day.
+ * @param {Set<string>|string[]|null|undefined} availableIsos - YYYY-MM-DD dates present in data
+ * @param {string|null|undefined} latestIso - max data date (fallback)
+ * @param {Date} [today]
+ * @returns {string|null}
+ */
+export function resolveDashboardToDate(availableIsos, latestIso, today = new Date()) {
+  const todayIso = formatYMD(today);
+  const latest = latestIso ? String(latestIso).slice(0, 10) : null;
+
+  if (availableIsos instanceof Set) {
+    if (availableIsos.has(todayIso)) return todayIso;
+    return latest || todayIso;
+  }
+  if (Array.isArray(availableIsos) && availableIsos.length > 0) {
+    if (availableIsos.includes(todayIso)) return todayIso;
+    return latest || todayIso;
+  }
+  // Bounds-only (no per-day list): today if not after latest, else latest
+  if (latest) return todayIso <= latest ? todayIso : latest;
+  return todayIso;
+}
+
+/** MTD From–To anchored to resolveDashboardToDate(...). */
+export function getMtdRangeForDashboard(availableIsos, latestIso, today = new Date()) {
+  const toIso = resolveDashboardToDate(availableIsos, latestIso, today);
+  if (!toIso) return { from: '', to: '' };
+  return getPresetDateRange('MTD', new Date(`${toIso}T12:00:00`));
+}
+
 export function formatDMYShort(iso) {
   if (!iso || String(iso).length < 10) return iso || '';
   const [y, m, d] = String(iso).slice(0, 10).split('-');

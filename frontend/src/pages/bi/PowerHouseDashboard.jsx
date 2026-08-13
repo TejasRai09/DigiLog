@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   Factory,
@@ -33,7 +33,7 @@ import {
   computeSteamKpis,
   groupOutageBy,
 } from '../../utils/powerHouseMeasures';
-import { formatYMD } from '../../utils/distilleryBiDateRange';
+import { formatYMD, getMtdRangeForDashboard, resolveDashboardToDate } from '../../utils/distilleryBiDateRange';
 
 const TABS = [
   { id: 'summary', label: 'Power Summary', icon: Activity },
@@ -87,7 +87,7 @@ function clampRange(from, to, min, max) {
 export default function PowerHouseDashboard() {
   const [tab, setTab] = useState('summary');
   const [dm, setDm] = useState(false);
-  const [preset, setPreset] = useState('ALL');
+  const [preset, setPreset] = useState('MTD');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [dateBounds, setDateBounds] = useState({ min: null, max: null });
@@ -115,15 +115,22 @@ export default function PowerHouseDashboard() {
         const min = bounds.min || null;
         const max = bounds.max || null;
         setDateBounds({ min, max });
-        const nextFrom = res.data?.meta?.from || min || '';
-        const nextTo = res.data?.meta?.to || max || '';
-        setFrom(nextFrom);
-        setTo(nextTo);
-        setPreset('ALL');
+
+        const isos = [];
+        for (const row of [
+          ...(Array.isArray(res.data?.powerRows) ? res.data.powerRows : []),
+          ...(Array.isArray(res.data?.steamRows) ? res.data.steamRows : []),
+          ...(Array.isArray(res.data?.stoppageRows) ? res.data.stoppageRows : []),
+        ]) {
+          const d = row?.Date != null ? String(row.Date).slice(0, 10) : '';
+          if (d) isos.push(d);
+        }
+        const mtd = getMtdRangeForDashboard(isos.length ? isos : null, max);
+        const clamped = clampRange(mtd.from, mtd.to, min, max);
+        setFrom(clamped.from || min || '');
+        setTo(clamped.to || max || '');
+        setPreset('MTD');
         setRangeReady(true);
-        setPowerRows(Array.isArray(res.data?.powerRows) ? res.data.powerRows : []);
-        setSteamRows(Array.isArray(res.data?.steamRows) ? res.data.steamRows : []);
-        setStoppageRows(Array.isArray(res.data?.stoppageRows) ? res.data.stoppageRows : []);
       } catch (err) {
         if (!cancelled) {
           setPowerRows([]);
@@ -168,13 +175,8 @@ export default function PowerHouseDashboard() {
     }
   }, [from, to, rangeReady]);
 
-  const bootstrappedRef = useRef(false);
   useEffect(() => {
     if (!rangeReady || !from || !to) return;
-    if (!bootstrappedRef.current) {
-      bootstrappedRef.current = true;
-      return;
-    }
     load();
   }, [from, to, rangeReady, load]);
 
@@ -185,7 +187,9 @@ export default function PowerHouseDashboard() {
       setTo(dateBounds.max);
       return;
     }
-    const r = getPresetRange(p);
+    const toIso = resolveDashboardToDate(null, dateBounds.max);
+    const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
+    const r = getPresetRange(p, ref);
     const clamped = clampRange(r.from, r.to, dateBounds.min, dateBounds.max);
     setFrom(clamped.from);
     setTo(clamped.to);

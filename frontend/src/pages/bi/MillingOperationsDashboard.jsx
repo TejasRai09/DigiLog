@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   MdArrowBack,
   MdCalendarMonth,
@@ -49,6 +49,7 @@ import {
   getSeasonComparisonLabels,
   isSeasonComparisonType,
   alignSeasonCompareRange,
+  resolveDashboardToDate,
   seasonLabelForComparisonType,
 } from '../../utils/distilleryBiDateRange';
 import {
@@ -336,45 +337,34 @@ export default function MillingOperationsDashboard() {
    */
   const dataBounds = useMemo(() => {
     const isos = rawData.map((r) => r.dateIso).filter(Boolean).sort();
-    return { min: isos[0] || null, max: isos[isos.length - 1] || null };
+    return { min: isos[0] || null, max: isos[isos.length - 1] || null, isos };
   }, [rawData]);
 
-  // Presets re-pin to today whenever the user switches preset (no data-anchor side-effect).
+  const rangeToIso = useMemo(() => {
+    if (!dataBounds.max) return null;
+    return resolveDashboardToDate(dataBounds.isos, dataBounds.max);
+  }, [dataBounds.isos, dataBounds.max]);
+
+  const presetRefDate = useMemo(() => {
+    if (!rangeToIso) return new Date();
+    return new Date(`${rangeToIso}T12:00:00`);
+  }, [rangeToIso]);
+
+  // Default MTD (and other presets): To = today if in data, else latest data day.
   useEffect(() => {
+    if (!rangeToIso) return;
     if (rangePreset === 'Custom') return;
-    const { from, to } = getCockpitPresetDateRange(rangePreset, new Date());
+    const { from, to } = getCockpitPresetDateRange(rangePreset, presetRefDate);
     setFromDate(from);
     setToDate(to);
-  }, [rangePreset]);
-
-  /**
-   * Auto-fallback on first load: if the default MTD window (today's month) has no
-   * stoppage records but data exists somewhere else, jump to the latest data range
-   * so the dashboard never opens with an empty cockpit. The user can switch back to
-   * a calendar preset any time — it will then resolve relative to today.
-   */
-  /**
-   * On first load: seed the date range to the full data span (min → max)
-   * so the dashboard never opens with an empty view.
-   * The user can switch to MTD/STD/YTD presets which will resolve relative to today.
-   */
-  const initialFallbackRef = useRef(false);
-  useEffect(() => {
-    if (initialFallbackRef.current) return;
-    if (loading) return;
-    if (!dataBounds.min || !dataBounds.max) return;
-    initialFallbackRef.current = true;
-    setRangePreset('Custom');
-    setFromDate(dataBounds.min);
-    setToDate(dataBounds.max);
-  }, [loading, dataBounds.min, dataBounds.max]);
+  }, [rangeToIso, rangePreset, presetRefDate]);
 
   const toggleSection = (sec) => {
     setSelectedSections((prev) => (prev.includes(sec) ? prev.filter((s) => s !== sec) : [...prev, sec]));
   };
 
   const applyPreset = (preset) => {
-    const { from, to } = getCockpitPresetDateRange(preset, new Date());
+    const { from, to } = getCockpitPresetDateRange(preset, presetRefDate);
     setRangePreset(preset);
     setFromDate(from);
     setToDate(to);

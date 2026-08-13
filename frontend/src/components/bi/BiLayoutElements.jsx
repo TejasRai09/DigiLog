@@ -1,23 +1,43 @@
 import React from 'react';
 import { MdDashboard, MdTableChart, MdLightMode, MdDarkMode } from 'react-icons/md';
 
+function formatMetricValue(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const n = Number(value);
+  if (Number.isFinite(n)) return n.toLocaleString('en-IN');
+  return String(value);
+}
+
+/** Shrink display font as digit count grows so values stay inside the box. */
+function metricValueFontClass(display) {
+  const len = String(display).replace(/,/g, '').length;
+  if (len <= 2) return 'text-3xl sm:text-4xl';
+  if (len <= 3) return 'text-2xl sm:text-3xl';
+  if (len <= 4) return 'text-xl sm:text-2xl';
+  if (len <= 5) return 'text-lg sm:text-xl';
+  return 'text-sm sm:text-base';
+}
+
 export function BiKeyMetricBox({ value, title, subtitle, isDarkMode, tooltip }) {
   if (value === undefined || value === null) return null;
+  const display = formatMetricValue(value);
+  if (!display) return null;
+
   return (
     <div
-      className={`flex w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center sm:w-[4.75rem] ${
+      className={`flex min-w-[4.5rem] max-w-[7.5rem] shrink-0 flex-col items-center justify-center overflow-hidden rounded-xl border px-2 py-1.5 text-center sm:min-w-[5rem] sm:max-w-[8.5rem] ${
         isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-300 bg-slate-100'
       }`}
       title={tooltip}
     >
       <span
-        className={`text-3xl font-black leading-none tabular-nums sm:text-4xl ${
+        className={`max-w-full truncate font-black leading-none tabular-nums ${metricValueFontClass(display)} ${
           isDarkMode ? 'text-slate-100' : 'text-slate-900'
         }`}
       >
-        {value}
+        {display}
       </span>
-      <span className={`mt-1 text-[8px] font-bold leading-tight ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+      <span className={`mt-1 max-w-full truncate text-[8px] font-bold leading-tight ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
         {title}
       </span>
       {subtitle && (

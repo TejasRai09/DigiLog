@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import api from '../../api/axios';
 import { MdArrowBack, MdGrass } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
@@ -38,12 +38,14 @@ import {
 } from 'lucide-react';
 import {
   getPresetDateRange,
+  getMtdRangeForDashboard,
   computePriorPeriodRange,
   getSeasonComparisonLabels,
   alignSeasonCompareRange,
   isSeasonComparisonType,
   seasonLabelForComparisonType,
   formatYMD,
+  resolveDashboardToDate,
 } from '../../utils/distilleryBiDateRange';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
@@ -220,7 +222,7 @@ export default function BrixSamplingDashboard() {
   const [fieldDates, setFieldDates] = useState({ from: '', to: '' });
   const [yardDates, setYardDates] = useState({ from: '', to: '' });
   const [baseSeason, setBaseSeason] = useState('');
-  const [rangePreset, setRangePreset] = useState('Custom'); // MTD | STD | YTD | Custom
+  const [rangePreset, setRangePreset] = useState('MTD'); // MTD | STD | YTD | Custom
   const [comparisonType, setComparisonType] = useState('PP'); // PP | S1 | S2 | S3
   const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const [availableSeasons, setAvailableSeasons] = useState([]);
@@ -228,6 +230,8 @@ export default function BrixSamplingDashboard() {
   // Per-tab sampling date bounds (field → brix_field_sampling.Date, yard → brix_yard_sampling.Date)
   const [fieldDateRange, setFieldDateRange] = useState({ min: '', max: '' });
   const [yardDateRange, setYardDateRange] = useState({ min: '', max: '' });
+  const fieldRangeSeededRef = useRef(false);
+  const yardRangeSeededRef = useRef(false);
 
   const toInputDate = (v) => {
     if (!v) return '';
@@ -287,6 +291,7 @@ export default function BrixSamplingDashboard() {
 
     const setRange = tab === 'field' ? setFieldDateRange : setYardDateRange;
     const setDates = tab === 'field' ? setFieldDates : setYardDates;
+    const seededRef = tab === 'field' ? fieldRangeSeededRef : yardRangeSeededRef;
 
     setRange((prev) => {
       const next = { min: minStr || prev.min, max: maxStr || prev.max };
@@ -294,17 +299,23 @@ export default function BrixSamplingDashboard() {
       return next;
     });
 
-    // Always default/clamp this tab’s From–To to its own sampling min/max
     setDates((prev) => {
       const min = minStr || '';
       const max = maxStr || '';
+
+      // First load for this tab: default to MTD anchored to today-or-latest-data
+      if (!seededRef.current && min && max) {
+        seededRef.current = true;
+        const mtd = getMtdRangeForDashboard(null, max);
+        const nextFrom = clampIso(mtd.from, min, max);
+        const nextTo = clampIso(mtd.to, min, max);
+        return { from: nextFrom, to: nextTo };
+      }
+
       const from = prev.from ? clampIso(prev.from, min, max) : min;
       const to = prev.to ? clampIso(prev.to, min, max) : max;
-      // First load (empty): use full table span so each tab shows its own min/max
-      const nextFrom = prev.from ? from : min;
-      const nextTo = prev.to ? to : max;
-      if (prev.from === nextFrom && prev.to === nextTo) return prev;
-      return { from: nextFrom, to: nextTo };
+      if (prev.from === from && prev.to === to) return prev;
+      return { from, to };
     });
   }, []);
 
@@ -532,10 +543,8 @@ export default function BrixSamplingDashboard() {
 
   const handleQuickDate = (type) => {
     try {
-      let today = new Date();
-      if (dbMaxDate instanceof Date && !isNaN(dbMaxDate)) {
-        today = dbMaxDate;
-      }
+      const toIso = resolveDashboardToDate(null, dbMaxDateStr);
+      const today = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
 
       const formatDate = (d) => {
         if (!(d instanceof Date) || isNaN(d)) return '';
@@ -543,7 +552,6 @@ export default function BrixSamplingDashboard() {
       };
 
       if (type === 'MTD' || type === 'YTD') {
-        // Distillery-style: MTD = month start; YTD = Indian FY (1 Apr)
         const { from, to } = getPresetDateRange(type, today);
         setDateFrom(clampToDb(from));
         setDateTo(clampToDb(to));
@@ -570,7 +578,6 @@ export default function BrixSamplingDashboard() {
         if (activeSeasonLabel && seasonMapping && seasonMapping[activeSeasonLabel]) {
           stdStart = new Date(seasonMapping[activeSeasonLabel].startDate);
         } else {
-          // Crushing season fallback: Oct 1
           let stdYear = year;
           if (month < 9) stdYear -= 1;
           stdStart = new Date(stdYear, 9, 1);
@@ -616,7 +623,7 @@ export default function BrixSamplingDashboard() {
           />
           <div className="flex items-center gap-4">
             <BiKeyMetricBox
-              value={activeTab === 'field' ? (fieldStats?.totalSamples?.value ?? 0) : (yardStats?.totalVehicles?.value ?? 0)}
+              value={activeTab === 'field' ? (fieldStats?.totalSamples?.value ?? 0) : (yardStats?.totalSamples?.value ?? 0)}
               title={activeTab === 'field' ? "Field Samples" : "Yard Samples"}
               subtitle={rangePreset}
               isDarkMode={darkMode}
