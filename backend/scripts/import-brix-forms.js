@@ -4,11 +4,27 @@ const db = require('../config/mysql');
 const yardFile = 'c:\\vivek\\PLANT\\DigiLog\\backend\\backlog-data\\Brix sampling\\GSMA Yard Brix Sampling Form 23-24(1-5000).xlsx';
 const fieldFile = 'c:\\vivek\\PLANT\\DigiLog\\backend\\backlog-data\\Brix sampling\\GSMA Field Brix Sampling Form 23-24.xlsx';
 
+/** Calendar date in IST (Asia/Kolkata) — never UTC day from toISOString(). */
 function parseDate(val) {
-  if (!val) return null;
-  const d = new Date(val);
+  if (val == null || val === '') return null;
+
+  let d;
+  if (val instanceof Date) {
+    d = val;
+  } else if (typeof val === 'number' && Number.isFinite(val)) {
+    // Excel serial (days since 1899-12-30), interpret as UTC midnight then take IST calendar day
+    d = new Date(Date.UTC(1899, 11, 30) + Math.round(val) * 86400000);
+  } else {
+    d = new Date(val);
+  }
   if (isNaN(d.getTime())) return null;
-  return d.toISOString().slice(0, 10);
+
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
 }
 
 function truncateStr(val, length) {

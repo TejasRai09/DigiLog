@@ -57,6 +57,11 @@ const {
   deleteSeason,
 } = require('../controllers/seasonMapping.controller');
 const { listAuditLogs } = require('../controllers/auditLog.controller');
+const {
+  listActivityLogs,
+  listSessions,
+  listAuditFilterOptions,
+} = require('../controllers/activityAdmin.controller');
 
 router.get('/categories',           getCategories);
 router.post('/categories',          createCategory);
@@ -69,5 +74,8 @@ router.put('/season-mapping/:id',       updateSeason);
 router.delete('/season-mapping/:id',    deleteSeason);
 
 router.get('/audit-logs', listAuditLogs);
+router.get('/activity-logs', listActivityLogs);
+router.get('/sessions', listSessions);
+router.get('/audit-filter-options', listAuditFilterOptions);
 
 module.exports = router;

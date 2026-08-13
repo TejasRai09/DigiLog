@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import {
   MdArrowBack,
   MdCalendarMonth,
@@ -16,7 +15,10 @@ import {
   MdOpacity,
   MdDashboard,
   MdTableChart,
+  MdPrecisionManufacturing,
 } from 'react-icons/md';
+import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
+import { BiKeyMetricBox, BiViewTabs, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 import MillRawDataTable from '../../components/bi/MillRawDataTable';
 import {
   STOPPAGE_RAW_COLUMNS,
@@ -47,6 +49,7 @@ import {
   getSeasonComparisonLabels,
   isSeasonComparisonType,
   alignSeasonCompareRange,
+  resolveDashboardToDate,
   seasonLabelForComparisonType,
 } from '../../utils/distilleryBiDateRange';
 import {
@@ -334,44 +337,34 @@ export default function MillingOperationsDashboard() {
    */
   const dataBounds = useMemo(() => {
     const isos = rawData.map((r) => r.dateIso).filter(Boolean).sort();
-    return { min: isos[0] || null, max: isos[isos.length - 1] || null };
+    return { min: isos[0] || null, max: isos[isos.length - 1] || null, isos };
   }, [rawData]);
 
-  // Presets re-pin to today whenever the user switches preset (no data-anchor side-effect).
+  const rangeToIso = useMemo(() => {
+    if (!dataBounds.max) return null;
+    return resolveDashboardToDate(dataBounds.isos, dataBounds.max);
+  }, [dataBounds.isos, dataBounds.max]);
+
+  const presetRefDate = useMemo(() => {
+    if (!rangeToIso) return new Date();
+    return new Date(`${rangeToIso}T12:00:00`);
+  }, [rangeToIso]);
+
+  // Default MTD (and other presets): To = today if in data, else latest data day.
   useEffect(() => {
+    if (!rangeToIso) return;
     if (rangePreset === 'Custom') return;
-    const { from, to } = getCockpitPresetDateRange(rangePreset, new Date());
+    const { from, to } = getCockpitPresetDateRange(rangePreset, presetRefDate);
     setFromDate(from);
     setToDate(to);
-  }, [rangePreset]);
-
-  /**
-   * Auto-fallback on first load: if the default MTD window (today's month) has no
-   * stoppage records but data exists somewhere else, jump to the latest data range
-   * so the dashboard never opens with an empty cockpit. The user can switch back to
-   * a calendar preset any time — it will then resolve relative to today.
-   */
-  const initialFallbackRef = useRef(false);
-  useEffect(() => {
-    if (initialFallbackRef.current) return;
-    if (loading) return;
-    if (!dataBounds.max) return;
-    initialFallbackRef.current = true;
-    const mtd = getCockpitPresetDateRange('MTD', new Date());
-    const hasInMtd = rawData.some((r) => r.dateIso && r.dateIso >= mtd.from && r.dateIso <= mtd.to);
-    if (!hasInMtd) {
-      setRangePreset('Custom');
-      setFromDate(dataBounds.min || dataBounds.max);
-      setToDate(dataBounds.max);
-    }
-  }, [loading, dataBounds.max, dataBounds.min, rawData]);
+  }, [rangeToIso, rangePreset, presetRefDate]);
 
   const toggleSection = (sec) => {
     setSelectedSections((prev) => (prev.includes(sec) ? prev.filter((s) => s !== sec) : [...prev, sec]));
   };
 
   const applyPreset = (preset) => {
-    const { from, to } = getCockpitPresetDateRange(preset, new Date());
+    const { from, to } = getCockpitPresetDateRange(preset, presetRefDate);
     setRangePreset(preset);
     setFromDate(from);
     setToDate(to);
@@ -586,79 +579,31 @@ export default function MillingOperationsDashboard() {
       {/* Fixed header: back link, title, filters */}
       <div className="mb-2 flex shrink-0 flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
-          <Link
-            to="/bi"
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
-              isDarkMode
-                ? 'border-slate-600 bg-slate-800 text-blue-400 hover:bg-slate-700'
-                : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
-            }`}
-          >
-            <MdArrowBack className="h-3.5 w-3.5" />
-            BI Control Tower
-          </Link>
+          <BiDashboardHeader
+            title="Milling Division Cockpit"
+            subtitle={headerSubtitle}
+            icon={MdPrecisionManufacturing}
+            iconColor="#3b82f6"
+            isDarkMode={isDarkMode}
+          />
 
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setViewMode('dashboard')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                viewMode === 'dashboard'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdDashboard className="h-3.5 w-3.5" />
-              Visual Dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                viewMode === 'table'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdTableChart className="h-3.5 w-3.5" />
-              Raw Data Table
-            </button>
+          <div className="flex items-center gap-4">
+            <BiKeyMetricBox
+              value={filteredData?.length}
+              title="Operating Days"
+              subtitle={rangePreset === 'Custom' ? 'All' : rangePreset}
+              isDarkMode={isDarkMode}
+              tooltip={`${filteredData?.length} operating days logged in this period.`}
+            />
+            <BiViewTabs
+              activeTab={viewMode}
+              setActiveTab={setViewMode}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 shrink-0 px-0.5">
-            <h1 className={`text-lg font-black tracking-tight sm:text-xl ${headerClasses}`}>
-              Milling Division Cockpit
-            </h1>
-            <p className={`mt-0.5 text-[10px] font-bold leading-snug sm:text-[11px] ${subheadClasses}`}>
-              {headerSubtitle}
-            </p>
-          </div>
-
-          <div className="flex w-full min-w-0 flex-col gap-2 px-0.5 py-1 lg:min-w-0 lg:max-w-full lg:flex-1 lg:items-end lg:py-1.5">
-            <div
-              className={`mill-cockpit-filter-bar relative z-[200] flex w-full min-w-0 max-w-full flex-wrap items-start gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:items-center sm:gap-2.5 sm:p-2.5 ${
-                isDarkMode
-                  ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
-                  : 'border-purple-200 bg-white/80 shadow-purple-100/50'
-              }`}
-            >
-              <button
-                type="button"
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className={`shrink-0 rounded-xl border p-1.5 transition-colors sm:p-2 ${
-                  isDarkMode
-                    ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700'
-                    : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'
-                }`}
-                aria-label="Toggle dark mode"
-              >
-                {isDarkMode ? <MdLightMode className="h-4 w-4" /> : <MdDarkMode className="h-4 w-4" />}
-              </button>
-
-              <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-
+        <BiFilterBarLayout isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}>
               <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${cardClasses}`}>
                 {NAV_TABS.map((tab) => {
                   const Icon = tab.icon;
@@ -844,9 +789,7 @@ export default function MillingOperationsDashboard() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
+        </BiFilterBarLayout>
       </div>
 
       {/* Scrollable body — KPIs, charts, tables */}

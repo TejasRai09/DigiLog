@@ -1,8 +1,8 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
-import { useMsal } from '@azure/msal-react';
 import toast from 'react-hot-toast';
 import { msalInstance, loginRequest } from '../msalConfig';
 import api from '../api/axios';
+import { endTrackingSession, startTrackingSession, setStoredSessionId } from '../components/ActivityTracker';
 
 const SSO_DENIED_FALLBACK =
   'You do not have access to use this application. Please contact the administrator.';
@@ -12,8 +12,17 @@ export const AuthContext = createContext(null);
 // Prevents double-handling in React StrictMode (mount→unmount→remount)
 let _msalRedirectHandled = false;
 
+async function afterLogin() {
+  try {
+    setStoredSessionId(null);
+    await startTrackingSession();
+  } catch {
+    /* tracking is best-effort */
+  }
+}
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // ── Restore session from stored JWT ────────────────────────
@@ -26,6 +35,7 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
       } catch {
         localStorage.removeItem('token');
+        setStoredSessionId(null);
       } finally {
         setLoading(false);
       }
@@ -48,6 +58,7 @@ export const AuthProvider = ({ children }) => {
           });
           localStorage.setItem('token', data.token);
           setUser(data.user);
+          await afterLogin();
         } catch (err) {
           localStorage.removeItem('token');
           const msg =
@@ -79,6 +90,7 @@ export const AuthProvider = ({ children }) => {
     });
     localStorage.setItem('token', data.token);
     setUser(data.user);
+    await afterLogin();
     return data;
   }, []);
 
@@ -96,11 +108,13 @@ export const AuthProvider = ({ children }) => {
     });
     localStorage.setItem('token', data.token);
     setUser(data.user);
+    await afterLogin();
     return data;
   }, []);
 
   // ── Logout ──────────────────────────────────────────────────
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await endTrackingSession();
     localStorage.removeItem('token');
     setUser(null);
     if (msalInstance && msalInstance.getAllAccounts().length > 0) {

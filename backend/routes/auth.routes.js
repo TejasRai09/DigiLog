@@ -11,4 +11,14 @@ router.get('/users/:userId/avatar', authenticate, getUserAvatar);
 router.post('/me/avatar', authenticate, uploadAvatarMiddleware, uploadMyAvatar);
 router.delete('/me/avatar', authenticate, deleteMyAvatar);
 
+const {
+  startTrackingSession,
+  sessionHeartbeat,
+  logoutSession,
+} = require('../controllers/sessionActivity.controller');
+
+router.post('/session/start', authenticate, startTrackingSession);
+router.post('/session/heartbeat', authenticate, sessionHeartbeat);
+router.post('/logout', authenticate, logoutSession);
+
 module.exports = router;

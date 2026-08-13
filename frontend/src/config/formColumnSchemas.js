@@ -779,7 +779,7 @@ function schemaProdClarification() {
 
 // ─── brix_yard_sampling ─────────────────────────────────────────
 const schemaBrixYardSampling = () => [
-  { dbKey: 'Date', heading: 'Record Info', subheading: 'Date' },
+  { dbKey: 'Date', heading: 'Record Info', subheading: 'Sampling Date' },
   { dbKey: 'Name', heading: 'Record Info', subheading: 'Submitted By' },
   { dbKey: 'DeliveryPoint', heading: 'Origin', subheading: 'Delivery Point' },
   { dbKey: 'VillageOrCenterCode', heading: 'Origin', subheading: 'Village/Center Code' },
@@ -796,7 +796,7 @@ const schemaBrixYardSampling = () => [
 
 // ─── brix_field_sampling ─────────────────────────────────────────
 const schemaBrixFieldSampling = () => [
-  { dbKey: 'Date', heading: 'Record Info', subheading: 'Date' },
+  { dbKey: 'Date', heading: 'Record Info', subheading: 'Sampling Date' },
   { dbKey: 'Name', heading: 'Record Info', subheading: 'Submitted By' },
   { dbKey: 'TestType', heading: 'Record Info', subheading: 'Test Type' },
   { dbKey: 'GrowerName', heading: 'Origin', subheading: 'Grower Name' },

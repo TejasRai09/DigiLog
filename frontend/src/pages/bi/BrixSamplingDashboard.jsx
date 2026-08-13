@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import api from '../../api/axios';
-import { MdArrowBack } from 'react-icons/md';
+import { MdArrowBack, MdGrass } from 'react-icons/md';
+import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
+import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import BiKpiCard from '../../components/bi/BiKpiCard';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -34,6 +36,17 @@ import {
   Truck,
   X
 } from 'lucide-react';
+import {
+  getPresetDateRange,
+  getMtdRangeForDashboard,
+  computePriorPeriodRange,
+  getSeasonComparisonLabels,
+  alignSeasonCompareRange,
+  isSeasonComparisonType,
+  seasonLabelForComparisonType,
+  formatYMD,
+  resolveDashboardToDate,
+} from '../../utils/distilleryBiDateRange';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
 const fieldBrixTrendData = [
@@ -205,26 +218,164 @@ export default function BrixSamplingDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // ─── Shared Filter State ────────────────────────────────────────
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // Per-tab From/To so Field and Yard each show their own sampling span
+  const [fieldDates, setFieldDates] = useState({ from: '', to: '' });
+  const [yardDates, setYardDates] = useState({ from: '', to: '' });
   const [baseSeason, setBaseSeason] = useState('');
-  const [compSeason, setCompSeason] = useState('');
+  const [rangePreset, setRangePreset] = useState('MTD'); // MTD | STD | YTD | Custom
+  const [comparisonType, setComparisonType] = useState('PP'); // PP | S1 | S2 | S3
+  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const [availableSeasons, setAvailableSeasons] = useState([]);
   const [seasonMapping, setSeasonMapping] = useState({});
-  const [dbMaxDate, setDbMaxDate] = useState(null);
-  const compAutoPicked = useRef(false);
+  // Per-tab sampling date bounds (field → brix_field_sampling.Date, yard → brix_yard_sampling.Date)
+  const [fieldDateRange, setFieldDateRange] = useState({ min: '', max: '' });
+  const [yardDateRange, setYardDateRange] = useState({ min: '', max: '' });
+  const fieldRangeSeededRef = useRef(false);
+  const yardRangeSeededRef = useRef(false);
 
-  // Auto-pick a prior comparison season once seasons are loaded (Centre Maturity style)
-  useEffect(() => {
-    if (!availableSeasons.length || compAutoPicked.current) return;
-    const base = baseSeason || availableSeasons[0];
-    const idx = availableSeasons.indexOf(base);
-    const prior = (idx >= 0 ? availableSeasons.slice(idx + 1) : availableSeasons.slice(1))[0];
-    if (prior) {
-      setCompSeason(prior);
-      compAutoPicked.current = true;
+  const toInputDate = (v) => {
+    if (!v) return '';
+    if (typeof v === 'string') return v.slice(0, 10);
+    if (v instanceof Date && !isNaN(v)) {
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, '0');
+      const d = String(v.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
-  }, [availableSeasons, baseSeason]);
+    return String(v).slice(0, 10);
+  };
+
+  const activeDateRange = activeTab === 'field' ? fieldDateRange : yardDateRange;
+  const dbMinDateStr = activeDateRange.min;
+  const dbMaxDateStr = activeDateRange.max;
+  const dbMaxDate = useMemo(
+    () => (dbMaxDateStr ? new Date(`${dbMaxDateStr}T00:00:00`) : null),
+    [dbMaxDateStr],
+  );
+
+  const activeDates = activeTab === 'field' ? fieldDates : yardDates;
+  const dateFrom = activeDates.from;
+  const dateTo = activeDates.to;
+  const setActiveDates = activeTab === 'field' ? setFieldDates : setYardDates;
+
+  const clampIso = (iso, minStr, maxStr) => {
+    if (!iso) return iso;
+    if (minStr && iso < minStr) return minStr;
+    if (maxStr && iso > maxStr) return maxStr;
+    return iso;
+  };
+
+  const clampToDb = useCallback((iso) => clampIso(iso, dbMinDateStr, dbMaxDateStr), [dbMinDateStr, dbMaxDateStr]);
+
+  const setDateFrom = useCallback((value) => {
+    setActiveDates((prev) => {
+      const next = typeof value === 'function' ? value(prev.from) : value;
+      const from = clampToDb(next);
+      return prev.from === from ? prev : { ...prev, from };
+    });
+  }, [setActiveDates, clampToDb]);
+
+  const setDateTo = useCallback((value) => {
+    setActiveDates((prev) => {
+      const next = typeof value === 'function' ? value(prev.to) : value;
+      const to = clampToDb(next);
+      return prev.to === to ? prev : { ...prev, to };
+    });
+  }, [setActiveDates, clampToDb]);
+
+  const applyStatsDateRange = useCallback((dateRange, tab) => {
+    if (!dateRange || (tab !== 'field' && tab !== 'yard')) return;
+    const minStr = toInputDate(dateRange.minDate);
+    const maxStr = toInputDate(dateRange.maxDate);
+    if (!minStr && !maxStr) return;
+
+    const setRange = tab === 'field' ? setFieldDateRange : setYardDateRange;
+    const setDates = tab === 'field' ? setFieldDates : setYardDates;
+    const seededRef = tab === 'field' ? fieldRangeSeededRef : yardRangeSeededRef;
+
+    setRange((prev) => {
+      const next = { min: minStr || prev.min, max: maxStr || prev.max };
+      if (prev.min === next.min && prev.max === next.max) return prev;
+      return next;
+    });
+
+    setDates((prev) => {
+      const min = minStr || '';
+      const max = maxStr || '';
+
+      // First load for this tab: default to MTD anchored to today-or-latest-data
+      if (!seededRef.current && min && max) {
+        seededRef.current = true;
+        const mtd = getMtdRangeForDashboard(null, max);
+        const nextFrom = clampIso(mtd.from, min, max);
+        const nextTo = clampIso(mtd.to, min, max);
+        return { from: nextFrom, to: nextTo };
+      }
+
+      const from = prev.from ? clampIso(prev.from, min, max) : min;
+      const to = prev.to ? clampIso(prev.to, min, max) : max;
+      if (prev.from === from && prev.to === to) return prev;
+      return { from, to };
+    });
+  }, []);
+
+  // Distillery-style season compare labels + third-season setting
+  const seasonLabels = useMemo(() => {
+    const ref = dbMaxDateStr ? new Date(`${dbMaxDateStr}T12:00:00`) : new Date();
+    return getSeasonComparisonLabels(ref);
+  }, [dbMaxDateStr]);
+
+  useEffect(() => {
+    api.get('/bi/settings')
+      .then((r) => setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled)))
+      .catch(() => setThirdSeasonEnabled(false));
+  }, []);
+
+  useEffect(() => {
+    if (!thirdSeasonEnabled && comparisonType === 'S3') setComparisonType('PP');
+  }, [thirdSeasonEnabled, comparisonType]);
+
+  const dynamicPPLabel = useMemo(() => {
+    if (rangePreset === 'MTD') return 'Prev. Month';
+    if (rangePreset === 'STD') return 'Prev. Season';
+    if (rangePreset === 'YTD') return 'Prev. Year';
+    return 'Prev. Period';
+  }, [rangePreset]);
+
+  const comparisonOptions = useMemo(() => {
+    const opts = [
+      { id: 'PP', label: dynamicPPLabel },
+      { id: 'S1', label: seasonLabels.season1 },
+      { id: 'S2', label: seasonLabels.season2 },
+    ];
+    if (thirdSeasonEnabled) opts.push({ id: 'S3', label: seasonLabels.season3 });
+    return opts;
+  }, [dynamicPPLabel, seasonLabels, thirdSeasonEnabled]);
+
+  /** Resolve compare From–To for a current window (Distillery PP / S1 / S2 / S3). */
+  const resolveCompareRange = useCallback((from, to) => {
+    if (!from || !to) return null;
+    if (comparisonType === 'PP') {
+      const pp = computePriorPeriodRange(from, to, rangePreset);
+      return { from: pp.start, to: pp.end, label: pp.label };
+    }
+    if (isSeasonComparisonType(comparisonType)) {
+      const seasonLabel = seasonLabelForComparisonType(comparisonType, seasonLabels);
+      if (!seasonLabel) return null;
+      const aligned = alignSeasonCompareRange(from, to, seasonLabel);
+      return { from: aligned.start, to: aligned.end, label: seasonLabel };
+    }
+    return null;
+  }, [comparisonType, rangePreset, seasonLabels]);
+
+  const activeCompareRange = useMemo(
+    () => resolveCompareRange(dateFrom, dateTo),
+    [resolveCompareRange, dateFrom, dateTo],
+  );
+
+  const compareBadgeLabel = activeCompareRange?.label
+    ? `vs ${activeCompareRange.label}`
+    : undefined;
 
   // ─── Field live-data state ──────────────────────────────────────
   const [fieldTestType, setFieldTestType] = useState('All');
@@ -241,13 +392,15 @@ export default function BrixSamplingDashboard() {
 
   const fieldParams = useMemo(() => {
     const p = new URLSearchParams();
-    if (dateFrom) p.set('from', dateFrom);
-    if (dateTo) p.set('to', dateTo);
+    if (fieldDates.from) p.set('from', fieldDates.from);
+    if (fieldDates.to) p.set('to', fieldDates.to);
     if (baseSeason) p.set('baseSeason', baseSeason);
-    if (compSeason) p.set('compSeason', compSeason);
     if (fieldTestType && fieldTestType !== 'All') p.set('testType', fieldTestType);
+    const cmp = resolveCompareRange(fieldDates.from, fieldDates.to);
+    if (cmp?.from) p.set('pyFrom', cmp.from);
+    if (cmp?.to) p.set('pyTo', cmp.to);
     return p.toString() ? `?${p.toString()}` : '';
-  }, [dateFrom, dateTo, baseSeason, compSeason, fieldTestType]);
+  }, [fieldDates.from, fieldDates.to, baseSeason, fieldTestType, resolveCompareRange]);
 
   const fetchFieldData = useCallback(async () => {
     setFieldLoading(true);
@@ -267,7 +420,7 @@ export default function BrixSamplingDashboard() {
         const d = results[0].value.data;
         if (d.availableSeasons) setAvailableSeasons(d.availableSeasons);
         if (d.seasonMapping) setSeasonMapping(d.seasonMapping);
-        if (d.dateRange && d.dateRange.maxDate) setDbMaxDate(new Date(d.dateRange.maxDate));
+        applyStatsDateRange(d.dateRange, 'field');
         setFieldStats(d.stats);
       }
       if (results[1].status === 'fulfilled') setFieldTrend(results[1].value.data);
@@ -299,7 +452,7 @@ export default function BrixSamplingDashboard() {
     } finally {
       setFieldLoading(false);
     }
-  }, [fieldParams]);
+  }, [fieldParams, applyStatsDateRange]);
 
   // Fetch test-type options once on mount
   useEffect(() => {
@@ -327,13 +480,15 @@ export default function BrixSamplingDashboard() {
   // Build query string from filter state
   const yardParams = useMemo(() => {
     const p = new URLSearchParams();
-    if (dateFrom) p.set('from', dateFrom);
-    if (dateTo) p.set('to', dateTo);
+    if (yardDates.from) p.set('from', yardDates.from);
+    if (yardDates.to) p.set('to', yardDates.to);
     if (baseSeason) p.set('baseSeason', baseSeason);
-    if (compSeason) p.set('compSeason', compSeason);
     if (yardDelivery && yardDelivery !== 'All') p.set('deliveryPoint', yardDelivery);
+    const cmp = resolveCompareRange(yardDates.from, yardDates.to);
+    if (cmp?.from) p.set('pyFrom', cmp.from);
+    if (cmp?.to) p.set('pyTo', cmp.to);
     return p.toString() ? `?${p.toString()}` : '';
-  }, [dateFrom, dateTo, baseSeason, compSeason, yardDelivery]);
+  }, [yardDates.from, yardDates.to, baseSeason, yardDelivery, resolveCompareRange]);
 
   const fetchYardData = useCallback(async () => {
     setYardLoading(true);
@@ -351,7 +506,7 @@ export default function BrixSamplingDashboard() {
         const d = results[0].value.data;
         if (d.availableSeasons) setAvailableSeasons(d.availableSeasons);
         if (d.seasonMapping) setSeasonMapping(d.seasonMapping);
-        if (d.dateRange && d.dateRange.maxDate) setDbMaxDate(new Date(d.dateRange.maxDate));
+        applyStatsDateRange(d.dateRange, 'yard');
         setYardStats(d.stats);
       }
       if (results[1].status === 'fulfilled') setYardTrend(results[1].value.data);
@@ -372,7 +527,7 @@ export default function BrixSamplingDashboard() {
     } finally {
       setYardLoading(false);
     }
-  }, [yardParams]);
+  }, [yardParams, applyStatsDateRange]);
 
   // Fetch delivery-point slicer options once on mount
   useEffect(() => {
@@ -388,67 +543,52 @@ export default function BrixSamplingDashboard() {
 
   const handleQuickDate = (type) => {
     try {
-      let today = new Date();
-      if (dbMaxDate instanceof Date && !isNaN(dbMaxDate)) {
-        today = dbMaxDate;
-      }
-      const year = today.getFullYear();
-      const month = today.getMonth();
-      
-      let activeSeasonLabel = baseSeason;
-      if (!activeSeasonLabel && seasonMapping && Object.keys(seasonMapping).length > 0) {
-        for (const [label, mapping] of Object.entries(seasonMapping)) {
-          const sStart = new Date(mapping.startDate);
-          const sEnd = new Date(mapping.endDate);
-          if (today >= sStart && today <= sEnd) {
-            activeSeasonLabel = label;
-            break;
-          }
-        }
-        if (!activeSeasonLabel) {
-          const sorted = Object.keys(seasonMapping).sort().reverse();
-          activeSeasonLabel = sorted[0];
-        }
-      }
-
-      let stdStart;
-      if (activeSeasonLabel && seasonMapping && seasonMapping[activeSeasonLabel]) {
-        stdStart = new Date(seasonMapping[activeSeasonLabel].startDate);
-      } else {
-        let stdYear = year;
-        if (month < 9) stdYear -= 1; 
-        stdStart = new Date(stdYear, 9, 1);
-      }
-
-      const ytdStart = new Date(year, 0, 1);
-      const mtdStart = new Date(year, month, 1);
+      const toIso = resolveDashboardToDate(null, dbMaxDateStr);
+      const today = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
 
       const formatDate = (d) => {
         if (!(d instanceof Date) || isNaN(d)) return '';
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${y}-${m}-${day}`;
+        return formatYMD(d);
       };
 
-      const toStr = formatDate(today);
-      if (toStr) setDateTo(toStr);
+      if (type === 'MTD' || type === 'YTD') {
+        const { from, to } = getPresetDateRange(type, today);
+        setDateFrom(clampToDb(from));
+        setDateTo(clampToDb(to));
+      } else if (type === 'STD') {
+        const year = today.getFullYear();
+        const month = today.getMonth();
+        let activeSeasonLabel = baseSeason;
+        if (!activeSeasonLabel && seasonMapping && Object.keys(seasonMapping).length > 0) {
+          for (const [label, mapping] of Object.entries(seasonMapping)) {
+            const sStart = new Date(mapping.startDate);
+            const sEnd = new Date(mapping.endDate);
+            if (today >= sStart && today <= sEnd) {
+              activeSeasonLabel = label;
+              break;
+            }
+          }
+          if (!activeSeasonLabel) {
+            const sorted = Object.keys(seasonMapping).sort().reverse();
+            activeSeasonLabel = sorted[0];
+          }
+        }
 
-      if (type === 'YTD') {
-        const fromStr = formatDate(ytdStart);
-        if (fromStr) setDateFrom(fromStr);
-      }
-      if (type === 'STD') {
-        const fromStr = formatDate(stdStart);
-        if (fromStr) setDateFrom(fromStr);
-      }
-      if (type === 'MTD') {
-        const fromStr = formatDate(mtdStart);
-        if (fromStr) setDateFrom(fromStr);
+        let stdStart;
+        if (activeSeasonLabel && seasonMapping && seasonMapping[activeSeasonLabel]) {
+          stdStart = new Date(seasonMapping[activeSeasonLabel].startDate);
+        } else {
+          let stdYear = year;
+          if (month < 9) stdYear -= 1;
+          stdStart = new Date(stdYear, 9, 1);
+        }
+
+        setDateTo(clampToDb(formatDate(today)));
+        setDateFrom(clampToDb(formatDate(stdStart)));
       }
 
       setBaseSeason('');
-      // Keep comparison season so % badges still resolve (Season vs Season style)
+      setRangePreset(type);
     } catch (err) {
       console.error('Error in handleQuickDate:', err);
     }
@@ -472,169 +612,168 @@ export default function BrixSamplingDashboard() {
     <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'
       } transition-colors duration-200 font-sans`}>
 
-      {/* ── Top Header & Consolidated Control Bar ── */}
-      <div className="shrink-0 px-3 sm:px-4 pt-2.5 pb-1">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm">
+      <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BiDashboardHeader
+            title="Brix Sampling Analytics"
+            subtitle="Field & Yard Intelligence · Crop Maturity"
+            icon={MdGrass}
+            iconColor="#059669"
+            isDarkMode={darkMode}
+          />
+          <div className="flex items-center gap-4">
+            <BiKeyMetricBox
+              value={activeTab === 'field' ? (fieldStats?.totalSamples?.value ?? 0) : (yardStats?.totalSamples?.value ?? 0)}
+              title={activeTab === 'field' ? "Field Samples" : "Yard Samples"}
+              subtitle={rangePreset}
+              isDarkMode={darkMode}
+            />
+          </div>
+        </div>
 
-          {/* Title & Back Link */}
-          <div className="flex items-center gap-3">
-            <Link to="/bi"
-              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wide transition-colors ${darkMode
-                  ? 'border-slate-700 bg-slate-800 text-blue-400 hover:bg-slate-700'
-                  : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
+        <BiFilterBarLayout isDarkMode={darkMode} setIsDarkMode={setDarkMode}>
+          <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            {[
+              { id: 'field', icon: <Sprout className="w-3.5 h-3.5" />, label: 'Field Sampling' },
+              { id: 'yard', icon: <Truck className="w-3.5 h-3.5" />, label: 'Yard Sampling' },
+            ].map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                className={`shrink-0 flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  activeTab === t.id
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                 }`}>
-              <MdArrowBack className="h-3.5 w-3.5" />
-              Tower
-            </Link>
-            <div>
-              <h1 className={`text-base font-black tracking-tight sm:text-lg ${darkMode ? 'text-slate-100' : 'text-slate-900'}`}>
-                Brix Sampling Analytics
-              </h1>
-              <p className={`text-[10px] font-bold ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                Field &amp; Yard Intelligence · Crop Maturity
-              </p>
-            </div>
+                {t.icon}{t.label}
+              </button>
+            ))}
           </div>
 
-          {/* Consolidated Controls: Tabs + Filters + View Switcher + Dark Toggle */}
-          <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+          <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            {/* Field / Yard Tab Switcher */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-              {[
-                { id: 'field', icon: <Sprout className="w-3.5 h-3.5" />, label: 'Field Sampling' },
-                { id: 'yard', icon: <Truck className="w-3.5 h-3.5" />, label: 'Yard Sampling' },
-              ].map(t => (
-                <button key={t.id} onClick={() => setActiveTab(t.id)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap ${activeTab === t.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
-                    }`}>
-                  {t.icon}{t.label}
-                </button>
-              ))}
+          <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            {['MTD', 'STD', 'YTD'].map(type => (
+              <button key={type} onClick={() => handleQuickDate(type)}
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  rangePreset === type
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                }`}>
+                {type}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Base Season</span>
+              <select value={baseSeason} onChange={e => {
+                  const next = e.target.value;
+                  setBaseSeason(next);
+                  setRangePreset('Custom');
+                  if (next && seasonMapping[next]) {
+                    const start = toInputDate(seasonMapping[next].startDate);
+                    const end = toInputDate(seasonMapping[next].endDate);
+                    setFieldDates({
+                      from: clampIso(start, fieldDateRange.min, fieldDateRange.max),
+                      to: clampIso(end, fieldDateRange.min, fieldDateRange.max),
+                    });
+                    setYardDates({
+                      from: clampIso(start, yardDateRange.min, yardDateRange.max),
+                      to: clampIso(end, yardDateRange.min, yardDateRange.max),
+                    });
+                  } else {
+                    setFieldDates({ from: fieldDateRange.min, to: fieldDateRange.max });
+                    setYardDates({ from: yardDateRange.min, to: yardDateRange.max });
+                  }
+                }}
+                className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                }`}>
+                <option value="">-- Custom --</option>
+                {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
 
-            {/* ── Global Date/Season Filters ── */}
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-              
-              {/* Season Selection */}
-              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg">
-                <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Base Season:</span>
-                <select value={baseSeason} onChange={e => {
-                    const next = e.target.value;
-                    setBaseSeason(next);
-                    setDateFrom('');
-                    setDateTo('');
-                    if (next && availableSeasons.length) {
-                      const idx = availableSeasons.indexOf(next);
-                      const prior = availableSeasons.slice(idx + 1)[0];
-                      if (prior) setCompSeason(prior);
-                    }
-                  }}
-                  className="bg-transparent font-bold text-blue-600 dark:text-blue-400 focus:outline-none cursor-pointer text-[10px]">
-                  <option value="">-- Custom Dates --</option>
-                  {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-
-                <div className="w-px h-3.5 bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">Comp Season:</span>
-                <select value={compSeason} onChange={e => setCompSeason(e.target.value)}
-                  className="bg-transparent font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none cursor-pointer text-[10px]">
-                  <option value="">-- None --</option>
-                  {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              {/* Quick Filters */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
-                {['MTD', 'STD', 'YTD'].map(type => (
-                  <button key={type} onClick={() => handleQuickDate(type)}
-                    className="px-2 py-0.5 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm transition-all">
-                    {type}
-                  </button>
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Compare</span>
+              <select value={comparisonType} onChange={e => setComparisonType(e.target.value)}
+                className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                }`}>
+                {comparisonOptions.map((comp) => (
+                  <option key={comp.id} value={comp.id}>{comp.label}</option>
                 ))}
-              </div>
-
-              {/* Date Filters */}
-              <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg">
-                <Calendar className="w-3 h-3 text-slate-400" />
-                <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider">From:</span>
-                <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setBaseSeason(''); }}
-                  max={dateTo || undefined}
-                  className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer text-[10px] w-[95px]" />
-                
-                <span className="text-slate-400 font-bold text-[9px] uppercase tracking-wider ml-1">To:</span>
-                <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setBaseSeason(''); }}
-                  min={dateFrom || undefined}
-                  className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer text-[10px] w-[95px]" />
-                
-                {(dateFrom || dateTo) && (
-                  <button onClick={() => { setDateFrom(''); setDateTo(''); }} className="ml-1 text-slate-400 hover:text-red-500 transition-colors">
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
+              </select>
             </div>
 
-            {/* Field Filters */}
             {activeTab === 'field' && (
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg">
-                  <Filter className="w-3 h-3 text-slate-400" />
-                  <select value={fieldTestType} onChange={e => setFieldTestType(e.target.value)}
-                    className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer text-[10px]">
-                    <option value="All">All Operations</option>
-                    {testTypes.map(tt => <option key={tt} value={tt}>{tt}</option>)}
-                  </select>
-                </div>
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Operation</span>
+                <select value={fieldTestType} onChange={e => setFieldTestType(e.target.value)}
+                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                  }`}>
+                  <option value="All">All</option>
+                  {testTypes.map(tt => <option key={tt} value={tt}>{tt}</option>)}
+                </select>
               </div>
             )}
 
-            {/* Yard Filters */}
             {activeTab === 'yard' && (
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                <div className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg">
-                  <Truck className="w-3 h-3 text-slate-400" />
-                  <select value={yardDelivery} onChange={e => setYardDelivery(e.target.value)}
-                    className="bg-transparent font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer text-[10px]">
-                    <option value="All">All Delivery Points</option>
-                    {deliveryPoints.map(dp => <option key={dp} value={dp}>{dp}</option>)}
-                  </select>
-                </div>
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Point</span>
+                <select value={yardDelivery} onChange={e => setYardDelivery(e.target.value)}
+                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                  }`}>
+                  <option value="All">All</option>
+                  {deliveryPoints.map(dp => <option key={dp} value={dp}>{dp}</option>)}
+                </select>
               </div>
             )}
 
-            {/* View Switcher (Visual vs Raw) */}
-            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+
+            <div className={`flex items-center gap-1 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
               {[
                 { id: 'visual', icon: <BarChart3 className="h-3.5 w-3.5" />, label: 'Visual' },
                 { id: 'raw', icon: <Table className="h-3.5 w-3.5" />, label: 'Data' }
               ].map(v => (
                 <button key={v.id} onClick={() => setActiveView(v.id)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${activeView === v.id
+                  className={`shrink-0 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    activeView === v.id
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-700/60'
-                    }`}>
+                      : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}>
                   {v.icon}{v.label}
                 </button>
               ))}
             </div>
 
-            {/* Dark Mode Toggle */}
-            <button onClick={() => setDarkMode(!darkMode)}
-              className={`shrink-0 rounded-xl border p-1.5 transition-colors ${darkMode
-                  ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700'
-                  : 'border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              aria-label="Toggle dark mode">
-              {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </button>
+            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
+              <input type="date" value={dateFrom}
+                min={dbMinDateStr || undefined}
+                max={(dateTo && dbMaxDateStr ? (dateTo < dbMaxDateStr ? dateTo : dbMaxDateStr) : (dateTo || dbMaxDateStr)) || undefined}
+                onChange={e => { setDateFrom(clampToDb(e.target.value)); setBaseSeason(''); setRangePreset('Custom'); }}
+                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
+                }`} />
+            </div>
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
+              <input type="date" value={dateTo}
+                min={(dateFrom && dbMinDateStr ? (dateFrom > dbMinDateStr ? dateFrom : dbMinDateStr) : (dateFrom || dbMinDateStr)) || undefined}
+                max={dbMaxDateStr || undefined}
+                onChange={e => { setDateTo(clampToDb(e.target.value)); setBaseSeason(''); setRangePreset('Custom'); }}
+                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
+                }`} />
+            </div>
           </div>
-
-        </div>
+        </BiFilterBarLayout>
       </div>
 
       {/* ── Main Dashboard Body ── */}
@@ -663,96 +802,59 @@ export default function BrixSamplingDashboard() {
 
                 {/* ── Top KPI Row ── */}
                 <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                  <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">AVG MID BRIX %</p>
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                          {fieldLoading ? '…' : (fieldStats?.avgMidBrix?.value ?? '19.46')}
-                        </span>
-                      </div>
-                      <div className="mt-1.5">
-                        <ChangeBadge
-                          change={fieldStats?.avgMidBrix?.change}
-                          variance={fieldStats?.avgMidBrix?.variance}
-                          isUp={fieldStats?.avgMidBrix?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-bold text-sm shrink-0">
-                      %
-                    </div>
-                  </div>
-
-                  {/* Card 2: Average Maturity */}
-                  <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">AVERAGE MATURITY</p>
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                          {fieldLoading ? '…' : (fieldStats?.avgMaturity?.value ?? '1.00')}
-                        </span>
-                      </div>
-                      <div className="mt-1.5">
-                        <ChangeBadge
-                          change={fieldStats?.avgMaturity?.change}
-                          variance={fieldStats?.avgMaturity?.variance}
-                          isUp={fieldStats?.avgMaturity?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-sm shrink-0">
-                      ⚖
-                    </div>
-                  </div>
-
-                  {/* Card 3: Total Samples */}
-                  <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">TOTAL SAMPLES</p>
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                          {fieldLoading ? '…' : Number(fieldStats?.totalSamples?.value ?? 2645).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="mt-1.5">
-                        <ChangeBadge
-                          change={fieldStats?.totalSamples?.change}
-                          variance={fieldStats?.totalSamples?.variance}
-                          isUp={fieldStats?.totalSamples?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-800/40 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm shrink-0">
-                      📋
-                    </div>
-                  </div>
-
-                  {/* Card 4: Bottom Brix < 18 */}
-                  <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex items-center justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">BOTTOM BRIX &lt; 18</p>
-                      <div className="mt-1 flex items-baseline gap-1.5">
-                        <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                          {fieldLoading ? '…' : (fieldStats?.pctBottomBrixLt18?.value ?? '17.0')}%
-                        </span>
-                      </div>
-                      <div className="mt-1.5">
-                        <ChangeBadge
-                          change={fieldStats?.pctBottomBrixLt18?.change}
-                          variance={fieldStats?.pctBottomBrixLt18?.variance}
-                          isUp={fieldStats?.pctBottomBrixLt18?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
-                        />
-                      </div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-800/40 flex items-center justify-center text-amber-600 dark:text-amber-400 font-bold text-sm shrink-0">
-                      ⚠️
-                    </div>
-                  </div>
+                  <BiKpiCard
+                    title="AVG MID BRIX %"
+                    value={parseFloat(fieldStats?.avgMidBrix?.value ?? 19.46)}
+                    pyValue={parseFloat(fieldStats?.avgMidBrix?.pyValue ?? 0)}
+                    unit="%"
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
+                    dataKey="midBrix"
+                    chartType="area"
+                    chartColor="#10b981"
+                    formatValue={(v) => v.toFixed(2)}
+                  />
+                  <BiKpiCard
+                    title="AVERAGE MATURITY"
+                    value={parseFloat(fieldStats?.avgMaturity?.value ?? 1.0)}
+                    pyValue={parseFloat(fieldStats?.avgMaturity?.pyValue ?? 0)}
+                    unit="ratio"
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
+                    dataKey="midBrix"
+                    chartType="line"
+                    chartColor="#6366f1"
+                    formatValue={(v) => v.toFixed(2)}
+                  />
+                  <BiKpiCard
+                    title="TOTAL SAMPLES"
+                    value={parseFloat(fieldStats?.totalSamples?.value ?? 2645)}
+                    pyValue={parseFloat(fieldStats?.totalSamples?.pyValue ?? 0)}
+                    unit="samples"
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
+                    dataKey="midBrix"
+                    chartType="area"
+                    chartColor="#3b82f6"
+                    formatValue={(v) => Math.round(v).toLocaleString()}
+                  />
+                  <BiKpiCard
+                    title="BOTTOM BRIX < 18%"
+                    value={parseFloat(fieldStats?.pctBottomBrixLt18?.value ?? 17.0)}
+                    pyValue={parseFloat(fieldStats?.pctBottomBrixLt18?.pyValue ?? 0)}
+                    unit="%"
+                    inverseColor
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
+                    dataKey="bottomBrix"
+                    chartType="area"
+                    chartColor="#f59e0b"
+                    formatValue={(v) => v.toFixed(1)}
+                  />
                 </div>
 
                 {/* ── Top Main Section Row (Brix Trend Across Sections + Crop Health & Land Classification) ── */}
@@ -968,34 +1070,74 @@ export default function BrixSamplingDashboard() {
                 </div>
 
                 {/* KPI Cards — 5 primary measures */}
-                <div className="shrink-0 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {[
-                    { title: 'Total Samples', stat: yardStats?.totalSamples, unit: 'Lots', sub: 'COUNTROWS(YardBrix)', isFormat: true },
-                    { title: 'Avg Middle Brix %', stat: yardStats?.avgBrix, unit: '%', sub: 'AVERAGE(MiddleBrix)' },
-                    { title: 'Middle Brix > 18', stat: yardStats?.pctBrixGt18, unit: '%', sub: 'COUNT(MiddleBrix>18)' },
-                    { title: 'Diseased Cane', stat: yardStats?.pctDiseased, unit: '%', sub: 'COUNT(DiseasedCane=Yes)', neg: true },
-                    { title: 'Stale Cane', stat: yardStats?.pctStale, unit: '%', sub: 'COUNT(StaleCane=Yes)', neg: true },
-                  ].map(card => (
-                    <div key={card.title}
-                      className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between">
-                      <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">{card.title}</p>
-                      <div className="mt-1 flex flex-col gap-1">
-                        <div className="flex items-baseline gap-1">
-                          <span className={`text-xl font-extrabold tracking-tight ${card.neg ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                            {yardLoading ? '…' : (card.isFormat ? Number(card.stat?.value ?? 0).toLocaleString() : (card.stat?.value ?? '—'))}
-                          </span>
-                          {card.unit && <span className="text-[10px] text-slate-500 font-semibold">{card.unit}</span>}
-                        </div>
-                        <ChangeBadge
-                          change={card.stat?.change}
-                          variance={card.stat?.variance}
-                          isUp={card.stat?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
-                        />
-                      </div>
-                      <p className="text-[9px] text-slate-400 mt-1 truncate">{card.sub}</p>
-                    </div>
-                  ))}
+                <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                  <BiKpiCard
+                    title="TOTAL SAMPLES"
+                    value={parseFloat(yardStats?.totalSamples?.value ?? 0)}
+                    pyValue={parseFloat(yardStats?.totalSamples?.pyValue ?? 0)}
+                    unit="Lots"
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={yardTrend}
+                    dataKey="avgBrix"
+                    chartType="area"
+                    chartColor="#3b82f6"
+                    formatValue={(v) => Math.round(v).toLocaleString()}
+                  />
+                  <BiKpiCard
+                    title="AVG MIDDLE BRIX %"
+                    value={parseFloat(yardStats?.avgBrix?.value ?? 0)}
+                    pyValue={parseFloat(yardStats?.avgBrix?.pyValue ?? 0)}
+                    unit="%"
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={yardTrend}
+                    dataKey="avgBrix"
+                    chartType="line"
+                    chartColor="#10b981"
+                    formatValue={(v) => v.toFixed(2)}
+                  />
+                  <BiKpiCard
+                    title="MIDDLE BRIX > 18"
+                    value={parseFloat(yardStats?.pctBrixGt18?.value ?? 0)}
+                    pyValue={parseFloat(yardStats?.pctBrixGt18?.pyValue ?? 0)}
+                    unit="%"
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={yardTrend}
+                    dataKey="avgBrix"
+                    chartType="area"
+                    chartColor="#6366f1"
+                    formatValue={(v) => v.toFixed(1)}
+                  />
+                  <BiKpiCard
+                    title="DISEASED CANE"
+                    value={parseFloat(yardStats?.pctDiseased?.value ?? 0)}
+                    pyValue={parseFloat(yardStats?.pctDiseased?.pyValue ?? 0)}
+                    unit="%"
+                    inverseColor
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={yardTrend}
+                    dataKey="avgBrix"
+                    chartType="line"
+                    chartColor="#ef4444"
+                    formatValue={(v) => v.toFixed(1)}
+                  />
+                  <BiKpiCard
+                    title="STALE CANE"
+                    value={parseFloat(yardStats?.pctStale?.value ?? 0)}
+                    pyValue={parseFloat(yardStats?.pctStale?.pyValue ?? 0)}
+                    unit="%"
+                    inverseColor
+                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    isDarkMode={darkMode}
+                    chartData={yardTrend}
+                    dataKey="avgBrix"
+                    chartType="line"
+                    chartColor="#f59e0b"
+                    formatValue={(v) => v.toFixed(1)}
+                  />
                 </div>
 
                 {/* Affected + Brix>18 rate row */}
@@ -1014,7 +1156,7 @@ export default function BrixSamplingDashboard() {
                           change={yardStats?.pctAffected?.change}
                           variance={yardStats?.pctAffected?.variance}
                           isUp={yardStats?.pctAffected?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
+                          label={compareBadgeLabel}
                         />
                       </div>
                     </div>
@@ -1033,7 +1175,7 @@ export default function BrixSamplingDashboard() {
                           change={yardStats?.pctBrixGt18?.change}
                           variance={yardStats?.pctBrixGt18?.variance}
                           isUp={yardStats?.pctBrixGt18?.isUp}
-                          label={compSeason ? `vs ${compSeason}` : undefined}
+                          label={compareBadgeLabel}
                         />
                       </div>
                     </div>
@@ -1180,7 +1322,7 @@ export default function BrixSamplingDashboard() {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px]">
-                      <th className="pb-2">Sample Date</th>
+                      <th className="pb-2">Sampling Date</th>
                       <th className="pb-2">Location</th>
                       <th className="pb-2 text-right">Top Brix %</th>
                       <th className="pb-2 text-right">Middle Brix %</th>
@@ -1208,7 +1350,7 @@ export default function BrixSamplingDashboard() {
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px]">
-                      <th className="pb-2">Sample Date</th>
+                      <th className="pb-2">Sampling Date</th>
                       <th className="pb-2">Name</th>
                       <th className="pb-2">Delivery Point</th>
                       <th className="pb-2 text-right">Middle Brix %</th>

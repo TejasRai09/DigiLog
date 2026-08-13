@@ -190,6 +190,13 @@ const formDefs = [
     app: 'BI Control Tower',
     sort_order: 6,
   },
+  {
+    name: 'Power House Dashboard',
+    description: 'Power generation, steam, and outage analytics from power logbook data',
+    formKey: 'bi_power_house',
+    app: 'BI Control Tower',
+    sort_order: 7,
+  },
 ];
 
 // Renamed apps (re-seed used to INSERT new rows because `name` is unique).

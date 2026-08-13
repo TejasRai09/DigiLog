@@ -9,6 +9,7 @@ export const BI_DASHBOARD_PATH = {
   bi_brix_sampling: '/bi/brix-sampling',
   bi_centre_maturity: '/bi/centre-maturity',
   bi_cane_performance: '/bi/cane-performance',
+  bi_power_house: '/bi/power-house',
 };
 
 export function isBiDashboardFormKey(formKey) {

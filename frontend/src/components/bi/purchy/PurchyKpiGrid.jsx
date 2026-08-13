@@ -1,4 +1,5 @@
 import Spinner from '../../Spinner';
+import BiKpiCard from '../BiKpiCard';
 
 const KPI_ITEMS = [
   { key: 'bondedGrowers', label: 'Bonded Growers', format: 'int' },
@@ -20,13 +21,8 @@ function formatValue(val, format) {
 }
 
 export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = false }) {
-  const card = isDarkMode
-    ? 'border-slate-700 bg-slate-800'
-    : 'border-slate-200 bg-white';
-  const title = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const value = isDarkMode ? 'text-slate-100' : 'text-slate-800';
-
   if (loading) {
+    const card = isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white';
     return (
       <div className={`flex shrink-0 items-center justify-center rounded-xl border shadow-sm ${card} ${compact ? 'h-16' : 'h-24'}`}>
         <Spinner />
@@ -35,14 +31,16 @@ export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = fal
   }
 
   return (
-    <div className={`grid shrink-0 gap-1.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 ${compact ? 'grid-cols-3' : 'grid-cols-2 gap-2'}`}>
+    <div className="grid shrink-0 gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
       {KPI_ITEMS.map(({ key, label, format }) => (
-        <div key={key} className={`rounded-lg border shadow-sm ${card} ${compact ? 'p-2' : 'p-3'}`}>
-          <div className={`font-bold uppercase leading-tight ${title} ${compact ? 'text-[9px]' : 'text-[10px]'}`}>{label}</div>
-          <div className={`mt-0.5 font-black tabular-nums ${value} ${compact ? 'text-sm' : 'text-lg'}`}>
-            {formatValue(kpis?.[key], format)}
-          </div>
-        </div>
+        <BiKpiCard
+          key={key}
+          title={label}
+          displayValue={formatValue(kpis?.[key], format)}
+          value={100}
+          pyValue={0}
+          isDarkMode={isDarkMode}
+        />
       ))}
     </div>
   );

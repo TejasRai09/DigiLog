@@ -1,0 +1,50 @@
+# Dependencies (root install; backend/frontend have their own)
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Local extract / tooling scripts (use backend/scripts for app DB scripts)
+scripts/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+
+# Excel / Office lock / temp files
+~$*
+*.tmp
+*.temp
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json
+
+# Coverage / build caches
+coverage/
+.nyc_output/
+.vite/
+*.tsbuildinfo
+.eslintcache

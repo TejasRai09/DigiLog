@@ -41,7 +41,7 @@ async function buildWhere(query, extraConditions = []) {
 // Power BI Measures implemented:
 //   Total Field Samples      = COUNTROWS(Table2)
 //   Avg Mid Brix %           = AVERAGE(Table2[Middle Brix %])
-//   Average Maturity         = AVERAGE(Table2[Maturity])  -- Maturity = MiddleBrix / NULLIF(BottomBrix, 0)
+//   Average Maturity         = AVERAGE(Table2[Maturity])  -- Maturity = TopBrix / NULLIF(BottomBrix, 0)
 //   Bottom Brix < 18 (Count) = COUNTROWS(FILTER(Table2, Table2[Bottom Brix %] < 18))
 //   Bottom Brix < 18 (%)     = DIVIDE([BottomBrix<18], [Total Samples]) * 100
 const getFieldStats = async (req, res) => {
@@ -59,7 +59,7 @@ const getFieldStats = async (req, res) => {
         ROUND(
           AVG(
             CASE WHEN \`BottomBrix\` > 0
-                 THEN \`MiddleBrix\` / \`BottomBrix\`
+                 THEN \`TopBrix\` / \`BottomBrix\`
                  ELSE NULL END
           ), 2)                                                              AS avgMaturity,
         SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)                 AS countBottomBrixLt18,
@@ -72,12 +72,27 @@ const getFieldStats = async (req, res) => {
     );
 
     // Previous Stats Query:
-    // Season vs Season style — use the comparison season's full mapping
-    // window, not the base from/to shifted by years.
+    // 1) MTD/STD/YTD → same calendar window shifted −1 year (pyFrom/pyTo)
+    // 2) Else Comp Season → full season_mapping window (Season vs Season)
     let prevRow = null;
-    if (compSeason) {
-      const prevConditions = [];
-      const prevParams = [];
+    let compareMode = null;
+    const prevConditions = [];
+    const prevParams = [];
+    const pyFrom = req.query.pyFrom ? String(req.query.pyFrom).slice(0, 10) : null;
+    const pyTo = req.query.pyTo ? String(req.query.pyTo).slice(0, 10) : null;
+
+    if (pyFrom || pyTo) {
+      compareMode = 'priorYear';
+      if (pyFrom) {
+        prevConditions.push('`Date` >= ?');
+        prevParams.push(pyFrom);
+      }
+      if (pyTo) {
+        prevConditions.push('`Date` <= ?');
+        prevParams.push(pyTo);
+      }
+    } else if (compSeason) {
+      compareMode = 'compSeason';
       const [[mapping]] = await pool.query(
         'SELECT start_date, end_date FROM season_mapping WHERE season_label = ?',
         [compSeason]
@@ -90,34 +105,34 @@ const getFieldStats = async (req, res) => {
         prevConditions.push('`Date` <= ?');
         prevParams.push(mapping.end_date);
       }
+    }
+
+    if (prevConditions.length) {
       if (testType && testType !== 'All' && testType !== 'All Operations') {
         prevConditions.push('`TestType` = ?');
         prevParams.push(testType);
       }
-
-      if (prevConditions.length) {
-        const [[pRow]] = await pool.query(
-          `SELECT
-            COUNT(*)                                                             AS totalSamples,
-            ROUND(AVG(\`MiddleBrix\`), 2)                                        AS avgMidBrix,
-            ROUND(AVG(\`TopBrix\`), 2)                                           AS avgTopBrix,
-            ROUND(AVG(\`BottomBrix\`), 2)                                        AS avgBottomBrix,
-            ROUND(
-              AVG(
-                CASE WHEN \`BottomBrix\` > 0
-                     THEN \`MiddleBrix\` / \`BottomBrix\`
-                     ELSE NULL END
-              ), 2)                                                              AS avgMaturity,
-            SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)                 AS countBottomBrixLt18,
-            ROUND(
-              SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)
-              / NULLIF(COUNT(*), 0) * 100, 1)                                   AS pctBottomBrixLt18
-          FROM \`brix_field_sampling\`
-          WHERE ${prevConditions.join(' AND ')}`,
-          prevParams,
-        );
-        prevRow = pRow;
-      }
+      const [[pRow]] = await pool.query(
+        `SELECT
+          COUNT(*)                                                             AS totalSamples,
+          ROUND(AVG(\`MiddleBrix\`), 2)                                        AS avgMidBrix,
+          ROUND(AVG(\`TopBrix\`), 2)                                           AS avgTopBrix,
+          ROUND(AVG(\`BottomBrix\`), 2)                                        AS avgBottomBrix,
+          ROUND(
+            AVG(
+              CASE WHEN \`BottomBrix\` > 0
+                   THEN \`TopBrix\` / \`BottomBrix\`
+                   ELSE NULL END
+            ), 2)                                                              AS avgMaturity,
+          SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)                 AS countBottomBrixLt18,
+          ROUND(
+            SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)
+            / NULLIF(COUNT(*), 0) * 100, 1)                                   AS pctBottomBrixLt18
+        FROM \`brix_field_sampling\`
+        WHERE ${prevConditions.join(' AND ')}`,
+        prevParams,
+      );
+      prevRow = pRow;
     }
 
     const calcChange = (curr, prev) => {
@@ -183,15 +198,40 @@ const getFieldStats = async (req, res) => {
       };
     });
 
-    const [[maxDateRes]] = await pool.query(`SELECT MAX(\`Date\`) AS maxDate FROM \`brix_field_sampling\``);
+    const [[rangeRes]] = await pool.query(
+      `SELECT
+         DATE_FORMAT(MIN(\`Date\`), '%Y-%m-%d') AS minDate,
+         DATE_FORMAT(MAX(\`Date\`), '%Y-%m-%d') AS maxDate
+       FROM \`brix_field_sampling\``
+    );
+
+    const toYmd = (v) => {
+      if (!v) return null;
+      if (typeof v === 'string') return v.slice(0, 10);
+      if (v instanceof Date && !isNaN(v)) {
+        const y = v.getFullYear();
+        const m = String(v.getMonth() + 1).padStart(2, '0');
+        const d = String(v.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return String(v).slice(0, 10);
+    };
 
     res.json({
       stats,
       hasCompare,
-      compSeason: compSeason || null,
+      compareMode: hasCompare ? compareMode : null,
+      compSeason: compareMode === 'compSeason' ? (compSeason || null) : null,
+      pyFrom: compareMode === 'priorYear' ? pyFrom : null,
+      pyTo: compareMode === 'priorYear' ? pyTo : null,
       availableSeasons,
       seasonMapping,
-      dateRange: { maxDate: maxDateRes.maxDate }
+      dateRange: {
+        minDate: rangeRes.minDate,
+        maxDate: rangeRes.maxDate,
+        effectiveFrom: toYmd(effectiveFrom) || rangeRes.minDate,
+        effectiveTo: toYmd(effectiveTo) || rangeRes.maxDate,
+      },
     });
   } catch (err) {
     console.error('[bi/brix-field/stats]', err);
@@ -266,7 +306,7 @@ const getFieldBySoilType = async (req, res) => {
         ROUND(
           AVG(
             CASE WHEN \`BottomBrix\` > 0
-                 THEN \`MiddleBrix\` / \`BottomBrix\`
+                 THEN \`TopBrix\` / \`BottomBrix\`
                  ELSE NULL END
           ), 3)                                                          AS maturity
       FROM \`brix_field_sampling\`
@@ -297,7 +337,7 @@ const getFieldByLandType = async (req, res) => {
         ROUND(
           AVG(
             CASE WHEN \`BottomBrix\` > 0
-                 THEN \`MiddleBrix\` / \`BottomBrix\`
+                 THEN \`TopBrix\` / \`BottomBrix\`
                  ELSE NULL END
           ), 2)                                                          AS maturity
       FROM \`brix_field_sampling\`
@@ -328,7 +368,7 @@ const getFieldByVariety = async (req, res) => {
         ROUND(
           AVG(
             CASE WHEN \`BottomBrix\` > 0
-                 THEN \`MiddleBrix\` / \`BottomBrix\`
+                 THEN \`TopBrix\` / \`BottomBrix\`
                  ELSE NULL END
           ), 2)                                                          AS maturity
       FROM \`brix_field_sampling\`
@@ -403,12 +443,12 @@ const getFieldTableData = async (req, res) => {
         ROUND(\`BottomBrix\`, 2) AS bottomBrix,
         ROUND(
           CASE WHEN \`BottomBrix\` > 0
-               THEN \`MiddleBrix\` / \`BottomBrix\`
+               THEN \`TopBrix\` / \`BottomBrix\`
                ELSE NULL END, 3
         ) AS maturity
       FROM \`brix_field_sampling\`
       ${clause}
-      ORDER BY \`Date\` DESC
+      ORDER BY \`timestamp\` DESC
       LIMIT 1000`,
       params,
     );

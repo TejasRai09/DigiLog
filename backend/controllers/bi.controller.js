@@ -18,10 +18,12 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * Accepts optional `from`/`to` (ISO `YYYY-MM-DD`) from the request query.
  *  - Both valid & from <= to → bound between them.
  *  - Only one valid → bound on that side (upper-only keeps the default lower window).
- *  - Neither / invalid / from > to → fall back to the default lookback window.
- * Returns `{ clause, params }`; `clause` starts with a leading space.
+ *  - Neither / invalid / from > to → fall back to the default lookback window
+ *    (unless `options.allowUnbounded` is true — then no date filter).
+ * Returns `{ clause, params }`; `clause` starts with a leading space (or '' if unbounded).
  */
-function buildDateBound(query) {
+function buildDateBound(query, options = {}) {
+  const allowUnbounded = Boolean(options.allowUnbounded);
   const q = query || {};
   let from = typeof q.from === 'string' && ISO_DATE_RE.test(q.from) ? q.from : null;
   let to = typeof q.to === 'string' && ISO_DATE_RE.test(q.to) ? q.to : null;
@@ -39,10 +41,16 @@ function buildDateBound(query) {
     return { clause: ' AND `Date` >= ?', params: [from] };
   }
   if (to) {
+    if (allowUnbounded) {
+      return { clause: ' AND `Date` <= ?', params: [to] };
+    }
     return {
       clause: ' AND `Date` <= ? AND `Date` >= DATE_SUB(?, INTERVAL ? DAY)',
       params: [to, to, DEFAULT_LOOKBACK_DAYS],
     };
+  }
+  if (allowUnbounded) {
+    return { clause: '', params: [] };
   }
   return {
     clause: ' AND `Date` >= DATE_SUB(CURDATE(), INTERVAL ? DAY)',
@@ -101,12 +109,23 @@ function fsPctRatioFromRow(r) {
   return f / t;
 }
 
-/** Same as init.sql generated total_mol_in_store_qtls: COALESCE(BH) + COALESCE(CH); 0 when both inputs null. */
+/**
+ * BH + CH molasses in store. Null when both inputs blank so BI averages can
+ * match Power BI AVERAGE (skip blanks) instead of treating missing as 0.
+ * When either side is present, missing side counts as 0 (COALESCE style).
+ */
 function molInStoreFromRow(r) {
   const bh = r.total_bh_molasses_qtls;
   const ch = r.total_ch_molasses_qtls;
-  if (bh == null && ch == null) return 0;
+  if ((bh == null || bh === '') && (ch == null || ch === '')) return null;
   return num(bh) + num(ch);
+}
+
+/** Numeric or null — blank stays null (do not coerce to 0 for stock averages). */
+function nullableNum(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -127,25 +146,38 @@ function mapRowToBiPoint(r) {
   if (mode === 'None' || mode === '') mode = 'Mixed';
 
   const etoh = num(r.actual_ethanol_bl);
+  // Mode allocation matches Power BI: full day ethanol on the operating mode only.
+  // Mixed / unknown is its own series (no artificial 50/50 B Heavy + Syrup split).
   let bHeavyProd = 0;
   let cHeavyProd = 0;
   let syrupProd = 0;
+  let mixedProd = 0;
   if (mode === 'B Heavy') bHeavyProd = etoh;
   else if (mode === 'C Heavy') cHeavyProd = etoh;
   else if (mode === 'Syrup') syrupProd = etoh;
-  else {
-    bHeavyProd = etoh * 0.5;
-    syrupProd = etoh * 0.5;
-  }
+  else mixedProd = etoh;
 
-  let recovery = num(r.al_bl_ratio_pct);
-  if (recovery === 0 && r.rec_bl != null) {
-    const rb = num(r.rec_bl);
-    recovery = rb <= 1 && rb >= 0 ? rb * 100 : rb;
-  }
+  // PBI "REC BL" = actual ethanol (BL) / syrup-molasses (Q). Not AL/BL %.
+  const recBl = num(r.rec_bl);
+  const syrupQ = num(r.syrup_molasses_qtls);
+  const recovery = recBl !== 0
+    ? recBl
+    : (syrupQ > 0 ? etoh / syrupQ : 0);
 
   const fsPctRatio = fsPctRatioFromRow(r);
+  // PBI "FS %" = FS/TRS (ratio); DigiLog chart shows it as percent points.
   const fermSugar = fsPctRatio !== 0 ? fsPctRatio * 100 : num(r.fs);
+
+  const fermEff = effPercent(r.fe);
+  const distEff = effPercent(r.de);
+  // PBI OE = FE × DE (ratios). Expose as percent when FE/DE are percent.
+  let overallEff = 0;
+  if (r.oe != null && r.oe !== '') {
+    overallEff = effPercent(r.oe);
+  } else if (fermEff && distEff) {
+    // fe/de already converted to % → product of ratios
+    overallEff = (fermEff / 100) * (distEff / 100) * 100;
+  }
 
   return {
     date: dateLabel,
@@ -156,16 +188,18 @@ function mapRowToBiPoint(r) {
     bHeavyProd,
     cHeavyProd,
     syrupProd,
+    mixedProd,
     totalProd: etoh,
     totalWash: num(r.wash_distilled),
     syrupMolConsumed: num(r.syrup_molasses_qtls),
     recovery,
-    fermEff: effPercent(r.fe),
-    distEff: effPercent(r.de),
+    fermEff,
+    distEff,
+    overallEff,
     fermSugar,
     alcohol: num(r.alcohol_pct),
     molInStore: molInStoreFromRow(r),
-    ethInStore: num(r.ethanol_storage_bl),
+    ethInStore: nullableNum(r.ethanol_storage_bl),
     trs: num(r.trs),
     ufs: num(r.ufs),
     alBlRatioPct: num(r.al_bl_ratio_pct),
@@ -174,7 +208,8 @@ function mapRowToBiPoint(r) {
     fs: num(r.fs),
     feRaw: num(r.fe),
     deRaw: num(r.de),
-    recBl: num(r.rec_bl),
+    oeRaw: num(r.oe),
+    recBl: recovery,
     recordedAt: (() => {
       const t = r.timestamp;
       if (t == null || t === '') return '';
@@ -192,7 +227,9 @@ async function getDistilleryOperationsBi(req, res) {
       return res.status(403).json({ message: 'Access denied to distillery analytics.' });
     }
 
-    const bound = buildDateBound(req.query);
+    // Distillery dashboard filters client-side (MTD/QTD/YTD + season PoP). Do not
+    // silently truncate to a 365-day lookback or older seasons disappear.
+    const bound = buildDateBound(req.query, { allowUnbounded: true });
     const [rows] = await pool.query(
       `SELECT
         \`Date\`,
@@ -210,6 +247,7 @@ async function getDistilleryOperationsBi(req, res) {
         fs,
         fe,
         de,
+        oe,
         rec_bl,
         \`timestamp\`
       FROM distillery_operations

@@ -5,11 +5,22 @@ import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import ConfigSectionPanel from './ConfigSectionPanel';
 
+const TABS = [
+  { id: 'changes', label: 'Change Log' },
+  { id: 'activity', label: 'Activity Log' },
+  { id: 'sessions', label: 'Session Log' },
+];
+
 const ACTIONS = ['', 'Create', 'Update', 'Delete'];
 const RESULT_FILTERS = [
   { value: '', label: 'All results' },
   { value: '1', label: 'Success' },
   { value: '0', label: 'Failed' },
+];
+const ACTIVE_FILTERS = [
+  { value: '', label: 'All sessions' },
+  { value: '1', label: 'Online now' },
+  { value: '0', label: 'Ended' },
 ];
 
 function formatTime(value) {
@@ -24,6 +35,26 @@ function formatTime(value) {
     minute: '2-digit',
     second: '2-digit',
   });
+}
+
+function formatDuration(minutes) {
+  if (minutes == null || minutes === '') return '—';
+  const m = Number(minutes);
+  if (!Number.isFinite(m)) return '—';
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem ? `${h}h ${rem}m` : `${h}h`;
+}
+
+function formatDwell(seconds) {
+  if (seconds == null || seconds === '') return '—';
+  const s = Number(seconds);
+  if (!Number.isFinite(s)) return '—';
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return rem ? `${m}m ${rem}s` : `${m}m`;
 }
 
 function statusClass(code) {
@@ -111,7 +142,129 @@ function ReadableBody({ body }) {
 
 const COL_COUNT = 11;
 
+function CascadeSelects({
+  source,
+  section,
+  card,
+  form,
+  onSection,
+  onCard,
+  onForm,
+  sectionLabel = 'Section',
+  cardLabel = 'Card',
+  formLabel = 'Form / Dashboard',
+}) {
+  const [sectionOpts, setSectionOpts] = useState([]);
+  const [cardOpts, setCardOpts] = useState([]);
+  const [formOpts, setFormOpts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/admin/audit-filter-options', { params: { source } });
+        if (!cancelled) setSectionOpts(data.options || []);
+      } catch {
+        if (!cancelled) setSectionOpts([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [source]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!section) {
+      setCardOpts([]);
+      return undefined;
+    }
+    (async () => {
+      try {
+        const { data } = await api.get('/admin/audit-filter-options', {
+          params: { source, section },
+        });
+        if (!cancelled) setCardOpts(data.options || []);
+      } catch {
+        if (!cancelled) setCardOpts([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [source, section]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!section || !card) {
+      setFormOpts([]);
+      return undefined;
+    }
+    (async () => {
+      try {
+        const { data } = await api.get('/admin/audit-filter-options', {
+          params: { source, section, card },
+        });
+        if (!cancelled) setFormOpts(data.options || []);
+      } catch {
+        if (!cancelled) setFormOpts([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [source, section, card]);
+
+  return (
+    <>
+      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-44">
+        {sectionLabel}
+        <select
+          className="input-field h-10"
+          value={section}
+          onChange={(e) => {
+            onSection(e.target.value);
+            onCard('');
+            onForm('');
+          }}
+        >
+          <option value="">All</option>
+          {sectionOpts.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-44">
+        {cardLabel}
+        <select
+          className="input-field h-10"
+          value={card}
+          disabled={!section}
+          onChange={(e) => {
+            onCard(e.target.value);
+            onForm('');
+          }}
+        >
+          <option value="">All</option>
+          {cardOpts.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-48">
+        {formLabel}
+        <select
+          className="input-field h-10"
+          value={form}
+          disabled={!section || !card}
+          onChange={(e) => onForm(e.target.value)}
+        >
+          <option value="">All</option>
+          {formOpts.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+}
+
 export default function AuditLogSection() {
+  const [tab, setTab] = useState('changes');
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -120,34 +273,74 @@ export default function AuditLogSection() {
   const [q, setQ] = useState('');
   const [action, setAction] = useState('');
   const [success, setSuccess] = useState('');
+  const [active, setActive] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [section, setSection] = useState('');
+  const [card, setCard] = useState('');
+  const [form, setForm] = useState('');
   const [page, setPage] = useState(1);
-  const [applied, setApplied] = useState({ q: '', action: '', success: '', from: '', to: '' });
+  const [applied, setApplied] = useState({
+    q: '', action: '', success: '', active: '', from: '', to: '',
+    section: '', card: '', form: '',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/admin/audit-logs', {
-        params: {
-          page,
-          limit: 25,
-          q: applied.q || undefined,
-          action: applied.action || undefined,
-          success: applied.success || undefined,
-          from: applied.from || undefined,
-          to: applied.to || undefined,
-        },
-      });
-      setRows(data.data || []);
-      setPagination(data.pagination || { page: 1, limit: 25, total: 0, totalPages: 1 });
+      if (tab === 'changes') {
+        const { data } = await api.get('/admin/audit-logs', {
+          params: {
+            page,
+            limit: 25,
+            q: applied.q || undefined,
+            action: applied.action || undefined,
+            success: applied.success || undefined,
+            from: applied.from || undefined,
+            to: applied.to || undefined,
+            module: applied.section || undefined,
+            screen: applied.card || undefined,
+            resource_name: applied.form || undefined,
+          },
+        });
+        setRows(data.data || []);
+        setPagination(data.pagination || { page: 1, limit: 25, total: 0, totalPages: 1 });
+      } else if (tab === 'activity') {
+        const { data } = await api.get('/admin/activity-logs', {
+          params: {
+            page,
+            limit: 25,
+            q: applied.q || undefined,
+            from: applied.from || undefined,
+            to: applied.to || undefined,
+            section: applied.section || undefined,
+            card: applied.card || undefined,
+            form_or_dashboard: applied.form || undefined,
+          },
+        });
+        setRows(data.data || []);
+        setPagination(data.pagination || { page: 1, limit: 25, total: 0, totalPages: 1 });
+      } else {
+        const { data } = await api.get('/admin/sessions', {
+          params: {
+            page,
+            limit: 25,
+            q: applied.q || undefined,
+            from: applied.from || undefined,
+            to: applied.to || undefined,
+            active: applied.active || undefined,
+          },
+        });
+        setRows(data.data || []);
+        setPagination(data.pagination || { page: 1, limit: 25, total: 0, totalPages: 1 });
+      }
     } catch {
-      toast.error('Failed to load audit logs.');
+      toast.error('Failed to load audit data.');
       setRows([]);
     } finally {
       setLoading(false);
     }
-  }, [page, applied]);
+  }, [page, applied, tab]);
 
   useEffect(() => {
     load();
@@ -156,14 +349,27 @@ export default function AuditLogSection() {
   const applyFilters = (e) => {
     e.preventDefault();
     setExpandedId(null);
-    setApplied({ q, action, success, from, to });
+    setApplied({ q, action, success, active, from, to, section, card, form });
     setPage(1);
+  };
+
+  const switchTab = (next) => {
+    setTab(next);
+    setExpandedId(null);
+    setPage(1);
+    setRows([]);
+  };
+
+  const descriptions = {
+    changes: 'Who created, updated, or deleted plant / form / admin data.',
+    activity: 'Who opened which section, card, form, or dashboard — and how long they stayed.',
+    sessions: 'Login / logout times, session length, and who is online now.',
   };
 
   return (
     <ConfigSectionPanel
-      title="Audit Log"
-      description="Activity trail with a short description of what changed on each action."
+      title="Audit & Activity"
+      description={descriptions[tab]}
       actions={(
         <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => load()} disabled={loading}>
           <MdRefresh className="mr-1 inline" size={16} />
@@ -171,33 +377,91 @@ export default function AuditLogSection() {
         </button>
       )}
     >
+      <div className="mb-4 flex flex-wrap gap-2 border-b border-gray-100 pb-3">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => switchTab(t.id)}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+              tab === t.id
+                ? 'bg-slate-800 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       <form onSubmit={applyFilters} className="mb-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
         <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-xs font-medium text-gray-600">
           Search
           <input
             type="search"
             className="input-field h-10"
-            placeholder="Name, email, description, location…"
+            placeholder="Name, email, description…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
         </label>
-        <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-36">
-          Action
-          <select className="input-field h-10" value={action} onChange={(e) => setAction(e.target.value)}>
-            {ACTIONS.map((a) => (
-              <option key={a || 'all'} value={a}>{a || 'All'}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-36">
-          Result
-          <select className="input-field h-10" value={success} onChange={(e) => setSuccess(e.target.value)}>
-            {RESULT_FILTERS.map((o) => (
-              <option key={o.value || 'all'} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </label>
+
+        {tab === 'changes' ? (
+          <>
+            <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-36">
+              Action
+              <select className="input-field h-10" value={action} onChange={(e) => setAction(e.target.value)}>
+                {ACTIONS.map((a) => (
+                  <option key={a || 'all'} value={a}>{a || 'All'}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-36">
+              Result
+              <select className="input-field h-10" value={success} onChange={(e) => setSuccess(e.target.value)}>
+                {RESULT_FILTERS.map((o) => (
+                  <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <CascadeSelects
+              source="audit"
+              section={section}
+              card={card}
+              form={form}
+              onSection={setSection}
+              onCard={setCard}
+              onForm={setForm}
+              sectionLabel="Module"
+              cardLabel="Screen"
+              formLabel="Resource"
+            />
+          </>
+        ) : null}
+
+        {tab === 'activity' ? (
+          <CascadeSelects
+            source="activity"
+            section={section}
+            card={card}
+            form={form}
+            onSection={setSection}
+            onCard={setCard}
+            onForm={setForm}
+          />
+        ) : null}
+
+        {tab === 'sessions' ? (
+          <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-40">
+            Status
+            <select className="input-field h-10" value={active} onChange={(e) => setActive(e.target.value)}>
+              {ACTIVE_FILTERS.map((o) => (
+                <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
         <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-40">
           From
           <input type="date" className="input-field h-10" value={from} onChange={(e) => setFrom(e.target.value)} />
@@ -214,8 +478,8 @@ export default function AuditLogSection() {
       {loading ? (
         <div className="flex justify-center py-12"><Spinner /></div>
       ) : rows.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500">No audit entries match these filters.</p>
-      ) : (
+        <p className="py-8 text-center text-sm text-gray-500">No entries match these filters.</p>
+      ) : tab === 'changes' ? (
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead>
@@ -292,6 +556,85 @@ export default function AuditLogSection() {
                       </tr>
                     ) : null}
                   </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : tab === 'activity' ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 font-medium">Entered</th>
+                <th className="px-2 py-2 font-medium">Name</th>
+                <th className="px-2 py-2 font-medium">Event</th>
+                <th className="px-2 py-2 font-medium">Section</th>
+                <th className="px-2 py-2 font-medium">Card</th>
+                <th className="px-2 py-2 font-medium">Form / Dashboard</th>
+                <th className="px-2 py-2 font-medium">Path</th>
+                <th className="px-2 py-2 font-medium">Dwell</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="align-top border-b border-gray-50 hover:bg-gray-50/80">
+                  <td className="whitespace-nowrap px-2 py-2.5 text-gray-700">{formatTime(row.entered_at)}</td>
+                  <td className="px-2 py-2.5 font-medium text-gray-900">{row.user_name || '—'}</td>
+                  <td className="px-2 py-2.5 text-gray-700">{row.event_type}</td>
+                  <td className="px-2 py-2.5 text-gray-800">{row.section || '—'}</td>
+                  <td className="px-2 py-2.5 text-gray-800">{row.card || '—'}</td>
+                  <td className="px-2 py-2.5 text-gray-800">{row.form_or_dashboard || '—'}</td>
+                  <td className="max-w-[18rem] px-2 py-2.5 text-gray-600" title={row.display_path || row.page_path}>
+                    <div className="line-clamp-2 text-sm">{row.display_path || row.page_path || '—'}</div>
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-gray-700">
+                    {formatDwell(row.dwell_seconds)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
+                <th className="whitespace-nowrap px-2 py-2 font-medium">Login</th>
+                <th className="px-2 py-2 font-medium">Name</th>
+                <th className="px-2 py-2 font-medium">Email</th>
+                <th className="px-2 py-2 font-medium">Role</th>
+                <th className="px-2 py-2 font-medium">Dept</th>
+                <th className="px-2 py-2 font-medium">Logout</th>
+                <th className="px-2 py-2 font-medium">Duration</th>
+                <th className="px-2 py-2 font-medium">Pages</th>
+                <th className="px-2 py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const online = row.is_active === 1 || row.is_active === true;
+                return (
+                  <tr key={row.id} className="align-top border-b border-gray-50 hover:bg-gray-50/80">
+                    <td className="whitespace-nowrap px-2 py-2.5 text-gray-700">{formatTime(row.login_at)}</td>
+                    <td className="px-2 py-2.5 font-medium text-gray-900">{row.user_name || '—'}</td>
+                    <td className="px-2 py-2.5 text-gray-600">{row.user_email || '—'}</td>
+                    <td className="px-2 py-2.5 capitalize text-gray-700">{row.user_role || '—'}</td>
+                    <td className="px-2 py-2.5 text-gray-700">{row.user_department || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-2.5 text-gray-700">{formatTime(row.logout_at)}</td>
+                    <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-gray-700">
+                      {formatDuration(row.duration_minutes)}
+                    </td>
+                    <td className="px-2 py-2.5 tabular-nums text-gray-700">{row.pages_visited ?? 0}</td>
+                    <td className="px-2 py-2.5">
+                      {online ? (
+                        <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">Online</span>
+                      ) : (
+                        <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-semibold text-gray-600">Ended</span>
+                      )}
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>

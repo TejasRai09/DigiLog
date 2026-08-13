@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { MdArrowBack, MdDarkMode, MdLightMode, MdDashboard, MdCloud, MdScience } from 'react-icons/md';
+import { MdArrowBack, MdDarkMode, MdLightMode, MdDashboard, MdCloud, MdScience, MdShoppingCart } from 'react-icons/md';
+import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
+import { BiKeyMetricBox, BiFilterBarLayout, BiViewTabs } from '../../components/bi/BiLayoutElements';
 import usePurchyFilters from '../../hooks/usePurchyFilters';
 import usePurchyGrowerPerformance from '../../hooks/usePurchyGrowerPerformance';
 import usePurchyDishonour from '../../hooks/usePurchyDishonour';
@@ -174,103 +175,75 @@ export default function PurchyAnalysisDashboard() {
 
   return (
     <div className={`flex h-[calc(100dvh-3.75rem)] min-h-0 flex-col overflow-hidden ${pageBg}`}>
-      <header className={`z-30 shrink-0 border-b px-3 py-2 sm:px-4 ${
-        isDarkMode ? 'border-slate-700 bg-slate-900/95' : 'border-slate-200 bg-white/95'
-      }`}>
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3">
-          <Link
-            to="/bi"
-            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-semibold transition-colors ${
-              isDarkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'
-            }`}
-          >
-            <MdArrowBack className="h-4 w-4" />
-            BI Control Tower
-          </Link>
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <MdDashboard className={`h-5 w-5 shrink-0 ${isDarkMode ? 'text-violet-400' : 'text-violet-600'}`} />
-            <h1 className={`truncate text-lg font-black ${headerText}`}>Purchy Analysis</h1>
+      <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BiDashboardHeader
+            title="Purchy Analysis"
+            subtitle="Grower Performance & Dishonour Intelligence"
+            icon={MdShoppingCart}
+            iconColor="#7c3aed"
+            isDarkMode={isDarkMode}
+          />
+          <div className="flex min-w-0 shrink items-center gap-4">
+            <BiKeyMetricBox
+              value={growerDetail?.total ?? 0}
+              title="Total Growers"
+              subtitle="All"
+              isDarkMode={isDarkMode}
+            />
+          </div>
+        </div>
+
+        <BiFilterBarLayout isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}>
+          <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          <div
-            className={`flex items-center rounded-lg border p-0.5 ${
-              isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-200 bg-slate-50'
-            }`}
-          >
+          <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+
+          <div className={`flex items-center gap-1 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${
+            isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'
+          }`}>
             <button
               type="button"
               onClick={() => setUseStaticData(false)}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors ${
+              className={`shrink-0 flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                 !useStaticData
                   ? 'bg-violet-600 text-white shadow-sm'
-                  : isDarkMode
-                    ? 'text-slate-300 hover:bg-slate-700'
-                    : 'text-slate-600 hover:bg-white'
+                  : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
               }`}
             >
-              <MdCloud className="h-3.5 w-3.5" />
-              Live
+              <MdCloud className="h-3.5 w-3.5" /> Live
             </button>
             <button
               type="button"
               onClick={() => setUseStaticData(true)}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-bold transition-colors ${
+              className={`shrink-0 flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                 useStaticData
                   ? 'bg-amber-500 text-white shadow-sm'
-                  : isDarkMode
-                    ? 'text-slate-300 hover:bg-slate-700'
-                    : 'text-slate-600 hover:bg-white'
+                  : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
               }`}
             >
-              <MdScience className="h-3.5 w-3.5" />
-              Sample
+              <MdScience className="h-3.5 w-3.5" /> Sample
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsDarkMode((d) => !d)}
-            className={`rounded-lg p-2 ${isDarkMode ? 'text-slate-300 hover:bg-slate-800' : 'text-slate-600 hover:bg-slate-100'}`}
-            aria-label="Toggle dark mode"
-          >
-            {isDarkMode ? <MdLightMode className="h-5 w-5" /> : <MdDarkMode className="h-5 w-5" />}
-          </button>
-        </div>
-      </header>
+        </BiFilterBarLayout>
+      </div>
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden px-3 py-2 sm:px-4">
-        {showingStatic && (
-          <div className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] leading-snug ${
-            isDarkMode
-              ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
-              : 'border-amber-200 bg-amber-50 text-amber-800'
-          }`}>
-            {useStaticData
-              ? 'Sample data — switch to Live for database.'
-              : 'Backend empty — showing sample data.'}
-          </div>
-        )}
-
-        <div className={`shrink-0 overflow-x-auto rounded-lg border p-0.5 ${isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-          <div className="flex min-w-max gap-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-bold transition-colors sm:px-3 sm:text-xs ${
-                activeTab === tab.id
-                  ? 'bg-violet-600 text-white shadow-sm'
-                  : isDarkMode
-                    ? 'text-slate-300 hover:bg-slate-700'
-                    : 'text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-          </div>
-        </div>
 
         {loadError && (
           <div className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">

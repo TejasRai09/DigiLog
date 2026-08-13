@@ -11,6 +11,8 @@
     "@azure/msal-browser": "^3.14.0",
     "@azure/msal-react": "^2.0.22",
     "@react-oauth/google": "^0.12.2",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "axios": "^1.7.2",
     "lucide-react": "^1.25.0",
     "react": "^18.3.1",
@@ -20,6 +22,7 @@
     "react-icons": "^5.2.1",
     "react-router-dom": "^6.30.4",
     "recharts": "^3.8.1",
+    "three": "^0.185.1",
     "xlsx": "npm:@e965/xlsx@0.20.3"
   },
   "devDependencies": {

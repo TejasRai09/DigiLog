@@ -85,11 +85,28 @@ const getYardStats = async (req, res) => {
       params,
     );
 
-    // Previous Stats Query — full comparison season window (Season vs Season)
+    // Previous Stats Query:
+    // 1) MTD/STD/YTD → same calendar window shifted −1 year (pyFrom/pyTo)
+    // 2) Else Comp Season → full season_mapping window (Season vs Season)
     let prevRow = null;
-    if (compSeason) {
-      const prevConditions = [];
-      const prevParams = [];
+    let compareMode = null;
+    const prevConditions = [];
+    const prevParams = [];
+    const pyFrom = req.query.pyFrom ? String(req.query.pyFrom).slice(0, 10) : null;
+    const pyTo = req.query.pyTo ? String(req.query.pyTo).slice(0, 10) : null;
+
+    if (pyFrom || pyTo) {
+      compareMode = 'priorYear';
+      if (pyFrom) {
+        prevConditions.push('`Date` >= ?');
+        prevParams.push(pyFrom);
+      }
+      if (pyTo) {
+        prevConditions.push('`Date` <= ?');
+        prevParams.push(pyTo);
+      }
+    } else if (compSeason) {
+      compareMode = 'compSeason';
       const [[mapping]] = await pool.query(
         'SELECT start_date, end_date FROM season_mapping WHERE season_label = ?',
         [compSeason]
@@ -102,41 +119,41 @@ const getYardStats = async (req, res) => {
         prevConditions.push('`Date` <= ?');
         prevParams.push(mapping.end_date);
       }
+    }
+
+    if (prevConditions.length) {
       if (deliveryPoint && deliveryPoint !== 'All') {
         prevConditions.push('`DeliveryPoint` = ?');
         prevParams.push(deliveryPoint);
       }
-
-      if (prevConditions.length) {
-        const [[pRow]] = await pool.query(
-          `SELECT
-            COUNT(*)                                                          AS totalSamples,
-            ROUND(AVG(\`MiddleBrix\`), 2)                                     AS avgBrix,
-            SUM(\`MiddleBrix\`)                                               AS sumBrix,
-            SUM(CASE WHEN \`DiseasedCane\` = 'Yes' THEN 1 ELSE 0 END)        AS countDiseased,
-            ROUND(
-              SUM(CASE WHEN \`DiseasedCane\` = 'Yes' THEN 1 ELSE 0 END)
-              / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctDiseased,
-            SUM(CASE WHEN \`StaleCane\` = 'Yes' THEN 1 ELSE 0 END)           AS countStale,
-            ROUND(
-              SUM(CASE WHEN \`StaleCane\` = 'Yes' THEN 1 ELSE 0 END)
-              / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctStale,
+      const [[pRow]] = await pool.query(
+        `SELECT
+          COUNT(*)                                                          AS totalSamples,
+          ROUND(AVG(\`MiddleBrix\`), 2)                                     AS avgBrix,
+          SUM(\`MiddleBrix\`)                                               AS sumBrix,
+          SUM(CASE WHEN \`DiseasedCane\` = 'Yes' THEN 1 ELSE 0 END)        AS countDiseased,
+          ROUND(
+            SUM(CASE WHEN \`DiseasedCane\` = 'Yes' THEN 1 ELSE 0 END)
+            / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctDiseased,
+          SUM(CASE WHEN \`StaleCane\` = 'Yes' THEN 1 ELSE 0 END)           AS countStale,
+          ROUND(
+            SUM(CASE WHEN \`StaleCane\` = 'Yes' THEN 1 ELSE 0 END)
+            / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctStale,
+          SUM(CASE WHEN \`DiseasedCane\` = 'Yes'
+                     OR \`StaleCane\`    = 'Yes' THEN 1 ELSE 0 END)        AS countAffected,
+          ROUND(
             SUM(CASE WHEN \`DiseasedCane\` = 'Yes'
-                       OR \`StaleCane\`    = 'Yes' THEN 1 ELSE 0 END)        AS countAffected,
-            ROUND(
-              SUM(CASE WHEN \`DiseasedCane\` = 'Yes'
-                         OR \`StaleCane\`    = 'Yes' THEN 1 ELSE 0 END)
-              / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctAffected,
-            SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)             AS countBrixGt18,
-            ROUND(
-              SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)
-              / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctBrixGt18
-          FROM \`brix_yard_sampling\`
-          WHERE ${prevConditions.join(' AND ')}`,
-          prevParams,
-        );
-        prevRow = pRow;
-      }
+                       OR \`StaleCane\`    = 'Yes' THEN 1 ELSE 0 END)
+            / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctAffected,
+          SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)             AS countBrixGt18,
+          ROUND(
+            SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)
+            / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctBrixGt18
+        FROM \`brix_yard_sampling\`
+        WHERE ${prevConditions.join(' AND ')}`,
+        prevParams,
+      );
+      prevRow = pRow;
     }
 
     const calcChange = (curr, prev) => {
@@ -204,15 +221,40 @@ const getYardStats = async (req, res) => {
       };
     });
 
-    const [[maxDateRes]] = await pool.query(`SELECT MAX(\`Date\`) AS maxDate FROM \`brix_yard_sampling\``);
+    const [[rangeRes]] = await pool.query(
+      `SELECT
+         DATE_FORMAT(MIN(\`Date\`), '%Y-%m-%d') AS minDate,
+         DATE_FORMAT(MAX(\`Date\`), '%Y-%m-%d') AS maxDate
+       FROM \`brix_yard_sampling\``
+    );
+
+    const toYmd = (v) => {
+      if (!v) return null;
+      if (typeof v === 'string') return v.slice(0, 10);
+      if (v instanceof Date && !isNaN(v)) {
+        const y = v.getFullYear();
+        const m = String(v.getMonth() + 1).padStart(2, '0');
+        const d = String(v.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return String(v).slice(0, 10);
+    };
 
     res.json({
       stats,
       hasCompare,
-      compSeason: compSeason || null,
+      compareMode: hasCompare ? compareMode : null,
+      compSeason: compareMode === 'compSeason' ? (compSeason || null) : null,
+      pyFrom: compareMode === 'priorYear' ? pyFrom : null,
+      pyTo: compareMode === 'priorYear' ? pyTo : null,
       availableSeasons,
       seasonMapping,
-      dateRange: { maxDate: maxDateRes.maxDate }
+      dateRange: {
+        minDate: rangeRes.minDate,
+        maxDate: rangeRes.maxDate,
+        effectiveFrom: toYmd(effectiveFrom) || rangeRes.minDate,
+        effectiveTo: toYmd(effectiveTo) || rangeRes.maxDate,
+      },
     });
   } catch (err) {
     console.error('[bi/brix-yard/stats]', err);
@@ -400,7 +442,7 @@ const getYardTableData = async (req, res) => {
         \`VarietyOfCane\` AS variety
       FROM \`brix_yard_sampling\`
       ${clause}
-      ORDER BY \`Date\` DESC
+      ORDER BY \`timestamp\` DESC
       LIMIT 1000`,
       params,
     );
