@@ -55,8 +55,8 @@ const FORM_CONFIG = {
   prod_clarification: { table: 'prod_clarification', pattern: 'G', tsCol: 'timestamp' },
 
   // Brix Sampling Forms
-  brix_yard_sampling:  { table: 'brix_yard_sampling', pattern: 'G', tsCol: 'timestamp' },
-  brix_field_sampling: { table: 'brix_field_sampling', pattern: 'G', tsCol: 'timestamp' },
+  brix_yard_sampling:  { table: 'brix_yard_sampling', pattern: 'G', tsCol: 'timestamp', sortByTs: true },
+  brix_field_sampling: { table: 'brix_field_sampling', pattern: 'G', tsCol: 'timestamp', sortByTs: true },
 };
 
 // ─── Access guard ─────────────────────────────────────────────
@@ -542,9 +542,12 @@ const getRecords = async (req, res) => {
     const [[{ total }]] = await pool.query(
       `SELECT COUNT(*) AS total FROM \`${config.table}\``
     );
+    const orderBy = config.sortByTs
+      ? `ORDER BY (\`${config.tsCol}\` IS NULL) ASC, \`${config.tsCol}\` DESC`
+      : `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC`;
     const [rows] = await pool.query(
       `SELECT * FROM \`${config.table}\`
-       ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC
+       ${orderBy}
        LIMIT ${limit} OFFSET ${offset}`
     );
     res.json({ total, page, limit, tsCol: config.tsCol, records: rows });

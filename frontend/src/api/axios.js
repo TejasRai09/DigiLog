@@ -17,10 +17,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT to every request; let browser set multipart boundary for FormData
+// Attach JWT + tracking session id to every request; let browser set multipart boundary for FormData
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  const sessionId = sessionStorage.getItem('digilog_session_id') || localStorage.getItem('digilog_session_id');
+  if (sessionId) config.headers['X-Session-Id'] = sessionId;
   if (config.data instanceof FormData) delete config.headers['Content-Type'];
   return config;
 });
@@ -43,6 +45,8 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && !isAuthAttempt(err.config?.url)) {
       localStorage.removeItem('token');
+      sessionStorage.removeItem('digilog_session_id');
+      localStorage.removeItem('digilog_session_id');
       window.location.href = '/?login=1';
     }
     return Promise.reject(err);

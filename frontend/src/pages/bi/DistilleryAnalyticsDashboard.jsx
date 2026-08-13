@@ -14,6 +14,7 @@ import {
   MdFilterList,
   MdExpandMore,
   MdArrowBack,
+  MdScience,
 } from 'react-icons/md';
 import { ResponsiveContainer, LineChart, AreaChart, Line, Area, YAxis, Tooltip } from 'recharts';
 import api from '../../api/axios';
@@ -32,6 +33,8 @@ import {
   filterSeasonCompareRowsBySeason,
 } from '../../utils/distilleryBiComparison';
 import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
+import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
+import { BiKeyMetricBox, BiViewTabs, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 
 /** Raw table columns — aligned with `mapRowToBiPoint` / `distillery_operations` (BI API). */
 const DISTILLERY_BI_RAW_COLUMNS = [
@@ -589,6 +592,18 @@ export default function DistilleryAnalyticsDashboard() {
     return { min: isos[0] || null, max: isos[isos.length - 1] || null };
   }, [rawData]);
 
+  const initialFallbackRef = useRef(false);
+  useEffect(() => {
+    if (initialFallbackRef.current) return;
+    if (loading) return;
+    if (!dataBounds.max || !dataBounds.min) return;
+    initialFallbackRef.current = true;
+    setRangePreset('Custom');
+    setFromDate(dataBounds.min);
+    setToDate(dataBounds.max);
+  }, [loading, dataBounds.min, dataBounds.max]);
+
+  // Update dates when preset changes
   useEffect(() => {
     if (!dataBounds.max) return;
     const ref = new Date(`${dataBounds.max}T12:00:00`);
@@ -759,8 +774,6 @@ export default function DistilleryAnalyticsDashboard() {
   };
 
   const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800';
-  const headerClasses = isDarkMode ? 'text-slate-100' : 'text-slate-900';
-  const subheadClasses = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const cardClasses = isDarkMode ? 'border-slate-700 bg-slate-800 shadow-slate-900/50' : 'border-slate-200 bg-white shadow-sm';
   const textClasses = isDarkMode
     ? {
@@ -814,102 +827,31 @@ export default function DistilleryAnalyticsDashboard() {
       ) : null}
       <div className="mb-0 flex shrink-0 flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <Link
-            to="/bi"
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
-              isDarkMode
-                ? 'border-slate-600 bg-slate-800 text-blue-400 hover:bg-slate-700'
-                : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
-            }`}
-          >
-            <MdArrowBack className="h-3.5 w-3.5" />
-            BI Control Tower
-          </Link>
+          <BiDashboardHeader
+            title="Distillery Operations"
+            subtitle="Enterprise Analytics & PoP Performance"
+            icon={MdScience}
+            iconColor="#6366f1"
+            isDarkMode={isDarkMode}
+          />
 
-          <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdDashboard className="h-3.5 w-3.5" />
-              Visual Dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('table')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                activeTab === 'table'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdTableChart className="h-3.5 w-3.5" />
-              Raw Data Table
-            </button>
+          <div className="flex items-center gap-4">
+            <BiKeyMetricBox
+              value={filteredData.length}
+              title="Operating Days"
+              subtitle={rangePreset === 'Custom' ? timeFilterLabel : rangePreset}
+              isDarkMode={isDarkMode}
+              tooltip={`${filteredData.length} operating days — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
+            />
+            <BiViewTabs
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              isDarkMode={isDarkMode}
+            />
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <div className="grid grid-cols-[1fr_auto] items-stretch gap-x-3 gap-y-0.5">
-            <h1
-              className={`col-start-1 row-start-1 self-center text-xl font-black tracking-tight sm:text-2xl ${headerClasses}`}
-            >
-              Distillery Operations
-            </h1>
-            <p
-              className={`col-start-1 row-start-2 self-center text-[11px] font-bold leading-snug ${subheadClasses}`}
-            >
-              Enterprise Analytics & PoP Performance
-            </p>
-            <div
-              className={`col-start-2 row-start-1 row-span-2 flex w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center sm:w-[4.75rem] ${
-                isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-300 bg-slate-100'
-              }`}
-              title={`${filteredData.length} operating days — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
-            >
-              <span
-                className={`text-3xl font-black leading-none tabular-nums sm:text-4xl ${
-                  isDarkMode ? 'text-slate-100' : 'text-slate-900'
-                }`}
-              >
-                {filteredData.length}
-              </span>
-              <span className={`mt-1 text-[8px] font-bold leading-tight ${subheadClasses}`}>Operating Days</span>
-              <span className={`max-w-full truncate text-[7px] font-semibold leading-tight ${textClasses.muted}`}>
-                {rangePreset === 'Custom' ? 'Custom' : rangePreset}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex w-full min-w-0 flex-col gap-2 px-0.5 py-1 lg:w-auto lg:items-end lg:py-1.5">
-          <div
-            className={`distillery-filter-bar relative flex w-full min-w-0 max-w-full items-center gap-2 overflow-x-hidden rounded-2xl border p-2 shadow-sm backdrop-blur-md sm:gap-2.5 sm:p-2.5 ${
-              isDarkMode
-                ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
-                : 'border-purple-200 bg-white/80 shadow-purple-100/50'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`shrink-0 rounded-xl border p-1.5 transition-colors sm:p-2 ${
-                isDarkMode
-                  ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700'
-                  : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'
-              }`}
-            >
-              {isDarkMode ? <MdLightMode className="h-4 w-4" /> : <MdDarkMode className="h-4 w-4" />}
-            </button>
-
-            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-
+        <BiFilterBarLayout isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}>
             <div className="shrink-0">
               <OpModeFilter
                 isOpen={isModeOpen}
@@ -1014,9 +956,7 @@ export default function DistilleryAnalyticsDashboard() {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-        </div>
+        </BiFilterBarLayout>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto max-md:pb-1 md:flex md:flex-col md:overflow-y-hidden">

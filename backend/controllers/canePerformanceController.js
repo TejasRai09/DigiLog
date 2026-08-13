@@ -396,9 +396,35 @@ const getGate1Data = async (req, res) => {
           GROUP BY [C.Name] ORDER BY holdingHrs DESC
         `);
 
+      const dateRangeResult = await pool.request().query(`
+        SELECT
+          CONVERT(varchar(10), (
+            SELECT MIN(d) FROM (
+              SELECT MIN(CAST(m_date AS DATE)) AS d FROM G_CTC WHERE m_date IS NOT NULL
+              UNION ALL
+              SELECT MIN(CAST([Weighment Date (Purchy)] AS DATE)) FROM CntPerformance WHERE [Weighment Date (Purchy)] IS NOT NULL
+            ) x
+          ), 23) AS minDate,
+          CONVERT(varchar(10), (
+            SELECT MAX(d) FROM (
+              SELECT MAX(CAST(m_date AS DATE)) AS d FROM G_CTC WHERE m_date IS NOT NULL
+              UNION ALL
+              SELECT MAX(CAST([Weighment Date (Purchy)] AS DATE)) FROM CntPerformance WHERE [Weighment Date (Purchy)] IS NOT NULL
+            ) x
+          ), 23) AS maxDate
+      `);
+      const dr = dateRangeResult.recordset[0] || {};
+      const dateRange = {
+        minDate: dr.minDate || null,
+        maxDate: dr.maxDate || null,
+        effectiveFrom: dr.minDate || null,
+        effectiveTo: dr.maxDate || null,
+      };
+
       res.json({
         modeData: modePieResult.recordset,
         trendData: trendResult.recordset,
+        dateRange,
         kpis: {
           totalChallan:  kpiResult.recordset[0]?.totalChallan  || 0,
           yardWaiting:   kpiResult.recordset[0]?.yardWaiting   || 0,

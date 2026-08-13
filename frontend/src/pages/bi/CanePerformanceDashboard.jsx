@@ -1,22 +1,125 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area,
   ComposedChart, ScatterChart, Scatter, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Activity, Truck, MapPin, Clock,
   Database, BarChart2, GitMerge, ArrowRightLeft, Sun, Moon, Filter, Loader2,
   Sprout, DoorOpen, Warehouse, Scale, Factory, Cog, ArrowRight, Award,
   Search, Trophy, Building2, ShieldCheck, Eye, List, LayoutGrid,
-  ChevronLeft, ChevronRight, Target, CheckCircle2, AlertCircle, Package
+  ChevronLeft, ChevronRight, Target, CheckCircle2, AlertCircle, Package,
+  AlertTriangle, FileText, Info
 } from "lucide-react";
 import api from "../../api/axios";
+import BiDashboardHeader from "../../components/bi/BiDashboardHeader";
+import BiKpiCard from "../../components/bi/BiKpiCard";
+import { BiKeyMetricBox, BiFilterBarLayout } from "../../components/bi/BiLayoutElements";
+import ProcurementCutToCrushScene from "../../components/bi/ProcurementCutToCrushScene";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
 const DATES = ["01-Jul","02-Jul","03-Jul","04-Jul","05-Jul","06-Jul","07-Jul","08-Jul","09-Jul","10-Jul"];
 const COLORS = ["#3b82f6","#10b981","#f59e0b","#ef4444","#8b5cf6","#06b6d4","#f97316"];
+
+/** Tooltip copy for KPI / section info buttons (matched by title). */
+const SECTION_INFO = {
+  "Total Cane Purchased (Qtls)": "Total cane quantity (Qtls) purchased at gate from g_ctc.purchase_qtl for the selected date range.",
+  "No. of Parchy": "Count of purchy slips recorded in the selected date range.",
+  "Avg Parchy Size (Qtls)": "Average cane quantity per purchy (total cane ÷ number of parchies).",
+  "Avg Parchy Overrun (Qtls)": "Average excess over the standard mode capacity (avg purchase qty − standard mode qty).",
+  "Cane Purchased (Qtls)": "Total cane quantity (Qtls) purchased at centres from cnt_performance for the selected date range.",
+  "No. of Purchy": "Count of centre purchy slips in the selected date range.",
+  "Avg Parchi Size (Qtls)": "Average cane quantity per centre purchy (total cane ÷ purchy count).",
+  "Trips (C to G)": "Distinct challan / trip count from centre to gate in the selected date range.",
+  "Avg Parchi Overrun (Qtls)": "Average overrun vs standard mode capacity at centres (avg cane qty − standard).",
+  "Total Vehicles": "Total gate vehicles across all transport modes (count of purchyno in g_ctc).",
+  "Avg Yard Holding (Hrs)": "Average of mode-wise yard holding times (yard_holding_time) at gate.",
+  "Max Yard Holding (Hrs)": "Highest yard holding time (Hrs) observed across modes in the selected range.",
+  "Vehicles Exceeding (>8 Hrs)": "Count of vehicles whose yard holding time exceeded the 8-hour standard.",
+  "Vehicles Handled": "Total vehicles / parchies handled at centres in the selected date range.",
+  "Avg Holding Time (Hrs)": "Average centre holding time (holding_time_center) across transport modes.",
+  "Purchase Split - Modewise": "Share of cane purchased by transport mode (donut). Values are mode-wise sums for the selected range.",
+  "Cane Purchase Trend": "Daily total cane purchased (Qtls) over the selected date range.",
+  "Parchi Overrun Trend (Qtls)": "Daily average parchie overrun (Qtls) by transport mode for the selected date range.",
+  "Average Yard Holding Time": "Daily average yard holding time (Hrs) by transport mode from g_ctc.",
+  "Vehicles Exceeding Standard Holding Time": "Daily count of vehicles with yard holding time greater than 8 hours, by mode.",
+  "Top 10 Centers - Cane Purchase": "Centres with the highest total cane purchase (Qtls). Bars = cane; line = avg parchie size.",
+  "Bottom 10 Centers - Cane Purchase": "Centres with the lowest total cane purchase (Qtls). Bars = cane; line = avg parchie size.",
+  "Mode wise Split": "Vehicle / parchie count split by transport mode for the selected date range.",
+  "Vehicle Handling Trend (Mode wise)": "Daily vehicle handling volume by transport mode at centres.",
+  "Centers with Most Vehicle Handled (Top 10)": "Top 10 centres by total vehicles handled, broken down by transport mode.",
+  "Centers with Least Vehicle Handled (Top 10)": "Bottom 10 centres by total vehicles handled, broken down by transport mode.",
+  "Avg Holding Time at Centers - Trend": "Daily average centre holding time (Hrs) by transport mode.",
+  "Vehicle vs Center Holding Time": "Scatter of centres: average holding time (Hrs) vs number of vehicles, coloured by mode.",
+  "Step 1–2 · Sourcing": "Gate and centre vehicle / cane volumes by mode for the sourcing stage.",
+  "Step 3 · Yard Holding": "Yard waiting metrics and vehicles exceeding standard holding time.",
+  "Step 4–5 · Mill House": "Mill-side waiting and unloading metrics before crushing.",
+  "Farm": "Origin of cane supply. Gate vehicles table shows direct grower arrivals by mode.",
+  "CENTERS": "Purchase centres collecting cane. Shows trips, avg time, and centre holding by mode.",
+  "YARD": "Factory yard queue before weighment. Avg waiting time and vehicles exceeding 8 hours.",
+  "MILL PREMISE": "Mill-side waiting: donga time, cane holding, and vehicles exceeding 0.5 hours.",
+  "Total Cane (Q)": "Total cane quantity (Qtls) across gate and centre procurement for the selected range.",
+  "Total Trips": "Total centre-to-gate / challan trips in the selected date range.",
+  "Avg Waiting Time (Hrs)": "Average yard waiting time (Hrs) across gate vehicles.",
+  "Yard Dev. (>8H)": "Count of vehicles whose yard holding exceeded 8 hours.",
+  "Mill Dev. (>0.5H)": "Count of vehicles whose mill/donga wait exceeded 0.5 hours.",
+  "Waiting Time (Hrs)": "Average yard waiting time for vehicles before weighment.",
+  "Cane Holding Time (Hrs)": "Combined cane holding time through yard and mill stages.",
+  "Time at Donga (Hrs)": "Average time vehicles spend at the donga / feeder table.",
+  "Truck Holding Time (H)": "Average truck holding time at centres (Hrs).",
+};
+
+function resolveSectionInfo(title, info) {
+  if (info) return info;
+  if (!title) return null;
+  if (SECTION_INFO[title]) return SECTION_INFO[title];
+  if (/QCART|QTROLLY|QTRUCK/i.test(String(title))) {
+    return `Metrics for transport mode ${title} within the selected date range and filters.`;
+  }
+  return `Explains what “${title}” shows for the selected date range and filters.`;
+}
+
+/** Top-right info (i) button with click popover. */
+const InfoTip = ({ text, dm, className = "" }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  if (!text) return null;
+  return (
+    <div ref={ref} className={`relative shrink-0 ${className}`}>
+      <button
+        type="button"
+        aria-label="Section information"
+        title="What is this?"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        className={`w-5 h-5 rounded-full flex items-center justify-center border transition
+          ${dm
+            ? "border-slate-600 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+            : "border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-700"}`}
+      >
+        <Info className="w-3 h-3" strokeWidth={2.5} />
+      </button>
+      {open && (
+        <div
+          role="tooltip"
+          className={`absolute right-0 top-full mt-1.5 z-50 w-64 max-w-[min(16rem,80vw)] rounded-xl border p-2.5 text-[11px] leading-relaxed font-medium shadow-lg
+            ${dm ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-600"}`}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const procurementCards = { totalChallan:9999, truckTransit:99.9, yardWaiting:55.5, waCane:44.4, unloading:11.1, truckHolding:88.8 };
 const procTableMode = [
@@ -51,13 +154,18 @@ const dbRows = Array.from({length:20},(_,i)=>({
   holding:+(2+Math.random()*4).toFixed(2),truckH:+(1+Math.random()*5).toFixed(2)
 }));
 
-const KPICard = ({label,value,unit="",icon:Icon,color="blue",darkMode})=>{
+const KPICard = ({label,value,unit="",icon:Icon,color="blue",darkMode,info})=>{
   const bg=darkMode?"bg-slate-900":"bg-white";
   const bdr=darkMode?"border-slate-800":"border-slate-200/80";
   const cols={blue:"text-blue-500",green:"text-emerald-500",amber:"text-amber-500",red:"text-red-500",violet:"text-violet-500"};
+  const tip = resolveSectionInfo(label, info);
   return(
-    <div className={`${bg} rounded-2xl border ${bdr} p-4 shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col gap-2 transition-transform hover:-translate-y-0.5`}>
-      <div className="flex items-center justify-between">
+    <div className={`${bg} relative rounded-2xl border ${bdr} p-4 flex flex-col gap-2 transition-all duration-200 hover:-translate-y-1`}
+      style={{ boxShadow: cardShadow(darkMode) }}>
+      <div className="absolute top-2.5 right-2.5 z-10">
+        <InfoTip text={tip} dm={darkMode} />
+      </div>
+      <div className="flex items-center justify-between pr-6">
         <span className={`text-[10px] font-bold uppercase tracking-wider ${darkMode?"text-slate-400":"text-slate-500"}`}>{label}</span>
         {Icon&&<span className={`${cols[color]||cols.blue}`}><Icon className="w-4 h-4"/></span>}
       </div>
@@ -69,15 +177,20 @@ const KPICard = ({label,value,unit="",icon:Icon,color="blue",darkMode})=>{
   );
 };
 
-const ChartCard=({title,children,darkMode,className=""})=>(
-  <div className={`${darkMode?"bg-slate-900 border-slate-800":"bg-white border-slate-200/80"} rounded-2xl border p-4 shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] ${className}`}>
-    {title&&<p className={`text-[10px] font-bold uppercase tracking-wider mb-3 ${darkMode?"text-slate-400":"text-slate-500"}`}>{title}</p>}
+const ChartCard=({title,children,darkMode,className="",info})=>(
+  <div className={`${darkMode?"bg-slate-900 border-slate-800":"bg-white border-slate-200/80"} relative rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 ${className}`}
+    style={{ boxShadow: cardShadow(darkMode) }}>
+    <div className="absolute top-2.5 right-2.5 z-10">
+      <InfoTip text={resolveSectionInfo(title, info)} dm={darkMode} />
+    </div>
+    {title&&<p className={`text-[10px] font-bold uppercase tracking-wider mb-3 pr-6 ${darkMode?"text-slate-400":"text-slate-500"}`}>{title}</p>}
     {children}
   </div>
 );
 
 const DTable=({cols,rows,darkMode})=>(
-  <div className={`rounded-2xl border overflow-hidden ${darkMode?"border-slate-800":"border-slate-200/80"}`}>
+  <div className={`rounded-2xl border overflow-hidden ${darkMode?"border-slate-800 bg-slate-900":"border-slate-200/80 bg-white"}`}
+    style={{ boxShadow: cardShadow(darkMode) }}>
     <div className="overflow-x-auto">
       <table className="w-full text-xs text-left">
         <thead className={`${darkMode?"bg-slate-800/60 text-slate-400":"bg-slate-50 text-slate-500"} uppercase text-[10px]`}>
@@ -117,11 +230,17 @@ const tone = (name) => {
   return { ...t, grad: `linear-gradient(135deg, ${t.from}, ${t.to})` };
 };
 const cardShadow = (dm) => (dm
-  ? "0 10px 26px -18px rgba(0,0,0,.95), 0 2px 6px -4px rgba(0,0,0,.6)"
-  : "0 10px 26px -18px rgba(15,23,42,.45), 0 2px 6px -4px rgba(15,23,42,.08)");
+  ? "0 6px 14px -4px rgba(0,0,0,.55), 0 22px 48px -14px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.05)"
+  : "0 6px 14px -4px rgba(15,23,42,.12), 0 22px 48px -14px rgba(15,23,42,.28), 0 2px 6px rgba(15,23,42,.06)");
 
-const StageCard = ({ icon:Icon, toneName="blue", step, title, caption, stats=[], dm, width="w-[188px]" }) => {
+/** Tailwind twin of cardShadow for light-mode-only className usage */
+const CARD_POP = "shadow-[0_6px_14px_-4px_rgba(15,23,42,.12),0_22px_48px_-14px_rgba(15,23,42,.28),0_2px_6px_rgba(15,23,42,.06)]";
+const CARD_POP_DM = "shadow-[0_6px_14px_-4px_rgba(0,0,0,.55),0_22px_48px_-14px_rgba(0,0,0,.75)]";
+const cardPopCls = (dm) => (dm ? CARD_POP_DM : CARD_POP);
+
+const StageCard = ({ icon:Icon, toneName="blue", step, title, caption, stats=[], dm, width="w-[188px]", info }) => {
   const t = tone(toneName);
+  const tip = resolveSectionInfo(title, info);
   return (
     <div className={`group relative ${width} shrink-0 rounded-2xl border overflow-hidden transition-all duration-300 hover:-translate-y-1
       ${dm ? "bg-slate-900/90 border-slate-800" : "bg-white border-slate-200/70"}`}
@@ -130,13 +249,16 @@ const StageCard = ({ icon:Icon, toneName="blue", step, title, caption, stats=[],
       <span className="pointer-events-none absolute -right-9 -top-9 w-24 h-24 rounded-full blur-2xl opacity-[.16] transition-opacity duration-300 group-hover:opacity-40"
         style={{ background: t.line }} />
 
-      {step != null && (
-        <span className="absolute top-2.5 right-2.5 w-[18px] h-[18px] rounded-full text-[9px] font-black flex items-center justify-center text-white"
-          style={{ background: t.grad, boxShadow: `0 2px 8px ${t.line}66` }}>{step}</span>
-      )}
+      <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5">
+        {step != null && (
+          <span className="w-[18px] h-[18px] rounded-full text-[9px] font-black flex items-center justify-center text-white"
+            style={{ background: t.grad, boxShadow: `0 2px 8px ${t.line}66` }}>{step}</span>
+        )}
+        <InfoTip text={tip} dm={dm} />
+      </div>
 
       <div className="relative p-3">
-        <div className="flex items-center gap-2.5 pr-4">
+        <div className="flex items-center gap-2.5 pr-10">
           <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white"
             style={{ background: t.grad, boxShadow: `0 8px 16px -8px ${t.line}` }}>
             <Icon className="w-[19px] h-[19px]" />
@@ -256,12 +378,13 @@ const StatTile = ({ label, value, unit, dm, toneName="blue", children }) => {
   );
 };
 
-const PanelCard = ({ icon:Icon, toneName="blue", title, caption, dm, children }) => {
+const PanelCard = ({ icon:Icon, toneName="blue", title, caption, dm, children, info }) => {
   const t = tone(toneName);
+  const tip = resolveSectionInfo(title, info);
   return (
-    <div className={`rounded-2xl border overflow-hidden ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"}`}
+    <div className={`rounded-2xl border overflow-visible transition-all duration-200 hover:-translate-y-0.5 ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"}`}
       style={{ boxShadow: cardShadow(dm) }}>
-      <div className="relative flex items-center gap-2.5 px-3.5 py-3">
+      <div className="relative flex items-center gap-2.5 px-3.5 py-3 pr-10">
         <span className="absolute inset-0 opacity-[.09]" style={{ background: t.grad }} />
         <span className="absolute inset-x-0 bottom-0 h-[2px]" style={{ background: t.grad }} />
         <span className="relative w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
@@ -271,6 +394,9 @@ const PanelCard = ({ icon:Icon, toneName="blue", title, caption, dm, children })
         <div className="relative min-w-0">
           <p className={`text-[11.5px] font-black leading-tight ${dm?"text-slate-100":"text-slate-900"}`}>{title}</p>
           {caption && <p className="text-[9px] font-semibold text-slate-400 truncate">{caption}</p>}
+        </div>
+        <div className="absolute top-2.5 right-2.5 z-10">
+          <InfoTip text={tip} dm={dm} />
         </div>
       </div>
       <div className="p-3.5 space-y-3.5">{children}</div>
@@ -288,9 +414,11 @@ const SubLabel = ({ color, children }) => (
 
 /** Sidebar KPI row with an icon chip, used on the Center Purchase tab. */
 const SideStat = ({ icon: Icon, label, value, tint = "#2563eb", dm, children }) => (
-  <div className={`flex items-start gap-2.5 rounded-xl px-2.5 py-2 ${dm ? "bg-slate-800/50" : "bg-slate-50"}`}>
+  <div className={`flex items-start gap-2.5 rounded-xl px-2.5 py-2 border transition-all duration-200 hover:-translate-y-0.5
+    ${dm ? "bg-slate-800/50 border-slate-700/80" : "bg-white border-slate-100"}`}
+    style={{ boxShadow: cardShadow(dm) }}>
     <span className="w-8 h-8 rounded-xl flex items-center justify-center text-white shrink-0"
-      style={{ background: `linear-gradient(135deg,${tint}b3,${tint})` }}>
+      style={{ background: `linear-gradient(135deg,${tint}b3,${tint})`, boxShadow: `0 8px 14px -6px ${tint}88` }}>
       <Icon className="w-4 h-4" />
     </span>
     <div className="min-w-0">
@@ -543,8 +671,11 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
     <div className="space-y-4">
       {/* KPI strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className={`p-4 rounded-2xl border shadow-sm ${cardCls}`}>
-          <div className="flex items-center justify-between">
+        <div className={`relative p-4 rounded-2xl border ${cardPopCls(dm)} ${cardCls}`}>
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <InfoTip text={resolveSectionInfo(cfg.kpi1, `Number of ${cfg.entityLabel || "entities"} in the ranked list for the selected filters.`)} dm={dm} />
+          </div>
+          <div className="flex items-center justify-between pr-6">
             <div>
               <p className={`text-[10px] font-bold uppercase tracking-wider ${dm ? "text-slate-400" : "text-slate-500"}`}>{cfg.kpi1}</p>
               <p className={`text-2xl font-black mt-1 ${dm ? "text-white" : "text-slate-900"}`}>
@@ -561,8 +692,11 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
           </p>
         </div>
 
-        <div className={`p-4 rounded-2xl border shadow-sm ${cardCls}`}>
-          <div className="flex items-center justify-between">
+        <div className={`relative p-4 rounded-2xl border ${cardPopCls(dm)} ${cardCls}`}>
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <InfoTip text={resolveSectionInfo(cfg.kpi2, "Average time (hrs) across all entities in this view. Lower is better.")} dm={dm} />
+          </div>
+          <div className="flex items-center justify-between pr-6">
             <div>
               <p className={`text-[10px] font-bold uppercase tracking-wider ${dm ? "text-slate-400" : "text-slate-500"}`}>{cfg.kpi2}</p>
               <p className={`text-2xl font-black mt-1 ${dm ? "text-white" : "text-slate-900"}`}>
@@ -576,8 +710,11 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
           <p className="mt-2 text-[10px] font-semibold text-slate-500">Lowest-first ranking</p>
         </div>
 
-        <div className={`p-4 rounded-2xl border shadow-sm ${cardCls}`}>
-          <div className="flex items-center justify-between">
+        <div className={`relative p-4 rounded-2xl border ${cardPopCls(dm)} ${cardCls}`}>
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <InfoTip text={resolveSectionInfo(cfg.kpi3, "Total volume associated with entities in this view (vehicles / challan qty depending on tab).")} dm={dm} />
+          </div>
+          <div className="flex items-center justify-between pr-6">
             <div>
               <p className={`text-[10px] font-bold uppercase tracking-wider ${dm ? "text-slate-400" : "text-slate-500"}`}>{cfg.kpi3}</p>
               <p className={`text-2xl font-black mt-1 ${dm ? "text-white" : "text-slate-900"}`}>
@@ -591,8 +728,11 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
           <p className="mt-2 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">{cfg.volumeUnit}</p>
         </div>
 
-        <div className={`p-4 rounded-2xl border shadow-sm ${cardCls}`}>
-          <div className="flex items-center justify-between">
+        <div className={`relative p-4 rounded-2xl border ${cardPopCls(dm)} ${cardCls}`}>
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <InfoTip text="Share of entities whose time is within the SLA target. Breach count is shown below." dm={dm} />
+          </div>
+          <div className="flex items-center justify-between pr-6">
             <div>
               <p className={`text-[10px] font-bold uppercase tracking-wider ${dm ? "text-slate-400" : "text-slate-500"}`}>SLA Target Compliance</p>
               <p className={`text-2xl font-black mt-1 ${dm ? "text-white" : "text-slate-900"}`}>
@@ -654,7 +794,8 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
               key={item.name}
               type="button"
               onClick={() => setDrawer(item)}
-              className={`text-left relative overflow-hidden bg-gradient-to-br ${medals[idx]} to-transparent border rounded-2xl p-4 shadow-sm hover:shadow-md transition ${dm ? "via-slate-900" : "via-white"}`}
+              className={`text-left relative overflow-hidden bg-gradient-to-br ${medals[idx]} to-transparent border rounded-2xl p-4 hover:-translate-y-1 transition-all duration-200 ${dm ? "via-slate-900" : "via-white"}`}
+              style={{ boxShadow: cardShadow(dm) }}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
@@ -679,7 +820,7 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
       </div>
 
       {/* Toolbar + table/grid */}
-      <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardCls}`}>
+      <div className={`rounded-2xl border ${cardPopCls(dm)} overflow-hidden ${cardCls}`}>
         <div className={`p-3 sm:p-4 border-b flex flex-col lg:flex-row lg:items-center justify-between gap-3 ${dm ? "border-slate-800" : "border-slate-100"}`}>
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -877,29 +1018,37 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
   );
 };
 
-/** Per-vehicle-mode stat card with an accent header, used on the Gate 2 tab. */
-const ModeStatCard = ({ title, dm, from, to, rows = [] }) => (
-  <div className={`rounded-2xl border overflow-hidden flex flex-col shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)]
-    ${dm ? "border-slate-800 bg-slate-900" : "border-slate-200/70 bg-white"}`}>
-    <div className="px-3 py-2 flex items-center gap-2 text-white" style={{ background: `linear-gradient(135deg,${from},${to})` }}>
-      <span className="w-6 h-6 rounded-lg bg-white/25 flex items-center justify-center shrink-0">
-        <Truck className="w-3.5 h-3.5" />
-      </span>
-      <span className="text-[12px] font-black tracking-wide truncate">{title}</span>
+/** Soft per-mode yard-holding card — Gate 2 (matches Gate 1 visual language). */
+const Gate2ModeCard = ({ title, color = "#3b82f6", iconBg = "#dbeafe", rows = [], dm, info }) => {
+  const tip = resolveSectionInfo(title, info || `Yard holding metrics for ${title}: vehicle count, min/avg/max holding (Hrs), and vehicles exceeding the 8-hour standard.`);
+  return (
+  <div className={`relative rounded-2xl border flex flex-col transition-all duration-200 hover:-translate-y-1
+    ${dm ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}
+    style={{ boxShadow: cardShadow(dm) }}>
+    <div className="absolute top-2.5 right-2.5 z-10">
+      <InfoTip text={tip} dm={dm} />
     </div>
-    <div className="flex-1 p-2.5 flex flex-col gap-1.5 justify-center">
+    <div className="px-3.5 pt-3.5 pb-2 flex items-center gap-2.5 pr-9">
+      <span className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+        style={{ background: iconBg, boxShadow: `0 8px 16px -6px ${color}55` }}>
+        <Truck className="w-4 h-4" style={{ color }} />
+      </span>
+      <p className={`text-[13px] font-bold truncate ${dm ? "text-slate-100" : "text-[#1e3a5f]"}`}>{title}</p>
+    </div>
+    <div className="flex-1 px-3 pb-3 flex flex-col gap-1.5">
       {rows.map((r, i) => (
         <div key={i} className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 ${dm ? "bg-slate-800/60" : "bg-slate-50"}`}>
-          <span className="w-1.5 h-8 rounded-full shrink-0" style={{ background: `linear-gradient(180deg,${from},${to})` }} />
+          <span className="w-1.5 h-8 rounded-full shrink-0" style={{ background: color }} />
           <div className="min-w-0">
-            <p className="text-base font-black leading-none tabular-nums" style={{ color: dm ? from : to }}>{r.value}</p>
+            <p className="text-base font-black leading-none tabular-nums" style={{ color }}>{r.value}</p>
             <p className={`text-[9px] font-bold mt-1 leading-tight ${dm ? "text-slate-400" : "text-slate-500"}`}>{r.label}</p>
           </div>
         </div>
       ))}
     </div>
   </div>
-);
+  );
+};
 
 // ═══════════════════════════════════════════════════════════════════
 // High-contrast donut for mode-wise splits
@@ -915,6 +1064,177 @@ const donutLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => 
       style={{ fontSize: 12, fontWeight: 900, paintOrder: "stroke", stroke: "rgba(15,23,42,.35)", strokeWidth: 3 }}>
       {(percent * 100).toFixed(1)}%
     </text>
+  );
+};
+
+const Gate1KpiCard = ({ title, value, delta, lowerBetter = false, icon: Icon, iconBg, iconColor, dm, info }) => {
+  const hasDelta = delta != null && Number.isFinite(delta);
+  const mockValue = 100;
+  const mockPyValue = hasDelta ? 100 / (1 + delta / 100) : 0;
+  
+  return (
+    <BiKpiCard
+      title={title}
+      displayValue={value}
+      value={mockValue}
+      pyValue={mockPyValue}
+      isDarkMode={dm}
+      comparisonLabel="vs last period"
+      inverseColor={lowerBetter}
+      definition={resolveSectionInfo(title, info)}
+    />
+  );
+};
+
+/** Soft white chart panel (no gradient header) */
+const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassName = "", accent = false, info }) => {
+  const tip = resolveSectionInfo(title, info);
+  return (
+  <div className={`rounded-2xl border flex flex-col transition-all duration-200 hover:-translate-y-0.5 overflow-visible
+    ${dm ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"} ${className}`}
+    style={{ boxShadow: cardShadow(dm) }}>
+    {(title || subtitle || tip) && (
+      <div className="px-4 pt-3.5 pb-1 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          {title && <p className={`text-[13px] font-bold ${dm ? "text-slate-100" : "text-[#1e3a5f]"}`}>{title}</p>}
+          {accent && <div className="mt-1.5 h-[3px] w-14 rounded-full bg-[#f97316]" />}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {subtitle && <p className={`text-[10px] font-medium ${dm ? "text-slate-500" : "text-slate-400"}`}>{subtitle}</p>}
+          <InfoTip text={tip} dm={dm} />
+        </div>
+      </div>
+    )}
+    <div className={`flex-1 min-h-0 ${bodyClassName}`}>{children}</div>
+  </div>
+  );
+};
+
+const GATE1_MODE_COLORS = {
+  "18 QCART": "#14b8a6",
+  "36 QTROLLY": "#3b82f6",
+  "45 QTROLLY": "#6366f1",
+  "63 QTROLLY": "#f97316",
+  "99 QTROLLY": "#8b5cf6",
+  "99 QTRUCK": "#8b5cf6",
+};
+const gate1ModeColor = (m) => GATE1_MODE_COLORS[m] || COLORS[0];
+
+const GATE1_RAD = Math.PI / 180;
+
+/** Short display names for purchase-split callouts (matches design labels). */
+const shortModeLabel = (name) => {
+  const s = String(name || "").toUpperCase();
+  if (s.includes("99")) return "99";
+  if (s.includes("18") || s.includes("CART")) return "Q CART";
+  if (s.includes("36")) return "QTROL";
+  if (s.includes("45")) return "45";
+  if (s.includes("63") || s.includes("TROLL")) return "OLLY";
+  return String(name || "").split(/\s+/).slice(-1)[0] || name;
+};
+
+/** Pure-SVG callout (no foreignObject) so labels stay visible. */
+const gate1DonutCalloutLabel = (dm) => (props) => {
+  const { cx, cy, midAngle, outerRadius, percent, value, payload } = props;
+  if (!percent || percent < 0.005) return null;
+  const color = payload?.color || "#64748b";
+  const name = shortModeLabel(payload?.name);
+  const cos = Math.cos(-midAngle * GATE1_RAD);
+  const sin = Math.sin(-midAngle * GATE1_RAD);
+  const isRight = cos >= 0;
+  const sx = cx + (outerRadius + 4) * cos;
+  const sy = cy + (outerRadius + 4) * sin;
+  const ex = cx + (outerRadius + 28) * cos;
+  const ey = cy + (outerRadius + 28) * sin;
+  const iconR = 12;
+  const iconCx = isRight ? ex + iconR + 4 : ex - iconR - 4;
+  const iconCy = ey;
+  const textAnchor = isRight ? "start" : "end";
+  const tx = isRight ? iconCx + iconR + 6 : iconCx - iconR - 6;
+  const nameFill = dm ? "#e2e8f0" : "#0f172a";
+  const pctFill = dm ? "#94a3b8" : "#94a3b8";
+  return (
+    <g style={{ pointerEvents: "none" }}>
+      <line
+        x1={sx} y1={sy} x2={ex} y2={ey}
+        stroke={color} strokeWidth={1.5} strokeDasharray="2.5 3.5" strokeLinecap="round"
+      />
+      <circle cx={sx} cy={sy} r={2.5} fill={color} />
+      <circle cx={iconCx} cy={iconCy} r={iconR} fill={color} />
+      {/* simple truck glyph */}
+      <g transform={`translate(${iconCx - 7}, ${iconCy - 7})`} fill="none" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M1 9V3.5A1.5 1.5 0 0 1 2.5 2H8v7" />
+        <path d="M8 5h3.2L13 7.5V9H8" />
+        <circle cx="3.5" cy="10.5" r="1.3" fill="#fff" stroke="none" />
+        <circle cx="10.5" cy="10.5" r="1.3" fill="#fff" stroke="none" />
+      </g>
+      <text x={tx} y={iconCy - 10} textAnchor={textAnchor} fill={nameFill} fontSize="11" fontWeight="800">
+        {name}
+      </text>
+      <text x={tx} y={iconCy + 3} textAnchor={textAnchor} fill={color} fontSize="12" fontWeight="800">
+        {compact(value)}
+      </text>
+      <text x={tx} y={iconCy + 16} textAnchor={textAnchor} fill={pctFill} fontSize="10" fontWeight="600">
+        {(percent * 100).toFixed(1)}%
+      </text>
+    </g>
+  );
+};
+
+/** Donut with outside callout labels — Gate 1 purchase split */
+const Gate1ModeDonut = ({ data = [], dm, centerUnit = "Qtls" }) => {
+  const rows = data.filter((d) => n(d.value) > 0);
+  const total = rows.reduce((a, b) => a + n(b.value), 0);
+  return (
+    <div className="relative flex items-center justify-center h-full min-h-[400px] px-1 pb-2 pt-0 overflow-visible">
+      <div className="relative w-full h-full min-h-[380px] max-w-[560px] overflow-visible">
+        <ResponsiveContainer width="100%" height="100%" minHeight={380}>
+          <PieChart margin={{ top: 52, right: 78, bottom: 52, left: 78 }}>
+            <defs>
+              {rows.map((e, i) => (
+                <linearGradient key={`pg${i}`} id={`gate1PieGrad${i}`} x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor={e.color} stopOpacity={1} />
+                  <stop offset="100%" stopColor={e.color} stopOpacity={0.75} />
+                </linearGradient>
+              ))}
+            </defs>
+            <Pie
+              data={rows}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius="46%"
+              outerRadius="72%"
+              paddingAngle={2}
+              cornerRadius={8}
+              stroke="none"
+              strokeWidth={0}
+              label={gate1DonutCalloutLabel(dm)}
+              labelLine={false}
+              isAnimationActive={false}
+            >
+              {rows.map((e, i) => <Cell key={i} fill={`url(#gate1PieGrad${i})`} />)}
+            </Pie>
+            <Tooltip
+              formatter={(v, nm) => [`${n(v).toLocaleString("en-IN", { maximumFractionDigits: 0 })} ${centerUnit}`, nm]}
+              {...TT(dm)}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+          <span className={`text-[22px] font-black leading-none tracking-tight ${dm ? "text-slate-50" : "text-[#1e3a5f]"}`}>
+            {compact(total)}
+          </span>
+          <span className={`text-[11px] font-semibold mt-1.5 ${dm ? "text-slate-400" : "text-slate-500"}`}>
+            Total Purchase
+          </span>
+          <span className={`text-[10px] font-medium mt-0.5 ${dm ? "text-slate-500" : "text-slate-400"}`}>
+            ({centerUnit})
+          </span>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1037,7 +1357,7 @@ const NUM_KEYS = new Set([
   "totalCanePurchased","noOfPurchy","avgPurchySize","avgOverrun","isCenter","trips","cane","avgCenterWait",
   "avgTravelToYard","avgYardWait","minYardWait","maxYardWait","avgDongaWait","devGateYard","devCenterYard",
   "devMill","vehicles","avgYardHrs","devOver8H","avgDongaHrs","devOver05H","holdingHrs","transitHrs",
-  "challanQty","h","v","caneQty","holding","truckH"
+  "challanQty","h","v","caneQty","holding","truckH","holdingHrs","exceedCount"
 ]);
 
 function normalizeRow(row) {
@@ -1070,12 +1390,15 @@ function normalizeLiveData(data) {
     dbRows: arr(data.dbRows),
     vehiclesByMode: arr(data.vehiclesByMode),
     overrunTrend: arr(data.overrunTrend),
+    modeTrend: arr(data.modeTrend),
     centerPurchaseTrend: arr(data.centerPurchaseTrend),
     centerModePie: arr(data.centerModePie),
     centerOverrunTrend: arr(data.centerOverrunTrend),
     vehicleHandlingTrend: arr(data.vehicleHandlingTrend),
     holdingByCenter: arr(data.holdingByCenter),
     holdingTrend: arr(data.holdingTrend),
+    yardHoldingTrend: arr(data.yardHoldingTrend),
+    yardExceedTrend: arr(data.yardExceedTrend),
     scatterData: arr(data.scatterData),
     transitByCenter: arr(data.transitByCenter),
     truckHoldByCenter: arr(data.truckHoldByCenter),
@@ -1084,6 +1407,7 @@ function normalizeLiveData(data) {
     bottomCentersVehicles: arr(data.bottomCentersVehicles),
     centerVehiclesByMode: arr(data.centerVehiclesByMode),
     filterOptions: data.filterOptions || { modes: [], centers: [] },
+    dateRange: data.dateRange || null,
     prior: data.prior
       ? {
           ...data.prior,
@@ -1118,23 +1442,71 @@ export default function CanePerformanceDashboard(){
   const[liveData, setLiveData] = useState(null);
   const[loading, setLoading] = useState(true);
   
-  const[fromDate, setFromDate] = useState("2025-10-24");
-  const[toDate, setToDate] = useState("2026-04-06");
+  const[fromDate, setFromDate] = useState("");
+  const[toDate, setToDate] = useState("");
   const[modeFilter, setModeFilter] = useState("All");
   const[centerFilter, setCenterFilter] = useState("All");
   const[challanFilter, setChallanFilter] = useState("");
   const[rangePreset, setRangePreset] = useState("Custom"); // MTD | STD | YTD | Custom
+  const[dbMinDateStr, setDbMinDateStr] = useState("");
+  const[dbMaxDateStr, setDbMaxDateStr] = useState("");
+  const[dbMaxDate, setDbMaxDate] = useState(null);
+  const dateRangeSeeded = useRef(false);
 
   const centerTabs = ["center-purchase","vehicle-handling","vehicle-holding","vehicle-holding2","truck-transit","database"];
 
+  const toInputDate = (v) => {
+    if (!v) return "";
+    if (typeof v === "string") return v.slice(0, 10);
+    if (v instanceof Date && !isNaN(v)) {
+      const y = v.getFullYear();
+      const m = String(v.getMonth() + 1).padStart(2, "0");
+      const d = String(v.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    return String(v).slice(0, 10);
+  };
+
+  const clampToDb = useCallback((iso) => {
+    if (!iso) return iso;
+    if (dbMinDateStr && iso < dbMinDateStr) return dbMinDateStr;
+    if (dbMaxDateStr && iso > dbMaxDateStr) return dbMaxDateStr;
+    return iso;
+  }, [dbMinDateStr, dbMaxDateStr]);
+
+  const applyDateRange = useCallback((dateRange) => {
+    if (!dateRange) return;
+    const minStr = toInputDate(dateRange.minDate);
+    const maxStr = toInputDate(dateRange.maxDate);
+    if (minStr) setDbMinDateStr((prev) => (prev === minStr ? prev : minStr));
+    if (maxStr) {
+      setDbMaxDateStr((prev) => (prev === maxStr ? prev : maxStr));
+      setDbMaxDate((prev) => {
+        const next = new Date(`${maxStr}T00:00:00`);
+        if (prev instanceof Date && !isNaN(prev) && prev.getTime() === next.getTime()) return prev;
+        return next;
+      });
+    }
+    if (dateRangeSeeded.current) return;
+    const from = toInputDate(dateRange.effectiveFrom || dateRange.minDate);
+    const to = toInputDate(dateRange.effectiveTo || dateRange.maxDate);
+    if (!from && !to) return;
+    dateRangeSeeded.current = true;
+    if (from) setFromDate(from);
+    if (to) setToDate(to);
+  }, []);
+
   const pyRange = useMemo(() => {
     if (rangePreset !== "MTD" && rangePreset !== "STD" && rangePreset !== "YTD") return null;
+    if (!fromDate || !toDate) return null;
     return { from: shiftYearIso(fromDate, -1), to: shiftYearIso(toDate, -1) };
   }, [rangePreset, fromDate, toDate]);
 
   // Refetch when filters change OR when tab needs different data packs
   const filterKey = useMemo(() => {
-    const params = new URLSearchParams({ from: fromDate, to: toDate });
+    const params = new URLSearchParams();
+    if (fromDate) params.set("from", fromDate);
+    if (toDate) params.set("to", toDate);
     if (modeFilter && modeFilter !== "All") params.set("mode", modeFilter);
     if (centerFilter && centerFilter !== "All") params.set("center", centerFilter);
     if (challanFilter.trim()) params.set("challan", challanFilter.trim());
@@ -1146,7 +1518,9 @@ export default function CanePerformanceDashboard(){
   }, [fromDate, toDate, modeFilter, centerFilter, challanFilter, pyRange]);
 
   const queryKey = useMemo(() => {
-    const params = new URLSearchParams({ from: fromDate, to: toDate, tab: tab || "procurement" });
+    const params = new URLSearchParams({ tab: tab || "procurement" });
+    if (fromDate) params.set("from", fromDate);
+    if (toDate) params.set("to", toDate);
     if (modeFilter && modeFilter !== "All") params.set("mode", modeFilter);
     if (centerTabs.includes(tab) && centerFilter && centerFilter !== "All") params.set("center", centerFilter);
     if (tab === "truck-holding" && challanFilter.trim()) params.set("challan", challanFilter.trim());
@@ -1157,29 +1531,41 @@ export default function CanePerformanceDashboard(){
     return params.toString();
   }, [fromDate, toDate, modeFilter, centerFilter, challanFilter, tab, pyRange]);
 
-  const hasDataRef = React.useRef(false);
-  const prevFilterKeyRef = React.useRef(filterKey);
+  const hasDataRef = useRef(false);
+  const prevFilterKeyRef = useRef(filterKey);
 
   React.useEffect(() => {
     let cancelled = false;
-    const filtersChanged = prevFilterKeyRef.current !== filterKey;
+    const prevKey = prevFilterKeyRef.current;
+    const filtersChanged = prevKey !== filterKey;
+    // First response seeds from/to → filterKey changes once. That follow-up fetch
+    // must NOT flash the full-page loader (it remount-feels the 3D scene).
+    const prevHadDates = /(?:^|&)from=/.test(prevKey) && /(?:^|&)to=/.test(prevKey);
+    const nextHasDates = /(?:^|&)from=/.test(filterKey) && /(?:^|&)to=/.test(filterKey);
+    const isDateBootstrap = filtersChanged && !prevHadDates && nextHasDates;
     prevFilterKeyRef.current = filterKey;
-    // Spinner on first load and whenever date/mode/center/challan changes (not tab-only)
-    if (!hasDataRef.current || filtersChanged) setLoading(true);
+
+    if (!hasDataRef.current || (filtersChanged && !isDateBootstrap)) {
+      setLoading(true);
+    }
+
     api.get(`/bi/cane-performance/procurement?${queryKey}`)
       .then(res => {
         if (cancelled || res.data.error) return;
+        if (res.data.dateRange) applyDateRange(res.data.dateRange);
         setLiveData(prev => {
           const next = normalizeLiveData(res.data);
           hasDataRef.current = true;
-          if (!prev || filtersChanged) return next;
+          if (!prev || (filtersChanged && !isDateBootstrap)) return next;
           return {
             ...prev,
             ...next,
+            dateRange: next.dateRange || prev.dateRange,
             filterOptions: next.filterOptions?.modes?.length ? next.filterOptions : prev.filterOptions,
             modeData: next.modeData?.length ? next.modeData : prev.modeData,
             trendData: next.trendData?.length ? next.trendData : prev.trendData,
             overrunTrend: next.overrunTrend?.length ? next.overrunTrend : prev.overrunTrend,
+            modeTrend: next.modeTrend?.length ? next.modeTrend : prev.modeTrend,
             overruns: next.overruns?.length ? next.overruns : prev.overruns,
             procurementFlow: next.procurementFlow?.length ? next.procurementFlow : prev.procurementFlow,
             gateYard: next.gateYard?.length ? next.gateYard : prev.gateYard,
@@ -1202,6 +1588,8 @@ export default function CanePerformanceDashboard(){
             vehicleHandlingTrend: next.vehicleHandlingTrend?.length ? next.vehicleHandlingTrend : prev.vehicleHandlingTrend,
             holdingByCenter: next.holdingByCenter?.length ? next.holdingByCenter : prev.holdingByCenter,
             holdingTrend: next.holdingTrend?.length ? next.holdingTrend : prev.holdingTrend,
+            yardHoldingTrend: next.yardHoldingTrend?.length ? next.yardHoldingTrend : prev.yardHoldingTrend,
+            yardExceedTrend: next.yardExceedTrend?.length ? next.yardExceedTrend : prev.yardExceedTrend,
             scatterData: next.scatterData?.length ? next.scatterData : prev.scatterData,
             transitByCenter: next.transitByCenter?.length ? next.transitByCenter : prev.transitByCenter,
             truckHoldByCenter: next.truckHoldByCenter?.length ? next.truckHoldByCenter : prev.truckHoldByCenter,
@@ -1213,38 +1601,41 @@ export default function CanePerformanceDashboard(){
       .catch(e => console.error("Error fetching live data:", e))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [queryKey, filterKey]);
+  }, [queryKey, filterKey, applyDateRange]);
 
-  // Determine actual data to render based on toggle state
   const handleQuickDate = (type) => {
-    // Season end aligns with PBI slicer max (2026-04-06)
-    const today = new Date("2026-04-06");
+    // Anchor "today" to latest date present in DB (not a hard-coded calendar day)
+    const today = (dbMaxDate instanceof Date && !isNaN(dbMaxDate))
+      ? dbMaxDate
+      : (dbMaxDateStr ? new Date(`${dbMaxDateStr}T00:00:00`) : null);
+    if (!today) return;
+
     const year = today.getFullYear();
     const month = today.getMonth();
-    
+
     // STD: Starts from season start (Oct 1st)
     let stdYear = year;
-    if (month < 9) stdYear -= 1; 
+    if (month < 9) stdYear -= 1;
     const stdStart = new Date(stdYear, 9, 1);
-    
+
     // YTD: Starts from Jan 1st of the current calendar year
     const ytdStart = new Date(year, 0, 1);
-    
+
     // MTD: Starts 1st of current month
     const mtdStart = new Date(year, month, 1);
 
     const formatDate = (d) => {
       const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
       return `${y}-${m}-${day}`;
     };
 
     setRangePreset(type);
-    setToDate(formatDate(today));
-    if (type === 'YTD') setFromDate(formatDate(ytdStart));
-    if (type === 'STD') setFromDate(formatDate(stdStart));
-    if (type === 'MTD') setFromDate(formatDate(mtdStart));
+    setToDate(clampToDb(formatDate(today)));
+    if (type === "YTD") setFromDate(clampToDb(formatDate(ytdStart)));
+    if (type === "STD") setFromDate(clampToDb(formatDate(stdStart)));
+    if (type === "MTD") setFromDate(clampToDb(formatDate(mtdStart)));
   };
 
   const showCompare = rangePreset === "MTD" || rangePreset === "STD" || rangePreset === "YTD";
@@ -1284,12 +1675,14 @@ export default function CanePerformanceDashboard(){
     ? liveData.modeData.map(m => ({ mode: m.mode, qty: m.caneQty, color: modeColor(m.mode) }))
     : modePie;
 
-  const actualGate1Daily = liveData?.trendData
-    ? liveData.trendData.map(t => ({ date: String(t.date).substring(5,10), qty: t.qty }))
-    : gate1Daily;
+  const actualGate1Daily = (liveData?.trendData || []).map(t => ({
+    date: String(t.date).substring(5, 10),
+    qty: t.qty,
+  }));
 
   const proc = React.useMemo(() => {
-    if (!liveData?.procurementFlow) return null;
+    // Gate tabs can render from gateYard alone; procurement flow is center-side
+    if (!liveData?.procurementFlow && !(liveData?.gateYard?.length || liveData?.gateMill?.length)) return null;
     const f = liveData.procurementFlow || [];
     const center = f.filter(x => n(x.isCenter) === 1);
     
@@ -1342,8 +1735,8 @@ export default function CanePerformanceDashboard(){
     };
 
     return {
-      gateVehicles: mapTbl(gateYard),
-      centerVehicles: mapTbl(center),
+      gateVehicles: mapTbl(gateYard, 'avgYardWait'),
+      centerVehicles: mapTbl(center, 'avgCenterWait'),
       centerTrips: n(liveData?.kpis?.totalChallan) || center.reduce((a,b) => a + n(b.challans ?? b.trips), 0),
       avgCenterWait: n(liveData?.kpis?.avgCenterWait) || wAvg(center, 'avgCenterWait'),
       centerHolding: mapTbl(center, 'avgCenterWait'),
@@ -1400,91 +1793,135 @@ export default function CanePerformanceDashboard(){
 
   return(
     <div className={`min-h-screen ${bg} transition-colors duration-200`}>
-      <header className={`sticky top-0 z-20 ${hdr} border-b shadow-sm px-4 py-3 flex items-center justify-between`}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-green-600 to-emerald-700 flex items-center justify-center shadow">
-            <Activity className="w-4 h-4 text-white"/>
-          </div>
-          <div>
-            <h1 className={`text-base font-black ${dm?"text-slate-100":"text-slate-900"}`}>Cane Performance Analytics</h1>
-            <p className={`text-[10px] font-bold ${dm?"text-slate-500":"text-slate-400"}`}>
-              Procurement · Gate · Transit · Holding
-            </p>
+      <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BiDashboardHeader
+            title="Cane Performance Analytics"
+            subtitle="Procurement · Gate · Transit · Holding"
+            icon={Activity}
+            iconColor="#10b981"
+            isDarkMode={dm}
+          />
+          <div className="flex items-center gap-4">
+            <BiKeyMetricBox
+              value={liveData?.dbRows?.length ?? 0}
+              title="Operating Days"
+              subtitle={rangePreset}
+              isDarkMode={dm}
+            />
           </div>
         </div>
-        <div className="flex items-center gap-4 flex-wrap justify-end">
-          <div className="flex items-center gap-1.5 mr-1">
+
+        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm}>
+          <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            {TABS.map(t => {
+              const I = t.icon;
+              return (
+                <button key={t.id} onClick={() => setTab(t.id)}
+                  className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    tab === t.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}>
+                  <I className="w-3.5 h-3.5"/>{t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
+
+          <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
             {['MTD', 'STD', 'YTD'].map(type => (
               <button
                 key={type}
                 type="button"
                 onClick={() => handleQuickDate(type)}
                 aria-pressed={rangePreset === type}
-                className={`px-2.5 py-1 text-[10px] font-extrabold tracking-wide rounded-md transition-all
-                  ${rangePreset === type
-                    ? 'bg-blue-600 text-white border border-blue-600 shadow-sm ring-2 ring-blue-300/70'
-                    : dm
-                    ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200 shadow-sm'}`}
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  rangePreset === type
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                }`}
               >
                 {type}
               </button>
             ))}
           </div>
-          {showModeFilter && (
-            <label className="flex flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${labelCls}`}>Transport Mode</span>
-              <select value={modeFilter} onChange={e => setModeFilter(e.target.value)}
-                className={`text-xs px-2 py-1 rounded border outline-none min-w-[120px] ${selectCls}`}>
-                <option value="All">All</option>
-                {modeOptions.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-            </label>
-          )}
-          {showCenterFilter && (
-            <label className="flex flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${labelCls}`}>Center</span>
-              <select value={centerFilter} onChange={e => setCenterFilter(e.target.value)}
-                className={`text-xs px-2 py-1 rounded border outline-none min-w-[140px] max-w-[180px] ${selectCls}`}>
-                <option value="All">All</option>
-                {centerOptions.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
-          )}
-          {showChallanFilter && (
-            <label className="flex flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${labelCls}`}>Challan No.</span>
-              <input type="text" placeholder="All" value={challanFilter}
-                onChange={e => setChallanFilter(e.target.value)}
-                className={`text-xs px-2 py-1 rounded border outline-none w-[110px] ${selectCls}`} />
-            </label>
-          )}
-          <label className="flex flex-col gap-0.5">
-            <span className={`text-[9px] font-bold uppercase tracking-wide ${labelCls}`}>Date Range</span>
-            <div className="flex items-center gap-1.5">
-              <input type="date" value={fromDate} onChange={e => { setRangePreset("Custom"); setFromDate(e.target.value); }} className={`text-xs px-2 py-1 rounded border outline-none ${selectCls}`} />
-              <span className={`text-xs font-bold ${labelCls}`}>to</span>
-              <input type="date" value={toDate} onChange={e => { setRangePreset("Custom"); setToDate(e.target.value); }} className={`text-xs px-2 py-1 rounded border outline-none ${selectCls}`} />
-            </div>
-          </label>
-          <button onClick={()=>setDm(!dm)} className={`p-2 rounded-xl border self-end ${dm?"border-slate-700 bg-slate-800 text-yellow-400":"border-slate-200 bg-slate-100 text-slate-600"}`}>
-            {dm?<Sun className="w-4 h-4"/>:<Moon className="w-4 h-4"/>}
-          </button>
-        </div>
-      </header>
 
-      <div className={`sticky top-[57px] z-10 ${hdr} border-b px-4 overflow-x-auto`}>
-        <div className="flex gap-1 py-2 min-w-max">
-          {TABS.map(t=>{const I=t.icon;return(
-            <button key={t.id} onClick={()=>setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${tab===t.id?"bg-gradient-to-r from-blue-600 to-sky-500 text-white shadow-md shadow-blue-500/30":(dm?"text-slate-400 hover:bg-slate-800":"text-slate-600 hover:bg-slate-100")}`}>
-              <I className="w-3.5 h-3.5"/>{t.label}
-            </button>
-          );})}
-        </div>
+          <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
+            {showModeFilter && (
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Mode</span>
+                <select value={modeFilter} onChange={e => setModeFilter(e.target.value)}
+                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                  }`}>
+                  <option value="All">All</option>
+                  {modeOptions.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )}
+            {showCenterFilter && (
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Center</span>
+                <select value={centerFilter} onChange={e => setCenterFilter(e.target.value)}
+                  className={`w-[7rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[8rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                  }`}>
+                  <option value="All">All</option>
+                  {centerOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+            {showChallanFilter && (
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Challan No.</span>
+                <input type="text" placeholder="All" value={challanFilter}
+                  onChange={e => setChallanFilter(e.target.value)}
+                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[6rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                  }`} />
+              </div>
+            )}
+
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
+              <input
+                type="date"
+                value={fromDate}
+                min={dbMinDateStr || undefined}
+                max={toDate || dbMaxDateStr || undefined}
+                onChange={e => {
+                  setRangePreset("Custom");
+                  setFromDate(clampToDb(e.target.value));
+                }}
+                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                }`}
+              />
+            </div>
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate || dbMinDateStr || undefined}
+                max={dbMaxDateStr || undefined}
+                onChange={e => {
+                  setRangePreset("Custom");
+                  setToDate(clampToDb(e.target.value));
+                }}
+                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+                }`}
+              />
+            </div>
+          </div>
+        </BiFilterBarLayout>
       </div>
 
-      <main className="max-w-[1600px] mx-auto px-4 py-5 relative min-h-[60vh]">
+      <main className={`relative min-h-[60vh] ${tab === "procurement" ? "w-full max-w-none px-2 sm:px-3 py-3" : "max-w-[1600px] mx-auto px-4 py-5"}`}>
         {loading && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm rounded-2xl">
             <div className="flex flex-col items-center gap-3">
@@ -1494,858 +1931,858 @@ export default function CanePerformanceDashboard(){
           </div>
         )}
 
-        {tab==="procurement"&&(
-          <div className="space-y-4">
-            <style>{`
-              @keyframes caneDot { 0%{left:-8%;opacity:0} 18%{opacity:1} 82%{opacity:1} 100%{left:100%;opacity:0} }
-              .cane-dot{animation:caneDot 1.9s linear infinite}
-              @keyframes dashFlow { to{stroke-dashoffset:-36} }
-              .dash-flow{animation:dashFlow 1.1s linear infinite}
-              @keyframes beltMove { to{background-position:24px 0} }
-              .belt{background-color:${dm ? "#334155" : "#cbd5e1"};background-image:repeating-linear-gradient(115deg,${dm ? "#64748b" : "#94a3b8"} 0 6px,transparent 6px 24px);animation:beltMove .8s linear infinite}
-              @keyframes caneRide { 0%{left:-12%;opacity:0} 15%{opacity:1} 85%{opacity:1} 100%{left:100%;opacity:0} }
-              .cane-ride{animation:caneRide 2.2s linear infinite}
-              @keyframes spinSlow { to{transform:rotate(360deg)} }
-              .spin-slow{animation:spinSlow 4s linear infinite}
-              @keyframes pulseDot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(.75)} }
-              .pulse-dot{animation:pulseDot 1.6s ease-in-out infinite}
-              @media (prefers-reduced-motion:reduce){
-                .cane-dot,.dash-flow,.belt,.cane-ride,.spin-slow,.pulse-dot{animation:none}
-              }
-            `}</style>
+        {tab==="procurement"&&(() => {
+          const gateRows = proc?.gateVehicles || [];
+          const centerVehRows = proc?.centerVehicles || [];
+          const holdRows = (proc?.centerHolding || []).filter((r) => r.mode !== "Total");
+          const yardRows = proc?.yardGate || [];
+          const millRows = proc?.mill || [];
+          const summaryKpis = [
+            { title: "Total Cane (Q)", value: proc ? n(flowStats.totalCane).toLocaleString("en-IN", { maximumFractionDigits: 0 }) : "—", icon: Sprout, color: "#16a34a" },
+            { title: "Total Trips", value: proc ? n(flowStats.centerVeh || proc.centerTrips).toLocaleString("en-IN") : "—", icon: Truck, color: "#2563eb" },
+            { title: "Avg Waiting Time (Hrs)", value: proc ? fmt(proc.avgYardWait) : "—", icon: Clock, color: "#7c3aed" },
+            { title: "Yard Dev. (>8H)", value: proc && flowStats.yardDev != null ? n(flowStats.yardDev).toLocaleString("en-IN") : "—", icon: BarChart2, color: "#ea580c" },
+            { title: "Mill Dev. (>0.5H)", value: proc && flowStats.millDev != null ? n(flowStats.millDev).toLocaleString("en-IN") : "—", icon: Cog, color: "#6d28d9" },
+          ];
 
-            {/* ─── Process flow ribbon ──────────────────────────────── */}
-            <div className={`relative rounded-3xl border overflow-hidden ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"}`}
-              style={{ boxShadow: cardShadow(dm) }}>
-              <div className="relative flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
-                style={{ background: dm
-                  ? "linear-gradient(120deg,#0f172a 0%,#152447 55%,#0f172a 100%)"
-                  : "linear-gradient(120deg,#1e3a8a 0%,#2563eb 55%,#0ea5e9 100%)" }}>
-                <div className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center ring-1 ring-white/25">
-                    <GitMerge className="w-[18px] h-[18px] text-white" />
-                  </span>
-                  <div>
-                    <p className="text-[13px] font-black text-white leading-tight">Cane Movement Flow</p>
-                    <p className="text-[10px] font-semibold text-white/70">
-                      Farm → Centres &amp; Gate → Yard → Weighbridge → Mill House → 5 Mills
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-[9px] font-bold">
-                  {[["Centre route","bg-cyan-400"],["Gate route","bg-amber-400"],["Crushing","bg-emerald-400"]].map(([txt,dot])=>(
-                    <span key={txt} className="flex items-center gap-1.5 rounded-full bg-white/10 ring-1 ring-white/20 px-2.5 py-1 text-white/90">
-                      <span className={`w-2 h-2 rounded-full ${dot}`} /> {txt}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="relative overflow-x-auto p-5">
-                <span className="pointer-events-none absolute inset-0" style={{
-                  backgroundImage: `radial-gradient(${dm ? "#1e293b" : "#e2e8f0"} 1px, transparent 1px)`,
-                  backgroundSize: "18px 18px" }} />
-                <span className="pointer-events-none absolute inset-0" style={{
-                  background: dm
-                    ? "linear-gradient(180deg, rgba(30,58,138,.16), transparent 60%)"
-                    : "linear-gradient(180deg, rgba(59,130,246,.07), transparent 55%)" }} />
-                <div className="relative flex items-stretch min-w-[1300px]">
-                  <StageCard dm={dm} step={1} icon={Sprout} toneName="emerald"
-                    title="Sugar Cane" caption="Harvest from farms"
-                    stats={[
-                      {label:"Cane (Qtl)", value: proc ? compact(flowStats.totalCane) : "—"},
-                      {label:"Vehicles", value: proc ? compact(flowStats.totalVeh) : "—"},
-                    ]} />
-
-                  <FlowBranch color={dm ? "#334155" : "#e2e8f0"} accent="#10b981" />
-
-                  <div className="flex flex-col justify-center gap-3">
-                    <StageCard dm={dm} step={2} icon={MapPin} toneName="cyan"
-                      title="Purchase Centres" caption="Village collection points"
-                      stats={[
-                        {label:"Cane (Qtl)", value: proc ? compact(flowStats.centerCane) : "—"},
-                        {label:"Trips", value: proc ? compact(proc.centerTrips) : "—"},
-                        {label:"Hold (H)", value: proc ? fmt(proc.avgCenterWait) : "—"},
-                      ]} />
-                    <StageCard dm={dm} step={2} icon={DoorOpen} toneName="amber"
-                      title="Factory Gate" caption="Direct grower supply"
-                      stats={[
-                        {label:"Cane (Qtl)", value: proc ? compact(flowStats.gateCane) : "—"},
-                        {label:"Vehicles", value: proc ? compact(flowStats.gateVeh) : "—"},
-                      ]} />
-                  </div>
-
-                  <FlowBranch color={dm ? "#334155" : "#e2e8f0"} accent="#8b5cf6" merge />
-
-                  <StageCard dm={dm} step={3} icon={Warehouse} toneName="violet"
-                    title="Yard" caption="Vehicle queue before weighment"
-                    stats={[
-                      {label:"Wait (H)", value: proc ? fmt(proc.avgYardWait) : "—"},
-                      {label:"Dev >8H", value: proc && flowStats.yardDev != null ? compact(flowStats.yardDev) : "—"},
-                    ]} />
-
-                  <FlowArrow color="#8b5cf6" label="Weigh in" />
-
-                  <StageCard dm={dm} step={4} icon={Scale} toneName="blue"
-                    title="Weighbridge" caption="Entry gate weighment"
-                    stats={[
-                      {label:"Cane Hold (H)", value: proc ? fmt(proc.caneHolding) : "—"},
-                      {label:"Challans", value: proc ? compact(actualProcurementCards.totalChallan) : "—"},
-                    ]} />
-
-                  <FlowArrow color="#3b82f6" label="Unload" />
-
-                  <StageCard dm={dm} step={5} icon={Factory} toneName="rose"
-                    title="Mill House" caption="Donga / feeder table"
-                    stats={[
-                      {label:"Donga (H)", value: proc ? fmt(proc.avgDongaWait) : "—"},
-                      {label:"Dev >0.5H", value: proc && flowStats.millDev != null ? compact(flowStats.millDev) : "—"},
-                    ]} />
-
-                  <Conveyor dm={dm} />
-
-                  <MillBank dm={dm} count={5} />
-                </div>
-              </div>
-            </div>
-
-            {/* ─── Stage detail panels ──────────────────────────────── */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
-
-              <PanelCard dm={dm} icon={Truck} toneName="cyan"
-                title="Step 1–2 · Sourcing" caption="Cane leaving the farm via Gate and Centres">
-                <div>
-                  <SubLabel color="#f59e0b">Gate vehicles · direct supply</SubLabel>
-                  <DTable darkMode={dm} cols={[
-                    {key:"mode",label:"Mode",bold:true},{key:"veh",label:"Vehicles",cls:"text-right"},{key:"cane",label:"Cane (Q)",cls:"text-right"},{key:"time",label:"Time (Hrs)",cls:"text-right"}
-                  ]} rows={proc ? proc.gateVehicles : [
-                    {mode:"63 QTROLLY",veh:"10,596",cane:"7,60,907.00",time:"-"},
-                    {mode:"18 QCART",veh:"4,606",cane:"97,886.00",time:"-"},
-                    {mode:"99 QTROLLY",veh:"699",cane:"74,057.00",time:"-"},
-                    {mode:"36 QTROLLY",veh:"1,366",cane:"53,449.00",time:"-"},
-                    {mode:"Total",veh:"17,272",cane:"9,86,557.00",time:"-",cls:"font-black"}
-                  ]}/>
-                </div>
-                <div>
-                  <SubLabel color="#06b6d4">Centre vehicles · collection feed</SubLabel>
-                  <DTable darkMode={dm} cols={[
-                    {key:"mode",label:"Mode",bold:true},{key:"veh",label:"Vehicles",cls:"text-right"},{key:"cane",label:"Cane (Q)",cls:"text-right"},{key:"time",label:"Time (Hrs)",cls:"text-right"}
-                  ]} rows={proc ? proc.centerVehicles : [
-                    {mode:"45 QTROLLY",veh:"18,254",cane:"9,59,139.00",time:"-"},
-                    {mode:"18 QCART",veh:"26,906",cane:"5,74,364.00",time:"-"},
-                    {mode:"63 QTROLLY",veh:"277",cane:"18,937.00",time:"-"},
-                    {mode:"36 QTROLLY",veh:"63",cane:"2,656.00",time:"-"},
-                    {mode:"Total",veh:"45,500",cane:"15,55,096.00",time:"-",cls:"font-black"}
-                  ]}/>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <StatTile dm={dm} toneName="cyan" label="Centre Trips"
-                    value={proc ? n(proc.centerTrips).toLocaleString("en-IN") : "6,472"} />
-                  <StatTile dm={dm} toneName="cyan" label="Centre Holding" unit="H"
-                    value={proc ? fmt(proc.avgCenterWait) : "3.04"} />
-                </div>
-              </PanelCard>
-
-              <PanelCard dm={dm} icon={Warehouse} toneName="violet"
-                title="Step 3 · Yard" caption="Waiting inside the yard before weighment">
-                <div>
-                  <SubLabel color="#8b5cf6">Yard waiting by mode</SubLabel>
-                  <DTable darkMode={dm} cols={[
-                    {key:"mode",label:"Mode",bold:true},{key:"avg",label:"Avg Time",cls:"text-right"},{key:"dev",label:"Dev. (>8H)",cls:"text-right"}
-                  ]} rows={proc ? proc.yardGate : [
-                    {mode:"18 QCART",avg:"9.25",dev:"1671"},
-                    {mode:"36 QTROLLY",avg:"7.18",dev:"368"},
-                    {mode:"45 QTROLLY",avg:"14.78",dev:"3"},
-                    {mode:"63 QTROLLY",avg:"8.58",dev:"3596"},
-                    {mode:"99 QTROLLY",avg:"11.40",dev:"319"},
-                    {mode:"Total",avg:"8.77",dev:"5957",cls:"font-black"}
-                  ]}/>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <StatTile dm={dm} toneName="violet" label="Yard Waiting" unit="H"
-                    value={proc ? fmt(proc.avgYardWait) : "7.93"}>
-                    {prior?.kpis && (
-                      <PyBadge curr={proc?.avgYardWait} prior={prior.kpis.yardWaiting} lowerBetter dm={dm} label={pyLabel} />
-                    )}
-                  </StatTile>
-                  <StatTile dm={dm} toneName="amber" label="Truck Holding" unit="H"
-                    value={proc ? fmt(actualProcurementCards.truckHolding) : "4.02"}>
-                    {prior?.kpis && (
-                      <PyBadge curr={actualProcurementCards.truckHolding} prior={prior.kpis.truckHolding} lowerBetter dm={dm} label={pyLabel} />
-                    )}
-                  </StatTile>
-                </div>
-                <div>
-                  <SubLabel color="#06b6d4">Centre holding time by mode</SubLabel>
-                  <DTable darkMode={dm} cols={[
-                    {key:"mode",label:"Mode",bold:true},{key:"h",label:"Holding Time (H)",cls:"text-right"}
-                  ]} rows={proc ? proc.centerHolding : [
-                    {mode:"18 QCART",h:"3.08"},{mode:"36 QTROLLY",h:"2.69"},
-                    {mode:"45 QTROLLY",h:"2.78"},{mode:"63 QTROLLY",h:"2.04"},
-                    {mode:"Total",h:"2.95",cls:"font-black"}
-                  ]}/>
-                </div>
-              </PanelCard>
-
-              <PanelCard dm={dm} icon={Factory} toneName="rose"
-                title="Step 4–5 · Mill Premise" caption="Weighbridge → Donga → conveyor → 5 mills">
-                <div className={`relative flex items-center gap-2.5 rounded-xl border px-3 py-2.5 overflow-hidden
-                  ${dm?"border-slate-800 bg-slate-800/40":"border-blue-100 bg-blue-50/70"}`}>
-                  <span className="absolute inset-y-0 left-0 w-1" style={{background:"linear-gradient(180deg,#60a5fa,#2563eb)"}} />
-                  <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
-                    style={{background:"linear-gradient(135deg,#60a5fa,#2563eb)"}}>
-                    <Scale className="w-4 h-4" />
-                  </span>
-                  <span className={`text-[10px] font-bold ${dm?"text-slate-300":"text-blue-800"}`}>Factory entry gate weighbridge</span>
-                </div>
-                <div>
-                  <SubLabel color="#f43f5e">Unloading at donga by mode</SubLabel>
-                  <DTable darkMode={dm} cols={[
-                    {key:"mode",label:"Mode",bold:true},{key:"avg",label:"Avg Time",cls:"text-right"},{key:"dev",label:"Dev (>0.5H)",cls:"text-right"}
-                  ]} rows={proc ? proc.mill : [
-                    {mode:"18 QCART",avg:"0.37",dev:"727"},
-                    {mode:"36 QTROLLY",avg:"0.42",dev:"384"},
-                    {mode:"45 QTROLLY",avg:"0.59",dev:"3"},
-                    {mode:"63 QTROLLY",avg:"0.60",dev:"5988"},
-                    {mode:"99 QTROLLY",avg:"0.60",dev:"366"},
-                    {mode:"Total",avg:"0.52",dev:"7468",cls:"font-black"}
-                  ]}/>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <StatTile dm={dm} toneName="blue" label="Cane Holding" unit="H"
-                    value={proc ? fmt(proc.caneHolding) : "15.19"}>
-                    {prior?.kpis && (
-                      <PyBadge curr={proc?.caneHolding} prior={prior.kpis.caneHolding} lowerBetter dm={dm} label={pyLabel} />
-                    )}
-                  </StatTile>
-                  <StatTile dm={dm} toneName="rose" label="Time at Donga" unit="H"
-                    value={proc ? fmt(proc.avgDongaWait) : "1.12"}>
-                    {prior?.kpis && (
-                      <PyBadge curr={proc?.avgDongaWait} prior={prior.kpis.waCane} lowerBetter dm={dm} label={pyLabel} />
-                    )}
-                  </StatTile>
-                </div>
-                <div className={`relative flex items-center gap-2.5 rounded-xl border px-3 py-2.5 overflow-hidden
-                  ${dm?"border-emerald-500/30 bg-emerald-500/10":"border-emerald-200 bg-emerald-50/70"}`}>
-                  <span className="absolute inset-y-0 left-0 w-1" style={{background:"linear-gradient(180deg,#34d399,#059669)"}} />
-                  <span className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
-                    style={{background:"linear-gradient(135deg,#34d399,#059669)"}}>
-                    <Cog className="w-4 h-4 spin-slow" />
-                  </span>
-                  <span className={`text-[10px] font-bold leading-tight ${dm?"text-emerald-400":"text-emerald-800"}`}>
-                    Cane fed to Mill 1 → Mill 5 via conveyor
-                  </span>
-                  <span className="ml-auto flex items-center gap-1.5 shrink-0">
-                    <span className="pulse-dot w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Live</span>
-                  </span>
-                </div>
-              </PanelCard>
-            </div>
+          return (
+          <div className="w-full h-[calc(100vh-10.5rem)] min-h-[480px]">
+            <ProcurementCutToCrushScene
+              key="procurement-cut-to-crush"
+              fromDate={fromDate}
+              toDate={toDate}
+              gateRows={gateRows}
+              centerVehRows={centerVehRows}
+              holdRows={holdRows}
+              centerTrips={proc?.centerTrips}
+              avgCenterWait={proc?.avgCenterWait}
+              truckHolding={actualProcurementCards.truckHolding ?? proc?.truckHolding}
+              yardRows={yardRows}
+              avgYardWait={proc?.avgYardWait}
+              caneHolding={proc?.caneHolding}
+              avgDongaWait={proc?.avgDongaWait}
+              millRows={millRows}
+              summaryKpis={summaryKpis}
+            />
           </div>
-        )}
+          );
+        })()}
 
-        {tab==="gate1"&&(
-          <div className="flex flex-col lg:flex-row gap-4 h-full">
-            {/* Sidebar KPIs */}
-            <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-4">
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden text-center shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)]`}>
-                <div className={`py-1.5 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}><span className="flex items-center justify-center gap-1.5"><Sprout className="w-3.5 h-3.5"/>Cane Purchased</span></div>
-                <div className="py-6 flex flex-col items-center">
-                  <p className={`text-4xl font-black ${dm?"text-slate-100":"text-slate-800"}`}>{liveData?.sidebar ? (n(liveData.sidebar.totalCanePurchased) >= 1e6 ? (n(liveData.sidebar.totalCanePurchased)/1e6).toFixed(2)+"M" : (n(liveData.sidebar.totalCanePurchased)/1e3).toFixed(2)+"K") : "—"}</p>
-                  <p className="text-[11px] text-slate-500 mt-1">Quintals</p>
-                  {prior?.sidebar && (
-                    <PyBadge curr={liveData?.sidebar?.totalCanePurchased} prior={prior.sidebar.totalCanePurchased} dm={dm} label={pyLabel} />
-                  )}
-                </div>
-              </div>
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden text-center shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)]`}>
-                <div className={`py-1.5 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}><span className="flex items-center justify-center gap-1.5"><BarChart2 className="w-3.5 h-3.5"/>No. of Purchy</span></div>
-                <div className="py-6 flex flex-col items-center">
-                  <p className={`text-4xl font-black ${dm?"text-slate-100":"text-slate-800"}`}>{liveData?.sidebar ? (n(liveData.sidebar.noOfPurchy) >= 1e3 ? (n(liveData.sidebar.noOfPurchy)/1e3).toFixed(2)+"K" : String(n(liveData.sidebar.noOfPurchy))) : "—"}</p>
-                  <p className="text-[11px] text-slate-500 mt-1">Purchies</p>
-                  {prior?.sidebar && (
-                    <PyBadge curr={liveData?.sidebar?.noOfPurchy} prior={prior.sidebar.noOfPurchy} dm={dm} label={pyLabel} />
-                  )}
-                </div>
-              </div>
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden text-center shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)]`}>
-                <div className={`py-1.5 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}><span className="flex items-center justify-center gap-1.5"><Scale className="w-3.5 h-3.5"/>Avg Purchy Size</span></div>
-                <div className="py-6 flex flex-col items-center">
-                  <p className={`text-5xl font-black ${dm?"text-slate-100":"text-slate-800"}`}>{liveData?.sidebar ? fmt(liveData.sidebar.avgPurchySize) : "—"}</p>
-                  <p className="text-[11px] text-slate-500 mt-2">Quintals</p>
-                  {prior?.sidebar && (
-                    <PyBadge curr={liveData?.sidebar?.avgPurchySize} prior={prior.sidebar.avgPurchySize} dm={dm} label={pyLabel} />
-                  )}
-                </div>
-              </div>
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden text-center shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex-1`}>
-                <div className={`py-1.5 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}><span className="flex items-center justify-center gap-1.5"><ArrowRightLeft className="w-3.5 h-3.5"/>Avg Purchi Overrun (Qtls)</span></div>
-                <div className="py-4 px-2 grid grid-cols-2 gap-y-6 gap-x-2">
-                  {(liveData?.overruns || []).map((o, i) => (
-                    <div key={i} className="flex flex-col items-center">
-                      <p className="text-xl font-black bg-gradient-to-br from-[#60a5fa] to-[#2563eb] bg-clip-text text-transparent">{fmt(o.avgOverrun)}</p>
-                      <p className={`text-[10px] font-bold ${dm?"text-slate-400":"text-slate-600"}`}>{o.mode.toUpperCase()}</p>
-                      {prior && priorOverrun[o.mode] != null && (
-                        <PyBadge curr={o.avgOverrun} prior={priorOverrun[o.mode]} lowerBetter dm={dm} label={pyLabel} />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+        {tab==="gate1"&&(() => {
+          const sb = liveData?.sidebar;
+          const avgOverrun = (() => {
+            const list = liveData?.overruns || [];
+            if (!list.length) return null;
+            return list.reduce((a, o) => a + n(o.avgOverrun), 0) / list.length;
+          })();
+          const priorAvgOverrun = (() => {
+            const list = prior?.overruns || [];
+            if (!list.length) return null;
+            return list.reduce((a, o) => a + n(o.avgOverrun), 0) / list.length;
+          })();
+          const modePieRows = (liveData?.modeData || []).map((m) => ({
+            name: m.mode,
+            value: n(m.caneQty),
+            color: gate1ModeColor(m.mode),
+          }));
+          const overrunSeries = (() => {
+            const raw = liveData?.overrunTrend || [];
+            const byDate = {};
+            raw.forEach((r) => {
+              const d = String(r.date).substring(5, 10);
+              if (!byDate[d]) byDate[d] = { date: d };
+              if (r.mode?.includes("18")) byDate[d].c18 = n(r.avgOverrun);
+              else if (r.mode?.includes("36")) byDate[d].c36 = n(r.avgOverrun);
+              else if (r.mode?.includes("45")) byDate[d].c45 = n(r.avgOverrun);
+              else if (r.mode?.includes("63")) byDate[d].c63 = n(r.avgOverrun);
+              else if (r.mode?.includes("99")) byDate[d].c99 = n(r.avgOverrun);
+            });
+            return Object.values(byDate);
+          })();
+          const rangeLabel = (() => {
+            if (!fromDate || !toDate) return undefined;
+            const opts = { day: "2-digit", month: "short" };
+            const fromLbl = new Date(fromDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            const toLbl = new Date(toDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            return fromLbl === toLbl ? fromLbl : `${fromLbl} - ${toLbl}`;
+          })();
+          const softTick = { fill: dm ? "#94a3b8" : "#94a3b8", fontSize: 10, fontWeight: 600 };
+          const softGrid = dm ? "#1e293b" : "#f1f5f9";
+
+          return (
+          <div className="flex flex-col gap-4">
+            {/* KPI row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <Gate1KpiCard
+                dm={dm}
+                title="Total Cane Purchased (Qtls)"
+                value={sb ? compact(sb.totalCanePurchased) : "—"}
+                delta={pctChange(sb?.totalCanePurchased, prior?.sidebar?.totalCanePurchased)}
+                icon={Sprout}
+                iconBg="#ccfbf1"
+                iconColor="#0d9488"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="No. of Parchy"
+                value={sb ? n(sb.noOfPurchy).toLocaleString("en-IN") : "—"}
+                delta={pctChange(sb?.noOfPurchy, prior?.sidebar?.noOfPurchy)}
+                icon={FileText}
+                iconBg="#e0e7ff"
+                iconColor="#4f46e5"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Avg Parchy Size (Qtls)"
+                value={sb ? fmt(sb.avgPurchySize) : "—"}
+                delta={pctChange(sb?.avgPurchySize, prior?.sidebar?.avgPurchySize)}
+                icon={Scale}
+                iconBg="#ede9fe"
+                iconColor="#7c3aed"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Avg Parchy Overrun (Qtls)"
+                value={avgOverrun != null ? fmt(avgOverrun) : "—"}
+                delta={pctChange(avgOverrun, priorAvgOverrun)}
+                lowerBetter
+                icon={AlertTriangle}
+                iconBg="#ffedd5"
+                iconColor="#ea580c"
+              />
             </div>
 
-            {/* Main Area Charts */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}>Purchase Split - Mode wise</div>
-                <div className="flex-1 min-h-[260px]">
-                  <ModeDonut dm={dm} unit="Qtls" title="Cane"
-                    data={actualModePie.map(m => ({ name: m.mode, value: m.qty, color: m.color }))} />
-                </div>
-              </div>
+            {/* Middle: full-height donut (left) + stacked purchase/overrun trends (right) */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+              <Gate1Panel title="Purchase Split - Modewise" dm={dm} accent className="xl:col-span-5 min-h-[440px]">
+                <Gate1ModeDonut data={modePieRows} dm={dm} />
+              </Gate1Panel>
 
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}>Cane Purchase Trend</div>
-                <div className="flex-1 p-4 min-h-[220px]">
+              <div className="xl:col-span-7 flex flex-col gap-4">
+                <Gate1Panel title="Cane Purchase Trend" dm={dm} className="min-h-[260px]" bodyClassName="px-2 pb-3 pt-1">
                   <ResponsiveContainer width="100%" height={220}>
                     <AreaChart data={actualGate1Daily}>
                       <defs>
-                        <linearGradient id="colorQty" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                        <linearGradient id="gQty" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={10}/>
-                      <YAxis tickFormatter={v=>(v/1000).toFixed(1)+"k"} tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip formatter={v=>v.toLocaleString()+" Qtls"} {...TT(dm)}/>
-                      <Area type="monotone" dataKey="qty" stroke="#3b82f6" fill="url(#colorQty)" strokeWidth={2}/>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                      <YAxis tickFormatter={(v) => (v / 1000).toFixed(1) + "k"} tickLine={false} axisLine={false} tick={softTick} width={42} />
+                      <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " Qtls"} {...TT(dm)} />
+                      <Area type="monotone" dataKey="qty" name="Cane Purchased" stroke="#14b8a6" fill="url(#gQty)" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0 }} activeDot={{ r: 4 }} />
                     </AreaChart>
                   </ResponsiveContainer>
-                </div>
-              </div>
+                </Gate1Panel>
 
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}>Purchi Overrun Trend (Qtls)</div>
-                <div className="flex-1 p-2 min-h-[220px]">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={(() => {
-                      const raw = liveData?.overrunTrend || [];
-                      const byDate = {};
-                      raw.forEach(r => {
-                        const d = String(r.date).substring(5,10);
-                        if (!byDate[d]) byDate[d] = { date: d };
-                        if (r.mode?.includes('18')) byDate[d].c18 = r.avgOverrun;
-                        else if (r.mode?.includes('36')) byDate[d].c36 = r.avgOverrun;
-                        else if (r.mode?.includes('63')) byDate[d].c63 = r.avgOverrun;
-                        else if (r.mode?.includes('99')) byDate[d].c99 = r.avgOverrun;
-                      });
-                      return Object.values(byDate).slice(-15);
-                    })()}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={10}/>
-                      <YAxis tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip {...TT(dm)}/>
-                      <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                      <Line type="linear" dataKey="c18" name="18 QCART" stroke="#1e88e5" strokeWidth={2.5} dot={false}/>
-                      <Line type="linear" dataKey="c36" name="36 QTROLLY" stroke="#0d47a1" strokeWidth={2.5} dot={false}/>
-                      <Line type="linear" dataKey="c63" name="63 QTROLLY" stroke="#f57c00" strokeWidth={2.5} dot={false}/>
-                      <Line type="linear" dataKey="c99" name="99 QTRUCK" stroke="#6a1b9a" strokeWidth={2.5} dot={false}/>
+                <Gate1Panel title="Parchi Overrun Trend (Qtls)" subtitle={rangeLabel} dm={dm} className="min-h-[220px]" bodyClassName="px-2 pb-3 pt-1">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={overrunSeries}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                      <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                      <Tooltip formatter={(v) => fmt(v) + " Qtls"} {...TT(dm)} />
+                      <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                      <Line type="monotone" dataKey="c18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="c36" name="36 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="c45" name="45 QTROLLY" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="c63" name="63 QTROLLY" stroke="#fb923c" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="c99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
-              </div>
-
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}>No. of Vehicles</div>
-                <div className="flex-1 p-4 min-h-[220px]">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={(liveData?.vehiclesByMode || []).map(m => ({ mode: m.mode, v: +(m.vehicles / 1000).toFixed(1) }))}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="mode" tickLine={false} axisLine={false} tick={T(dm)} dy={10}/>
-                      <YAxis tickFormatter={v=>v+"K"} tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip formatter={v=>v+"K"} {...TT(dm)}/>
-                      <Bar dataKey="v" fill="#2196f3" barSize={40}/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                </Gate1Panel>
               </div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
-        {tab==="gate2"&&(
-          <div className="h-full flex flex-col gap-3">
-            <div className="grid grid-cols-4 gap-3 flex-1 min-h-[300px]">
-              <ModeStatCard title="18 QCART" dm={dm} from="#60a5fa" to="#1e88e5" rows={[
-                { label: "No. of Carts", value: proc ? proc.gate2.cart18.trips || 0 : 4606 },
-                { label: "Min Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.cart18.minYardWait) : 0.03 },
-                { label: "Avg Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.cart18.avgYardWait) : 9.25 },
-                { label: "Max Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.cart18.maxYardWait) : 39.47 },
-                { label: "Vehicles exceeding Holding Time", value: proc ? ((proc.gate2.cart18.devGateYard || 0) + (proc.gate2.cart18.devCenterYard || 0)) : 1671 },
-              ]} />
-              <ModeStatCard title="36 QTROLLY" dm={dm} from="#5c8ee6" to="#0d47a1" rows={[
-                { label: "No. of Trollies", value: proc ? proc.gate2.trolly36.trips || 0 : 1366 },
-                { label: "Min Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.trolly36.minYardWait) : 0.03 },
-                { label: "Avg Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.trolly36.avgYardWait) : 7.18 },
-                { label: "Max Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.trolly36.maxYardWait) : 32.67 },
-                { label: "Vehicles exceeding Holding Time", value: proc ? ((proc.gate2.trolly36.devGateYard || 0) + (proc.gate2.trolly36.devCenterYard || 0)) : 368 },
-              ]} />
-              {/* Average Yard Holding Time */}
-              <div className={`col-span-2 rounded-2xl border overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} flex flex-col`}>
-                <div className={`py-1.5 px-2 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}>Average Yard Holding Time</div>
-                <div className="flex-1 p-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={(() => {
-                      const raw = liveData?.holdingTrend || [];
-                      const byDate = {};
-                      raw.forEach(r => {
-                        const d = String(r.date).substring(5,10);
-                        if (!byDate[d]) byDate[d] = { date: d };
-                        if (r.mode?.includes('18')) byDate[d].c18 = r.holdingHrs;
-                        else if (r.mode?.includes('36')) byDate[d].c36 = r.holdingHrs;
-                        else if (r.mode?.includes('63')) byDate[d].c63 = r.holdingHrs;
-                        else if (r.mode?.includes('99')) byDate[d].c99 = r.holdingHrs;
-                      });
-                      return Object.values(byDate).slice(-20);
-                    })()}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                      <YAxis tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip {...TT(dm)}/>
-                      <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                      <Line type="linear" dataKey="c18" name="18 QCART" stroke="#1e88e5" strokeWidth={2} dot={false}/>
-                      <Line type="linear" dataKey="c36" name="36 QTROLLY" stroke="#0d47a1" strokeWidth={2} dot={false}/>
-                      <Line type="linear" dataKey="c63" name="63 QTROLLY" stroke="#f57c00" strokeWidth={2} dot={false}/>
-                      <Line type="linear" dataKey="c99" name="99 QTRUCK" stroke="#6a1b9a" strokeWidth={2} dot={false}/>
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+        {tab==="gate2"&&(() => {
+          const g2 = proc?.gate2;
+          const modes = [
+            {
+              key: "18",
+              title: "18 QCART",
+              color: "#14b8a6",
+              iconBg: "#ccfbf1",
+              rows: [
+                { label: "No. of Carts", value: g2 ? n(g2.cart18.trips).toLocaleString("en-IN") : "—" },
+                { label: "Min Yard Holding (Hrs)", value: g2 ? fmt(g2.cart18.minYardWait) : "—" },
+                { label: "Avg Yard Holding (Hrs)", value: g2 ? fmt(g2.cart18.avgYardWait) : "—" },
+                { label: "Max Yard Holding (Hrs)", value: g2 ? fmt(g2.cart18.maxYardWait) : "—" },
+                { label: "Exceeding Holding Time", value: g2 ? n((g2.cart18.devGateYard || 0) + (g2.cart18.devCenterYard || 0)).toLocaleString("en-IN") : "—" },
+              ],
+            },
+            {
+              key: "36",
+              title: "36 QTROLLY",
+              color: "#3b82f6",
+              iconBg: "#dbeafe",
+              rows: [
+                { label: "No. of Trollies", value: g2 ? n(g2.trolly36.trips).toLocaleString("en-IN") : "—" },
+                { label: "Min Yard Holding (Hrs)", value: g2 ? fmt(g2.trolly36.minYardWait) : "—" },
+                { label: "Avg Yard Holding (Hrs)", value: g2 ? fmt(g2.trolly36.avgYardWait) : "—" },
+                { label: "Max Yard Holding (Hrs)", value: g2 ? fmt(g2.trolly36.maxYardWait) : "—" },
+                { label: "Exceeding Holding Time", value: g2 ? n((g2.trolly36.devGateYard || 0) + (g2.trolly36.devCenterYard || 0)).toLocaleString("en-IN") : "—" },
+              ],
+            },
+            {
+              key: "63",
+              title: "63 QTROLLY",
+              color: "#f97316",
+              iconBg: "#ffedd5",
+              rows: [
+                { label: "No. of Trollies", value: g2 ? n(g2.trolly63.trips).toLocaleString("en-IN") : "—" },
+                { label: "Min Yard Holding (Hrs)", value: g2 ? fmt(g2.trolly63.minYardWait) : "—" },
+                { label: "Avg Yard Holding (Hrs)", value: g2 ? fmt(g2.trolly63.avgYardWait) : "—" },
+                { label: "Max Yard Holding (Hrs)", value: g2 ? fmt(g2.trolly63.maxYardWait) : "—" },
+                { label: "Exceeding Holding Time", value: g2 ? n((g2.trolly63.devGateYard || 0) + (g2.trolly63.devCenterYard || 0)).toLocaleString("en-IN") : "—" },
+              ],
+            },
+            {
+              key: "99",
+              title: "99 QTRUCK",
+              color: "#8b5cf6",
+              iconBg: "#ede9fe",
+              rows: [
+                { label: "No. of Trucks", value: g2 ? n(g2.truck99.trips).toLocaleString("en-IN") : "—" },
+                { label: "Min Yard Holding (Hrs)", value: g2 ? fmt(g2.truck99.minYardWait) : "—" },
+                { label: "Avg Yard Holding (Hrs)", value: g2 ? fmt(g2.truck99.avgYardWait) : "—" },
+                { label: "Max Yard Holding (Hrs)", value: g2 ? fmt(g2.truck99.maxYardWait) : "—" },
+                { label: "Exceeding Holding Time", value: g2 ? n((g2.truck99.devGateYard || 0) + (g2.truck99.devCenterYard || 0)).toLocaleString("en-IN") : "—" },
+              ],
+            },
+          ];
+
+          const totalVeh = g2
+            ? n(g2.cart18.trips) + n(g2.trolly36.trips) + n(g2.trolly63.trips) + n(g2.truck99.trips)
+            : null;
+          const avgHold = g2
+            ? (() => {
+                const vals = [g2.cart18, g2.trolly36, g2.trolly63, g2.truck99]
+                  .map((m) => n(m.avgYardWait))
+                  .filter((v) => v > 0);
+                return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+              })()
+            : null;
+          const maxHold = g2
+            ? Math.max(n(g2.cart18.maxYardWait), n(g2.trolly36.maxYardWait), n(g2.trolly63.maxYardWait), n(g2.truck99.maxYardWait))
+            : null;
+          const exceedTotal = g2
+            ? [g2.cart18, g2.trolly36, g2.trolly63, g2.truck99]
+                .reduce((s, m) => s + n(m.devGateYard) + n(m.devCenterYard), 0)
+            : null;
+
+          const holdingSeries = (() => {
+            const byDate = {};
+            (liveData?.yardHoldingTrend || []).forEach((r) => {
+              const d = String(r.date).substring(5, 10);
+              if (!byDate[d]) byDate[d] = { date: d };
+              if (r.mode?.includes("18")) byDate[d].c18 = n(r.holdingHrs);
+              else if (r.mode?.includes("36")) byDate[d].c36 = n(r.holdingHrs);
+              else if (r.mode?.includes("45")) byDate[d].c45 = n(r.holdingHrs);
+              else if (r.mode?.includes("63")) byDate[d].c63 = n(r.holdingHrs);
+              else if (r.mode?.includes("99")) byDate[d].c99 = n(r.holdingHrs);
+            });
+            return Object.values(byDate);
+          })();
+
+          const exceedSeries = (() => {
+            const byDate = {};
+            (liveData?.yardExceedTrend || []).forEach((r) => {
+              const d = String(r.date).substring(5, 10);
+              if (!byDate[d]) byDate[d] = { date: d };
+              if (r.mode?.includes("18")) byDate[d].c18 = n(r.exceedCount);
+              else if (r.mode?.includes("36")) byDate[d].c36 = n(r.exceedCount);
+              else if (r.mode?.includes("45")) byDate[d].c45 = n(r.exceedCount);
+              else if (r.mode?.includes("63")) byDate[d].c63 = n(r.exceedCount);
+              else if (r.mode?.includes("99")) byDate[d].c99 = n(r.exceedCount);
+            });
+            return Object.values(byDate);
+          })();
+
+          const rangeLabel = (() => {
+            if (!fromDate || !toDate) return undefined;
+            const opts = { day: "2-digit", month: "short" };
+            const fromLbl = new Date(fromDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            const toLbl = new Date(toDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            return fromLbl === toLbl ? fromLbl : `${fromLbl} - ${toLbl}`;
+          })();
+          const softTick = { fill: "#94a3b8", fontSize: 10, fontWeight: 600 };
+          const softGrid = dm ? "#1e293b" : "#f1f5f9";
+
+          return (
+          <div className="flex flex-col gap-4">
+            {/* Summary KPI row — same language as Gate 1 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <Gate1KpiCard
+                dm={dm}
+                title="Total Vehicles"
+                value={totalVeh != null ? totalVeh.toLocaleString("en-IN") : "—"}
+                icon={Truck}
+                iconBg="#dbeafe"
+                iconColor="#2563eb"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Avg Yard Holding (Hrs)"
+                value={avgHold != null ? fmt(avgHold) : "—"}
+                lowerBetter
+                icon={Clock}
+                iconBg="#ccfbf1"
+                iconColor="#0d9488"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Max Yard Holding (Hrs)"
+                value={maxHold != null ? fmt(maxHold) : "—"}
+                lowerBetter
+                icon={Activity}
+                iconBg="#ffedd5"
+                iconColor="#ea580c"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Vehicles Exceeding (>8 Hrs)"
+                value={exceedTotal != null ? exceedTotal.toLocaleString("en-IN") : "—"}
+                lowerBetter
+                icon={AlertTriangle}
+                iconBg="#fee2e2"
+                iconColor="#dc2626"
+              />
             </div>
 
-            <div className="grid grid-cols-4 gap-3 flex-1 min-h-[300px]">
-              <ModeStatCard title="63 QTROLLY" dm={dm} from="#fbbf24" to="#f57c00" rows={[
-                { label: "No. of Trollies", value: proc ? proc.gate2.trolly63.trips || 0 : 10596 },
-                { label: "Min Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.trolly63.minYardWait) : 0.02 },
-                { label: "Avg Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.trolly63.avgYardWait) : 8.58 },
-                { label: "Max Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.trolly63.maxYardWait) : 28.97 },
-                { label: "Vehicles exceeding Holding Time", value: proc ? ((proc.gate2.trolly63.devGateYard || 0) + (proc.gate2.trolly63.devCenterYard || 0)) : 3596 },
-              ]} />
-              <ModeStatCard title="99 QTRUCK" dm={dm} from="#c084fc" to="#6a1b9a" rows={[
-                { label: "No. of Trucks", value: proc ? proc.gate2.truck99.trips || 0 : 699 },
-                { label: "Min Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.truck99.minYardWait) : 0.05 },
-                { label: "Avg Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.truck99.avgYardWait) : 11.40 },
-                { label: "Max Yard Holding Time (Hrs)", value: proc ? fmt(proc.gate2.truck99.maxYardWait) : 26.48 },
-                { label: "Vehicles exceeding Holding Time", value: proc ? ((proc.gate2.truck99.devGateYard || 0) + (proc.gate2.truck99.devCenterYard || 0)) : 319 },
-              ]} />
-              {/* Vehicles exceeding the Standard Holding Time */}
-              <div className={`col-span-2 rounded-2xl border overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} flex flex-col`}>
-                <div className={`py-1.5 px-2 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-[#0f3f7a] via-[#1d63c4] to-[#2f8fe0] text-white"}`}>Vehicles exceeding the Standard Holding Time</div>
-                <div className="flex-1 p-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={(() => {
-                      const raw = liveData?.overrunTrend || [];
-                      const byDate = {};
-                      raw.forEach(r => {
-                        const d = String(r.date).substring(5,10);
-                        if (!byDate[d]) byDate[d] = { date: d };
-                        if (r.mode?.includes('18')) byDate[d].c18 = Math.abs(r.avgOverrun || 0);
-                        else if (r.mode?.includes('36')) byDate[d].c36 = Math.abs(r.avgOverrun || 0);
-                        else if (r.mode?.includes('63')) byDate[d].c63 = Math.abs(r.avgOverrun || 0);
-                        else if (r.mode?.includes('99')) byDate[d].c99 = Math.abs(r.avgOverrun || 0);
-                      });
-                      return Object.values(byDate).slice(-15);
-                    })()}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                      <YAxis tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip {...TT(dm)}/>
-                      <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                      <Bar dataKey="c18" name="18 QCART" fill="#1e88e5" barSize={8}/>
-                      <Bar dataKey="c36" name="36 QTROLLY" fill="#0d47a1" barSize={8}/>
-                      <Bar dataKey="c63" name="63 QTROLLY" fill="#f57c00" barSize={8}/>
-                      <Bar dataKey="c99" name="99 QTRUCK" fill="#6a1b9a" barSize={8}/>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+            {/* Mode-wise soft cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              {modes.map((m) => (
+                <Gate2ModeCard key={m.key} title={m.title} color={m.color} iconBg={m.iconBg} rows={m.rows} dm={dm} />
+              ))}
+            </div>
+
+            {/* Soft chart panels */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <Gate1Panel title="Average Yard Holding Time" subtitle={rangeLabel} dm={dm} className="min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={holdingSeries}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                    <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                    <Tooltip formatter={(v) => fmt(v) + " Hrs"} {...TT(dm)} />
+                    <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    <Line type="monotone" dataKey="c18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="c36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="c63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="c99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
+
+              <Gate1Panel title="Vehicles Exceeding Standard Holding Time" subtitle={rangeLabel} dm={dm} className="min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={exceedSeries}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                    <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                    <Tooltip formatter={(v) => n(v).toLocaleString("en-IN")} {...TT(dm)} />
+                    <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    <Bar dataKey="c18" name="18 QCART" fill="#14b8a6" radius={[3, 3, 0, 0]} barSize={8} />
+                    <Bar dataKey="c36" name="36 QTROLLY" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={8} />
+                    <Bar dataKey="c63" name="63 QTROLLY" fill="#f97316" radius={[3, 3, 0, 0]} barSize={8} />
+                    <Bar dataKey="c99" name="99 QTRUCK" fill="#8b5cf6" radius={[3, 3, 0, 0]} barSize={8} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
             </div>
           </div>
-        )}
+          );
+        })()}
 
-        {tab==="center-purchase"&&(
-          <div className="flex flex-col lg:flex-row gap-4 h-full">
-            {/* Sidebar KPIs */}
-            <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-4">
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)]`}>
-                <div className="p-3 flex flex-col gap-2.5">
-                  <SideStat dm={dm} icon={Sprout} tint="#16a34a" label="Cane Purchased (Qtls)"
-                    value={liveData?.centerSidebar ? n(liveData.centerSidebar.totalCanePurchased).toLocaleString("en-IN",{maximumFractionDigits:2}) : "—"}>
-                    {prior?.centerSidebar && (
-                      <PyBadge curr={liveData?.centerSidebar?.totalCanePurchased} prior={prior.centerSidebar.totalCanePurchased} dm={dm} label={pyLabel} />
-                    )}
-                  </SideStat>
-                  <SideStat dm={dm} icon={BarChart2} tint="#2563eb" label="No. of Purchy"
-                    value={liveData?.centerSidebar ? n(liveData.centerSidebar.noOfPurchy).toLocaleString("en-IN") : "—"}>
-                    {prior?.centerSidebar && (
-                      <PyBadge curr={liveData?.centerSidebar?.noOfPurchy} prior={prior.centerSidebar.noOfPurchy} dm={dm} label={pyLabel} />
-                    )}
-                  </SideStat>
-                  <SideStat dm={dm} icon={Scale} tint="#7c3aed" label="Avg Parchi Size (Qtls)"
-                    value={liveData?.centerSidebar ? fmt(liveData.centerSidebar.avgParchiSize) : "—"}>
-                    {prior?.centerSidebar && (
-                      <PyBadge curr={liveData?.centerSidebar?.avgParchiSize} prior={prior.centerSidebar.avgParchiSize} dm={dm} label={pyLabel} />
-                    )}
-                  </SideStat>
-                  <SideStat dm={dm} icon={Truck} tint="#ea580c" label="Trips (C to G)"
-                    value={liveData?.centerSidebar ? n(liveData.centerSidebar.trips).toLocaleString("en-IN") : "—"}>
-                    {prior?.centerSidebar && (
-                      <PyBadge curr={liveData?.centerSidebar?.trips} prior={prior.centerSidebar.trips} dm={dm} label={pyLabel} />
-                    )}
-                  </SideStat>
-                </div>
-              </div>
-              
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex-1`}>
-                <div className={`py-1.5 font-bold px-3 text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Avg Parchi Overrun (Qtls)</div>
-                <div className="p-4 flex flex-col gap-4">
-                  {(liveData?.cntOverruns || []).map((o, i) => (
-                    <div key={i}>
-                      <p className="text-2xl font-black bg-gradient-to-br from-[#60a5fa] to-[#2563eb] bg-clip-text text-transparent">{fmt(o.avgOverrun)}</p>
-                      <p className={`text-[10px] font-bold ${dm?"text-slate-400":"text-slate-600"}`}>{o.mode.toUpperCase()}</p>
-                      {prior && priorCntOverrun[o.mode] != null && (
-                        <PyBadge curr={o.avgOverrun} prior={priorCntOverrun[o.mode]} lowerBetter dm={dm} label={pyLabel} />
+        {tab==="center-purchase"&&(() => {
+          const cs = liveData?.centerSidebar;
+          const modePieRows = (liveData?.centerModePie || []).map((m) => ({
+            name: m.mode,
+            value: n(m.caneQty),
+            color: gate1ModeColor(m.mode),
+          }));
+          const purchaseTrend = (liveData?.centerPurchaseTrend || []).map((t) => ({
+            date: String(t.date).substring(5, 10),
+            qty: n(t.qty),
+          }));
+          const overrunSeries = (() => {
+            const byDate = {};
+            (liveData?.centerOverrunTrend || []).forEach((r) => {
+              const d = String(r.date).substring(5, 10);
+              if (!byDate[d]) byDate[d] = { date: d };
+              if (r.mode?.includes("18")) byDate[d].c18 = n(r.avgOverrun);
+              else if (r.mode?.includes("36")) byDate[d].c36 = n(r.avgOverrun);
+              else if (r.mode?.includes("45")) byDate[d].c45 = n(r.avgOverrun);
+              else if (r.mode?.includes("63")) byDate[d].c63 = n(r.avgOverrun);
+              else if (r.mode?.includes("99")) byDate[d].c99 = n(r.avgOverrun);
+            });
+            return Object.values(byDate);
+          })();
+          const topCenters = (liveData?.topCenters || []).map((x) => ({
+            c: String(x.c || "").substring(0, 12),
+            q: n(x.cane),
+            a: n(x.avgParchi),
+          }));
+          const bottomCenters = (liveData?.bottomCenters || []).map((x) => ({
+            c: String(x.c || "").substring(0, 12),
+            q: n(x.cane),
+            a: n(x.avgParchi),
+          }));
+          const avgOverrun = (() => {
+            const list = liveData?.cntOverruns || [];
+            if (!list.length) return null;
+            return list.reduce((a, o) => a + n(o.avgOverrun), 0) / list.length;
+          })();
+          const priorAvgOverrun = (() => {
+            const list = prior?.cntOverruns || [];
+            if (!list.length) return null;
+            return list.reduce((a, o) => a + n(o.avgOverrun), 0) / list.length;
+          })();
+          const rangeLabel = (() => {
+            if (!fromDate || !toDate) return undefined;
+            const opts = { day: "2-digit", month: "short" };
+            const fromLbl = new Date(fromDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            const toLbl = new Date(toDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            return fromLbl === toLbl ? fromLbl : `${fromLbl} - ${toLbl}`;
+          })();
+          const softTick = { fill: "#94a3b8", fontSize: 10, fontWeight: 600 };
+          const softGrid = dm ? "#1e293b" : "#f1f5f9";
+
+          return (
+          <div className="flex flex-col gap-4">
+            {/* KPI row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              <Gate1KpiCard
+                dm={dm}
+                title="Cane Purchased (Qtls)"
+                value={cs ? compact(cs.totalCanePurchased) : "—"}
+                delta={pctChange(cs?.totalCanePurchased, prior?.centerSidebar?.totalCanePurchased)}
+                icon={Sprout}
+                iconBg="#ccfbf1"
+                iconColor="#0d9488"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="No. of Purchy"
+                value={cs ? n(cs.noOfPurchy).toLocaleString("en-IN") : "—"}
+                delta={pctChange(cs?.noOfPurchy, prior?.centerSidebar?.noOfPurchy)}
+                icon={FileText}
+                iconBg="#e0e7ff"
+                iconColor="#4f46e5"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Avg Parchi Size (Qtls)"
+                value={cs ? fmt(cs.avgParchiSize) : "—"}
+                delta={pctChange(cs?.avgParchiSize, prior?.centerSidebar?.avgParchiSize)}
+                icon={Scale}
+                iconBg="#ede9fe"
+                iconColor="#7c3aed"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Trips (C to G)"
+                value={cs ? n(cs.trips).toLocaleString("en-IN") : "—"}
+                delta={pctChange(cs?.trips, prior?.centerSidebar?.trips)}
+                icon={Truck}
+                iconBg="#ffedd5"
+                iconColor="#ea580c"
+              />
+              <Gate1KpiCard
+                dm={dm}
+                title="Avg Parchi Overrun (Qtls)"
+                value={avgOverrun != null ? fmt(avgOverrun) : "—"}
+                delta={pctChange(avgOverrun, priorAvgOverrun)}
+                lowerBetter
+                icon={AlertTriangle}
+                iconBg="#fee2e2"
+                iconColor="#dc2626"
+              />
+            </div>
+
+            {/* Mode overrun chips */}
+            {(liveData?.cntOverruns || []).length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+                {(liveData?.cntOverruns || []).map((o) => {
+                  const color = gate1ModeColor(o.mode);
+                  return (
+                    <div key={o.mode}
+                      className={`relative rounded-2xl border px-3.5 py-3 transition-all duration-200 hover:-translate-y-0.5
+                        ${dm ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}
+                      style={{ boxShadow: cardShadow(dm) }}>
+                      <div className="absolute top-2 right-2 z-10">
+                        <InfoTip text={`Average parchie overrun (Qtls) for mode ${o.mode}: avg cane qty minus the standard mode capacity.`} dm={dm} />
+                      </div>
+                      <p className={`text-[11px] font-semibold pr-6 ${dm ? "text-slate-400" : "text-slate-500"}`}>{o.mode}</p>
+                      <p className="text-xl font-black tabular-nums mt-0.5" style={{ color }}>{fmt(o.avgOverrun)}</p>
+                      <p className={`text-[10px] font-medium ${dm ? "text-slate-500" : "text-slate-400"}`}>Avg overrun (Qtls)</p>
+                      {priorCntOverrun[o.mode] != null && (
+                        <div className="mt-1">
+                          <PyBadge curr={o.avgOverrun} prior={priorCntOverrun[o.mode]} lowerBetter dm={dm} label={pyLabel} />
+                        </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
 
-            {/* Main Area Charts */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 flex flex-col gap-4">
-                <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-[200px]`}>
-                  <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Cane Purchase Trend</div>
-                  <div className="flex-1 p-2">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <AreaChart data={(liveData?.centerPurchaseTrend || []).map(t => ({ date: String(t.date).substring(5,10), qty: t.qty }))}>
-                        <defs><linearGradient id="colorCPT" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#e67c32" stopOpacity={0.3}/><stop offset="95%" stopColor="#e67c32" stopOpacity={0}/></linearGradient></defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                        <YAxis tickFormatter={v=>(v/1000).toFixed(1)+"k"} tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                        <Tooltip formatter={v=>v.toLocaleString()+" Qtls"} {...TT(dm)}/>
-                        <Area type="monotone" dataKey="qty" stroke="#e67c32" fill="url(#colorCPT)" strokeWidth={2}/>
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-[240px]`}>
-                  <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Top 10 Centers - Cane Purchase Q)</div>
-                  <div className="flex-1 p-2">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <ComposedChart data={(liveData?.topCenters || []).map(x => ({
-                        c: String(x.c || "").substring(0, 10),
-                        q: n(x.cane),
-                        a: n(x.avgParchi)
-                      }))}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                        <XAxis dataKey="c" tickLine={false} axisLine={false} tick={T(dm)} dy={5} angle={-30} textAnchor="end"/>
-                        <YAxis yAxisId="left" tickFormatter={v=>v/1000+"K"} tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                        <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={T(dm)} dx={10}/>
-                        <Tooltip {...TT(dm)}/>
-                        <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                        <Bar yAxisId="left" dataKey="q" name="Cane Purchased (Qtls)" fill="#f4c7c3" barSize={30}/>
-                        <Line yAxisId="right" type="linear" dataKey="a" name="Avg Parchi Size" stroke="#000080" strokeWidth={2}/>
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-[240px]`}>
-                  <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Bottom 10 Centers - Cane Purchase (Q)</div>
-                  <div className="flex-1 p-2">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <ComposedChart data={(liveData?.bottomCenters || []).map(x => ({
-                        c: String(x.c || "").substring(0, 10),
-                        q: n(x.cane),
-                        a: n(x.avgParchi)
-                      }))}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                        <XAxis dataKey="c" tickLine={false} axisLine={false} tick={T(dm)} dy={5} angle={-30} textAnchor="end"/>
-                        <YAxis yAxisId="left" tickFormatter={v=>v/1000+"K"} tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                        <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={T(dm)} dx={10}/>
-                        <Tooltip {...TT(dm)}/>
-                        <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                        <Bar yAxisId="left" dataKey="q" name="Cane Purchased (Qtls)" fill="#f4c7c3" barSize={30}/>
-                        <Line yAxisId="right" type="linear" dataKey="a" name="Avg Parchi Size" stroke="#000080" strokeWidth={2}/>
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
+            {/* Donut + trends — Gate 1 layout */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+              <Gate1Panel title="Purchase Split - Modewise" dm={dm} accent className="xl:col-span-5 min-h-[400px]">
+                <Gate1ModeDonut data={modePieRows} dm={dm} />
+              </Gate1Panel>
 
-              <div className="md:col-span-1 flex flex-col gap-4">
-                <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-[320px]`}>
-                  <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Purchase Split - Modewise</div>
-                  <div className="flex-1 min-h-0">
-                    <ModeDonut dm={dm} unit="Qtls" title="Cane"
-                      data={(liveData?.centerModePie || []).map(m => ({
-                        name: m.mode, value: m.caneQty, color: modeColor(m.mode)
-                      }))} />
-                  </div>
-                </div>
-                <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-[240px]`}>
-                  <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Parchi Overrun Trend (Qtls)</div>
-                  <div className="flex-1 p-2">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <LineChart data={(() => {
-                        const raw = liveData?.centerOverrunTrend || [];
-                        const byDate = {};
-                        raw.forEach(r => {
-                          const d = String(r.date).substring(5,10);
-                          if (!byDate[d]) byDate[d] = { date: d };
-                          if (r.mode?.includes('18')) byDate[d].c18 = r.avgOverrun;
-                          else if (r.mode?.includes('36')) byDate[d].c36 = r.avgOverrun;
-                          else if (r.mode?.includes('45')) byDate[d].c45 = r.avgOverrun;
-                          else if (r.mode?.includes('63')) byDate[d].c63 = r.avgOverrun;
-                        });
-                        return Object.values(byDate).slice(-15);
-                      })()}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                        <YAxis tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                        <Tooltip {...TT(dm)}/>
-                        <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                        <Line type="linear" dataKey="c18" name="18 QCART" stroke="#2196f3" strokeWidth={2} dot={false}/>
-                        <Line type="linear" dataKey="c36" name="36 QTROLLY" stroke="#1a237e" strokeWidth={2} dot={false}/>
-                        <Line type="linear" dataKey="c45" name="45 QTROLLY" stroke="#e67c32" strokeWidth={2} dot={false}/>
-                        <Line type="linear" dataKey="c63" name="63 QTROLLY" stroke="#6a1b9a" strokeWidth={2} dot={false}/>
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+              <div className="xl:col-span-7 flex flex-col gap-4">
+                <Gate1Panel title="Cane Purchase Trend" subtitle={rangeLabel} dm={dm} className="min-h-[240px]" bodyClassName="px-2 pb-3 pt-1">
+                  <ResponsiveContainer width="100%" height={210}>
+                    <AreaChart data={purchaseTrend}>
+                      <defs>
+                        <linearGradient id="gCenterQty" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.35} />
+                          <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                      <YAxis tickFormatter={(v) => (v / 1000).toFixed(1) + "k"} tickLine={false} axisLine={false} tick={softTick} width={42} />
+                      <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " Qtls"} {...TT(dm)} />
+                      <Area type="monotone" dataKey="qty" name="Cane Purchased" stroke="#14b8a6" fill="url(#gCenterQty)" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0 }} activeDot={{ r: 4 }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </Gate1Panel>
 
-        {tab==="vehicle-handling"&&(
-          <div className="flex flex-col lg:flex-row gap-4 h-full">
-            {/* Left Area Charts */}
-            <div className="w-full lg:w-[45%] shrink-0 flex flex-col gap-4">
-              <div className="flex gap-4">
-                <div className={`relative rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col items-center justify-center p-6 w-[200px]`}>
-                  <span className="absolute inset-x-0 top-0 h-1" style={{background:"linear-gradient(90deg,#60a5fa,#2563eb)"}} />
-                  <span className="w-11 h-11 rounded-2xl flex items-center justify-center text-white mb-3 shadow-lg shadow-blue-500/25"
-                    style={{background:"linear-gradient(135deg,#60a5fa,#2563eb)"}}>
-                    <Truck className="w-5 h-5" />
-                  </span>
-                  <p className={`text-4xl font-black ${dm?"text-slate-100":"text-slate-800"}`}>
-                    {liveData?.centerSidebar
-                      ? (n(liveData.centerSidebar.noOfPurchy) >= 1000
-                          ? (n(liveData.centerSidebar.noOfPurchy) / 1000).toFixed(1) + "K"
-                          : n(liveData.centerSidebar.noOfPurchy).toLocaleString("en-IN"))
-                      : "—"}
-                  </p>
-                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-500 mt-1.5">Vehicle Handled</p>
-                  {prior?.centerSidebar && (
-                    <PyBadge curr={liveData?.centerSidebar?.noOfPurchy} prior={prior.centerSidebar.noOfPurchy} dm={dm} label={pyLabel} />
-                  )}
-                </div>
-                <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col flex-1`}>
-                  <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Mode wise Split</div>
-                  <div className="flex-1 p-2 h-[180px]">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={liveData?.centerVehiclesByMode || []}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                        <XAxis dataKey="mode" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                        <YAxis tickFormatter={v=>(v/1000).toFixed(1)+"K"} tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                        <Tooltip {...TT(dm)}/>
-                        <Bar dataKey="vehicles" fill="#2196f3" barSize={35}/>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-[280px]`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Vehicle Handling Trend (Mode wise)</div>
-                <div className="flex-1 p-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={(() => {
-                      const raw = liveData?.vehicleHandlingTrend || [];
-                      const byDate = {};
-                      raw.forEach(r => {
-                        const d = String(r.date).substring(5, 10);
-                        if (!byDate[d]) byDate[d] = { date: d };
-                        if (r.mode?.includes("18")) byDate[d].v18 = n(r.vehicles);
-                        else if (r.mode?.includes("36")) byDate[d].v36 = n(r.vehicles);
-                        else if (r.mode?.includes("45")) byDate[d].v45 = n(r.vehicles);
-                        else if (r.mode?.includes("63")) byDate[d].v63 = n(r.vehicles);
-                      });
-                      return Object.values(byDate);
-                    })()}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                      <YAxis tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip formatter={v=>n(v).toLocaleString()+" vehicles"} {...TT(dm)}/>
-                      <Legend verticalAlign="top" height={28} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                      <Line type="monotone" dataKey="v18" name="18 QCART" stroke="#1a237e" strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="v36" name="36 QTROLLY" stroke="#6a1b9a" strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="v45" name="45 QTROLLY" stroke="#64b5f6" strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="v63" name="63 QTROLLY" stroke="#e67c32" strokeWidth={2} dot={false}/>
+                <Gate1Panel title="Parchi Overrun Trend (Qtls)" subtitle={rangeLabel} dm={dm} className="min-h-[220px]" bodyClassName="px-2 pb-3 pt-1">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={overrunSeries}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                      <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                      <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                      <Tooltip formatter={(v) => fmt(v) + " Qtls"} {...TT(dm)} />
+                      <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                      <Line type="monotone" dataKey="c18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                      <Line type="monotone" dataKey="c36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                      <Line type="monotone" dataKey="c45" name="45 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
+                      <Line type="monotone" dataKey="c63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                      <Line type="monotone" dataKey="c99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </Gate1Panel>
               </div>
             </div>
 
-            {/* Right Area Tables */}
-            <div className="flex-1 flex flex-col gap-4">
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col flex-1`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Centers with Most Vehicle Handled (Top 10)</div>
-                <div className="flex-1 p-0 overflow-x-auto">
-                  <table className="w-full text-[11px] text-center">
-                    <thead className={`uppercase text-[9.5px] tracking-wider ${dm?"bg-slate-800/70 text-slate-400 border-b border-slate-700":"bg-slate-50 text-slate-500 border-b border-slate-200"}`}>
-                      <tr>
-                        <th className="px-2 py-2 text-left font-semibold">Center</th>
-                        <th className="px-2 py-2 font-semibold">18 QCART</th>
-                        <th className="px-2 py-2 font-semibold">36 QTROLLY</th>
-                        <th className="px-2 py-2 font-semibold">45 QTROLLY</th>
-                        <th className="px-2 py-2 font-semibold">63 QTROLLY</th>
-                        <th className="px-2 py-2 font-semibold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${dm?"divide-slate-800":"divide-slate-100"}`}>
-                      {(liveData?.topCentersVehicles || []).map((r,i)=>(
-                        <tr key={i} className={`transition-colors ${dm?"hover:bg-slate-800/50":"hover:bg-blue-50/60"}`}>
-                          <td className={`px-2 py-1.5 text-left font-semibold ${dm?"text-slate-300":"text-slate-700"}`}>{r.c}</td>
-                          <td className="px-2 py-1.5">{n(r.m18).toLocaleString()}</td>
-                          <td className="px-2 py-1.5">{n(r.m36).toLocaleString()}</td>
-                          <td className="px-2 py-1.5">{n(r.m45).toLocaleString()}</td>
-                          <td className="px-2 py-1.5">{n(r.m63).toLocaleString()}</td>
-                          <td className="px-2 py-1.5 font-semibold">{n(r.total).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+            {/* Top / Bottom centers — stacked like reference */}
+            <div className="flex flex-col gap-4">
+              <Gate1Panel title="Top 10 Centers - Cane Purchase" subtitle={rangeLabel} dm={dm} className="min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={260}>
+                  <ComposedChart data={topCenters} margin={{ top: 18, right: 12, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="c" tickLine={false} axisLine={false} tick={softTick} dy={8} angle={-25} textAnchor="end" height={54} interval={0} />
+                    <YAxis yAxisId="left" tickFormatter={(v) => (v / 1000).toFixed(0) + "K"} tickLine={false} axisLine={false} tick={softTick} width={40} />
+                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={softTick} width={36} />
+                    <Tooltip {...TT(dm)} />
+                    <Legend verticalAlign="top" height={28} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    <Bar yAxisId="left" dataKey="q" name="Cane Purchased (Qtls)" fill="#f4c7c3" radius={[4, 4, 0, 0]} barSize={28}>
+                      <LabelList dataKey="q" position="insideBottom" formatter={(v) => (n(v) >= 1000 ? (n(v) / 1000).toFixed(0) + "K" : n(v))} style={{ fontSize: 9, fontWeight: 700, fill: "#7f1d1d" }} />
+                    </Bar>
+                    <Line yAxisId="right" type="monotone" dataKey="a" name="Avg Parchi Size" stroke="#000080" strokeWidth={2} dot={{ r: 3.5, fill: "#000080", strokeWidth: 0 }}>
+                      <LabelList dataKey="a" position="top" formatter={(v) => Math.round(n(v))} style={{ fontSize: 10, fontWeight: 700, fill: "#000080" }} />
+                    </Line>
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
 
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col flex-1`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Centers with Least Vehicle Handled (Top 10)</div>
-                <div className="flex-1 p-0 overflow-x-auto">
-                  <table className="w-full text-[11px] text-center">
-                    <thead className={`uppercase text-[9.5px] tracking-wider ${dm?"bg-slate-800/70 text-slate-400 border-b border-slate-700":"bg-slate-50 text-slate-500 border-b border-slate-200"}`}>
-                      <tr>
-                        <th className="px-2 py-2 text-left font-semibold">Center</th>
-                        <th className="px-2 py-2 font-semibold">18 QCART</th>
-                        <th className="px-2 py-2 font-semibold">36 QTROLLY</th>
-                        <th className="px-2 py-2 font-semibold">45 QTROLLY</th>
-                        <th className="px-2 py-2 font-semibold">63 QTROLLY</th>
-                        <th className="px-2 py-2 font-semibold">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${dm?"divide-slate-800":"divide-slate-100"}`}>
-                      {(liveData?.bottomCentersVehicles || []).map((r,i)=>(
-                        <tr key={i} className={`transition-colors ${dm?"hover:bg-slate-800/50":"hover:bg-blue-50/60"}`}>
-                          <td className={`px-2 py-1.5 text-left font-semibold ${dm?"text-slate-300":"text-slate-700"}`}>{r.c}</td>
-                          <td className="px-2 py-1.5">{n(r.m18).toLocaleString()}</td>
-                          <td className="px-2 py-1.5">{n(r.m36).toLocaleString()}</td>
-                          <td className="px-2 py-1.5">{n(r.m45).toLocaleString()}</td>
-                          <td className="px-2 py-1.5">{n(r.m63).toLocaleString()}</td>
-                          <td className="px-2 py-1.5 font-semibold">{n(r.total).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <Gate1Panel title="Bottom 10 Centers - Cane Purchase" subtitle={rangeLabel} dm={dm} className="min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={260}>
+                  <ComposedChart data={bottomCenters} margin={{ top: 18, right: 12, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="c" tickLine={false} axisLine={false} tick={softTick} dy={8} angle={-25} textAnchor="end" height={54} interval={0} />
+                    <YAxis yAxisId="left" tickFormatter={(v) => (v / 1000).toFixed(0) + "K"} tickLine={false} axisLine={false} tick={softTick} width={40} />
+                    <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={softTick} width={36} />
+                    <Tooltip {...TT(dm)} />
+                    <Legend verticalAlign="top" height={28} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    <Bar yAxisId="left" dataKey="q" name="Cane Purchased (Qtls)" fill="#f4c7c3" radius={[4, 4, 0, 0]} barSize={28}>
+                      <LabelList dataKey="q" position="insideBottom" formatter={(v) => (n(v) >= 1000 ? (n(v) / 1000).toFixed(0) + "K" : n(v))} style={{ fontSize: 9, fontWeight: 700, fill: "#7f1d1d" }} />
+                    </Bar>
+                    <Line yAxisId="right" type="monotone" dataKey="a" name="Avg Parchi Size" stroke="#000080" strokeWidth={2} dot={{ r: 3.5, fill: "#000080", strokeWidth: 0 }}>
+                      <LabelList dataKey="a" position="top" formatter={(v) => Math.round(n(v))} style={{ fontSize: 10, fontWeight: 700, fill: "#000080" }} />
+                    </Line>
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
             </div>
           </div>
-        )}
+          );
+        })()}
 
-        {tab==="vehicle-holding"&&(
-          <div className="flex flex-col lg:flex-row gap-4 h-full">
-            {/* Left Area */}
-            <div className="w-full lg:w-[40%] shrink-0 flex flex-col gap-4">
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)]`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Avg. Holding Time (Hrs)</div>
-                <div className="p-3 grid grid-cols-4 gap-2 text-center">
-                  {(proc ? proc.centerHolding.filter(h=>h.mode!=="Total") : [{mode:"18 QCART",h:"3.08"},{mode:"36 QTROLLY",h:"2.69"},{mode:"45 QTROLLY",h:"2.78"},{mode:"63 QTROLLY",h:"2.04"}]).map((x,i) => (
-                    <div key={i} className={`relative rounded-xl px-2 pt-3 pb-2.5 flex flex-col items-center overflow-hidden ${dm?"bg-slate-800/50":"bg-slate-50"}`}>
-                      <span className="absolute inset-x-0 top-0 h-1" style={{background:modeColor(x.mode)}} />
-                      <p className={`flex items-center gap-1 text-[9.5px] font-black uppercase tracking-wide mb-1.5 ${dm?"text-slate-400":"text-slate-600"}`}>
-                        <Clock className="w-3 h-3" style={{color:modeColor(x.mode)}} />
-                        {x.mode}
-                      </p>
-                      <p className="text-3xl font-black tabular-nums" style={{color:modeColor(x.mode)}}>{x.h}</p>
-                      {prior && priorHoldByMode[x.mode] != null && (
-                        <PyBadge curr={x.h} prior={priorHoldByMode[x.mode]} lowerBetter dm={dm} label={pyLabel} />
-                      )}
-                    </div>
-                  ))}
-                </div>
+        {tab==="vehicle-handling"&&(() => {
+          const handled = liveData?.centerSidebar?.noOfPurchy;
+          const modeRows = (liveData?.centerVehiclesByMode || []).map((m) => ({
+            mode: shortModeLabel(m.mode),
+            full: m.mode,
+            vehicles: n(m.vehicles),
+            fill: gate1ModeColor(m.mode),
+          }));
+          const handlingTrend = (() => {
+            const byDate = {};
+            (liveData?.vehicleHandlingTrend || []).forEach((r) => {
+              const d = String(r.date).substring(5, 10);
+              if (!byDate[d]) byDate[d] = { date: d };
+              if (r.mode?.includes("18")) byDate[d].v18 = n(r.vehicles);
+              else if (r.mode?.includes("36")) byDate[d].v36 = n(r.vehicles);
+              else if (r.mode?.includes("45")) byDate[d].v45 = n(r.vehicles);
+              else if (r.mode?.includes("63")) byDate[d].v63 = n(r.vehicles);
+              else if (r.mode?.includes("99")) byDate[d].v99 = n(r.vehicles);
+            });
+            return Object.values(byDate);
+          })();
+          const rangeLabel = (() => {
+            if (!fromDate || !toDate) return undefined;
+            const opts = { day: "2-digit", month: "short" };
+            const fromLbl = new Date(fromDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            const toLbl = new Date(toDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            return fromLbl === toLbl ? fromLbl : `${fromLbl} - ${toLbl}`;
+          })();
+          const softTick = { fill: "#94a3b8", fontSize: 10, fontWeight: 600 };
+          const softGrid = dm ? "#1e293b" : "#f1f5f9";
+          const topModes = [...modeRows].sort((a, b) => b.vehicles - a.vehicles).slice(0, 3);
+
+          const SoftTable = ({ title, rows }) => (
+            <Gate1Panel title={title} subtitle={rangeLabel} dm={dm} className="min-h-[280px]" bodyClassName="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px] text-center">
+                  <thead className={`uppercase text-[9.5px] tracking-wider ${dm ? "bg-slate-800/50 text-slate-400 border-b border-slate-700" : "bg-slate-50 text-slate-500 border-b border-slate-100"}`}>
+                    <tr>
+                      <th className="px-3 py-2.5 text-left font-semibold">Center</th>
+                      <th className="px-2 py-2.5 font-semibold">18 QCART</th>
+                      <th className="px-2 py-2.5 font-semibold">36 QTROLLY</th>
+                      <th className="px-2 py-2.5 font-semibold">45 QTROLLY</th>
+                      <th className="px-2 py-2.5 font-semibold">63 QTROLLY</th>
+                      <th className="px-2 py-2.5 font-semibold">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className={`divide-y ${dm ? "divide-slate-800" : "divide-slate-100"}`}>
+                    {(rows || []).map((r, i) => (
+                      <tr key={i} className={`transition-colors ${dm ? "hover:bg-slate-800/40" : "hover:bg-slate-50"}`}>
+                        <td className={`px-3 py-2 text-left font-semibold ${dm ? "text-slate-200" : "text-slate-700"}`}>{r.c}</td>
+                        <td className="px-2 py-2 tabular-nums">{n(r.m18).toLocaleString("en-IN")}</td>
+                        <td className="px-2 py-2 tabular-nums">{n(r.m36).toLocaleString("en-IN")}</td>
+                        <td className="px-2 py-2 tabular-nums">{n(r.m45).toLocaleString("en-IN")}</td>
+                        <td className="px-2 py-2 tabular-nums">{n(r.m63).toLocaleString("en-IN")}</td>
+                        <td className={`px-2 py-2 font-bold tabular-nums ${dm ? "text-slate-100" : "text-slate-900"}`}>{n(r.total).toLocaleString("en-IN")}</td>
+                      </tr>
+                    ))}
+                    {!(rows || []).length && (
+                      <tr><td colSpan={6} className="px-3 py-8 text-slate-400">No data for selected range</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col flex-1 min-h-[300px]`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Avg Holding Time at Centers - Trend</div>
-                <div className="flex-1 p-2">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <LineChart data={(() => {
-                      const raw = liveData?.holdingTrend || [];
-                      const byDate = {};
-                      raw.forEach(r => {
-                        const d = String(r.date).substring(5,10);
-                        if (!byDate[d]) byDate[d] = { d };
-                        if (r.mode?.includes('18')) byDate[d].v18 = r.holdingHrs;
-                        else if (r.mode?.includes('36')) byDate[d].v36 = r.holdingHrs;
-                        else if (r.mode?.includes('45')) byDate[d].v45 = r.holdingHrs;
-                        else if (r.mode?.includes('63')) byDate[d].v63 = r.holdingHrs;
-                      });
-                      return Object.values(byDate);
-                    })()}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={G(dm)}/>
-                      <XAxis dataKey="d" tickLine={false} axisLine={false} tick={T(dm)} dy={5}/>
-                      <YAxis tickLine={false} axisLine={false} tick={T(dm)} dx={-10}/>
-                      <Tooltip {...TT(dm)}/>
-                      <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                      <Line type="monotone" dataKey="v18" name="18 QCART" stroke="#2196f3" strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="v36" name="36 QTROLLY" stroke="#1a237e" strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="v45" name="45 QTROLLY" stroke="#e67c32" strokeWidth={2} dot={false}/>
-                      <Line type="monotone" dataKey="v63" name="63 QTROLLY" stroke="#6a1b9a" strokeWidth={2} dot={false}/>
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+            </Gate1Panel>
+          );
+
+          return (
+          <div className="flex flex-col gap-4">
+            {/* KPI row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <Gate1KpiCard
+                dm={dm}
+                title="Vehicles Handled"
+                value={handled != null ? (n(handled) >= 1000 ? compact(handled) : n(handled).toLocaleString("en-IN")) : "—"}
+                delta={pctChange(handled, prior?.centerSidebar?.noOfPurchy)}
+                icon={Truck}
+                iconBg="#dbeafe"
+                iconColor="#2563eb"
+              />
+              {topModes.map((m) => (
+                <Gate1KpiCard
+                  key={m.full}
+                  dm={dm}
+                  title={m.full}
+                  value={m.vehicles.toLocaleString("en-IN")}
+                  icon={Truck}
+                  iconBg={`${m.fill}22`}
+                  iconColor={m.fill}
+                />
+              ))}
             </div>
 
-            {/* Right Area */}
-            <div className="flex-1 flex flex-col gap-4">
-              <div className={`rounded-2xl border ${dm?"border-slate-800 bg-slate-900":"border-slate-200/70 bg-white"} overflow-hidden shadow-[0_10px_26px_-18px_rgba(15,23,42,.45)] flex flex-col h-full min-h-[400px]`}>
-                <div className={`py-1.5 px-3 font-bold text-sm tracking-wide ${dm?"bg-gradient-to-r from-slate-800 to-slate-900 text-slate-100 border-b border-slate-700":"bg-gradient-to-r from-sky-100 via-blue-50 to-white text-blue-900 border-b border-blue-100"}`}>Vehicle vs Center Holding Time Plot</div>
-                <div className="flex-1 p-4">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <ScatterChart>
-                      <CartesianGrid strokeDasharray="3 3" stroke={G(dm)}/>
-                      <XAxis dataKey="h" name="Holding Time at Center (Hrs)" type="number" tick={T(dm)}/>
-                      <YAxis dataKey="v" name="No of Vehicles" type="number" tick={T(dm)}/>
-                      <Tooltip cursor={{strokeDasharray:"3 3"}} {...TT(dm)}/>
-                      <Legend verticalAlign="top" height={36} iconType="circle" wrapperStyle={{fontSize:10}}/>
-                      {(() => {
-                        const raw = liveData?.scatterData || [];
-                        const modes = [...new Set(raw.map(r => r.mode))];
-                        return modes.map((m, i) => (
-                          <Scatter key={m} name={m} data={raw.filter(r => r.mode === m)} fill={modeColor(m)} />
-                        ));
-                      })()}
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+            {/* Mode split + trend */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+              <Gate1Panel title="Mode wise Split" subtitle={rangeLabel} dm={dm} accent className="xl:col-span-5 min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={modeRows} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="mode" tickLine={false} axisLine={false} tick={softTick} dy={8} />
+                    <YAxis tickFormatter={(v) => (v / 1000).toFixed(1) + "K"} tickLine={false} axisLine={false} tick={softTick} width={42} />
+                    <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " vehicles"} {...TT(dm)} />
+                    <Bar dataKey="vehicles" name="Vehicles" radius={[6, 6, 0, 0]} barSize={36}>
+                      {modeRows.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                      <LabelList dataKey="vehicles" position="top" formatter={(v) => (n(v) >= 1000 ? (n(v) / 1000).toFixed(1) + "K" : n(v))} style={{ fontSize: 10, fontWeight: 700, fill: dm ? "#e2e8f0" : "#334155" }} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
+
+              <Gate1Panel title="Vehicle Handling Trend (Mode wise)" subtitle={rangeLabel} dm={dm} className="xl:col-span-7 min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={240}>
+                  <LineChart data={handlingTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                    <YAxis tickLine={false} axisLine={false} tick={softTick} width={40} />
+                    <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " vehicles"} {...TT(dm)} />
+                    <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    <Line type="monotone" dataKey="v18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v45" name="45 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
+            </div>
+
+            {/* Top / Least center tables */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <SoftTable title="Centers with Most Vehicle Handled (Top 10)" rows={liveData?.topCentersVehicles} />
+              <SoftTable title="Centers with Least Vehicle Handled (Top 10)" rows={liveData?.bottomCentersVehicles} />
             </div>
           </div>
-        )}
+          );
+        })()}
+
+        {tab==="vehicle-holding"&&(() => {
+          const holdModes = (proc?.centerHolding || [])
+            .filter((h) => h.mode && h.mode !== "Total")
+            .map((x) => ({
+              mode: x.mode,
+              h: n(x.h),
+              color: gate1ModeColor(x.mode),
+            }));
+          const overallAvg = holdModes.length
+            ? holdModes.reduce((a, m) => a + m.h, 0) / holdModes.length
+            : null;
+          const priorOverall = (() => {
+            const vals = Object.values(priorHoldByMode).map(n).filter((v) => v > 0);
+            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+          })();
+          const holdingTrend = (() => {
+            const byDate = {};
+            (liveData?.holdingTrend || []).forEach((r) => {
+              const d = String(r.date).substring(5, 10);
+              if (!byDate[d]) byDate[d] = { date: d };
+              if (r.mode?.includes("18")) byDate[d].v18 = n(r.holdingHrs);
+              else if (r.mode?.includes("36")) byDate[d].v36 = n(r.holdingHrs);
+              else if (r.mode?.includes("45")) byDate[d].v45 = n(r.holdingHrs);
+              else if (r.mode?.includes("63")) byDate[d].v63 = n(r.holdingHrs);
+              else if (r.mode?.includes("99")) byDate[d].v99 = n(r.holdingHrs);
+            });
+            return Object.values(byDate);
+          })();
+          const scatterRaw = liveData?.scatterData || [];
+          const scatterModes = [...new Set(scatterRaw.map((r) => r.mode).filter(Boolean))];
+          const rangeLabel = (() => {
+            if (!fromDate || !toDate) return undefined;
+            const opts = { day: "2-digit", month: "short" };
+            const fromLbl = new Date(fromDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            const toLbl = new Date(toDate + "T00:00:00").toLocaleDateString("en-IN", opts);
+            return fromLbl === toLbl ? fromLbl : `${fromLbl} - ${toLbl}`;
+          })();
+          const softTick = { fill: "#94a3b8", fontSize: 10, fontWeight: 600 };
+          const softGrid = dm ? "#1e293b" : "#f1f5f9";
+
+          return (
+          <div className="flex flex-col gap-4">
+            {/* Overall + mode holding KPIs */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              <Gate1KpiCard
+                dm={dm}
+                title="Avg Holding Time (Hrs)"
+                value={overallAvg != null ? fmt(overallAvg) : "—"}
+                delta={pctChange(overallAvg, priorOverall)}
+                lowerBetter
+                icon={Clock}
+                iconBg="#ccfbf1"
+                iconColor="#0d9488"
+              />
+              {holdModes.map((m) => (
+                <Gate1KpiCard
+                  key={m.mode}
+                  dm={dm}
+                  title={m.mode}
+                  value={fmt(m.h)}
+                  delta={pctChange(m.h, priorHoldByMode[m.mode])}
+                  lowerBetter
+                  icon={Clock}
+                  iconBg={`${m.color}22`}
+                  iconColor={m.color}
+                />
+              ))}
+            </div>
+
+            {/* Trend + scatter */}
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+              <Gate1Panel title="Avg Holding Time at Centers - Trend" subtitle={rangeLabel} dm={dm} className="xl:col-span-7 min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={holdingTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                    <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                    <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                    <Tooltip formatter={(v) => fmt(v) + " Hrs"} {...TT(dm)} />
+                    <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    <Line type="monotone" dataKey="v18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v45" name="45 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="v99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
+
+              <Gate1Panel title="Vehicle vs Center Holding Time" subtitle={rangeLabel} dm={dm} accent className="xl:col-span-5 min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+                <ResponsiveContainer width="100%" height={260}>
+                  <ScatterChart margin={{ top: 12, right: 12, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={softGrid} />
+                    <XAxis
+                      dataKey="h"
+                      name="Holding (Hrs)"
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={softTick}
+                      label={{ value: "Holding Hrs", position: "insideBottom", offset: -2, fontSize: 10, fill: "#94a3b8" }}
+                    />
+                    <YAxis
+                      dataKey="v"
+                      name="Vehicles"
+                      type="number"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={softTick}
+                      width={40}
+                    />
+                    <Tooltip cursor={{ strokeDasharray: "3 3" }} {...TT(dm)} />
+                    <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                    {scatterModes.map((m) => (
+                      <Scatter
+                        key={m}
+                        name={m}
+                        data={scatterRaw.filter((r) => r.mode === m).map((r) => ({ h: n(r.h), v: n(r.v), center: r.center }))}
+                        fill={gate1ModeColor(m)}
+                      />
+                    ))}
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </Gate1Panel>
+            </div>
+          </div>
+          );
+        })()}
 
 
         {tab==="vehicle-holding2"&&(

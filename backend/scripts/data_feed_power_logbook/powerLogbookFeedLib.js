@@ -111,14 +111,26 @@ function isExcelDateSerial(n) {
   return Number.isFinite(n) && n >= 30000 && n < 60000;
 }
 
-/** Excel serial (days since 1899-12-30) → date parts. */
+/** Only Date/Time/timestamp columns may treat Excel serials as dates — never metric columns like PowerGen3New (30k–60k kWh). */
+function isDateTimeHeader(header = '') {
+  const h = String(header || '').trim().toLowerCase();
+  if (!h) return false;
+  if (h === 'date' || h === 'time' || h === 'timestamp') return true;
+  if (h === 'start_time' || h === 'end_time' || h === 'end_time' || h === 'created_at') return true;
+  if (/(^|_)(date|time|timestamp)$/.test(h)) return true;
+  return false;
+}
+
+/**
+ * Excel serial (days since 1899-12-30) → date parts.
+ * Epoch 1899-12-30 already matches Excel's 1900 leap-year quirk — do NOT subtract 1
+ * (that shifted every modern date back by one day, e.g. 2023-11-16 → 2023-11-15).
+ */
 function excelSerialToParts(serial) {
   const num = Number(serial);
   const days = Math.floor(num);
   const epoch = new Date(1899, 11, 30);
-  let offset = days;
-  if (offset >= 60) offset -= 1; // Excel 1900 leap-year bug
-  const date = new Date(epoch.getTime() + offset * 86400000);
+  const date = new Date(epoch.getTime() + days * 86400000);
   const frac = num - days;
   const timeMs = Math.round(frac * 86400000);
   return { date, timeMs };
@@ -142,7 +154,10 @@ function formatExcelSerial(serial, header = '') {
 
 function formatExcelCell(value, header = '') {
   if (value === null || value === undefined) return '';
-  if (typeof value === 'number' && isExcelDateSerial(value)) {
+  const dateHeader = isDateTimeHeader(header);
+  // Only convert Excel serial → date for actual date/time columns.
+  // Power metrics in the 30k–60k range were incorrectly turned into dates (then NULL in DB).
+  if (dateHeader && typeof value === 'number' && isExcelDateSerial(value)) {
     return formatExcelSerial(value, header);
   }
   if (value instanceof Date) {
@@ -160,9 +175,11 @@ function formatExcelCell(value, header = '') {
     return `${y}-${m}-${d}`;
   }
   const s = String(value).trim();
-  const asNum = Number(s);
-  if (/^\d+(\.\d+)?$/.test(s) && isExcelDateSerial(asNum)) {
-    return formatExcelSerial(asNum, header);
+  if (dateHeader) {
+    const asNum = Number(s);
+    if (/^\d+(\.\d+)?$/.test(s) && isExcelDateSerial(asNum)) {
+      return formatExcelSerial(asNum, header);
+    }
   }
   return s;
 }

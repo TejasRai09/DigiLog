@@ -19,6 +19,53 @@ const CACHE_TTL_MS = 120_000;
 const cache = new Map();
 const filterCache = new Map();
 const FILTER_TTL_MS = 300_000;
+const DATE_RANGE_TTL_MS = 300_000;
+let dateRangeCache = null;
+
+function toYmd(v) {
+  if (!v) return null;
+  if (typeof v === 'string') return v.slice(0, 10);
+  if (v instanceof Date && !isNaN(v)) {
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(v).slice(0, 10);
+}
+
+/** Overall min/max dates present in cane tables (independent of current filters). */
+async function getGlobalDateRange() {
+  if (dateRangeCache && Date.now() - dateRangeCache.at < DATE_RANGE_TTL_MS) {
+    return dateRangeCache.data;
+  }
+  const [[gate], [cnt]] = await Promise.all([
+    mysqlPool.execute(
+      `SELECT DATE_FORMAT(MIN(m_date), '%Y-%m-%d') AS minDate,
+              DATE_FORMAT(MAX(m_date), '%Y-%m-%d') AS maxDate
+       FROM g_ctc WHERE m_date IS NOT NULL`
+    ),
+    mysqlPool.execute(
+      `SELECT DATE_FORMAT(MIN(report_date), '%Y-%m-%d') AS minDate,
+              DATE_FORMAT(MAX(report_date), '%Y-%m-%d') AS maxDate
+       FROM cnt_performance WHERE report_date IS NOT NULL`
+    ),
+  ]);
+  const g = (gate && gate[0]) || {};
+  const c = (cnt && cnt[0]) || {};
+  const mins = [g.minDate, c.minDate].filter(Boolean).map(toYmd).filter(Boolean).sort();
+  const maxs = [g.maxDate, c.maxDate].filter(Boolean).map(toYmd).filter(Boolean).sort();
+  const minDate = mins[0] || null;
+  const maxDate = maxs.length ? maxs[maxs.length - 1] : null;
+  const data = {
+    minDate,
+    maxDate,
+    effectiveFrom: minDate,
+    effectiveTo: maxDate,
+  };
+  dateRangeCache = { at: Date.now(), data };
+  return data;
+}
 
 function norm(v) {
   if (v == null || v === '' || v === 'All' || v === 'all') return null;
@@ -66,7 +113,7 @@ function cntWhere(filters, { requireCenter = true } = {}) {
 const TAB_PACKS = {
   procurement: ['filters', 'kpis', 'procFlow', 'gateYard', 'gateMill'],
   gate1: ['filters', 'gateSidebar', 'gateCharts'],
-  gate2: ['filters', 'gateYard'],
+  gate2: ['filters', 'gateYard', 'gate2Charts'],
   'center-purchase': ['filters', 'centerSidebar', 'centerPurchase'],
   'vehicle-handling': ['filters', 'vehicleHandling'],
   'vehicle-holding': ['filters', 'vehicleHolding'],
@@ -79,7 +126,7 @@ const TAB_PACKS = {
 function packsForTab(tab) {
   if (!tab || tab === 'all') {
     return [
-      'filters', 'kpis', 'procFlow', 'gateYard', 'gateMill', 'gateSidebar', 'gateCharts',
+      'filters', 'kpis', 'procFlow', 'gateYard', 'gateMill', 'gateSidebar', 'gateCharts', 'gate2Charts',
       'centerSidebar', 'centerPurchase', 'vehicleHandling', 'vehicleHolding',
       'holdingByCenter', 'transit', 'truckHold', 'dbRows',
     ];
@@ -179,6 +226,26 @@ async function runPack(name, ctx) {
         vehiclesByMode: rows.map((r) => ({ mode: r.mode, vehicles: r.vehicles })),
       };
     }
+    case 'gate2Charts': {
+      // Yard holding trends for Gate 2 (from g_ctc — not center holding / purchy overrun)
+      const [[yardHoldingTrend], [yardExceedTrend]] = await Promise.all([
+        mysqlPool.execute(
+          `SELECT m_date as date, IFNULL(sup_mod,'Unknown') as mode,
+            AVG(yard_holding_time) as holdingHrs
+          FROM g_ctc WHERE m_date IS NOT NULL AND yard_holding_time IS NOT NULL AND ${g.sql}
+          GROUP BY m_date, sup_mod ORDER BY date`,
+          g.params
+        ),
+        mysqlPool.execute(
+          `SELECT m_date as date, IFNULL(sup_mod,'Unknown') as mode,
+            SUM(CASE WHEN yard_holding_time > 8 THEN 1 ELSE 0 END) as exceedCount
+          FROM g_ctc WHERE m_date IS NOT NULL AND ${g.sql}
+          GROUP BY m_date, sup_mod ORDER BY date`,
+          g.params
+        ),
+      ]);
+      return { yardHoldingTrend, yardExceedTrend };
+    }
     case 'gateMill': {
       const [rows] = await mysqlPool.execute(
         `SELECT IFNULL(sup_mod,'Unknown') as mode, COUNT(purchyno) as vehicles,
@@ -216,10 +283,10 @@ async function runPack(name, ctx) {
       };
     }
     case 'gateCharts': {
-      const [[modeData], [trendData], [overrunTrend]] = await Promise.all([
+      const [[modeData], [trendData], [overrunTrend], [modeTrend]] = await Promise.all([
         mysqlPool.execute(
           `SELECT IFNULL(sup_mod,'Unknown') as mode, COUNT(purchyno) as purchy, SUM(purchase_qtl) as caneQty
-          FROM g_ctc WHERE ${g.sql} GROUP BY sup_mod`,
+          FROM g_ctc WHERE ${g.sql} GROUP BY sup_mod ORDER BY purchy DESC`,
           g.params
         ),
         mysqlPool.execute(
@@ -235,8 +302,21 @@ async function runPack(name, ctx) {
           GROUP BY m_date, sup_mod ORDER BY date`,
           g.params
         ),
+        mysqlPool.execute(
+          `SELECT m_date as date, IFNULL(sup_mod,'Unknown') as mode, SUM(purchase_qtl) as qty
+          FROM g_ctc WHERE m_date IS NOT NULL AND ${g.sql}
+          GROUP BY m_date, sup_mod ORDER BY date`,
+          g.params
+        ),
       ]);
-      return { modeData, trendData, overrunTrend };
+      // Gate 1 "No. of Vehicles" uses vehiclesByMode; previously only gateYard (Procurement) set it
+      return {
+        modeData,
+        trendData,
+        overrunTrend,
+        modeTrend,
+        vehiclesByMode: (modeData || []).map((r) => ({ mode: r.mode, vehicles: r.purchy })),
+      };
     }
     case 'centerSidebar': {
       const [[sidebar], [overruns]] = await Promise.all([
@@ -470,6 +550,7 @@ const EMPTY = {
   dbRows: [],
   vehiclesByMode: [],
   overrunTrend: [],
+  modeTrend: [],
   centerPurchaseTrend: [],
   centerModePie: [],
   centerOverrunTrend: [],
@@ -477,6 +558,8 @@ const EMPTY = {
   centerVehiclesByMode: [],
   holdingByCenter: [],
   holdingTrend: [],
+  yardHoldingTrend: [],
+  yardExceedTrend: [],
   scatterData: [],
   transitByCenter: [],
   truckHoldByCenter: [],
@@ -514,8 +597,14 @@ async function getMysqlCanePerformanceData(from, to, opts = {}) {
 
   const packs = packsForTab(tab);
   const t0 = Date.now();
-  const parts = await Promise.all(packs.map((p) => runPack(p, ctx)));
-  const data = { ...EMPTY };
+  const [parts, dateRange] = await Promise.all([
+    Promise.all(packs.map((p) => runPack(p, ctx))),
+    getGlobalDateRange().catch((err) => {
+      console.error('[cane-perf] dateRange failed:', err.message);
+      return { minDate: null, maxDate: null, effectiveFrom: null, effectiveTo: null };
+    }),
+  ]);
+  const data = { ...EMPTY, dateRange };
   for (const part of parts) Object.assign(data, part);
 
   // Previous-year window (same MTD/QTD/YTD shifted −1 year) for % change badges

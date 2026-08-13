@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { MdArrowBack } from 'react-icons/md';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { MdNaturePeople } from 'react-icons/md';
 import api from '../../api/axios';
+import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
+import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 import {
   TrendingUp,
   TrendingDown,
@@ -263,7 +264,10 @@ export default function CentreMaturityDashboard() {
   const [compSeasons, setCompSeasons] = useState([]);
   const [seasonMapping, setSeasonMapping] = useState({});
   const [dbMaxDate, setDbMaxDate] = useState(null);
+  const [dbMinDateStr, setDbMinDateStr] = useState('');
+  const [dbMaxDateStr, setDbMaxDateStr] = useState('');
   const [loading, setLoading] = useState(true);
+  const dateSeededRef = useRef(false);
 
   // Fetch Live Data from Backend
   const fetchData = useCallback(async () => {
@@ -283,6 +287,22 @@ export default function CentreMaturityDashboard() {
         if (res.data.compSeasons) setCompSeasons(res.data.compSeasons);
         if (res.data.seasonMapping) setSeasonMapping(res.data.seasonMapping);
         if (res.data.dateRange?.maxDate) setDbMaxDate(new Date(res.data.dateRange.maxDate));
+        // Seed date range to data min/max on very first successful fetch
+        if (!dateSeededRef.current && res.data.dateRange) {
+          const minStr = res.data.dateRange.minDate
+            ? String(res.data.dateRange.minDate).slice(0, 10)
+            : '';
+          const maxStr = res.data.dateRange.maxDate
+            ? String(res.data.dateRange.maxDate).slice(0, 10)
+            : '';
+          if (minStr) setDbMinDateStr(minStr);
+          if (maxStr) setDbMaxDateStr(maxStr);
+          if (minStr && maxStr && !dateFrom && !dateTo) {
+            dateSeededRef.current = true;
+            setDateFrom(minStr);
+            setDateTo(maxStr);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to load Centre Maturity BI data:', err);
@@ -387,39 +407,107 @@ export default function CentreMaturityDashboard() {
         ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white'
         : 'bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900'}`}>
 
-      {/* ─── Top Bar ───────────────────────────────────────────────── */}
-      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b transition-colors duration-300
-        ${darkMode
-          ? 'bg-slate-950/80 border-slate-800/50'
-          : 'bg-white/80 border-slate-200/60'}`}>
-        <div className="max-w-[1600px] mx-auto px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/bi"
-              className={`p-1.5 rounded-lg transition-colors ${darkMode
-                  ? 'hover:bg-slate-800 text-slate-400 hover:text-white'
-                  : 'hover:bg-slate-100 text-slate-500 hover:text-slate-900'}`}>
-              <MdArrowBack className="w-5 h-5" />
-            </Link>
-            <div>
-              <h1 className={`text-lg font-extrabold tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
-                Centre Maturity Dashboard
-              </h1>
-              <p className={`text-[10px] font-medium tracking-wide uppercase flex items-center gap-2
-                ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                <span>SPE 26 • {totalCentersCount} Centers</span>
-                {loading && <RefreshCw className="w-3 h-3 animate-spin text-blue-500" />}
-              </p>
-            </div>
+      <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BiDashboardHeader
+            title="Centre Maturity Dashboard"
+            subtitle={`SPE 26 · ${totalCentersCount} Centers${loading ? ' · Loading…' : ''}`}
+            icon={MdNaturePeople}
+            iconColor="#16a34a"
+            isDarkMode={darkMode}
+          />
+          <div className="flex items-center gap-4">
+            <BiKeyMetricBox
+              value={totalCentersCount}
+              title="Centers Evaluated"
+              subtitle={rangePreset}
+              isDarkMode={darkMode}
+            />
           </div>
-
-          <button onClick={() => setDarkMode(!darkMode)}
-            className={`p-2 rounded-xl transition-all duration-200 ${darkMode
-                ? 'bg-slate-800 text-amber-400 hover:bg-slate-700'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
         </div>
-      </header>
+
+        <BiFilterBarLayout isDarkMode={darkMode} setIsDarkMode={setDarkMode}>
+          <div className="flex min-w-0 flex-1 flex-wrap items-end justify-end gap-1.5 sm:gap-2">
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Search</span>
+              <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border text-sm w-[9rem] sm:w-[12rem]
+                ${darkMode ? 'bg-slate-900 border-slate-600 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
+                <Search className="w-3.5 h-3.5 opacity-50" />
+                <input type="text" placeholder="Center name..."
+                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  className={`bg-transparent outline-none w-full text-[10px] sm:text-[11px] placeholder:text-slate-400
+                    ${darkMode ? 'text-white' : 'text-slate-900'}`} />
+              </div>
+            </div>
+
+            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+
+            {availableSeasons.length > 0 && (
+              <>
+                <div className="flex shrink-0 flex-col gap-0.5">
+                  <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Base Season</span>
+                  <select
+                    value={selectedSeason}
+                    onChange={e => { setRangePreset('Custom'); setSelectedSeason(e.target.value); }}
+                    className={`min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px]
+                      ${darkMode ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+                    <option value="">Latest</option>
+                    {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="flex shrink-0 flex-col gap-0.5">
+                  <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Comp Season</span>
+                  <select
+                    value={selectedCompSeason}
+                    onChange={e => setSelectedCompSeason(e.target.value)}
+                    className={`min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px]
+                      ${darkMode ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
+                    <option value="">Previous</option>
+                    {(compSeasons.length ? compSeasons : availableSeasons).map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+
+            <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              {['MTD', 'STD', 'YTD'].map(type => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleQuickDate(type)}
+                  aria-pressed={rangePreset === type}
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    rangePreset === type
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
+              <input type="date" value={dateFrom}
+                onChange={e => { setRangePreset('Custom'); setDateFrom(e.target.value); }}
+                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px]
+                  ${darkMode ? 'bg-slate-900 border-slate-600 text-slate-100 [color-scheme:dark]' : 'bg-white border-slate-200 text-slate-800'}`} />
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-0.5">
+              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
+              <input type="date" value={dateTo}
+                onChange={e => { setRangePreset('Custom'); setDateTo(e.target.value); }}
+                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px]
+                  ${darkMode ? 'bg-slate-900 border-slate-600 text-slate-100 [color-scheme:dark]' : 'bg-white border-slate-200 text-slate-800'}`} />
+            </div>
+
+          </div>
+        </BiFilterBarLayout>
+      </div>
 
       <main className="max-w-[1600px] mx-auto px-4 py-4 space-y-4">
 
@@ -493,125 +581,6 @@ export default function CentreMaturityDashboard() {
               <div className={`p-2.5 rounded-xl ${darkMode ? 'bg-slate-800' : 'bg-slate-50'}`} style={{ color: maturityColor((seasonKpi.maturity?.value || grandAvgMaturity * 100) / 100) }}>
                 <TrendingUp className="w-5 h-5" />
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Filter Bar ────────────────────────────────────────────── */}
-        <div className={`rounded-2xl border p-3.5 transition-colors duration-300
-          ${darkMode
-            ? 'bg-slate-900/60 border-slate-700/50'
-            : 'bg-white border-slate-200/80 shadow-sm'}`}>
-          <div className="flex flex-wrap items-center gap-3 justify-between">
-            {/* Search */}
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm flex-1 min-w-[200px] max-w-xs
-              ${darkMode
-                ? 'bg-slate-800 border-slate-700 text-slate-300'
-                : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-              <Search className="w-3.5 h-3.5 opacity-50" />
-              <input type="text" placeholder="Search center..."
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                className={`bg-transparent outline-none w-full text-sm placeholder:text-slate-400
-                  ${darkMode ? 'text-white' : 'text-slate-900'}`} />
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Season Selector Filter */}
-              {availableSeasons.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-semibold uppercase ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Base:
-                    </span>
-                    <select
-                      value={selectedSeason}
-                      onChange={e => { setRangePreset('Custom'); setSelectedSeason(e.target.value); }}
-                      className={`px-3 py-1.5 rounded-xl border text-sm outline-none font-semibold transition-colors
-                        ${darkMode
-                          ? 'bg-slate-800 border-slate-700 text-white'
-                          : 'bg-white border-slate-200 text-slate-800'}`}>
-                      <option value="">Latest</option>
-                      {availableSeasons.map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-semibold uppercase ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Comp:
-                    </span>
-                    <select
-                      value={selectedCompSeason}
-                      onChange={e => setSelectedCompSeason(e.target.value)}
-                      className={`px-3 py-1.5 rounded-xl border text-sm outline-none font-semibold transition-colors
-                        ${darkMode
-                          ? 'bg-slate-800 border-slate-700 text-white'
-                          : 'bg-white border-slate-200 text-slate-800'}`}>
-                      <option value="">Previous</option>
-                      {(compSeasons.length ? compSeasons : availableSeasons).map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"></div>
-
-              {/* Quick Date Buttons */}
-              <div className="flex items-center gap-1.5">
-                {['MTD', 'STD', 'YTD'].map(type => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => handleQuickDate(type)}
-                    aria-pressed={rangePreset === type}
-                    className={`px-2.5 py-1 text-xs font-extrabold tracking-wide rounded-lg transition-all
-                      ${rangePreset === type
-                        ? 'bg-blue-600 text-white border border-blue-600 shadow-sm ring-2 ring-blue-300/70'
-                        : darkMode
-                          ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700'
-                          : 'bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-600 border border-slate-200'}`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-
-              {/* Date From */}
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm
-                ${darkMode
-                  ? 'bg-slate-800 border-slate-700 text-slate-300'
-                  : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                <Calendar className="w-3.5 h-3.5 opacity-50" />
-                <input type="date" value={dateFrom}
-                  onChange={e => { setRangePreset('Custom'); setDateFrom(e.target.value); }}
-                  className={`bg-transparent outline-none text-sm
-                    ${darkMode ? 'text-white [color-scheme:dark]' : 'text-slate-900'}`} />
-              </div>
-
-              <span className={`text-xs font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>to</span>
-
-              {/* Date To */}
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-sm
-                ${darkMode
-                  ? 'bg-slate-800 border-slate-700 text-slate-300'
-                  : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
-                <Calendar className="w-3.5 h-3.5 opacity-50" />
-                <input type="date" value={dateTo}
-                  onChange={e => { setRangePreset('Custom'); setDateTo(e.target.value); }}
-                  className={`bg-transparent outline-none text-sm
-                    ${darkMode ? 'text-white [color-scheme:dark]' : 'text-slate-900'}`} />
-              </div>
-
-              {(dateFrom || dateTo) && (
-                <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-                  className="text-xs text-blue-500 hover:underline font-semibold">
-                  Clear
-                </button>
-              )}
             </div>
           </div>
         </div>

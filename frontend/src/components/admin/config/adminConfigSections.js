@@ -40,7 +40,7 @@ export const ADMIN_CONFIG_SECTIONS = [
   },
   {
     id: 'audit-log',
-    label: 'Audit Log',
+    label: 'Audit & Activity',
     description: 'Detailed records of create, update, and delete actions from DigiLog.',
     Icon: MdHistory,
     Component: AuditLogSection,

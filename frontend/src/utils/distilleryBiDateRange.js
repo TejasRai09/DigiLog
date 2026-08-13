@@ -98,9 +98,12 @@ export function computePriorPeriodRange(startDate, endDate, rangePreset) {
     pEnd.setFullYear(endD.getFullYear() - 1);
     label = 'Prev. Year';
   } else {
+    // Equal-length window ending the day before current From (no overlap)
     const diffDays = Math.round((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
-    pStart.setDate(startD.getDate() - diffDays);
-    pEnd.setDate(startD.getDate() - 1);
+    pEnd.setTime(startD.getTime());
+    pEnd.setDate(pEnd.getDate() - 1);
+    pStart.setTime(pEnd.getTime());
+    pStart.setDate(pStart.getDate() - (diffDays - 1));
     label = 'Prev. Period';
   }
 

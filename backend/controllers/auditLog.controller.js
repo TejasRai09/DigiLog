@@ -49,6 +49,9 @@ exports.listAuditLogs = async (req, res) => {
     const successRaw = typeof req.query.success === 'string' ? req.query.success.trim() : '';
     const from = typeof req.query.from === 'string' ? req.query.from.trim() : '';
     const to = typeof req.query.to === 'string' ? req.query.to.trim() : '';
+    const moduleFilter = typeof req.query.module === 'string' ? req.query.module.trim() : '';
+    const screenFilter = typeof req.query.screen === 'string' ? req.query.screen.trim() : '';
+    const resourceNameFilter = typeof req.query.resource_name === 'string' ? req.query.resource_name.trim() : '';
 
     const where = [];
     const params = [];
@@ -80,6 +83,19 @@ exports.listAuditLogs = async (req, res) => {
       where.push('(success = 1 OR (success IS NULL AND status_code >= 200 AND status_code < 400))');
     } else if (successRaw === '0' || successRaw === 'false') {
       where.push('(success = 0 OR (success IS NULL AND (status_code < 200 OR status_code >= 400)))');
+    }
+
+    if (moduleFilter) {
+      where.push('module = ?');
+      params.push(moduleFilter);
+    }
+    if (screenFilter) {
+      where.push('screen = ?');
+      params.push(screenFilter);
+    }
+    if (resourceNameFilter) {
+      where.push('resource_name = ?');
+      params.push(resourceNameFilter);
     }
 
     if (from) {

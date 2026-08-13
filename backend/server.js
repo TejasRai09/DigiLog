@@ -4,7 +4,7 @@ const cors      = require('cors');
 const helmet    = require('helmet');
 const rateLimit = require('express-rate-limit');
 
-const { testMysqlConnection } = require('./config/mysql');
+const { testMysqlConnection, pool } = require('./config/mysql');
 const { globalErrorMessage, logServerError, mapDbError } = require('./utils/httpError');
 
 const authRoutes      = require('./routes/auth.routes');
@@ -19,6 +19,9 @@ const biRoutes        = require('./routes/bi.routes');
 const homepageCardsRoutes = require('./routes/homepageCards.routes');
 const dataUploadRoutes    = require('./routes/dataUpload.routes');
 const canePerformanceRoutes = require('./routes/canePerformanceRoutes');
+const biPowerHouseRoutes = require('./routes/biPowerHouse.routes');
+const activityRoutes = require('./routes/activity.routes');
+const { expireStaleSessions } = require('./utils/sessionActivity');
 
 const app = express();
 
@@ -28,6 +31,13 @@ if (NODE_ENV === 'production') {
 
 // ─── Database connections ────────────────────────────────────
 testMysqlConnection();
+
+// Expire abandoned browser sessions (no heartbeat)
+setInterval(() => {
+  expireStaleSessions(pool).catch((err) => {
+    console.error('[sessionSweeper]', err.message);
+  });
+}, 60 * 1000);
 
 // ─── Global middleware ───────────────────────────────────────
 app.use(helmet({
@@ -74,8 +84,10 @@ app.use('/api/power-new',  powerNewRoutes);
 app.use('/api/sugar-new',  sugarNewRoutes);
 app.use('/api/bi',             biRoutes);
 app.use('/api/bi/cane-performance', canePerformanceRoutes);
+app.use('/api/bi/power-house', biPowerHouseRoutes);
 app.use('/api/homepage-cards', homepageCardsRoutes);
 app.use('/api/data-upload',      dataUploadRoutes);
+app.use('/api/activity',         activityRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

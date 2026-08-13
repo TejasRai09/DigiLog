@@ -17,6 +17,7 @@ import PurchyAnalysisDashboard from './pages/bi/PurchyAnalysisDashboard';
 import BrixSamplingDashboard from './pages/bi/BrixSamplingDashboard';
 import CentreMaturityDashboard from './pages/bi/CentreMaturityDashboard';
 import CanePerformanceDashboard from './pages/bi/CanePerformanceDashboard';
+import PowerHouseDashboard from './pages/bi/PowerHouseDashboard';
 import AppDetail          from './pages/AppDetail';
 import NotFound           from './pages/NotFound';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
@@ -100,6 +101,7 @@ const App = () => {
           <Route path="/bi/brix-sampling" element={<BrixSamplingDashboard />} />
           <Route path="/bi/centre-maturity" element={<CentreMaturityDashboard />} />
           <Route path="/bi/cane-performance" element={<CanePerformanceDashboard />} />
+          <Route path="/bi/power-house" element={<PowerHouseDashboard />} />
           <Route path="/apps/:appId"  element={<AppDetail />} />
 
           {/* Mill Logbook */}
