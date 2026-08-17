@@ -10,6 +10,7 @@ export const BI_DASHBOARD_PATH = {
   bi_centre_maturity: '/bi/centre-maturity',
   bi_cane_performance: '/bi/cane-performance',
   bi_power_house: '/bi/power-house',
+  bi_management_dashboard: '/bi/management-dashboard',
 };
 
 export function isBiDashboardFormKey(formKey) {

@@ -197,6 +197,13 @@ const formDefs = [
     app: 'BI Control Tower',
     sort_order: 7,
   },
+  {
+    name: 'Management Dashboard',
+    description: 'Executive KPI summary across cane, milling, sugar, power and distillery',
+    formKey: 'bi_management_dashboard',
+    app: 'BI Control Tower',
+    sort_order: 8,
+  },
 ];
 
 // Renamed apps (re-seed used to INSERT new rows because `name` is unique).

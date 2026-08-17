@@ -12,6 +12,7 @@ const ICON_BY_FORM_KEY = {
   bi_cane_performance: MdAgriculture,
   bi_brix_sampling: MdScience,
   bi_centre_maturity: MdNaturePeople,
+  bi_management_dashboard: MdInsights,
 };
 
 function getDashboardIcon(formKey) {
@@ -27,6 +28,8 @@ function getDashboardImage(formKey) {
   if (formKey.includes('cane_performance')) return '/images/bi/cane_perf_1786538051591.png';
   if (formKey.includes('brix')) return '/images/bi/brix_1786538065719.png';
   if (formKey.includes('centre_maturity')) return '/images/bi/centre_maturity_1786538090829.png';
+  if (formKey.includes('management')) return '/images/bi/cane_perf_1786538051591.png';
+  if (formKey.includes('management_dashboard')) return '/images/bi/cane_perf_1786538051591.png';
   return '/images/bi/distillery_1786537981132.png';
 }
 
