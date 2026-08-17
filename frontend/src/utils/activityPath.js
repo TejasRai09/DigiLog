@@ -11,6 +11,7 @@ const BI_DASHBOARDS = {
   '/bi/centre-maturity': 'Centre Maturity Dashboard',
   '/bi/cane-performance': 'Cane Performance Dashboard',
   '/bi/power-house': 'Power House Dashboard',
+  '/bi/management-dashboard': 'Management Dashboard',
 };
 
 /** Fallback names when the forms catalog lookup is unavailable. */

@@ -76,8 +76,12 @@ router.get('/brix-field/test-types',            authenticate, getFieldTestTypes)
 router.get('/brix-field/table-data',            authenticate, getFieldTableData);
 
 const { getCentreMaturityBiData } = require('../controllers/biCentreMaturity.controller');
+const { getManagementDashboard } = require('../controllers/biManagementDashboard.controller');
 
 // ─── Centre Maturity BI ───────────────────────────────────────────
 router.get('/centre-maturity/data', authenticate, getCentreMaturityBiData);
+
+// ─── Management Dashboard ───────────────────────────────────────
+router.get('/management-dashboard', authenticate, getManagementDashboard);
 
 module.exports = router;
