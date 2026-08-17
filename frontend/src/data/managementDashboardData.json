@@ -17,7 +17,7 @@
         { "id": "yard_bal", "title": "Yard Bal. (8AM)", "value": "21775.86", "subValues": [{"label": "Overrun Gate", "value": "67.4%", "valColor": "text-gray-800"}, {"label": "Overrun Center", "value": "79.1%", "valColor": "text-red-500", "rightVal": "4.19K"}] },
         { "id": "pol_in_cane", "title": "Pol in Cane %", "value": "15.16", "chart": "line", "chartColor": "#3b82f6", "unit": "%" },
         { "id": "brix_yard", "title": "Middle Brix % Yard", "value": "19.73", "chart": "bar", "chartColor": "#3b82f6", "unit": "%" },
-        { "id": "brix_field", "title": "Middle Brix % Field", "value": "(Blank)", "chart": "line", "chartColor": "#3b82f6", "unit": "%" }
+        { "id": "brix_field", "title": "Middle Brix % Field", "value": "19.41", "chart": "area", "chartColor": "#3b82f6", "unit": "%" }
       ]
     },
     {
@@ -41,9 +41,9 @@
       "color": "bg-[#fef0b3]",
       "icon": "sugar",
       "kpis": [
-        { "id": "cane_ds", "title": "Cane DS (Q)", "value": "", "chart": "line", "chartColor": "#eab308", "unit": "Q" },
-        { "id": "cane_rs", "title": "Cane RS (Q)", "value": "", "chart": "line", "chartColor": "#eab308", "unit": "Q" },
-        { "id": "sugar_total", "title": "Sugar Total (Q)", "value": "", "chart": "bar", "chartColor": "#ca8a04", "unit": "Q" },
+        { "id": "cane_ds", "title": "Cane DS (Q)", "value": "48.24K", "chart": "line", "chartColor": "#eab308", "unit": "Q" },
+        { "id": "cane_rs", "title": "Cane RS (Q)", "value": "24.83K", "chart": "line", "chartColor": "#eab308", "unit": "Q" },
+        { "id": "sugar_total", "title": "Sugar Total (Q)", "value": "8.33K", "chart": "bar", "chartColor": "#ca8a04", "unit": "Q" },
         { "id": "sugar_recovery", "title": "Sugar Recovery %", "value": "11.40", "chart": "line", "chartColor": "#eab308", "unit": "%" },
         { "id": "pol_f_cake", "title": "Pol In F Cake", "value": "0.08", "rightVal": "0.08", "subValues": [{"label": "Mol Pol % Cane", "value": "2.28", "rightVal": "3.08"}, {"label": "F Mol Purity (DS)", "value": "43.37", "rightVal": "50.09"}, {"label": "F Mol Purity (RS)", "value": "41.29", "rightVal": "48.82"}] },
         { "id": "power_per_sugar", "title": "Power/Sugar (Units/Q)", "value": "10.81", "chart": "line", "chartColor": "#eab308", "unit": "KWH/Q" },
@@ -71,7 +71,7 @@
       "color": "bg-[#f5c2d6]",
       "icon": "distillery",
       "kpis": [
-        { "id": "syrup_mol", "title": "Syrup+Mol Used (Q)", "value": "", "chart": "line", "chartColor": "#9f1239", "unit": "Q" },
+        { "id": "syrup_mol", "title": "Syrup+Mol Used (Q)", "value": "3.90K", "chart": "area", "chartColor": "#9f1239", "unit": "Q" },
         { "id": "ethanol_prod", "title": "Ethanol Prod. (BL)", "value": "125.20K", "chart": "line", "chartColor": "#9f1239", "unit": "BL" },
         { "id": "recovery_bl", "title": "Recovery BL", "value": "32.10", "chart": "line", "chartColor": "#9f1239", "unit": "BL/Q" },
         { "id": "ethanol_store", "title": "Ethanol Stored (BL)", "value": "250.28K", "chart": "line", "chartColor": "#9f1239", "unit": "BL" },
