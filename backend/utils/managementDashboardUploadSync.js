@@ -1,9 +1,8 @@
 const { randomUUID } = require('crypto');
 const { pool } = require('../config/mysql');
-const { runCentreIndentImport } = require('../services/managementDashboard/centreIndentImportService');
-const { runCentrePurchaseImport } = require('../services/managementDashboard/centrePurchaseImportService');
+const { runCentreIndentPurchaseImport } = require('../services/managementDashboard/centreIndentPurchaseImportService');
 const { runDmrLogbookImport } = require('../services/managementDashboard/dmrLogbookImportService');
-const { MD_DATASETS } = require('./managementDashboardUploadSlots');
+const { resolveMdSlot } = require('./managementDashboardUploadSlots');
 
 const jobs = new Map();
 const MAX_LOG_LINES = 300;
@@ -54,10 +53,8 @@ async function executeJob(job) {
 
   try {
     let result;
-    if (job.type === 'indent') {
-      result = await runCentreIndentImport({ filePath: job.filePath, onProgress });
-    } else if (job.type === 'purchase') {
-      result = await runCentrePurchaseImport({ filePath: job.filePath, onProgress });
+    if (job.type === 'indent-purchase' || job.type === 'indent' || job.type === 'purchase') {
+      result = await runCentreIndentPurchaseImport({ filePath: job.filePath, onProgress });
     } else if (job.type === 'dmr') {
       result = await runDmrLogbookImport({ filePath: job.filePath, onProgress });
     } else {
@@ -91,13 +88,13 @@ async function executeJob(job) {
 }
 
 function scheduleManagementDashboardImport(slot, absolutePath, originalFilename, fileUploadId) {
-  const meta = MD_DATASETS[slot];
+  const meta = resolveMdSlot(slot);
   if (!meta) throw new Error(`Unknown management dashboard slot: ${slot}`);
 
   const jobId = randomUUID();
   const job = {
     id: jobId,
-    type: slot,
+    type: meta.slot,
     status: 'queued',
     originalFilename,
     filePath: absolutePath,
@@ -119,7 +116,7 @@ function scheduleManagementDashboardImport(slot, absolutePath, originalFilename,
     });
   });
 
-  return { jobId, type: slot, status: 'queued' };
+  return { jobId, type: meta.slot, status: 'queued' };
 }
 
 module.exports = {

@@ -20,8 +20,8 @@ const {
   isPurchyCategory,
 } = require('../utils/purchyUploadSlots');
 const {
-  MD_DATASETS,
-  mdDatasetFromSlot,
+  MD_ALLOWED_DATASETS,
+  resolveMdSlot,
   isManagementDashboardCategory,
 } = require('../utils/managementDashboardUploadSlots');
 const { sendServerError, MSG, logServerError } = require('../utils/httpError');
@@ -134,7 +134,7 @@ async function uploadFile(req, res) {
   if (isManagementDashboardCategory(parsed.value)) {
     unlinkStoredFile(storedFilename);
     return res.status(400).json({
-      message: 'Use the Management Dashboard section to upload indent, purchase, or DMR files.',
+      message: 'Use the Management Dashboard section to upload indent+purchase or DMR files.',
     });
   }
 
@@ -389,12 +389,11 @@ async function getManagementDashboardImportStatus(req, res) {
   }
 }
 
-/** GET /api/data-upload/management-dashboard/files?dataset=centre_indent|centre_purchase|dmr_workbook */
+/** GET /api/data-upload/management-dashboard/files?dataset=centre_indent_purchase|dmr_workbook|centre_indent|centre_purchase */
 async function listManagementDashboardFiles(req, res) {
   const dataset = String(req.query.dataset || '').trim();
-  const allowed = new Set(Object.values(MD_DATASETS).map((d) => d.dataset));
-  if (!allowed.has(dataset)) {
-    return res.status(400).json({ message: 'dataset query param required (centre_indent, centre_purchase, dmr_workbook).' });
+  if (!MD_ALLOWED_DATASETS.has(dataset)) {
+    return res.status(400).json({ message: 'dataset query param required (centre_indent_purchase, dmr_workbook).' });
   }
 
   try {
@@ -412,12 +411,12 @@ async function listManagementDashboardFiles(req, res) {
   }
 }
 
-/** POST /api/data-upload/management-dashboard/:slot — multipart: file (slot = indent|purchase|dmr) */
+/** POST /api/data-upload/management-dashboard/:slot — multipart: file (slot = indent-purchase|dmr) */
 async function uploadManagementDashboardSlot(req, res) {
   const slot = String(req.params.slot || '').trim().toLowerCase();
-  const meta = MD_DATASETS[slot];
+  const meta = resolveMdSlot(slot);
   if (!meta) {
-    return res.status(400).json({ message: 'slot must be "indent", "purchase", or "dmr".' });
+    return res.status(400).json({ message: 'slot must be "indent-purchase" or "dmr".' });
   }
   if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
 

@@ -23,16 +23,11 @@ function formatIngestedAt(iso) {
 
 const SLOTS = [
   {
-    slot: 'indent',
-    dataset: 'centre_indent',
-    label: 'Centre Indent',
-    hint: 'Sheet1 — Code, Center Name, Indent Date, No of Purchy, Qty in Qtls, Category',
-  },
-  {
-    slot: 'purchase',
-    dataset: 'centre_purchase',
-    label: 'Centre Purchase',
-    hint: 'Sheet1 — c_Code, Purchase Date, No of Purchy, Qty in Qtls, Category, Center',
+    slot: 'indent-purchase',
+    dataset: 'centre_indent_purchase',
+    legacyDatasets: ['centre_indent', 'centre_purchase'],
+    label: 'Centre Indent & Purchase',
+    hint: 'One file — 1st sheet: indent (Code, Center Name, Indent Date, No of Purchy, Qty in Qtls, Category). 2nd sheet: purchase (c_Code, Purchase Date, No of Purchy, Qty in Qtls, Category, Center).',
   },
   {
     slot: 'dmr',
@@ -152,21 +147,25 @@ function FileHistoryTable({ files, loading }) {
 
 export default function ManagementDashboardUploadSection({ onImportStarted, refreshToken = 0 }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
-  const [histories, setHistories] = useState({ centre_indent: [], centre_purchase: [], dmr_workbook: [] });
+  const [histories, setHistories] = useState({ centre_indent_purchase: [], dmr_workbook: [] });
   const [loadingHist, setLoadingHist] = useState(true);
 
   const fetchHistories = useCallback(async () => {
     setLoadingHist(true);
     try {
+      const queries = SLOTS.flatMap((s) => [s.dataset, ...(s.legacyDatasets || [])]);
       const results = await Promise.all(
-        SLOTS.map(async (s) => {
-          const { data } = await api.get(`/data-upload/management-dashboard/files?dataset=${s.dataset}`);
-          return [s.dataset, data.files || []];
+        queries.map(async (dataset) => {
+          const { data } = await api.get(`/data-upload/management-dashboard/files?dataset=${dataset}`);
+          return [dataset, data.files || []];
         }),
       );
-      const next = { centre_indent: [], centre_purchase: [], dmr_workbook: [] };
-      for (const [dataset, files] of results) {
-        next[dataset] = files;
+      const byDataset = Object.fromEntries(results);
+      const next = {};
+      for (const s of SLOTS) {
+        const merged = [s.dataset, ...(s.legacyDatasets || [])].flatMap((d) => byDataset[d] || []);
+        merged.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        next[s.dataset] = merged;
       }
       setHistories(next);
     } catch (err) {
@@ -212,7 +211,7 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
               <h2 className="text-sm font-bold text-gray-900">Management Dashboard data</h2>
             </div>
             <p className="mt-1 max-w-2xl text-xs text-gray-600">
-              Upload centre indent, centre purchase, or DMR workbooks. Column names must match the template exactly; mismatches are shown in the import dialog. Each upload appends new dates; existing dates are skipped.
+              Upload one indent+purchase workbook (1st sheet indent, 2nd sheet purchase) or a DMR workbook. Column names must match the template exactly; mismatches are shown in the import dialog. Each upload appends new dates; existing dates are skipped.
             </p>
           </div>
           <Link
@@ -224,7 +223,7 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 sm:grid-cols-3 sm:p-6">
+      <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
         {SLOTS.map((meta) => (
           <UploadCard
             key={meta.slot}
