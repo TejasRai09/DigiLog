@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const xlsx = require('xlsx');
 const { pool } = require('../../config/mysql');
 const { excelDateToISO, minMaxDates } = require('../../utils/excelDateUtils');
@@ -53,6 +54,27 @@ function coerceValue(fileHeader, raw) {
   return Number.isFinite(n) ? n : null;
 }
 
+async function ensureDmrDailyTable(conn) {
+  const [[row]] = await conn.query(
+    `SELECT COUNT(*) AS n FROM information_schema.TABLES
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    [TABLE],
+  );
+  if (Number(row.n) > 0) return;
+
+  const sqlPath = path.join(__dirname, '../../../mysql/migrate_dmr_daily_table.sql');
+  if (!fs.existsSync(sqlPath)) {
+    throw new Error(`dmr_daily table is missing and schema file was not found: ${sqlPath}`);
+  }
+  const sql = fs
+    .readFileSync(sqlPath, 'utf8')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n')
+    .trim();
+  await conn.query(sql);
+}
+
 async function loadExistingDates(conn) {
   const [rows] = await conn.query(`SELECT DISTINCT \`Date\` AS d FROM \`${TABLE}\` WHERE \`Date\` IS NOT NULL`);
   return new Set(rows.map((r) => String(r.d).slice(0, 10)));
@@ -98,6 +120,8 @@ async function runDmrLogbookImport({ filePath, onProgress }) {
   let batch = [];
 
   try {
+    await ensureDmrDailyTable(conn);
+    log('schema', 'Ensured dmr_daily table exists.');
     const existingDates = await loadExistingDates(conn);
     log('dedup', `${existingDates.size} dates already in dmr_daily.`);
 
