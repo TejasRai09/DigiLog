@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { MdRemove, MdTrendingDown, MdTrendingUp } from 'react-icons/md';
 import ChartCardToolbar from './ChartCardToolbar';
 import BiInfoTooltip from './BiInfoTooltip';
 import KpiSparklineTooltip from './KpiSparklineTooltip';
@@ -59,33 +60,102 @@ function formatStackedValue(value, unit) {
   return n.toFixed(2);
 }
 
-function StackedMetric({ value, label, unit, rightVal, glossary, isDarkMode }) {
-  return (
-    <div className="flex min-w-0 flex-col leading-tight">
-      <span
-        className={`text-[13px] font-black tabular-nums sm:text-sm ${
-          isDarkMode ? 'text-white' : 'text-slate-900'
-        }`}
-      >
-        {formatStackedValue(value, unit)}
-      </span>
-      <div className="flex min-w-0 items-baseline gap-1">
-        <span className={`truncate text-[9px] sm:text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+function StackedMetric({
+  value,
+  label,
+  unit,
+  rightVal,
+  glossary,
+  isDarkMode,
+  dense = false,
+  compareVal = null,
+  inverseGood = false,
+  compareLabel,
+}) {
+  if (dense) {
+    return (
+      <div className="flex min-h-0 min-w-0 items-center gap-1 leading-none">
+        <span
+          className={`shrink-0 font-black tabular-nums text-[10px] sm:text-[11px] ${
+            isDarkMode ? 'text-white' : 'text-slate-900'
+          }`}
+        >
+          {formatStackedValue(value, unit)}
+        </span>
+        {rightVal != null && rightVal !== '' && (
+          <span
+            className="shrink-0 text-[8px] font-semibold italic tabular-nums text-rose-500"
+            title="7-day moving average"
+          >
+            {formatDisplayValue(rightVal, unit)}
+          </span>
+        )}
+        <span
+          className={`min-w-0 flex-1 truncate text-[8px] sm:text-[9px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
+          title={label}
+        >
           {label}
         </span>
         {glossary && <BiInfoTooltip definition={glossary} isDarkMode={isDarkMode} placement="top" />}
+        {compareVal != null && (
+          <CompareChip
+            pct={compareVal}
+            inverseGood={inverseGood}
+            isDarkMode={isDarkMode}
+            compact
+            label={compareLabel}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5 leading-tight">
+      <div className="flex min-w-0 items-center justify-between gap-0.5">
+        <span
+          className={`min-w-0 truncate text-[11px] font-black tabular-nums sm:text-xs ${
+            isDarkMode ? 'text-white' : 'text-slate-900'
+          }`}
+        >
+          {formatStackedValue(value, unit)}
+        </span>
         {rightVal != null && rightVal !== '' && (
-          <span className="shrink-0 text-[9px] font-semibold italic tabular-nums text-rose-500 sm:text-[10px]">
+          <span
+            className="shrink-0 text-[9px] font-semibold italic tabular-nums text-rose-500 sm:text-[10px]"
+            title="7-day moving average"
+          >
             {formatDisplayValue(rightVal, unit)}
           </span>
+        )}
+      </div>
+      <div className="flex min-w-0 items-center gap-1">
+        <span className={`min-w-0 truncate text-[9px] sm:text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          {label}
+        </span>
+        {glossary && <BiInfoTooltip definition={glossary} isDarkMode={isDarkMode} placement="top" />}
+        {compareVal != null && (
+          <CompareChip
+            pct={compareVal}
+            inverseGood={inverseGood}
+            isDarkMode={isDarkMode}
+            compact
+            label={compareLabel}
+          />
         )}
       </div>
     </div>
   );
 }
 
-function resolveSeriesKeys(kpi) {
-  if (Array.isArray(kpi.seriesKeys) && kpi.seriesKeys.length) return kpi.seriesKeys;
+function resolveSeriesKeys(kpi, data) {
+  if (Array.isArray(kpi.seriesKeys) && kpi.seriesKeys.length) {
+    const sample = (data || kpi.series || []).find((p) => p);
+    const keysPresent = sample
+      ? kpi.seriesKeys.filter((s) => sample[s.key] != null)
+      : kpi.seriesKeys;
+    if (keysPresent.length) return keysPresent;
+  }
   return [{ key: 'value', label: kpi.title, color: kpi.chartColor }];
 }
 
@@ -100,26 +170,30 @@ function chartTooltip(isDarkMode, unit, seriesKeys) {
     <Tooltip
       content={<KpiSparklineTooltip isDarkMode={isDarkMode} unit={unit} seriesKeys={seriesKeys} />}
       cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '4 4' }}
-      wrapperStyle={{ zIndex: 100, outline: 'none' }}
+      wrapperStyle={{ display: 'none' }}
+      allowEscapeViewBox={{ x: true, y: true }}
+      isAnimationActive={false}
+      shared
     />
   );
 }
 
 function renderKpiChartBody({ chartType, kpi, data, compact, axisStyle, gridStroke }) {
-  const keys = resolveSeriesKeys(kpi);
+  const keys = resolveSeriesKeys(kpi, data);
   const colors = seriesPalette(kpi, keys);
   const margin = compact
-    ? { top: 4, right: 0, left: 0, bottom: 0 }
+    ? { top: 6, right: 2, left: 2, bottom: 2 }
     : { top: 12, right: 16, left: 8, bottom: 8 };
+  const yDomain = chartType === 'bar' ? [0, 'auto'] : ['dataMin', 'dataMax'];
 
   const hiddenAxis = compact ? (
     <>
-      <YAxis domain={['dataMin', 'dataMax']} hide />
+      <YAxis domain={yDomain} hide />
     </>
   ) : (
     <>
       <XAxis dataKey="date" tick={axisStyle} stroke={gridStroke} tickFormatter={(d) => String(d).slice(5)} />
-      <YAxis tick={axisStyle} stroke={gridStroke} width={56} />
+      <YAxis domain={chartType === 'bar' ? [0, 'auto'] : ['auto', 'auto']} tick={axisStyle} stroke={gridStroke} width={56} />
       {!compact && keys.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
     </>
   );
@@ -136,9 +210,10 @@ function renderKpiChartBody({ chartType, kpi, data, compact, axisStyle, gridStro
             key={s.key}
             dataKey={s.key}
             fill={colors[i]}
-            radius={compact ? [1, 1, 0, 0] : [3, 3, 0, 0]}
+            stackId={keys.length > 1 ? 'kpi' : undefined}
+            radius={i === keys.length - 1 ? (compact ? [1, 1, 0, 0] : [3, 3, 0, 0]) : [0, 0, 0, 0]}
             isAnimationActive={false}
-            maxBarSize={compact ? 6 : 28}
+            maxBarSize={compact ? 8 : 28}
           />
         ))}
       </BarChart>
@@ -222,13 +297,13 @@ function Sparkline({ kpi, data, isDarkMode }) {
   if (!data?.length) {
     return (
       <div
-        className={`h-8 w-full rounded sm:h-9 ${isDarkMode ? 'bg-slate-800/60' : 'bg-slate-100'}`}
+        className={`h-full min-h-[28px] w-full rounded ${isDarkMode ? 'bg-slate-800/60' : 'bg-slate-100'}`}
       />
     );
   }
 
   return (
-    <div className="relative h-8 min-h-0 w-full min-w-0 flex-1 opacity-90 sm:h-9">
+    <div className="relative h-full min-h-[28px] w-full min-w-0 overflow-visible opacity-90">
       <ResponsiveContainer width="100%" height="100%">
         {renderKpiChartBody({
           chartType,
@@ -241,8 +316,48 @@ function Sparkline({ kpi, data, isDarkMode }) {
   );
 }
 
+/** Distillery-style delta chip + "vs <label>" — only as wide as content. */
+function CompareChip({ pct, inverseGood, isDarkMode, label, compact = false }) {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  const isPositive = pct > 0;
+  const isNeutral = Math.abs(pct) < 0.05;
+  const isGood = isNeutral ? true : inverseGood ? !isPositive : isPositive;
+
+  const chipCls = isNeutral
+    ? isDarkMode ? 'bg-slate-700 text-slate-300' : 'bg-slate-100 text-slate-600'
+    : isGood
+      ? isDarkMode ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+      : isDarkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700';
+
+  const labelCls = isDarkMode ? 'text-slate-500' : 'text-slate-400';
+
+  return (
+    <div className={`${compact ? '' : 'mt-0.5'} flex min-w-0 shrink-0 items-center gap-0.5 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
+      <span
+        className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[9px]'} font-bold tabular-nums leading-none ${chipCls}`}
+        title={label ? `vs ${label}` : 'vs prior period'}
+      >
+        {isNeutral
+          ? <MdRemove className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5'} />
+          : isPositive
+            ? <MdTrendingUp className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5'} />
+            : <MdTrendingDown className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5'} />}
+        {Math.abs(pct).toFixed(1)}%
+      </span>
+      {label && !compact && (
+        <span
+          className={`truncate ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[7px] sm:text-[8px]'} font-semibold leading-none ${labelCls}`}
+          title={`vs ${label}`}
+        >
+          vs {label}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Single Management Dashboard KPI cell — value + sub-metrics + sparkline + expand. */
-export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredSeries }) {
+export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredSeries, showCompare, compareLabel }) {
   const series = filteredSeries ?? kpi.series ?? [];
   const chartType = kpi.chart || 'line';
   const hasChart = chartType !== 'none';
@@ -255,16 +370,17 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
     : 'border-slate-200 bg-white shadow-sm hover:shadow-md';
 
   const isStacked = subValues.length > 0;
+  const compactStacked = subValues.length >= 2;
 
   return (
     <div
-      className={`group relative flex h-full min-w-0 flex-1 basis-0 flex-col overflow-hidden rounded-xl border p-1.5 transition-shadow sm:rounded-2xl sm:p-2 ${cellBg}`}
+      className={`group relative flex h-full min-w-0 flex-1 basis-0 flex-col overflow-hidden rounded-lg border p-1 transition-shadow sm:rounded-xl sm:p-1.5 ${cellBg}`}
     >
       {!isStacked && (
         <div className="mb-0.5 flex items-start justify-between gap-0.5">
           <div className="flex min-w-0 flex-1 items-start">
             <h4
-              className={`line-clamp-2 text-[8px] font-bold leading-tight sm:text-[9px] ${
+              className={`line-clamp-2 text-[7px] font-bold leading-tight sm:text-[8px] ${
                 isDarkMode ? 'text-slate-300' : 'text-slate-500'
               }`}
               title={kpi.title}
@@ -280,14 +396,22 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
       )}
 
       {isStacked ? (
-        <div className="flex min-h-0 flex-1 flex-col justify-center gap-1">
+        <div
+          className={`flex min-h-0 flex-col overflow-hidden ${
+            hasChart ? 'shrink-0' : 'flex-1'
+          } ${compactStacked ? 'justify-evenly gap-0.5' : 'justify-center gap-1'}`}
+        >
           <StackedMetric
             value={primaryValue}
-            label={kpi.title}
+            label={kpi.stackedLabel || kpi.title}
             unit={kpi.unit}
             rightVal={kpi.rightVal}
             glossary={glossary}
             isDarkMode={isDarkMode}
+            dense={compactStacked}
+            compareVal={showCompare ? kpi.compareVal : null}
+            inverseGood={kpi.inverseGood}
+            compareLabel={compareLabel}
           />
           {subValues.map((sub) => (
             <StackedMetric
@@ -298,23 +422,48 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
               rightVal={sub.rightVal}
               glossary={sub.glossary}
               isDarkMode={isDarkMode}
+              dense={compactStacked}
+              compareVal={showCompare ? sub.compareVal : null}
+              inverseGood={kpi.inverseGood}
+              compareLabel={compareLabel}
             />
           ))}
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 items-start">
-          <span
-            className={`text-base font-black tabular-nums leading-none sm:text-lg ${
-              isDarkMode ? 'text-white' : 'text-slate-800'
-            }`}
-          >
-            {formatDisplayValue(primaryValue, kpi.unit)}
-          </span>
+        <div className={`flex flex-col gap-0.5 ${hasChart ? 'shrink-0' : 'min-h-0 flex-1 overflow-hidden'}`}>
+          <div className="flex shrink-0 items-start justify-between gap-0.5">
+            <span
+              className={`min-w-0 truncate text-sm font-black tabular-nums leading-none sm:text-base ${
+                isDarkMode ? 'text-white' : 'text-slate-800'
+              }`}
+            >
+              {formatDisplayValue(primaryValue, kpi.unit)}
+            </span>
+            {kpi.rightVal != null && kpi.rightVal !== '' && (
+              <span
+                className="shrink-0 text-[9px] font-semibold italic tabular-nums leading-none text-rose-500 sm:text-[10px]"
+                title="7-day moving average"
+              >
+                {formatDisplayValue(kpi.rightVal, kpi.unit)}
+              </span>
+            )}
+          </div>
+          {showCompare && (
+            <div className="shrink-0">
+              <CompareChip
+                pct={kpi.compareVal}
+                inverseGood={kpi.inverseGood}
+                isDarkMode={isDarkMode}
+                compact={hasChart}
+                label={compareLabel}
+              />
+            </div>
+          )}
         </div>
       )}
 
       {hasChart && (
-        <div className="mt-auto flex min-h-[32px] pt-0.5">
+        <div className="mt-0.5 flex min-h-[28px] min-w-0 flex-1 overflow-visible sm:min-h-[36px]">
           <Sparkline kpi={kpi} data={series} isDarkMode={isDarkMode} />
         </div>
       )}

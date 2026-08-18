@@ -145,7 +145,7 @@ export default function ManagementKpiExpandModal({
             </div>
             {kpi.rightVal != null && kpi.rightVal !== '' && (
               <div>
-                <span className="text-[10px] font-bold uppercase text-red-400">Reference</span>
+                <span className="text-[10px] font-bold uppercase text-red-400">7DMA</span>
                 <p className="text-lg font-black tabular-nums text-red-500">{formatMetric(kpi.rightVal, kpi.unit)}</p>
               </div>
             )}

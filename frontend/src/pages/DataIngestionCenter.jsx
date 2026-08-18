@@ -15,6 +15,8 @@ import api from '../api/axios';
 import Spinner from '../components/Spinner';
 import PurchyImportProgressModal from '../components/PurchyImportProgressModal';
 import PurchyUploadSection from '../components/PurchyUploadSection';
+import ManagementDashboardUploadSection from '../components/ManagementDashboardUploadSection';
+import ManagementDashboardImportProgressModal from '../components/ManagementDashboardImportProgressModal';
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 
@@ -194,6 +196,12 @@ const PURCHY_CATEGORIES = new Set([
   'Purchy Analysis — Staff Mapping',
 ]);
 
+const MD_CATEGORIES = new Set([
+  'Management Dashboard — Centre Indent',
+  'Management Dashboard — Centre Purchase',
+  'Management Dashboard — DMR Workbook',
+]);
+
 const UploadModal = ({ onClose, onUploaded }) => {
   const [category, setCategory] = useState('');
   const [file, setFile] = useState(null);
@@ -287,7 +295,9 @@ export default function DataIngestionCenter() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [viewFile, setViewFile] = useState(null);
   const [purchyImport, setPurchyImport] = useState(null);
+  const [mdImport, setMdImport] = useState(null);
   const [purchyRefresh, setPurchyRefresh] = useState(0);
+  const [mdRefresh, setMdRefresh] = useState(0);
   const [deletingId, setDeletingId] = useState(null);
 
   const fetchFiles = useCallback(async () => {
@@ -295,7 +305,7 @@ export default function DataIngestionCenter() {
     try {
       const { data } = await api.get('/data-upload/files');
       const all = data.files || [];
-      setFiles(all.filter((f) => !PURCHY_CATEGORIES.has(f.category) && !f.purchySlot));
+      setFiles(all.filter((f) => !PURCHY_CATEGORIES.has(f.category) && !MD_CATEGORIES.has(f.category) && !f.purchySlot && !f.dataset));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load uploads.');
     } finally {
@@ -335,7 +345,7 @@ export default function DataIngestionCenter() {
         </p>
         <h1 className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">Data Ingestion Center</h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Use the Purchy Analysis section for grower and staff BI workbooks. Other CSV or Excel files can be uploaded below with a category name.
+          Use the Purchy Analysis and Management Dashboard sections for BI workbooks. Other CSV or Excel files can be uploaded below with a category name.
         </p>
 
         <Link
@@ -347,6 +357,8 @@ export default function DataIngestionCenter() {
         </Link>
 
         <PurchyUploadSection onImportStarted={setPurchyImport} refreshToken={purchyRefresh} />
+
+        <ManagementDashboardUploadSection onImportStarted={setMdImport} refreshToken={mdRefresh} />
 
         <div className="card mt-6 overflow-hidden shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-6">
@@ -434,6 +446,23 @@ export default function DataIngestionCenter() {
         <UploadModal
           onClose={() => setUploadOpen(false)}
           onUploaded={fetchFiles}
+        />
+      )}
+
+      {mdImport && (
+        <ManagementDashboardImportProgressModal
+          jobId={mdImport.jobId}
+          filename={mdImport.filename}
+          importType={mdImport.type}
+          onClose={() => setMdImport(null)}
+          onComplete={(data) => {
+            if (data?.status === 'failed') {
+              toast.error(data.error || 'Import failed — check column names match the template.');
+            } else {
+              toast.success('Management Dashboard data imported.');
+            }
+            setMdRefresh((n) => n + 1);
+          }}
         />
       )}
 
