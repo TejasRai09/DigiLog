@@ -8,6 +8,7 @@ import {
   MANAGEMENT_DMA,
   ROW_CHART_COLORS,
   getKpiGlossary,
+  formatKpiTablesUsed,
 } from './managementDashboardMeta';
 
 /** PBI snapshot values (Oct 27 2024 – Mar 29 2025 season). */
@@ -198,7 +199,8 @@ function buildKpiPayload(meta) {
     seriesKeys: meta.seriesKeys ?? null,
     chartColor: ROW_CHART_COLORS[meta.rowId],
     series,
-    sourceTable: meta.sourceTable,
+    sourceTable: formatKpiTablesUsed(meta),
+    dateJoin: meta.dateJoin ?? null,
     aggregation: meta.aggregation,
   };
 }

@@ -5,6 +5,9 @@
 
 export const MANAGEMENT_DMA = 7;
 
+/** Season calendar used by every PBI 7DMA measure (DATESINPERIOD anchor). */
+export const MANAGEMENT_DATE_CALENDAR = 'DMR_SS24[Date]';
+
 export const MANAGEMENT_DATE_BOUNDS = {
   from: '2024-10-27',
   to: '2025-03-29',
@@ -22,14 +25,28 @@ export const MANAGEMENT_DATE_BOUNDS = {
  * @property {AggType} aggregation
  * @property {string} formula
  * @property {string} chart7dma - 7DMA measure name for chart layer
+ * @property {string} [dateCalendar] - PBI date table for 7DMA rolling window (DMR_SS24[Date])
+ * @property {string} [dateJoin] - Fact date column joined to DMR_SS24.Date
  * @property {'none'|'line'|'bar'|'area'|'multiLine'} chartType
  * @property {{ key: string, label: string, color?: string }[]|null} [seriesKeys]
  * @property {string} unit
  */
 
+/** KPIs where a lower value is better (inverseColor chip). */
+export const INVERSE_GOOD_KPI_IDS = new Set([
+  'bag_pol_cane',
+  'power_per_cane',
+  'steam_per_cane',
+  'pol_f_cake',
+  'power_per_sugar',
+  'steam_per_sugar',
+  'inhouse_consp',
+  'steam_to_sugar',
+  'spec_steam',
+]);
+
 /** @type {ManagementKpiMeta[]} */
 export const MANAGEMENT_KPI_CATALOG = [
-  // ── Cane ──
   {
     id: 'cane_indent',
     rowId: 'cane',
@@ -39,6 +56,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'SUM(Cane Indent[Qty in Qtls])',
     chart7dma: 'Cane Indent 7DMA = SUM(Qty over 7 days) / 7',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Cane Indent[Indent Date] → DMR_SS24[Date]',
     chartType: 'area',
     unit: 'Q',
   },
@@ -51,6 +70,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'SUM(Cane Purchase[Qty in Qtls])',
     chart7dma: 'Cane Purchase 7DMA = SUM(Qty over 7 days) / 7',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Cane Purchase[Purchase Date] → DMR_SS24[Date]',
     chartType: 'area',
     unit: 'Q',
   },
@@ -63,6 +84,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(DMR_SS24[YARD BAL 8 AM]); Overrun_Gate = SUM(Purchase|Gate)/SUM(Indent|Gate); Overrun_Center = SUM(Purchase|Center)/SUM(Indent|Center)',
     chart7dma: 'Yard Balance 7DMA = rolling AVG(YARD BAL 8 AM)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'none',
     unit: 'Q',
   },
@@ -75,6 +98,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'wavg',
     formula: 'WAvgPol = SUMX(DMR, [Plant POL IN CANE DS] * [Total Cane]) / SUM([Total Cane])',
     chart7dma: 'WAvgPol_7DMA / Pol in Cane 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'line',
     unit: '%',
   },
@@ -87,6 +112,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(YardBrix[Middle Brix %])',
     chart7dma: 'YardBrix 7DMA = rolling AVG(Middle Brix %)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'YardBrix[Sampling Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: '%',
   },
@@ -99,6 +126,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(FieldBrix[Middle Brix %])',
     chart7dma: 'FiledBrix 7DMA = rolling AVG(Middle Brix %)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'FieldBrix[Date of Sampling] → DMR_SS24[Date]',
     chartType: 'area',
     unit: '%',
   },
@@ -112,6 +141,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'SUM(DMR_SS24[Total Cane])',
     chart7dma: 'Cane Crush 7DMA = rolling SUM(Total Cane) / 7',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'line',
     unit: 'Q',
   },
@@ -124,6 +155,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'wavg',
     formula: 'WAvgMaceration = SUMX(DMR, [MACERATION] * [Total Cane to Sugar]) / SUM([Total Cane to Sugar])',
     chart7dma: 'Maceration 7DMA = rolling AVG(MACERATION)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'area',
     unit: '%',
   },
@@ -136,6 +169,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'SUM(DMR_SS24[Mixed Juice Cal])',
     chart7dma: 'Mixed Juice 7DMA = rolling AVG(Mixed Juice Cal)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'line',
     unit: 'Q',
   },
@@ -148,6 +183,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'wavg',
     formula: 'WAvgDMF = SUMX(DMR, [DMF] * [Total Cane to Sugar]) / SUM([Total Cane to Sugar])',
     chart7dma: 'DMF 7DMA = rolling SUM(DMF) / 7',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'area',
     unit: '%',
   },
@@ -160,30 +197,36 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'wavg',
     formula: 'WAvgBaggPol/Cane = SUMX(DMR, [Plant POL IN BAGASSE DS] * [Total Cane to Sugar]) / SUM([Total Cane to Sugar])',
     chart7dma: 'WAvgBaggPol/Cane_7DMA; sub: WAvgBaggPol, WAvgBagMoist',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'none',
     unit: '%',
   },
   {
     id: 'power_per_cane',
     rowId: 'milling',
-    title: 'Power/Cane (Unit/Q)',
+    title: 'Power/Cane (KWH/Q)',
     sourceTable: 'power',
     sourceField: 'Power/Cane',
     aggregation: 'avg',
     formula: 'Power/Cane = PowerConMillHouse / Crush (if Crush <> 0)',
     chart7dma: 'Power/Cane 7DMA = rolling AVG(Power/Cane)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'power[Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'KWH/Q',
   },
   {
     id: 'steam_per_cane',
     rowId: 'milling',
-    title: 'Steam/Cane (T/Q)',
+    title: 'Steam/Cane (KG/Q)',
     sourceTable: 'steam',
     sourceField: 'Steam/Cane',
     aggregation: 'avg',
     formula: 'Steam/Cane = (StmMillTurbine + StmConsMill&PRDS70) * 1000 / Crush',
     chart7dma: 'Steam/Cane 7DMA = rolling AVG(Steam/Cane)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'steam[Date] → DMR_SS24[Date]',
     chartType: 'area',
     unit: 'KG/Q',
   },
@@ -237,6 +280,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'wavg',
     formula: 'WAvgRec = SUMX(DMR, [AV. RECOVERY%] * [Total Cane to Sugar]) / SUM([Total Cane to Sugar])',
     chart7dma: 'WAvgRec_7DMA / Recovery 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'area',
     unit: '%',
   },
@@ -249,30 +294,36 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'wavg',
     formula: 'WAvgFCakePol; sub: WAvgFMolPol, WAvgPurityMolDS, WAvgPurityMolRS',
     chart7dma: 'WAvgFCakePol_7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'DMR_SS24[Date] (same table)',
     chartType: 'none',
     unit: '%',
   },
   {
     id: 'power_per_sugar',
     rowId: 'sugar',
-    title: 'Power/Sugar (Units/Q)',
+    title: 'Power/Sugar (KWH/Q)',
     sourceTable: 'power',
     sourceField: 'Power/Sugar',
     aggregation: 'avg',
     formula: 'Power/Sugar = sugar-house power / LOOKUPVALUE(DMR sugar production)',
     chart7dma: 'Power/Sugar 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'power[Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'KWH/Q',
   },
   {
     id: 'steam_per_sugar',
     rowId: 'sugar',
-    title: 'Steam/Sugar (T/Q)',
+    title: 'Steam/Sugar (KG/Q)',
     sourceTable: 'steam',
     sourceField: 'Steam/Sugar',
     aggregation: 'avg',
     formula: 'Steam/Sugar = (Steam to Sugar 70 + Extraction 3ATA) * 1000 / sugar production',
     chart7dma: 'Steam/Sugar 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'steam[Date] → DMR_SS24[Date]',
     chartType: 'area',
     unit: 'KG/Q',
   },
@@ -286,6 +337,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'Total Power Gen = PowerGen30 + PowerGen3New + PowerGen3Old + PowerGen4MW',
     chart7dma: 'Power Gen 7DMA = rolling AVG(Total Power Gen)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'power[Date] → DMR_SS24[Date]',
     chartType: 'area',
     unit: 'KWH',
   },
@@ -298,6 +351,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'SUM(power[ExportGrid30])',
     chart7dma: 'Export 7DMA = rolling AVG(ExportGrid30)',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'power[Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'KWH',
   },
@@ -310,6 +365,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'Total Internal Consp Col = Total Power Gen - ExportGrid30',
     chart7dma: 'Internal Consp 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'power[Date] → DMR_SS24[Date]',
     chartType: 'area',
     unit: 'KWH',
   },
@@ -322,6 +379,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'TotalSteamGen = SteamGen150 + SteamGen70 + SteamGen35',
     chart7dma: 'Total Steam Gen 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'steam[Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'MT',
   },
@@ -334,6 +393,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'TotalSteamtoSug = TotalStmtoSug150 + TotalStmtoSug70',
     chart7dma: 'TotalSteamtoSug 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'steam[Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'MT',
   },
@@ -346,6 +407,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'StmtoBaggase150 = SteamGen150 / Baggase150; sub: StmtoBaggase70, StmtoBaggase35',
     chart7dma: 'StmtoBaggase150_7DMA / StmtoBaggase70_7DMA / StmtoBaggase35_7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'steam[Date] → DMR_SS24[Date]',
     chartType: 'none',
     unit: '',
   },
@@ -358,6 +421,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'SpecSteam30 = SteamCon30MW / (PowerGen30/1000); sub: SpecSteam3(O+N), SpecSteam4',
     chart7dma: 'SpecSteam30MW_7DMA / SpecSteam3(O+N)_7DMA / SpecSteam4MW_7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'power[Date] → DMR_SS24[Date]',
     chartType: 'none',
     unit: '',
   },
@@ -383,6 +448,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'sum',
     formula: 'SUM(Distillery[Actual Ethanol Production (BL)])',
     chart7dma: 'Ethanol Prod 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'BL',
   },
@@ -395,6 +462,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(Distillery[REC BL])',
     chart7dma: 'Ethanol Rec 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'BL/Q',
   },
@@ -407,6 +476,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(Distillery[Ethanol in Storage (BL)])',
     chart7dma: 'Ethanol Store 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
     chartType: 'line',
     unit: 'BL',
   },
@@ -419,6 +490,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(BH molasses storage); sub: CH molasses storage',
     chart7dma: 'BMol Store 7DMA / CMol Store 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
     chartType: 'none',
     unit: 'Q',
   },
@@ -431,6 +504,8 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(Distillery[DE]); sub: AVG(Distillery[FE])',
     chart7dma: 'DE 7DMA / FE 7DMA',
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
     chartType: 'none',
     unit: '%',
   },
@@ -443,11 +518,10 @@ export const MANAGEMENT_KPI_CATALOG = [
     aggregation: 'avg',
     formula: 'AVG(Distillery[TRS]); companion: AVG(Distillery[FS])',
     chart7dma: 'TRS 7DMA / FS 7DMA',
-    chartType: 'multiLine',
-    seriesKeys: [
-      { key: 'value', label: 'TRS %', color: '#9f1239' },
-      { key: 'value2', label: 'FS %', color: '#be123c' },
-    ],
+    dateCalendar: MANAGEMENT_DATE_CALENDAR,
+    dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
+    chartType: 'none',
+    stackedLabel: 'TRS %',
     unit: '%',
   },
 ];
@@ -521,12 +595,20 @@ export const MANAGEMENT_GLOSSARY = {
   'b_mol_store::C Mol in Store (Q)': 'Quantity of C molasses stored.',
   dist_eff: 'Efficiency of ethanol separation in the distillation column. Increase is positive.',
   'dist_eff::Fermentation Eff.': 'Efficiency of sugar conversion to ethanol during fermentation. Increase is positive.',
-  trs_fs: 'TRS is the total fermentable sugars in the feedstock. FS is the raw material supplied to the distillery. Increase is positive.',
+  trs_fs: 'Average TRS (total reducing sugars) of distillery feedstock in the selected period. Increase is positive.',
+  'trs_fs::FS %': 'Average FS (fermentable sugars) of distillery feedstock in the selected period. Increase is positive.',
 };
 
 export function getKpiGlossary(kpiId, subLabel) {
   if (subLabel) return MANAGEMENT_GLOSSARY[`${kpiId}::${subLabel}`] || null;
   return MANAGEMENT_GLOSSARY[kpiId] || null;
+}
+
+/** Tables used in PBI for card + 7DMA (includes DMR_SS24 when it is the date calendar). */
+export function formatKpiTablesUsed(meta) {
+  if (!meta?.sourceTable) return '';
+  if (!meta.dateCalendar || meta.sourceTable.includes('DMR_SS24')) return meta.sourceTable;
+  return `${meta.sourceTable} + DMR_SS24`;
 }
 
 /** Lookup KPI meta by id. */

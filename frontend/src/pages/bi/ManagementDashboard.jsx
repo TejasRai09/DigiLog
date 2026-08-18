@@ -7,16 +7,23 @@ import {
   MdOutlineCalendarMonth,
   MdScience,
 } from 'react-icons/md';
+import toast from 'react-hot-toast';
+import api from '../../api/axios';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiFilterBarLayout, BiKeyMetricBox } from '../../components/bi/BiLayoutElements';
 import ManagementKpiCell from '../../components/bi/ManagementKpiCell';
 import ManagementKpiExpandModal from '../../components/bi/ManagementKpiExpandModal';
-import {
-  buildManagementDashboardStatic,
-  filterKpiSeries,
-} from '../../data/managementDashboardStaticData';
+import Spinner from '../../components/Spinner';
+import { filterKpiSeries } from '../../data/managementDashboardStaticData';
 import { MANAGEMENT_DATE_BOUNDS } from '../../data/managementDashboardMeta';
-import { formatYMD } from '../../utils/distilleryBiDateRange';
+import { mergeManagementDashboardApi } from '../../utils/mergeManagementDashboardApi';
+import {
+  formatYMD,
+  computePriorPeriodRange,
+  getSeasonComparisonLabels,
+  alignCrushingSeasonCompareRange,
+  seasonLabelForComparisonType,
+} from '../../utils/distilleryBiDateRange';
 
 const PRESETS = [
   { id: 'STD', label: 'STD' },
@@ -25,15 +32,25 @@ const PRESETS = [
   { id: 'ALL', label: 'All' },
 ];
 
-function getPresetRange(preset, ref = new Date()) {
+function getPresetRange(preset, ref = new Date(), bounds = {}) {
   const to = formatYMD(ref);
+  const min = bounds.min || bounds.from;
+  const max = bounds.max || bounds.to || to;
+
   if (preset === 'STD') {
     const seasonStartYear = ref.getMonth() >= 9 ? ref.getFullYear() : ref.getFullYear() - 1;
-    return { from: formatYMD(new Date(seasonStartYear, 9, 1)), to };
+    return clampRange(
+      formatYMD(new Date(seasonStartYear, 9, 1)),
+      to,
+      min,
+      max,
+    );
   }
-  if (preset === 'YTD') return { from: formatYMD(new Date(ref.getFullYear(), 0, 1)), to };
-  if (preset === 'ALL') return { from: null, to: null };
-  return { from: formatYMD(new Date(ref.getFullYear(), ref.getMonth(), 1)), to };
+  if (preset === 'YTD') {
+    return clampRange(formatYMD(new Date(ref.getFullYear(), 0, 1)), to, min, max);
+  }
+  if (preset === 'ALL') return { from: min, to: max };
+  return clampRange(formatYMD(new Date(ref.getFullYear(), ref.getMonth(), 1)), to, min, max);
 }
 
 function clampRange(from, to, min, max) {
@@ -62,7 +79,7 @@ function RowIcon({ iconName }) {
       <img
         src={src}
         alt=""
-        className="h-14 w-14 object-contain drop-shadow-sm sm:h-16 sm:w-16"
+        className="h-10 w-10 object-contain drop-shadow-sm sm:h-11 sm:w-11 lg:h-12 lg:w-12"
         draggable={false}
       />
     );
@@ -84,46 +101,175 @@ function RowIcon({ iconName }) {
 }
 
 export default function ManagementDashboard() {
-  const staticData = useMemo(() => buildManagementDashboardStatic(), []);
-  const dateBounds = staticData.dateBounds;
-
   const [dm, setDm] = useState(false);
   const [preset, setPreset] = useState('STD');
   const [from, setFrom] = useState(MANAGEMENT_DATE_BOUNDS.from);
   const [to, setTo] = useState(MANAGEMENT_DATE_BOUNDS.to);
   const [expandedKpi, setExpandedKpi] = useState(null);
   const [expandedSeries, setExpandedSeries] = useState([]);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const dma = staticData.dma;
+  // Compare toggle — always one of 'PP'/'S1'/'S2'
+  const [compareType, setCompareType] = useState('PP');
+  const [pyData, setPyData] = useState(null);
+  const [pyLoading, setPyLoading] = useState(false);
 
+  const dateBounds = dashboardData?.dateBounds || MANAGEMENT_DATE_BOUNDS;
+  const dma = dashboardData?.dma ?? 7;
+
+  const fetchDashboard = useCallback(async (fromDate, toDate) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
+      params.set('dma', String(dma));
+      const { data } = await api.get(`/bi/management-dashboard?${params.toString()}`);
+      const merged = mergeManagementDashboardApi(data);
+      setDashboardData(merged);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Failed to load Management Dashboard.';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [dma]);
+
+  useEffect(() => {
+    fetchDashboard(from, to);
+  }, [from, to, fetchDashboard]);
+
+  // ── Prior-period range ──────────────────────────────────────────────
+  const priorRange = useMemo(() => {
+    if (compareType === 'PP') {
+      return computePriorPeriodRange(from, to, preset);
+    }
+    // Season comparison — crushing season Oct–Sep (matches STD preset)
+    const seasonLabel = seasonLabelForComparisonType(compareType, seasonLabels);
+    if (!seasonLabel) return null;
+    const { start, end } = alignCrushingSeasonCompareRange(from, to, seasonLabel);
+    return { start, end, label: seasonLabel };
+  }, [compareType, from, to, preset]);
+
+  // Compute compare label for display
+  const compareLabel = useMemo(() => {
+    if (!priorRange) return null;
+    const fmt = (d) => {
+      if (!d) return '';
+      const dt = new Date(`${d}T12:00:00`);
+      return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    return `${priorRange.label} (${fmt(priorRange.start)} – ${fmt(priorRange.end)})`;
+  }, [compareType, priorRange]);
+
+  // Fetch prior-period data whenever priorRange changes
+  useEffect(() => {
+    if (!priorRange) {
+      setPyData(null);
+      return;
+    }
+    let cancelled = false;
+    setPyLoading(true);
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        params.set('from', priorRange.start);
+        params.set('to', priorRange.end);
+        params.set('dma', String(dma));
+        const { data } = await api.get(`/bi/management-dashboard?${params.toString()}`);
+        const merged = mergeManagementDashboardApi(data);
+        if (!cancelled) setPyData(merged);
+      } catch {
+        if (!cancelled) setPyData(null);
+      } finally {
+        if (!cancelled) setPyLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [priorRange, dma]);
+
+  // ── Season labels for the compare toggle ────────────────────────────
+  const seasonLabels = useMemo(() => {
+    const ref = dateBounds.max ? new Date(`${dateBounds.max}T12:00:00`) : new Date();
+    return getSeasonComparisonLabels(ref);
+  }, [dateBounds.max]);
+
+  const compareOptions = useMemo(() => [
+    { id: 'PP', label: preset === 'MTD' ? 'Prev. Month' : preset === 'STD' ? 'Prev. Season' : preset === 'YTD' ? 'Prev. Year' : 'Prev. Period' },
+    { id: 'S1', label: seasonLabels.season1 },
+    { id: 'S2', label: seasonLabels.season2 },
+  ], [preset, seasonLabels]);
+
+  const calcDelta = useCallback((curValue, prevValue) => {
+    const parseCompareNum = (value) => {
+      if (value == null || value === '' || value === '(Blank)') return null;
+      if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+      const n = Number(String(value).replace(/,/g, '').replace(/%/g, '').trim());
+      return Number.isFinite(n) ? n : null;
+    };
+    const cur = parseCompareNum(curValue);
+    const prev = parseCompareNum(prevValue);
+    if (cur == null || prev == null || prev === 0) return null;
+    return ((cur - prev) / Math.abs(prev)) * 100;
+  }, []);
+
+  // ── Rows with filtered series + compare delta injected ────────────────
   const rowsWithFilteredSeries = useMemo(() => {
-    return staticData.rows.map((row) => ({
-      ...row,
-      kpis: row.kpis.map((kpi) => ({
-        ...kpi,
-        filteredSeries: filterKpiSeries(kpi.series, from, to),
-      })),
-    }));
-  }, [staticData.rows, from, to]);
+    if (!dashboardData?.rows) return [];
+
+    const pyRows = pyData?.rows ?? null;
+
+    return dashboardData.rows.map((row) => {
+      const pyRow = pyRows ? pyRows.find((r) => r.id === row.id) : null;
+
+      return {
+        ...row,
+        kpis: row.kpis.map((kpi) => {
+          const pyKpi = pyRow ? pyRow.kpis.find((k) => k.id === kpi.id) : null;
+
+          const compareVal = pyKpi != null ? calcDelta(kpi.value, pyKpi.value) : null;
+          const subValues = Array.isArray(kpi.subValues)
+            ? kpi.subValues.map((sub) => {
+                const prevSub = pyKpi?.subValues?.find((s) => s.label === sub.label);
+                return {
+                  ...sub,
+                  compareVal: prevSub ? calcDelta(sub.value, prevSub.value) : null,
+                };
+              })
+            : [];
+
+          return {
+            ...kpi,
+            compareVal,
+            subValues,
+            filteredSeries: filterKpiSeries(kpi.series, from, to),
+          };
+        }),
+      };
+    });
+  }, [dashboardData?.rows, pyData, from, to, calcDelta]);
 
   const applyPreset = useCallback(
     (p) => {
       setPreset(p);
-      if (p === 'ALL') {
-        setFrom(dateBounds.min || dateBounds.from);
-        setTo(dateBounds.max || dateBounds.to);
-        return;
-      }
-      const ref = new Date(`${MANAGEMENT_DATE_BOUNDS.to}T12:00:00`);
-      const r = getPresetRange(p, ref);
-      const min = dateBounds.min || dateBounds.from;
-      const max = dateBounds.max || dateBounds.to;
-      const clamped = clampRange(r.from, r.to, min, max);
-      setFrom(clamped.from || min);
-      setTo(clamped.to || max);
+      const ref = dateBounds.max ? new Date(`${dateBounds.max}T12:00:00`) : new Date();
+      const r = getPresetRange(p, ref, dateBounds);
+      setFrom(r.from || dateBounds.min);
+      setTo(r.to || dateBounds.max);
     },
     [dateBounds],
   );
+
+  useEffect(() => {
+    if (!dashboardData?.dateBounds?.min) return;
+    if (preset === 'STD' && from === MANAGEMENT_DATE_BOUNDS.from) {
+      applyPreset('STD');
+    }
+  }, [dashboardData?.dateBounds?.min]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExpand = useCallback(
     (kpi) => {
@@ -153,26 +299,35 @@ export default function ManagementDashboard() {
   );
 
   const periodLabel = from && to ? `${from} → ${to}` : '';
+  const daysElapsed = dashboardData?.daysElapsed ?? null;
+
+  if (loading && !dashboardData) {
+    return (
+      <div className={`${shell} flex h-[calc(100dvh-3rem)] items-center justify-center`}>
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
-    <div className={`${shell} flex h-[calc(100dvh-4rem)] flex-col overflow-hidden`}>
-      <div className="shrink-0 space-y-2 p-2 sm:p-3">
+    <div className={`${shell} flex h-[calc(100dvh-3rem)] flex-col overflow-hidden`}>
+      <div className="shrink-0 space-y-1 px-1.5 py-1 sm:px-2">
         <BiDashboardHeader
           title="Management Dashboard"
-          subtitle="Executive KPI summary — season values with PBI trend charts"
           icon={MdInsights}
           iconColor="#6366f1"
           isDarkMode={dm}
+          compact
         />
 
-        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm}>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
             {PRESETS.map((p) => (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => applyPreset(p.id)}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-black transition ${
+                className={`rounded-md px-2 py-0.5 text-[10px] font-black transition ${
                   preset === p.id
                     ? 'bg-indigo-600 text-white'
                     : dm
@@ -184,96 +339,126 @@ export default function ManagementDashboard() {
               </button>
             ))}
 
-            <div className={`hidden h-6 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
+            <div className={`hidden h-4 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            <label className={`flex items-center gap-1 text-[11px] font-bold ${dm ? 'text-slate-300' : 'text-slate-600'}`}>
-              <MdOutlineCalendarMonth className="h-4 w-4" />
+            <label className={`flex items-center gap-0.5 text-[10px] font-bold ${dm ? 'text-slate-300' : 'text-slate-600'}`}>
+              <MdOutlineCalendarMonth className="h-3.5 w-3.5" />
               <input
                 type="date"
-                value={from}
-                min={dateBounds.from}
-                max={to || dateBounds.to}
+                value={from || ''}
+                min={dateBounds.min || dateBounds.from}
+                max={to || dateBounds.max || dateBounds.to}
                 onChange={(e) => {
                   setPreset('CUSTOM');
                   setFrom(e.target.value);
                 }}
-                className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${
+                className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
             </label>
-            <span className={`text-[11px] font-bold ${dm ? 'text-slate-500' : 'text-slate-400'}`}>to</span>
+            <span className={`text-[10px] font-bold ${dm ? 'text-slate-500' : 'text-slate-400'}`}>to</span>
             <input
               type="date"
-              value={to}
-              min={from || dateBounds.from}
-              max={dateBounds.to}
+              value={to || ''}
+              min={from || dateBounds.min || dateBounds.from}
+              max={dateBounds.max || dateBounds.to}
               onChange={(e) => {
                 setPreset('CUSTOM');
                 setTo(e.target.value);
               }}
-              className={`rounded-lg border px-2 py-1 text-[11px] font-semibold ${
+              className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
                 dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
               }`}
             />
 
-            <span className={`ml-1 rounded-lg px-2 py-1 text-[11px] font-black ${dm ? 'bg-red-950 text-red-300' : 'bg-red-50 text-red-600'}`}>
+            <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-black ${dm ? 'bg-red-950 text-red-300' : 'bg-red-50 text-red-600'}`}>
               {dma} DMA
             </span>
+
+            {loading && <Spinner size="sm" />}
+
+            <div className={`hidden h-4 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
+
+            <span className={`shrink-0 whitespace-nowrap text-[8px] font-bold uppercase tracking-wider ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
+              Compare:
+            </span>
+            <div className={`flex min-w-0 flex-wrap gap-0.5 rounded-md border p-0.5 ${dm ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+              {compareOptions.map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setCompareType(opt.id)}
+                  className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[8px] font-black transition-all sm:text-[9px] ${
+                    compareType === opt.id
+                      ? dm ? 'bg-slate-700 text-slate-100 shadow-sm' : 'bg-slate-800 text-white shadow-sm'
+                      : `text-slate-500 ${dm ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {pyLoading && <Spinner size="sm" />}
           </div>
+
+          {daysElapsed != null && (
+            <BiKeyMetricBox
+              value={daysElapsed}
+              title="Days"
+              isDarkMode={dm}
+              compact
+              tooltip={`Days elapsed · ${periodLabel || ''}`}
+            />
+          )}
         </BiFilterBarLayout>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-2 pb-2 sm:px-3 sm:pb-3">
+      {error && (
+        <div className={`mx-3 mb-2 rounded-lg px-3 py-2 text-xs ${dm ? 'bg-red-950 text-red-300' : 'bg-red-50 text-red-700'}`}>
+          {error}
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 sm:px-2 sm:pb-2">
         <div
-          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-sm ${
+          className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border shadow-sm ${
             dm ? 'border-slate-700 bg-slate-900/50' : 'border-slate-200 bg-white'
           }`}
         >
-          <div
-            className={`flex shrink-0 items-center justify-between border-b px-3 py-1.5 sm:px-4 sm:py-2 ${
-              dm ? 'border-slate-700' : 'border-slate-100'
-            }`}
-          >
-            <div className="min-w-0">
-              <h2 className={`truncate text-xs font-black sm:text-sm ${dm ? 'text-slate-100' : 'text-slate-800'}`}>
-                Operations Summary
-              </h2>
-              <p className={`truncate text-[10px] sm:text-xs ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
-                {periodLabel || 'Select a date range'}
-              </p>
+          {/* Responsive zoom-out so 5 rows × 7 KPIs fit without clutter on laptop/monitor */}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div
+              className={`flex h-[122%] w-[122%] origin-top-left scale-[0.82] flex-col gap-1 p-1 lg:h-[114%] lg:w-[114%] lg:scale-[0.88] xl:h-[109%] xl:w-[109%] xl:scale-[0.92] 2xl:h-[104%] 2xl:w-[104%] 2xl:scale-[0.96] ${
+                dm ? 'bg-slate-950/40' : 'bg-slate-50/80'
+              }`}
+            >
+              {rowsWithFilteredSeries.map((row) => (
+                <div key={row.id} className="flex min-h-0 flex-1 gap-1">
+                  <div
+                    className={`${row.color} flex w-[4.25rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg px-1.5 py-1.5 shadow-sm sm:w-[4.75rem] lg:w-20`}
+                  >
+                    <RowIcon iconName={row.icon} />
+                    <span className="text-center text-[8px] font-black capitalize leading-tight tracking-wide text-slate-800 sm:text-[9px]">
+                      {row.title}
+                    </span>
+                  </div>
+                  <div className="flex min-w-0 flex-1 gap-1">
+                    {row.kpis.map((kpi) => (
+                      <ManagementKpiCell
+                        key={kpi.id}
+                        kpi={kpi}
+                        isDarkMode={dm}
+                        onExpand={handleExpand}
+                        filteredSeries={kpi.filteredSeries}
+                        showCompare
+                        compareLabel={compareLabel}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-            <MdFilterList className={`h-4 w-4 shrink-0 ${dm ? 'text-slate-500' : 'text-slate-400'}`} />
-          </div>
-
-          <div
-            className={`flex min-h-0 flex-1 flex-col gap-1.5 p-1.5 sm:gap-2 sm:p-2 ${
-              dm ? 'bg-slate-950/40' : 'bg-slate-50/80'
-            }`}
-          >
-            {rowsWithFilteredSeries.map((row) => (
-              <div key={row.id} className="flex min-h-0 flex-1 gap-1.5 sm:gap-2">
-                <div
-                  className={`${row.color} flex w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl px-2 py-2 shadow-sm sm:w-28 sm:rounded-2xl sm:px-3`}
-                >
-                  <RowIcon iconName={row.icon} />
-                  <span className="text-center text-[10px] font-black capitalize leading-tight tracking-wide text-slate-800 sm:text-xs">
-                    {row.title}
-                  </span>
-                </div>
-                <div className="flex min-w-0 flex-1 gap-1.5 sm:gap-2">
-                  {row.kpis.map((kpi) => (
-                    <ManagementKpiCell
-                      key={kpi.id}
-                      kpi={kpi}
-                      isDarkMode={dm}
-                      onExpand={handleExpand}
-                      filteredSeries={kpi.filteredSeries}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

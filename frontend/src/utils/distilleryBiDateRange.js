@@ -246,3 +246,45 @@ export function seasonLabelForComparisonType(type, seasonLabels) {
   if (type === 'S3') return seasonLabels.season3;
   return null;
 }
+
+/** Crushing season Oct 1 – Sep 30 (matches Management Dashboard STD preset). */
+export function crushingSeasonBounds(startYear) {
+  return {
+    start: `${startYear}-10-01`,
+    end: `${startYear + 1}-09-30`,
+  };
+}
+
+/** Map a calendar date into the same month/day within a crushing season label. */
+export function compareDateIsoInCrushingSeason(iso, seasonStartYear) {
+  if (!iso || iso.length < 10) return null;
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const compareYear = d.getMonth() >= 9 ? seasonStartYear : seasonStartYear + 1;
+  return formatYMD(new Date(compareYear, d.getMonth(), d.getDate()));
+}
+
+/**
+ * Align current From–To into a crushing season (e.g. 2024-2025 → Oct 2024 – Sep 2025).
+ * Used by Management Dashboard season compare toggle.
+ */
+export function alignCrushingSeasonCompareRange(fromDate, toDate, seasonLabel) {
+  const parsed = parseIndianSeasonLabel(seasonLabel);
+  if (!parsed) {
+    return { start: fromDate, end: toDate };
+  }
+  const bounds = crushingSeasonBounds(parsed.startYear);
+  const from = fromDate <= toDate ? fromDate : toDate;
+  const to = fromDate <= toDate ? toDate : fromDate;
+  const startIso = compareDateIsoInCrushingSeason(from, parsed.startYear);
+  const endIso = compareDateIsoInCrushingSeason(to, parsed.startYear);
+  if (!startIso || !endIso) {
+    return { start: bounds.start, end: bounds.end };
+  }
+  let start = startIso <= endIso ? startIso : endIso;
+  let end = startIso <= endIso ? endIso : startIso;
+  if (start < bounds.start) start = bounds.start;
+  if (end > bounds.end) end = bounds.end;
+  if (start > end) return { start: bounds.start, end: bounds.end };
+  return { start, end };
+}

@@ -11,10 +11,19 @@ const {
   getPurchyImportJob,
 } = require('../utils/purchyUploadSync');
 const {
+  scheduleManagementDashboardImport,
+  getManagementDashboardImportJob,
+} = require('../utils/managementDashboardUploadSync');
+const {
   PURCHY_SLOTS,
   purchySlotFromCategory,
   isPurchyCategory,
 } = require('../utils/purchyUploadSlots');
+const {
+  MD_DATASETS,
+  mdDatasetFromSlot,
+  isManagementDashboardCategory,
+} = require('../utils/managementDashboardUploadSlots');
 const { sendServerError, MSG, logServerError } = require('../utils/httpError');
 
 async function hasDataUploadAccess(user) {
@@ -32,6 +41,7 @@ function mapFileRow(r) {
     id: r.id,
     userId: r.user_id,
     category: r.category,
+    dataset: r.dataset || null,
     purchySlot: purchySlotFromCategory(r.category),
     originalFilename: r.original_filename,
     storedFilename: r.stored_filename,
@@ -40,6 +50,12 @@ function mapFileRow(r) {
     createdAt: r.created_at,
     uploadedByName: r.u_name,
     uploadedByEmail: r.u_email,
+    importStatus: r.import_status || null,
+    rowsImported: r.rows_imported != null ? Number(r.rows_imported) : null,
+    rowsSkipped: r.rows_skipped != null ? Number(r.rows_skipped) : null,
+    dateMin: r.date_min ? String(r.date_min).slice(0, 10) : null,
+    dateMax: r.date_max ? String(r.date_max).slice(0, 10) : null,
+    importError: r.import_error || null,
   };
 }
 
@@ -112,6 +128,13 @@ async function uploadFile(req, res) {
     unlinkStoredFile(storedFilename);
     return res.status(400).json({
       message: 'Use the Purchy Analysis section to upload grower or staff files.',
+    });
+  }
+
+  if (isManagementDashboardCategory(parsed.value)) {
+    unlinkStoredFile(storedFilename);
+    return res.status(400).json({
+      message: 'Use the Management Dashboard section to upload indent, purchase, or DMR files.',
     });
   }
 
@@ -352,6 +375,101 @@ async function uploadPurchySlot(req, res) {
   }
 }
 
+/** GET /api/data-upload/management-dashboard-import/:jobId */
+async function getManagementDashboardImportStatus(req, res) {
+  const { jobId } = req.params;
+  if (!jobId) return res.status(400).json({ message: 'jobId is required.' });
+
+  try {
+    const job = getManagementDashboardImportJob(jobId);
+    if (!job) return res.status(404).json({ message: 'Import job not found.' });
+    res.json(job);
+  } catch (err) {
+    sendServerError(res, 'getManagementDashboardImportStatus', err, MSG.LOAD);
+  }
+}
+
+/** GET /api/data-upload/management-dashboard/files?dataset=centre_indent|centre_purchase|dmr_workbook */
+async function listManagementDashboardFiles(req, res) {
+  const dataset = String(req.query.dataset || '').trim();
+  const allowed = new Set(Object.values(MD_DATASETS).map((d) => d.dataset));
+  if (!allowed.has(dataset)) {
+    return res.status(400).json({ message: 'dataset query param required (centre_indent, centre_purchase, dmr_workbook).' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT f.*, u.name AS u_name, u.email AS u_email
+       FROM data_upload_files f
+       JOIN users u ON u.id = f.user_id
+       WHERE f.dataset = ?
+       ORDER BY f.created_at DESC`,
+      [dataset],
+    );
+    res.json({ files: rows.map(mapFileRow) });
+  } catch (err) {
+    sendServerError(res, 'listManagementDashboardFiles', err, MSG.LOAD);
+  }
+}
+
+/** POST /api/data-upload/management-dashboard/:slot — multipart: file (slot = indent|purchase|dmr) */
+async function uploadManagementDashboardSlot(req, res) {
+  const slot = String(req.params.slot || '').trim().toLowerCase();
+  const meta = MD_DATASETS[slot];
+  if (!meta) {
+    return res.status(400).json({ message: 'slot must be "indent", "purchase", or "dmr".' });
+  }
+  if (!req.file) return res.status(400).json({ message: 'No file uploaded.' });
+
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  if (ext !== '.xlsx' && ext !== '.xls') {
+    unlinkStoredFile(req.file.filename);
+    return res.status(400).json({ message: 'Management dashboard files must be Excel (.xlsx or .xls).' });
+  }
+
+  const storedFilename = req.file.filename;
+  const originalFilename = path.basename(req.file.originalname || 'upload');
+
+  try {
+    const [result] = await pool.query(
+      `INSERT INTO data_upload_files
+        (user_id, category, dataset, original_filename, stored_filename, mime_type, file_size_bytes, import_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [
+        req.user.id,
+        meta.category,
+        meta.dataset,
+        originalFilename,
+        storedFilename,
+        req.file.mimetype || null,
+        req.file.size || 0,
+      ],
+    );
+
+    const fileUploadId = result.insertId;
+
+    const [[row]] = await pool.query(
+      `SELECT f.*, u.name AS u_name, u.email AS u_email
+       FROM data_upload_files f
+       JOIN users u ON u.id = f.user_id
+       WHERE f.id = ?`,
+      [fileUploadId],
+    );
+
+    const abs = absolutePathForStored(storedFilename);
+    const mdImport = scheduleManagementDashboardImport(slot, abs, originalFilename, fileUploadId);
+
+    res.status(201).json({
+      file: mapFileRow(row),
+      importJob: mdImport,
+      message: `Uploaded ${meta.label} and started import (append-by-date, skip existing dates).`,
+    });
+  } catch (err) {
+    unlinkStoredFile(storedFilename);
+    sendServerError(res, 'uploadManagementDashboardSlot', err, MSG.UPLOAD);
+  }
+}
+
 /** GET /api/data-upload/purchy-import/:jobId */
 async function getPurchyImportStatus(req, res) {
   const { jobId } = req.params;
@@ -377,6 +495,9 @@ module.exports = {
   downloadFile,
   deleteFile,
   getPurchyImportStatus,
+  getManagementDashboardImportStatus,
+  listManagementDashboardFiles,
+  uploadManagementDashboardSlot,
   getAdminDataUploadAccess,
   upsertAdminDataUploadAccess,
 };

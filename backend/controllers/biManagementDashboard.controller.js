@@ -2,23 +2,12 @@ const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { canAccessForm } = require('./form.controller');
 const { buildRows, n, nullableNum } = require('../utils/managementDashboardMeasures');
+const { buildManagementSeries } = require('../utils/managementDashboardSeries');
+const { computeDmrKpis } = require('../utils/dmrDailyMeasures');
 
 const FORM_KEY = 'bi_management_dashboard';
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const BI_ROW_LIMIT = 200000;
-
-const LINKED_PURCHASE_EXISTS =
-  'EXISTS (SELECT 1 FROM centre_indent_data i WHERE i.unique_id = p.unique_id)';
-
-const GATE_OVERRUN = `CASE
-  WHEN sup_mod = '18 QCART' THEN 18 WHEN sup_mod = '36 QTROLLY' THEN 36
-  WHEN sup_mod = '45 QTROLLY' THEN 45 WHEN sup_mod = '63 QTROLLY' THEN 63
-  WHEN sup_mod IN ('99 QTROLLY','99 QTRUCK') THEN 99 ELSE NULL END`;
-
-const CNT_OVERRUN = `CASE
-  WHEN transport_mode = '18 QCART' THEN 18 WHEN transport_mode = '36 QTROLLY' THEN 36
-  WHEN transport_mode = '45 QTROLLY' THEN 45 WHEN transport_mode = '63 QTROLLY' THEN 63
-  ELSE NULL END`;
 
 function buildDateBound(query) {
   const q = query || {};
@@ -108,6 +97,9 @@ function mapPowerRow(r) {
     ExportSug4: num(r.ExportSug4),
     ExportDist30: num(r.ExportDist30),
     Imp_4MW: num(r.Imp_4MW),
+    PowerConMillHouse: num(r.PowerConMillHouse),
+    PowerConDSHouse: num(r.PowerConDSHouse),
+    PowerConRaw_Ref: num(r.PowerConRaw_Ref),
     timestamp: r.timestamp,
   };
 }
@@ -147,6 +139,42 @@ async function safeQuery(sql, params = []) {
   }
 }
 
+async function computeCentreOverruns(indentBound, purchaseDateBound) {
+  const [gatePurchase, gateIndent, centerPurchase, centerIndent] = await Promise.all([
+    safeQuery(
+      `SELECT SUM(purchase_qty) AS total FROM centre_purchase_data
+       WHERE purchase_date IS NOT NULL AND LOWER(TRIM(category)) = 'gate'${purchaseDateBound.clause}`,
+      purchaseDateBound.params,
+    ),
+    safeQuery(
+      `SELECT SUM(indent_qty) AS total FROM centre_indent_data
+       WHERE indent_date IS NOT NULL AND LOWER(TRIM(category)) = 'gate'${indentBound.clause}`,
+      indentBound.params,
+    ),
+    safeQuery(
+      `SELECT SUM(purchase_qty) AS total FROM centre_purchase_data
+       WHERE purchase_date IS NOT NULL AND LOWER(TRIM(category)) = 'center'${purchaseDateBound.clause}`,
+      purchaseDateBound.params,
+    ),
+    safeQuery(
+      `SELECT SUM(indent_qty) AS total FROM centre_indent_data
+       WHERE indent_date IS NOT NULL AND LOWER(TRIM(category)) = 'center'${indentBound.clause}`,
+      indentBound.params,
+    ),
+  ]);
+
+  const gatePur = n(gatePurchase[0]?.total);
+  const gateInd = n(gateIndent[0]?.total);
+  const centerPur = n(centerPurchase[0]?.total);
+  const centerInd = n(centerIndent[0]?.total);
+
+  const overrunGatePct = gateInd > 0 ? (gatePur / gateInd) * 100 : null;
+  const overrunCenterPct = centerInd > 0 ? (centerPur / centerInd) * 100 : null;
+  const overrunCenterQty = centerPur > centerInd ? centerPur - centerInd : null;
+
+  return { overrunGatePct, overrunCenterPct, overrunCenterQty: nullableNum(overrunCenterQty) };
+}
+
 async function getManagementDashboard(req, res) {
   try {
     const allowed = await canAccessForm(req.user, FORM_KEY);
@@ -154,19 +182,13 @@ async function getManagementDashboard(req, res) {
       return res.status(403).json({ message: 'Access denied to Management Dashboard.' });
     }
 
+    const dma = Number(req.query.dma) || 7;
+
+    // Match Power BI slicer: DMR_SS24[Date] only (not a union of all fact tables).
     const [[dateBoundsRow]] = await pool.query(
-      `SELECT MIN(d) AS minDate, MAX(d) AS maxDate FROM (
-         SELECT \`Date\` AS d FROM ph_power WHERE \`Date\` IS NOT NULL
-         UNION SELECT \`Date\` AS d FROM ph_steam WHERE \`Date\` IS NOT NULL
-         UNION SELECT \`Date\` AS d FROM ops_logbook WHERE \`Date\` IS NOT NULL
-         UNION SELECT \`Date\` AS d FROM ds_logbook WHERE \`Date\` IS NOT NULL
-         UNION SELECT \`Date\` AS d FROM distillery_operations WHERE \`Date\` IS NOT NULL
-         UNION SELECT \`Date\` AS d FROM brix_yard_sampling WHERE \`Date\` IS NOT NULL
-         UNION SELECT m_date AS d FROM g_ctc WHERE m_date IS NOT NULL
-         UNION SELECT report_date AS d FROM cnt_performance WHERE report_date IS NOT NULL
-         UNION SELECT indent_date AS d FROM centre_indent_data WHERE indent_date IS NOT NULL
-         UNION SELECT purchase_date AS d FROM centre_purchase_data WHERE purchase_date IS NOT NULL
-       ) bounds`
+      `SELECT MIN(\`Date\`) AS minDate, MAX(\`Date\`) AS maxDate
+       FROM dmr_daily
+       WHERE \`Date\` IS NOT NULL`,
     );
 
     const dataMin = dateBoundsRow?.minDate ? dateKey(dateBoundsRow.minDate) : null;
@@ -185,9 +207,8 @@ async function getManagementDashboard(req, res) {
     const dateBound = buildDateBound(queryForBound);
     const indentBound = buildGenericDateBound('indent_date', queryForBound);
     const purchaseBound = buildGenericDateBound('p.purchase_date', queryForBound);
+    const purchaseDateBound = buildGenericDateBound('purchase_date', queryForBound);
     const brixBound = buildGenericDateBound('`Date`', queryForBound);
-    const gctcBound = buildGenericDateBound('m_date', queryForBound);
-    const cntBound = buildGenericDateBound('report_date', queryForBound);
 
     const [
       indentAgg,
@@ -196,85 +217,100 @@ async function getManagementDashboard(req, res) {
       brixFieldAgg,
       polAgg,
       yardBalRow,
-      gateOverrun,
-      centerOverrun,
+      centreOverruns,
+      indentRaw,
+      purchaseRaw,
+      brixYardRaw,
+      brixFieldRaw,
       opsRaw,
       dsRaw,
       rsRaw,
       powerRaw,
       steamRaw,
       distilleryRaw,
+      dmrRaw,
     ] = await Promise.all([
       safeQuery(
         `SELECT SUM(indent_qty) AS total FROM centre_indent_data WHERE indent_date IS NOT NULL${indentBound.clause}`,
-        indentBound.params
+        indentBound.params,
       ),
       safeQuery(
         `SELECT SUM(p.purchase_qty) AS total FROM centre_purchase_data p
-         WHERE p.purchase_date IS NOT NULL AND ${LINKED_PURCHASE_EXISTS}${purchaseBound.clause}`,
-        purchaseBound.params
+         WHERE p.purchase_date IS NOT NULL${purchaseBound.clause}`,
+        purchaseBound.params,
       ),
       safeQuery(
         `SELECT AVG(MiddleBrix) AS avgVal FROM brix_yard_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause}`,
-        brixBound.params
+        brixBound.params,
       ),
       safeQuery(
         `SELECT AVG(MiddleBrix) AS avgVal FROM brix_field_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause}`,
-        brixBound.params
+        brixBound.params,
       ),
       safeQuery(
         `SELECT AVG(PJ_Pol) AS avgVal FROM ds_logbook WHERE \`Date\` IS NOT NULL${dateBound.clause}`,
-        dateBound.params
+        dateBound.params,
       ),
       safeQuery(
         `SELECT yard_bal FROM ops_logbook
          WHERE yard_bal IS NOT NULL AND \`Date\` IS NOT NULL${dateBound.clause}
            AND (Sampling_time LIKE '7-8%' OR Sampling_time LIKE '8-9%')
          ORDER BY \`Date\` DESC, \`timestamp\` DESC LIMIT 1`,
-        dateBound.params
+        dateBound.params,
+      ),
+      computeCentreOverruns(indentBound, purchaseDateBound),
+      safeQuery(
+        `SELECT indent_date, indent_qty, category FROM centre_indent_data
+         WHERE indent_date IS NOT NULL${indentBound.clause} LIMIT ${BI_ROW_LIMIT}`,
+        indentBound.params,
       ),
       safeQuery(
-        `SELECT AVG(purchase_qtl - (${GATE_OVERRUN})) AS avgOver,
-                AVG((${GATE_OVERRUN})) AS avgStd
-         FROM g_ctc WHERE purchase_qtl IS NOT NULL AND sup_mod IS NOT NULL${gctcBound.clause}`,
-        gctcBound.params
+        `SELECT purchase_date, purchase_qty, category FROM centre_purchase_data
+         WHERE purchase_date IS NOT NULL${purchaseDateBound.clause} LIMIT ${BI_ROW_LIMIT}`,
+        purchaseDateBound.params,
       ),
       safeQuery(
-        `SELECT AVG(cane_qty_qtls - (${CNT_OVERRUN})) AS avgOver,
-                AVG((${CNT_OVERRUN})) AS avgStd,
-                SUM(GREATEST(cane_qty_qtls - (${CNT_OVERRUN}), 0)) AS overrunQty
-         FROM cnt_performance WHERE cane_qty_qtls IS NOT NULL${cntBound.clause}`,
-        cntBound.params
+        `SELECT \`Date\`, MiddleBrix FROM brix_yard_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause} LIMIT ${BI_ROW_LIMIT}`,
+        brixBound.params,
+      ),
+      safeQuery(
+        `SELECT \`Date\`, MiddleBrix FROM brix_field_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause} LIMIT ${BI_ROW_LIMIT}`,
+        brixBound.params,
       ),
       safeQuery(
         `SELECT * FROM ops_logbook WHERE \`Date\` IS NOT NULL${dateBound.clause}
          ORDER BY \`Date\` ASC, \`timestamp\` ASC LIMIT ${BI_ROW_LIMIT}`,
-        dateBound.params
+        dateBound.params,
       ),
       safeQuery(
         `SELECT * FROM ds_logbook WHERE \`Date\` IS NOT NULL${dateBound.clause}
          ORDER BY \`Date\` ASC, \`timestamp\` ASC LIMIT ${BI_ROW_LIMIT}`,
-        dateBound.params
+        dateBound.params,
       ),
       safeQuery(
         `SELECT * FROM rs_logbook WHERE \`Date\` IS NOT NULL${dateBound.clause}
          ORDER BY \`Date\` ASC, \`timestamp\` ASC LIMIT ${BI_ROW_LIMIT}`,
-        dateBound.params
+        dateBound.params,
       ),
       safeQuery(
         `SELECT * FROM ph_power WHERE \`Date\` IS NOT NULL${dateBound.clause}
          ORDER BY \`Date\` ASC, \`timestamp\` ASC LIMIT ${BI_ROW_LIMIT}`,
-        dateBound.params
+        dateBound.params,
       ),
       safeQuery(
         `SELECT * FROM ph_steam WHERE \`Date\` IS NOT NULL${dateBound.clause}
          ORDER BY \`Date\` ASC, \`timestamp\` ASC LIMIT ${BI_ROW_LIMIT}`,
-        dateBound.params
+        dateBound.params,
       ),
       safeQuery(
         `SELECT * FROM distillery_operations WHERE \`Date\` IS NOT NULL${dateBound.clause}
          ORDER BY \`Date\` ASC, \`timestamp\` ASC LIMIT ${BI_ROW_LIMIT}`,
-        dateBound.params
+        dateBound.params,
+      ),
+      safeQuery(
+        `SELECT * FROM dmr_daily WHERE \`Date\` IS NOT NULL${dateBound.clause}
+         ORDER BY \`Date\` ASC LIMIT ${BI_ROW_LIMIT}`,
+        dateBound.params,
       ),
     ]);
 
@@ -284,15 +320,28 @@ async function getManagementDashboard(req, res) {
     const powerRows = dedupeLatestPerDate(powerRaw).map(mapPowerRow);
     const steamRows = dedupeLatestPerDate(steamRaw).map(mapSteamRow);
     const distilleryRows = dedupeLatestPerDate(distilleryRaw);
+    const dmrRows = dmrRaw || [];
+    const dmrKpis = dmrRows.length ? computeDmrKpis(dmrRows) : null;
+    // Power BI "Days" card = Count of DMR_SS24[Date] (COUNTROWS of DMR in slicer).
+    const daysElapsed = dmrRows.filter((r) => dateKey(r.Date)).length;
 
-    const gateStd = n(gateOverrun[0]?.avgStd);
-    const gateOver = n(gateOverrun[0]?.avgOver);
-    const overrunGatePct = gateStd > 0 ? (gateOver / gateStd) * 100 : null;
-
-    const centerStd = n(centerOverrun[0]?.avgStd);
-    const centerOver = n(centerOverrun[0]?.avgOver);
-    const overrunCenterPct = centerStd > 0 ? (centerOver / centerStd) * 100 : null;
-    const overrunCenterQty = n(centerOverrun[0]?.overrunQty);
+    const { series, rightVal7dma } = buildManagementSeries(
+      {
+        indentRows: indentRaw,
+        purchaseRows: purchaseRaw,
+        opsRows,
+        dsRows,
+        powerRows,
+        steamRows,
+        distilleryRows,
+        brixYardRows: brixYardRaw,
+        brixFieldRows: brixFieldRaw,
+        dmrRows,
+      },
+      queryForBound.from,
+      queryForBound.to,
+      dma,
+    );
 
     const rows = buildRows({
       caneIndent: nullableNum(indentAgg[0]?.total),
@@ -301,25 +350,27 @@ async function getManagementDashboard(req, res) {
       polInCane: nullableNum(polAgg[0]?.avgVal),
       brixYard: nullableNum(brixYardAgg[0]?.avgVal),
       brixField: nullableNum(brixFieldAgg[0]?.avgVal),
-      overrunGatePct,
-      overrunCenterPct,
-      overrunCenterQty,
+      overrunGatePct: centreOverruns.overrunGatePct,
+      overrunCenterPct: centreOverruns.overrunCenterPct,
+      overrunCenterQty: centreOverruns.overrunCenterQty,
       opsRows,
       dsRows,
       rsRows,
       powerRows,
       steamRows,
       distilleryRows,
-      series: {},
+      dmrRows,
+      dmrKpis,
+      series,
+      rightVal7dma,
     });
 
     return res.json({
-      meta: {
-        from: queryForBound.from || null,
-        to: queryForBound.to || null,
-        dma: Number(req.query.dma) || 7,
-        dateBounds: { min: dataMin, max: dataMax },
-      },
+      from: queryForBound.from || null,
+      to: queryForBound.to || null,
+      dma,
+      daysElapsed,
+      dateBounds: { min: dataMin, max: dataMax, from: dataMin, to: dataMax },
       rows,
     });
   } catch (err) {
