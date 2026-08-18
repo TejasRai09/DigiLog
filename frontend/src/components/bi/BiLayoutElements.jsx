@@ -86,11 +86,13 @@ export function BiViewTabs({ activeTab, setActiveTab, isDarkMode }) {
   );
 }
 
-export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact = false }) {
+export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact = false, alignEnd = false }) {
   return (
-    <div className={`flex w-full min-w-0 flex-col px-0.5 ${compact ? 'gap-0 py-0' : 'gap-2 py-1 lg:py-1.5'}`}>
+    <div className={`flex min-w-0 flex-col px-0.5 ${alignEnd ? 'ml-auto w-auto max-w-full' : 'w-full'} ${compact ? 'gap-0 py-0' : 'gap-2 py-1 lg:py-1.5'}`}>
         <div
-          className={`distillery-filter-bar relative flex w-full min-w-0 max-w-full flex-wrap items-center overflow-x-hidden border shadow-sm backdrop-blur-md lg:w-auto ${
+          className={`distillery-filter-bar relative flex min-w-0 max-w-full flex-wrap items-center overflow-x-hidden border shadow-sm backdrop-blur-md ${
+            alignEnd ? 'ml-auto w-auto justify-end' : 'w-full lg:w-auto'
+          } ${
             compact
               ? 'gap-1 rounded-lg p-1 sm:gap-1.5'
               : 'gap-2 rounded-2xl p-2 sm:gap-2.5 sm:p-2.5'

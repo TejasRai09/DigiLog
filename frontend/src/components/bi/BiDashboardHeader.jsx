@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
  *
  * Layout: 
  *   [Breadcrumb: Dashboard > BI Control Tower]
- *   [icon square] [h1 title + subtitle]
+ *   [icon square] [h1 title + subtitle]  [actions — optional, right-aligned]
  *
  * Props:
  *   title       – main heading text
@@ -17,6 +17,7 @@ import { Link } from 'react-router-dom';
  *   backTo      – link target (defaults to '/bi')
  *   backLabel   – label for back link (defaults to 'BI Control Tower')
  *   className   – extra className for root element
+ *   actions     – optional right-side slot (filters, toggles)
  */
 const BiDashboardHeader = ({
   title = 'Dashboard',
@@ -29,6 +30,7 @@ const BiDashboardHeader = ({
   className = '',
   compact = false,
   showBreadcrumb = true,
+  actions = null,
 }) => {
   const headerClasses = isDarkMode ? 'text-slate-100' : 'text-slate-900';
   const subheadClasses = isDarkMode ? 'text-slate-400' : 'text-slate-500';
@@ -49,7 +51,7 @@ const BiDashboardHeader = ({
       </div>
       )}
 
-      <div className={`flex min-w-0 items-center ${compact ? 'gap-2' : 'gap-3'}`}>
+      <div className={`flex min-w-0 flex-wrap items-center ${compact ? 'gap-1' : 'gap-3'}`}>
         {/* Icon square */}
         <div
           className={`${compact ? 'h-7 w-7 rounded-lg' : 'h-9 w-9 rounded-xl'} shrink-0 flex items-center justify-center text-white shadow-md`}
@@ -59,12 +61,16 @@ const BiDashboardHeader = ({
         </div>
 
         {/* Title + subtitle */}
-        <div className="min-w-0">
+        <div className="min-w-0 shrink-0">
           <h1 className={`${compact ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl'} font-black tracking-tight ${headerClasses}`}>{title}</h1>
           {subtitle && (
             <p className={`text-[11px] font-bold leading-snug ${subheadClasses}`}>{subtitle}</p>
           )}
         </div>
+
+        {actions && (
+          <div className="ml-auto min-w-0 flex-1">{actions}</div>
+        )}
       </div>
     </div>
   );

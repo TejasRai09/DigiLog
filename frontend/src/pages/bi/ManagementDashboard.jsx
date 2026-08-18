@@ -318,10 +318,9 @@ export default function ManagementDashboard() {
           iconColor="#6366f1"
           isDarkMode={dm}
           compact
-        />
-
-        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact>
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+          actions={
+        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact alignEnd>
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
             {PRESETS.map((p) => (
               <button
                 key={p.id}
@@ -412,6 +411,8 @@ export default function ManagementDashboard() {
             />
           )}
         </BiFilterBarLayout>
+          }
+        />
       </div>
 
       {error && (
