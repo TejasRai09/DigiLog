@@ -156,11 +156,19 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
       const queries = SLOTS.flatMap((s) => [s.dataset, ...(s.legacyDatasets || [])]);
       const results = await Promise.all(
         queries.map(async (dataset) => {
-          const { data } = await api.get(`/data-upload/management-dashboard/files?dataset=${dataset}`);
-          return [dataset, data.files || []];
+          try {
+            const { data } = await api.get(`/data-upload/management-dashboard/files?dataset=${dataset}`);
+            return { dataset, files: data.files || [], ok: true };
+          } catch (err) {
+            return { dataset, files: [], ok: false, err };
+          }
         }),
       );
-      const byDataset = Object.fromEntries(results);
+      if (results.every((r) => !r.ok)) {
+        const first = results[0]?.err;
+        throw first || new Error('Failed to load Management Dashboard uploads.');
+      }
+      const byDataset = Object.fromEntries(results.map((r) => [r.dataset, r.files]));
       const next = {};
       for (const s of SLOTS) {
         const merged = [s.dataset, ...(s.legacyDatasets || [])].flatMap((d) => byDataset[d] || []);
