@@ -52,23 +52,27 @@ function mapIndentRow(r) {
 /**
  * Import centre indent Excel with append-by-date dedup (skip rows whose indent_date already exists).
  */
-async function runCentreIndentImport({ filePath, onProgress }) {
-  if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
+async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress }) {
+  if (!workbook && (!filePath || !fs.existsSync(filePath))) {
+    throw new Error(`File not found: ${filePath}`);
+  }
 
   const log = (stage, message, detail = {}) => {
     if (onProgress) onProgress(stage, detail, message);
   };
 
-  log('read', 'Reading indent workbook…');
-  const wb = xlsx.readFile(filePath);
-  const sheetName = wb.SheetNames[0];
-  if (!sheetName) throw new Error('Workbook has no sheets.');
+  log('read', 'Reading indent sheet…');
+  const wb = workbook || xlsx.readFile(filePath);
+  const resolvedSheet = sheetName || wb.SheetNames[sheetIndex];
+  if (!resolvedSheet) {
+    throw new Error('Workbook has no indent sheet (1st sheet).');
+  }
 
-  log('validate', 'Validating column headers against indent template…');
-  validateRequiredHeaders(headersFromSheet(wb, sheetName), EXPECTED_HEADERS, 'centre indent file');
+  log('validate', `Validating indent columns on sheet "${resolvedSheet}"…`);
+  validateRequiredHeaders(headersFromSheet(wb, resolvedSheet), EXPECTED_HEADERS, 'indent sheet (1st sheet)');
 
-  const rows = xlsx.utils.sheet_to_json(wb.Sheets[sheetName]);
-  log('parse', `Parsed ${rows.length} rows from sheet "${sheetName}".`);
+  const rows = xlsx.utils.sheet_to_json(wb.Sheets[resolvedSheet]);
+  log('parse', `Parsed ${rows.length} indent rows from sheet "${resolvedSheet}".`);
 
   const conn = await pool.getConnection();
   let imported = 0;

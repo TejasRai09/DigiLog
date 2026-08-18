@@ -49,23 +49,27 @@ function mapPurchaseRow(r) {
   };
 }
 
-async function runCentrePurchaseImport({ filePath, onProgress }) {
-  if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
+async function runCentrePurchaseImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress }) {
+  if (!workbook && (!filePath || !fs.existsSync(filePath))) {
+    throw new Error(`File not found: ${filePath}`);
+  }
 
   const log = (stage, message, detail = {}) => {
     if (onProgress) onProgress(stage, detail, message);
   };
 
-  log('read', 'Reading purchase workbook…');
-  const wb = xlsx.readFile(filePath);
-  const sheetName = wb.SheetNames[0];
-  if (!sheetName) throw new Error('Workbook has no sheets.');
+  log('read', 'Reading purchase sheet…');
+  const wb = workbook || xlsx.readFile(filePath);
+  const resolvedSheet = sheetName || wb.SheetNames[sheetIndex];
+  if (!resolvedSheet) {
+    throw new Error('Workbook has no purchase sheet.');
+  }
 
-  log('validate', 'Validating column headers against purchase template…');
-  validateRequiredHeaders(headersFromSheet(wb, sheetName), EXPECTED_HEADERS, 'centre purchase file');
+  log('validate', `Validating purchase columns on sheet "${resolvedSheet}"…`);
+  validateRequiredHeaders(headersFromSheet(wb, resolvedSheet), EXPECTED_HEADERS, 'purchase sheet (2nd sheet)');
 
-  const rows = xlsx.utils.sheet_to_json(wb.Sheets[sheetName]);
-  log('parse', `Parsed ${rows.length} rows from sheet "${sheetName}".`);
+  const rows = xlsx.utils.sheet_to_json(wb.Sheets[resolvedSheet]);
+  log('parse', `Parsed ${rows.length} purchase rows from sheet "${resolvedSheet}".`);
 
   const conn = await pool.getConnection();
   let imported = 0;

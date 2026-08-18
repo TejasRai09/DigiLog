@@ -199,6 +199,7 @@ const PURCHY_CATEGORIES = new Set([
 const MD_CATEGORIES = new Set([
   'Management Dashboard — Centre Indent',
   'Management Dashboard — Centre Purchase',
+  'Management Dashboard — Centre Indent & Purchase',
   'Management Dashboard — DMR Workbook',
 ]);
 

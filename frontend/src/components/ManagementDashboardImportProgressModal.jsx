@@ -111,6 +111,12 @@ export default function ManagementDashboardImportProgressModal({
             <div className="mb-4 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700">
               <p>Imported: <strong>{totals.imported ?? 0}</strong></p>
               <p>Skipped (existing dates): <strong>{totals.skipped ?? 0}</strong></p>
+              {totals.indent && (
+                <p>Indent sheet: +{totals.indent.imported ?? 0} / skip {totals.indent.skipped ?? 0}</p>
+              )}
+              {totals.purchase && (
+                <p>Purchase sheet: +{totals.purchase.imported ?? 0} / skip {totals.purchase.skipped ?? 0}</p>
+              )}
               {totals.dateMin && totals.dateMax && (
                 <p>Date range in file: <strong>{totals.dateMin} → {totals.dateMax}</strong></p>
               )}
