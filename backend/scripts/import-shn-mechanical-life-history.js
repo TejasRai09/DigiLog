@@ -1,20 +1,23 @@
 /**
  * Import Sugar House Equipment History (mechanical) from the normalized
- * boiling-house mechanical life-history workbook into shn_* tables and link
- * hierarchy leaves.
+ * life-history workbook into shn_* tables and link hierarchy leaves.
  *
  * Rules:
- *   - Match every hierarchy leaf whose tag has history data (not unique-tag only)
+ *   - Match hierarchy leaves by tag (equip_no)
+ *   - If several leaves share the same tag, also match Sub Equipment name
+ *     (do not copy one card onto every sibling)
  *   - Do NOT overwrite equipment name — use hierarchy lookup_name
  *   - All form data is mechanical discipline
  *   - Specs / schedule / history: section=mechanical;
  *     sub_section = Excel "NAME OF EQUIPMENT" (fallback: Others)
  *   - --replace only affects cards whose tags appear in this workbook
+ *     and clears sibling leaves of those tags that no longer match a card
  *
  * Usage (from backend/):
  *   npm run db:import-shn-mechanical-life-history -- --dry-run
  *   npm run db:import-shn-mechanical-life-history -- --replace
  *   npm run db:import-shn-mechanical-life-history -- --replace --file "backlog-data/boiling-house-mechanical-equipment-history.xlsx"
+ *   npm run db:import-shn-mechanical-life-history -- --replace --file "backlog-data/mill data/mill-house-mechanical-equipment-history-11082026.xlsx"
  */
 
 require('../config/env');
@@ -94,13 +97,19 @@ function parseArgs(argv) {
 
 Options:
   --dry-run          Parse and match only; no DB writes
-  --replace          Replace existing shn_equipment (by tag/equip_no) then re-import
+  --replace          Replace matching cards; clear unmatched siblings of those tags
   --file <path>      Source workbook (default: boiling-house-mechanical-equipment-history.xlsx)
 
 Examples (from backend/):
   npm run db:import-shn-mechanical-life-history -- --dry-run
   npm run db:import-shn-mechanical-life-history -- --replace
   npm run db:import-shn-mechanical-life-history -- --replace --file "backlog-data/boiling-house-mechanical-equipment-history.xlsx"
+  npm run db:import-shn-mechanical-life-history -- --replace --file "backlog-data/mill data/mill-house-mechanical-equipment-history-11082026.xlsx"
+
+Examples (from backend/):
+  npm run db:import-shn-mechanical-life-history -- --dry-run
+  npm run db:import-shn-mechanical-life-history -- --replace
+  npm run db:import-shn-mechanical-life-history -- --replace --file "backlog-data/mill data/mill-house-mechanical-equipment-history-11082026.xlsx"
 `);
       process.exit(0);
     }
@@ -358,22 +367,54 @@ function namesMatch(a, b) {
   return Boolean(na && nb && na === nb);
 }
 
-/** Every hierarchy leaf whose tag has history data — not unique-tag only. */
+function equipmentNameKey(value) {
+  return trim(value)
+    .toLowerCase()
+    .replace(/[.\-_]/g, ' ')
+    .replace(/\bno\s+/g, '')
+    .replace(/cardian/g, 'carding')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function equipmentNameKeyVariants(value) {
+  const key = equipmentNameKey(value);
+  if (!key) return [];
+  const variants = [key];
+  if (key.startsWith('cane ')) variants.push(key.slice(5));
+  return variants;
+}
+
+function equipmentNamesMatch(a, b) {
+  const left = new Set(equipmentNameKeyVariants(a));
+  return equipmentNameKeyVariants(b).some((key) => left.has(key));
+}
+
+function leafSubEquipmentName(leaf) {
+  return trim(leaf.lookup_name || leaf.name);
+}
+
+/**
+ * Unique tag → that one leaf.
+ * Shared tag → also require Sub Equipment name. Never fan out to every sibling.
+ */
 function findHierarchyLeaves(leaves, card) {
   const byTag = leaves.filter((leaf) => tagsMatch(leaf.equip_no, card.tag));
   if (!byTag.length) return [];
+  if (byTag.length === 1) return byTag;
 
   const name = trim(card.subEquipment || card.excelName);
+  if (!name) return [];
+
+  const byName = byTag.filter((leaf) => equipmentNamesMatch(leafSubEquipmentName(leaf), name));
+  if (byName.length === 1) return byName;
+
   const loc = trim(card.histLocation || card.excelLocation);
-  const precise = byTag.filter((leaf) => {
-    const leafName = trim(leaf.lookup_name || leaf.name);
-    const leafLoc = trim(leaf.hist_location);
-    const nameOk = !name || namesMatch(leafName, name);
-    const locOk = !loc || namesMatch(leafLoc, loc);
-    return nameOk && locOk;
-  });
-  if (precise.length) return precise;
-  return byTag;
+  if (byName.length > 1 && loc) {
+    const byLoc = byName.filter((leaf) => namesMatch(trim(leaf.hist_location), loc));
+    if (byLoc.length) return byLoc;
+  }
+  return byName;
 }
 
 async function findExistingEquipId(conn, tag, name, location) {
@@ -523,8 +564,11 @@ async function main() {
       specs: 0,
       schedule: 0,
       history: 0,
+      clearedSiblings: 0,
     };
     const unmatched = [];
+    const filledLeafIds = new Set();
+    const tagsInWorkbook = new Set(cards.map((c) => normTag(c.tag)).filter(Boolean));
 
     for (let i = 0; i < cards.length; i += 1) {
       const card = cards[i];
@@ -535,10 +579,10 @@ async function main() {
       }
 
       if (!matchedLeaves.length) {
-        unmatched.push(card.tag);
+        unmatched.push(`${card.tag} / ${trim(card.subEquipment || card.excelName)}`);
         stats.orphan += 1;
-        if (opts.dryRun && i < 3) {
-          console.log(`[dry-run] ${card.tag} -> no hierarchy leaf`);
+        if (opts.dryRun && stats.orphan <= 8) {
+          console.log(`[dry-run] ${card.tag} / ${card.subEquipment || card.excelName} -> no hierarchy leaf`);
         }
         continue;
       }
@@ -564,6 +608,7 @@ async function main() {
             );
           }
           leaf.shn_equip_id = -1;
+          filledLeafIds.add(leaf.id);
           continue;
         }
 
@@ -597,6 +642,7 @@ async function main() {
           await insertHistory(conn, equipId, card.history);
           await linkHierarchy(conn, leaf.id, equipId);
           leaf.shn_equip_id = equipId;
+          filledLeafIds.add(leaf.id);
 
           await conn.commit();
           stats.imported += 1;
@@ -615,10 +661,33 @@ async function main() {
       }
     }
 
+    if (opts.replace) {
+      for (const leaf of leaves) {
+        if (!tagsInWorkbook.has(normTag(leaf.equip_no))) continue;
+        if (filledLeafIds.has(leaf.id)) continue;
+        if (!leaf.shn_equip_id || leaf.shn_equip_id < 1) continue;
+        if (opts.dryRun) {
+          stats.clearedSiblings += 1;
+          continue;
+        }
+        await conn.beginTransaction();
+        try {
+          await deleteEquipmentTree(conn, leaf.shn_equip_id);
+          await conn.commit();
+          stats.clearedSiblings += 1;
+          leaf.shn_equip_id = null;
+        } catch (err) {
+          await conn.rollback();
+          stats.failed += 1;
+          console.error(`[fail-clear] leaf ${leaf.id} ${leaf.equip_no}: ${err.message}`);
+        }
+      }
+    }
+
     console.log('\nDone.');
     console.log(stats);
     if (unmatched.length) {
-      console.log(`Unmatched tags (imported without hierarchy link): ${unmatched.length}`);
+      console.log(`Unmatched cards (no tag + sub-equipment leaf): ${unmatched.length}`);
       unmatched.slice(0, 20).forEach((t) => console.log(`  - ${t}`));
     }
   } finally {
