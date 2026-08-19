@@ -6,6 +6,9 @@ import { TOOLBAR_FILTER_TRIGGER_CLASS } from './ToolbarFilterSelect';
 
 const PANEL_Z_INDEX = 9999;
 const TOOLBAR_PANEL_MIN_WIDTH = 280;
+const VIEWPORT_PAD = 8;
+const GAP = 4;
+const ESTIMATED_PANEL_HEIGHT = 240;
 
 export default function EquipmentMultiSelectDropdown({
   options,
@@ -26,24 +29,60 @@ export default function EquipmentMultiSelectDropdown({
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
   const searchRef = useRef(null);
+  const frameRef = useRef(0);
 
   const isToolbar = variant === 'toolbar';
 
-  const updatePanelPosition = () => {
+  const updatePanelPosition = (closeIfOffscreen = false) => {
     const trigger = triggerRef.current;
     if (!trigger) return;
 
     const rect = trigger.getBoundingClientRect();
+    if (
+      closeIfOffscreen
+      && (rect.bottom < VIEWPORT_PAD || rect.top > window.innerHeight - VIEWPORT_PAD)
+    ) {
+      setOpen(false);
+      return;
+    }
+
     const panelWidth = isToolbar
       ? Math.max(rect.width, panelMinWidth)
       : rect.width;
-    setPanelStyle({
+    const spaceBelow = window.innerHeight - rect.bottom - VIEWPORT_PAD;
+    const spaceAbove = rect.top - VIEWPORT_PAD;
+    const preferred = Math.min(
+      ESTIMATED_PANEL_HEIGHT,
+      panelRef.current?.offsetHeight || ESTIMATED_PANEL_HEIGHT,
+    );
+    const openUp = spaceBelow < preferred && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(
+      120,
+      Math.min(ESTIMATED_PANEL_HEIGHT, openUp ? spaceAbove - GAP : spaceBelow - GAP),
+    );
+    const height = Math.min(panelRef.current?.offsetHeight || preferred, maxHeight);
+    const left = Math.min(
+      Math.max(VIEWPORT_PAD, rect.left),
+      Math.max(VIEWPORT_PAD, window.innerWidth - panelWidth - VIEWPORT_PAD),
+    );
+
+    const next = {
       position: 'fixed',
-      top: rect.bottom + 4,
-      left: rect.left,
+      top: openUp ? Math.max(VIEWPORT_PAD, rect.top - GAP - height) : rect.bottom + GAP,
+      left,
       width: panelWidth,
+      maxHeight,
       zIndex: PANEL_Z_INDEX,
-    });
+    };
+    setPanelStyle((prev) => (
+      prev
+      && prev.top === next.top
+      && prev.left === next.left
+      && prev.width === next.width
+      && prev.maxHeight === next.maxHeight
+        ? prev
+        : next
+    ));
   };
 
   useLayoutEffect(() => {
@@ -51,12 +90,25 @@ export default function EquipmentMultiSelectDropdown({
       setPanelStyle(null);
       return undefined;
     }
+
+    const run = (event) => {
+      if (event && panelRef.current?.contains(event.target)) return;
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      frameRef.current = requestAnimationFrame(() => {
+        frameRef.current = 0;
+        updatePanelPosition(true);
+      });
+    };
+
     updatePanelPosition();
-    window.addEventListener('scroll', updatePanelPosition, true);
-    window.addEventListener('resize', updatePanelPosition);
+    const measureId = requestAnimationFrame(() => updatePanelPosition());
+    window.addEventListener('scroll', run, true);
+    window.addEventListener('resize', run);
     return () => {
-      window.removeEventListener('scroll', updatePanelPosition, true);
-      window.removeEventListener('resize', updatePanelPosition);
+      cancelAnimationFrame(measureId);
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      window.removeEventListener('scroll', run, true);
+      window.removeEventListener('resize', run);
     };
   }, [open, isToolbar, panelMinWidth]);
 
@@ -129,11 +181,13 @@ export default function EquipmentMultiSelectDropdown({
   const panel = open && panelStyle ? (
     <div
       ref={panelRef}
-      style={panelStyle}
-      className="rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden py-1"
+      style={{ ...panelStyle, overscrollBehavior: 'contain' }}
+      className="flex flex-col rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden py-1"
+      onWheel={(e) => e.stopPropagation()}
+      onScroll={(e) => e.stopPropagation()}
     >
       {options.length > 6 && (
-        <div className="p-2 border-b border-slate-100 bg-slate-50/80 sticky top-0">
+        <div className="p-2 border-b border-slate-100 bg-slate-50/80 shrink-0">
           <div className="relative">
             <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <input
@@ -158,7 +212,7 @@ export default function EquipmentMultiSelectDropdown({
         </div>
       )}
 
-      <div className="max-h-52 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {filteredOptions.length > 0 ? filteredOptions.map((opt) => {
           const checked = value.includes(opt.key);
           return (
