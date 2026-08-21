@@ -3,6 +3,11 @@ const xlsx = require('xlsx');
 const { pool } = require('../../config/mysql');
 const { excelDateToISO, minMaxDates } = require('../../utils/excelDateUtils');
 const { validateRequiredHeaders, headersFromSheet } = require('../../utils/excelColumnValidation');
+const {
+  pickStr,
+  seasonLabelForDate,
+  loadSeasonMappings,
+} = require('./centreIndentPurchaseMeta');
 
 const BATCH_SIZE = 1000;
 
@@ -35,17 +40,20 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function mapPurchaseRow(r) {
+function mapPurchaseRow(r, seasonMappings = []) {
+  const purchase_date = excelDateToISO(r['Purchase Date']);
   return {
     code: str(r['c_Code']),
     center_name: str(r['Center']),
-    purchase_date: excelDateToISO(r['Purchase Date']),
+    purchase_date,
     indent_date: excelDateToISO(r['Indent Date']),
     no_of_purchy: r['No of Purchy'] != null && r['No of Purchy'] !== '' ? parseInt(r['No of Purchy'], 10) || 0 : 0,
     purchase_qty: num(r['Qty in Qtls']),
     category: str(r['Category']),
-    unique_id: str(r['Unique ID']),
-    season_label: str(r['SeasonLabelPurchase']),
+    unique_id: pickStr(r, ['Unique ID', 'UniqueID', 'unique_id']),
+    season_label:
+      pickStr(r, ['SeasonLabelPurchase', 'Season Label', 'SeasonLabel', 'season_label'])
+      || seasonLabelForDate(purchase_date, seasonMappings),
   };
 }
 
@@ -78,11 +86,12 @@ async function runCentrePurchaseImport({ filePath, workbook, sheetIndex = 0, she
 
   try {
     const existingDates = await loadExistingDates(conn);
+    const seasonMappings = await loadSeasonMappings(conn);
     log('dedup', `Found ${existingDates.size} existing purchase dates in DB.`);
 
     let batch = [];
     for (let i = 0; i < rows.length; i += 1) {
-      const mapped = mapPurchaseRow(rows[i]);
+      const mapped = mapPurchaseRow(rows[i], seasonMappings);
       if (!mapped.purchase_date) {
         skipped += 1;
         continue;

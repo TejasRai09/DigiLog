@@ -11,6 +11,11 @@ import {
   Legend,
 } from 'recharts';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
+import MillPairedChartTooltip, { MILL_CHART_TOOLTIP_PROPS, MillTooltipAnchor } from './MillPairedChartTooltip';
+
+function ExpandChartTooltip({ lines, ...props }) {
+  return <MillPairedChartTooltip {...props} lines={lines} valueFormat="plain" />;
+}
 
 /**
  * Generic chart-expand modal for Milling dashboards.
@@ -145,7 +150,8 @@ export default function MillChartExpandModal({
 
         {/* Chart body */}
         <div className="relative min-h-0 flex-1 px-4 py-5 sm:px-6">
-          <div ref={chartRef} className="h-[420px] w-full">
+          <MillTooltipAnchor className="h-[420px] w-full">
+            <div ref={chartRef} className="h-full w-full">
             {chartReady && chartData?.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 8, right: 16, left: -16, bottom: 8 }}>
@@ -161,13 +167,10 @@ export default function MillChartExpandModal({
                     stroke={isDarkMode ? '#334155' : '#cbd5e1'}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: isDarkMode ? '#1e293b' : '#ffffff',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}
+                    {...MILL_CHART_TOOLTIP_PROPS}
+                    content={(props) => (
+                      <ExpandChartTooltip {...props} lines={lines} isDarkMode={isDarkMode} />
+                    )}
                   />
                   <Legend wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} iconType="circle" />
                   {lines.map((l) => (
@@ -177,7 +180,9 @@ export default function MillChartExpandModal({
                       dataKey={l.variable}
                       name={l.label}
                       stroke={l.color}
-                      strokeWidth={2.5}
+                      strokeDasharray={l.dashed ? '5 4' : undefined}
+                      strokeOpacity={l.dashed ? 0.65 : 1}
+                      strokeWidth={l.dashed ? 1.5 : 2.5}
                       dot={false}
                       connectNulls
                       isAnimationActive={false}
@@ -194,7 +199,8 @@ export default function MillChartExpandModal({
                 {chartReady ? 'No data available' : 'Loading chart…'}
               </div>
             )}
-          </div>
+            </div>
+          </MillTooltipAnchor>
         </div>
 
         {/* Footer */}

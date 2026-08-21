@@ -6,6 +6,7 @@ import {
 } from 'react-icons/md';
 import PurchyCurvedHierarchyTree from './PurchyCurvedHierarchyTree';
 import usePurchyStaffDrilldown from '../../../hooks/usePurchyStaffDrilldown';
+import Spinner from '../../Spinner';
 
 const DEFAULT_ZONE = 'region-2';
 const DEFAULT_MANAGER = 'pankaj-shrivastav';
@@ -20,14 +21,19 @@ function firstChildId(node) {
   return node?.children?.[0]?.id ?? null;
 }
 
+function firstSelectableId(nodes) {
+  const preferred = nodes?.find((n) => n.id && n.name !== 'Unassigned');
+  return preferred?.id ?? nodes?.[0]?.id ?? null;
+}
+
 function applySelection(zoneId, root, setters) {
-  const zone = findNode(root.children, zoneId);
+  const zone = findNode(root.children, zoneId) || findNode(root.children, firstSelectableId(root.children));
   const mgrId = firstChildId(zone);
   const mgr = findNode(zone?.children, mgrId);
   const inchId = firstChildId(mgr);
   const inch = findNode(mgr?.children, inchId);
   const staffId = firstChildId(inch);
-  setters.setSelectedZone(zoneId);
+  setters.setSelectedZone(zone?.id ?? zoneId);
   setters.setSelectedManager(mgrId);
   setters.setSelectedIncharge(inchId);
   setters.setSelectedStaff(staffId);
@@ -95,8 +101,9 @@ export default function PurchyHierarchyDrilldownTab({
     { enabled: useLiveData },
   );
 
-  const data = useLiveData ? (liveData || staticFallback) : staticFallback;
-  const treeRoot = data.nestedTree;
+  const data = useLiveData ? liveData : staticFallback;
+  const treeRoot = data?.nestedTree;
+  const sectionLoading = useLiveData && loading;
 
   const [selectedZone, setSelectedZone] = useState(useLiveData ? null : DEFAULT_ZONE);
   const [selectedManager, setSelectedManager] = useState(useLiveData ? null : DEFAULT_MANAGER);
@@ -113,15 +120,10 @@ export default function PurchyHierarchyDrilldownTab({
     if (treeKeyRef.current === treeKey && selectionValid) return;
 
     treeKeyRef.current = treeKey;
-    if (useLiveData) {
-      applySelection(treeRoot.children[0].id, treeRoot, {
-        setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
-      });
-    } else if (!selectionValid) {
-      applySelection(DEFAULT_ZONE, treeRoot, {
-        setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
-      });
-    }
+    const startId = firstSelectableId(treeRoot.children);
+    applySelection(useLiveData ? startId : (selectionValid ? selectedZone : DEFAULT_ZONE), treeRoot, {
+      setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
+    });
   }, [treeRoot, useLiveData, selectedZone]);
 
   const selectZoneNode = (zoneId) => {
@@ -164,15 +166,9 @@ export default function PurchyHierarchyDrilldownTab({
     setFilterSociety('All');
     setFilterLoyalty('All');
     if (treeRoot?.children?.length) {
-      if (useLiveData) {
-        applySelection(treeRoot.children[0].id, treeRoot, {
-          setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
-        });
-      } else {
-        applySelection(DEFAULT_ZONE, treeRoot, {
-          setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
-        });
-      }
+      applySelection(useLiveData ? firstSelectableId(treeRoot.children) : DEFAULT_ZONE, treeRoot, {
+        setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
+      });
     }
   };
 
@@ -209,28 +205,23 @@ export default function PurchyHierarchyDrilldownTab({
   }, [treeRoot, selectedZone, selectedManager, selectedIncharge, selectedStaff, selectedVillage]);
 
   const donutSegments = useMemo(
-    () => buildDonutSegments(data.loyaltyDonut || []),
-    [data.loyaltyDonut],
+    () => buildDonutSegments(data?.loyaltyDonut || []),
+    [data?.loyaltyDonut],
   );
 
-  const totalGrowers = data.growerCount || 0;
+  const totalGrowers = data?.growerCount || 0;
   const card = isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200/80 bg-white';
   const titleText = isDarkMode ? 'text-slate-100' : 'text-slate-800';
   const muted = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto overflow-x-hidden">
-      {useLiveData && loading && (
-        <div className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] ${isDarkMode ? 'border-slate-600 bg-slate-800 text-slate-300' : 'border-slate-200 bg-white text-slate-600'}`}>
-          Loading staff drilldown…
-        </div>
-      )}
       {useLiveData && error && (
         <div className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[11px] text-rose-700">
           {error}
         </div>
       )}
-      {useLiveData && data.hasStaffData === false && (
+      {useLiveData && data?.hasStaffData === false && (
         <div className={`shrink-0 rounded-lg border px-3 py-1.5 text-[11px] leading-snug ${
           isDarkMode
             ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
@@ -263,21 +254,27 @@ export default function PurchyHierarchyDrilldownTab({
           </button>
         </div>
         <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-          <FilterSelect compact label="Village Name" value={filterVillage} onChange={setFilterVillage} options={data.filters?.villageName || []} isDarkMode={isDarkMode} />
-          <FilterSelect compact label="Society_Name" value={filterSociety} onChange={setFilterSociety} options={data.filters?.societyName || []} isDarkMode={isDarkMode} />
-          <FilterSelect compact label="Loyalty_Slicer ('20-'24)" value={filterLoyalty} onChange={setFilterLoyalty} options={data.filters?.loyaltySlicer || []} isDarkMode={isDarkMode} />
+          <FilterSelect compact label="Village Name" value={filterVillage} onChange={setFilterVillage} options={data?.filters?.villageName || []} isDarkMode={isDarkMode} />
+          <FilterSelect compact label="Society_Name" value={filterSociety} onChange={setFilterSociety} options={data?.filters?.societyName || []} isDarkMode={isDarkMode} />
+          <FilterSelect compact label="Loyalty_Slicer ('20-'24)" value={filterLoyalty} onChange={setFilterLoyalty} options={data?.filters?.loyaltySlicer || []} isDarkMode={isDarkMode} />
         </div>
       </section>
 
-      <PurchyCurvedHierarchyTree
-        className="min-h-[280px] shrink-0"
-        isDarkMode={isDarkMode}
-        rootLabel={data.rootLabel}
-        rootValue={data.rootValue}
-        rootSubtext={`${(totalGrowers / 1000).toFixed(1)}K Growers`}
-        columns={treeColumns}
-        coordDeps={[selectedZone, selectedManager, selectedIncharge, selectedStaff, selectedVillage]}
-      />
+      {sectionLoading ? (
+        <section className={`flex min-h-[280px] shrink-0 items-center justify-center rounded-xl border shadow-sm ${card}`}>
+          <Spinner size="lg" />
+        </section>
+      ) : (
+        <PurchyCurvedHierarchyTree
+          className="min-h-[280px] shrink-0"
+          isDarkMode={isDarkMode}
+          rootLabel={data?.rootLabel || '2025 Dishonour % (Count)'}
+          rootValue={data?.rootValue || 0}
+          rootSubtext={`${(totalGrowers / 1000).toFixed(1)}K Growers`}
+          columns={treeColumns}
+          coordDeps={[selectedZone, selectedManager, selectedIncharge, selectedStaff, selectedVillage]}
+        />
+      )}
 
       <div className="grid shrink-0 grid-cols-1 gap-2 lg:grid-cols-12">
         <div className={`lg:col-span-5 rounded-xl border p-4 shadow-sm ${card}`}>
@@ -290,7 +287,11 @@ export default function PurchyHierarchyDrilldownTab({
             </div>
             <MdHelpOutline className={`h-4 w-4 cursor-pointer ${muted} hover:text-violet-600`} />
           </div>
-          <div className="flex items-center justify-center gap-6 py-1">
+          <div className="flex min-h-[160px] items-center justify-center gap-6 py-1">
+            {sectionLoading ? (
+              <Spinner size="lg" />
+            ) : (
+              <>
             <div className="relative h-40 w-40 shrink-0">
               <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="36" fill="transparent" stroke={isDarkMode ? '#1e293b' : '#f1f5f9'} strokeWidth="14" />
@@ -315,7 +316,7 @@ export default function PurchyHierarchyDrilldownTab({
               </div>
             </div>
             <div className={`flex flex-1 flex-col gap-1.5 text-xs font-bold ${muted}`}>
-              {(data.loyaltyDonut || []).map((l) => (
+              {(data?.loyaltyDonut || []).map((l) => (
                 <div key={l.label} className={`flex items-center justify-between rounded px-1 py-0.5 ${isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`h-2 w-2 shrink-0 rounded-full ${l.tailwind}`} />
@@ -325,6 +326,8 @@ export default function PurchyHierarchyDrilldownTab({
                 </div>
               ))}
             </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -337,7 +340,12 @@ export default function PurchyHierarchyDrilldownTab({
             <span className="cursor-pointer text-xs font-black text-violet-600 hover:underline dark:text-violet-400">Drilldown</span>
           </div>
           <div className="grid h-40 grid-cols-10 gap-2">
-            {(data.varietyTreemap || []).map((v, idx) => {
+            {sectionLoading ? (
+              <div className="col-span-10 flex items-center justify-center">
+                <Spinner size="lg" />
+              </div>
+            ) : (
+              (data?.varietyTreemap || []).map((v, idx) => {
               const colSpan = idx === 0 ? 3 : idx === 4 ? 1 : 2;
               return (
                 <div
@@ -352,7 +360,8 @@ export default function PurchyHierarchyDrilldownTab({
                   </span>
                 </div>
               );
-            })}
+              })
+            )}
           </div>
         </div>
       </div>

@@ -28,8 +28,6 @@ import {
   Calendar,
   Info,
   Search,
-  BarChart3,
-  Table,
   Sun,
   Moon,
   Sprout,
@@ -37,16 +35,15 @@ import {
   X
 } from 'lucide-react';
 import {
-  getPresetDateRange,
-  getMtdRangeForDashboard,
-  computePriorPeriodRange,
-  getSeasonComparisonLabels,
-  alignSeasonCompareRange,
-  isSeasonComparisonType,
-  seasonLabelForComparisonType,
   formatYMD,
   resolveDashboardToDate,
 } from '../../utils/distilleryBiDateRange';
+import {
+  buildCockpitComparisonOptions,
+  getCockpitPresetDateRange,
+  getCockpitSeasonLabels,
+  resolveCockpitCompareRange,
+} from '../../utils/biCockpitDateFilters';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
 const fieldBrixTrendData = [
@@ -213,7 +210,6 @@ const ChangeBadge = ({ change, variance, isUp, label }) => {
 // ═══════════════════════════════════════════════════════════════════
 export default function BrixSamplingDashboard() {
   const [activeTab, setActiveTab] = useState('yard');
-  const [activeView, setActiveView] = useState('visual');
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -221,11 +217,9 @@ export default function BrixSamplingDashboard() {
   // Per-tab From/To so Field and Yard each show their own sampling span
   const [fieldDates, setFieldDates] = useState({ from: '', to: '' });
   const [yardDates, setYardDates] = useState({ from: '', to: '' });
-  const [baseSeason, setBaseSeason] = useState('');
-  const [rangePreset, setRangePreset] = useState('MTD'); // MTD | STD | YTD | Custom
+  const [rangePreset, setRangePreset] = useState('STD'); // MTD | STD | WTD | Custom
   const [comparisonType, setComparisonType] = useState('PP'); // PP | S1 | S2 | S3
   const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
-  const [availableSeasons, setAvailableSeasons] = useState([]);
   const [seasonMapping, setSeasonMapping] = useState({});
   // Per-tab sampling date bounds (field → brix_field_sampling.Date, yard → brix_yard_sampling.Date)
   const [fieldDateRange, setFieldDateRange] = useState({ min: '', max: '' });
@@ -303,12 +297,14 @@ export default function BrixSamplingDashboard() {
       const min = minStr || '';
       const max = maxStr || '';
 
-      // First load for this tab: default to MTD anchored to today-or-latest-data
+      // First load for this tab: default to STD anchored to today-or-latest-data
       if (!seededRef.current && min && max) {
         seededRef.current = true;
-        const mtd = getMtdRangeForDashboard(null, max);
-        const nextFrom = clampIso(mtd.from, min, max);
-        const nextTo = clampIso(mtd.to, min, max);
+        const toIso = resolveDashboardToDate(null, max);
+        const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
+        const std = getCockpitPresetDateRange('STD', ref, seasonMapping);
+        const nextFrom = clampIso(std.from, min, max);
+        const nextTo = clampIso(std.to, min, max);
         return { from: nextFrom, to: nextTo };
       }
 
@@ -317,56 +313,65 @@ export default function BrixSamplingDashboard() {
       if (prev.from === from && prev.to === to) return prev;
       return { from, to };
     });
-  }, []);
+  }, [seasonMapping]);
 
-  // Distillery-style season compare labels + third-season setting
+  // Cockpit-style season compare labels + settings (mapping + third season)
   const seasonLabels = useMemo(() => {
-    const ref = dbMaxDateStr ? new Date(`${dbMaxDateStr}T12:00:00`) : new Date();
-    return getSeasonComparisonLabels(ref);
-  }, [dbMaxDateStr]);
+    const refIso = dbMaxDateStr || formatYMD(new Date());
+    return getCockpitSeasonLabels(refIso, seasonMapping);
+  }, [dbMaxDateStr, seasonMapping]);
+
+  /** Avoid setState when mapping is unchanged — otherwise params recreate and refetch forever. */
+  const mergeSeasonMapping = useCallback((next) => {
+    if (!next || typeof next !== 'object') return;
+    setSeasonMapping((prev) => {
+      try {
+        if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+      } catch {
+        /* fall through */
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     api.get('/bi/settings')
-      .then((r) => setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled)))
+      .then((r) => {
+        setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled));
+        if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
+          mergeSeasonMapping(r.data.seasonMapping);
+        }
+      })
       .catch(() => setThirdSeasonEnabled(false));
-  }, []);
+  }, [mergeSeasonMapping]);
 
   useEffect(() => {
     if (!thirdSeasonEnabled && comparisonType === 'S3') setComparisonType('PP');
   }, [thirdSeasonEnabled, comparisonType]);
 
-  const dynamicPPLabel = useMemo(() => {
-    if (rangePreset === 'MTD') return 'Prev. Month';
-    if (rangePreset === 'STD') return 'Prev. Season';
-    if (rangePreset === 'YTD') return 'Prev. Year';
-    return 'Prev. Period';
-  }, [rangePreset]);
+  const comparisonOptions = useMemo(
+    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
+    [rangePreset, seasonLabels, thirdSeasonEnabled],
+  );
 
-  const comparisonOptions = useMemo(() => {
-    const opts = [
-      { id: 'PP', label: dynamicPPLabel },
-      { id: 'S1', label: seasonLabels.season1 },
-      { id: 'S2', label: seasonLabels.season2 },
-    ];
-    if (thirdSeasonEnabled) opts.push({ id: 'S3', label: seasonLabels.season3 });
-    return opts;
-  }, [dynamicPPLabel, seasonLabels, thirdSeasonEnabled]);
-
-  /** Resolve compare From–To for a current window (Distillery PP / S1 / S2 / S3). */
+  /** Resolve compare From–To (milling cockpit: STD = day 1→N). */
   const resolveCompareRange = useCallback((from, to) => {
     if (!from || !to) return null;
-    if (comparisonType === 'PP') {
-      const pp = computePriorPeriodRange(from, to, rangePreset);
-      return { from: pp.start, to: pp.end, label: pp.label };
-    }
-    if (isSeasonComparisonType(comparisonType)) {
-      const seasonLabel = seasonLabelForComparisonType(comparisonType, seasonLabels);
-      if (!seasonLabel) return null;
-      const aligned = alignSeasonCompareRange(from, to, seasonLabel);
-      return { from: aligned.start, to: aligned.end, label: seasonLabel };
-    }
-    return null;
-  }, [comparisonType, rangePreset, seasonLabels]);
+    const resolved = resolveCockpitCompareRange(
+      from,
+      to,
+      comparisonType,
+      seasonLabels,
+      seasonMapping,
+      rangePreset,
+    );
+    if (!resolved?.start || !resolved?.end) return null;
+    return {
+      from: resolved.start,
+      to: resolved.end,
+      label: resolved.label || (comparisonType === 'PP' ? 'Prev. Period' : ''),
+    };
+  }, [comparisonType, rangePreset, seasonLabels, seasonMapping]);
 
   const activeCompareRange = useMemo(
     () => resolveCompareRange(dateFrom, dateTo),
@@ -387,84 +392,81 @@ export default function BrixSamplingDashboard() {
   const [fieldSoilType, setFieldSoilType] = useState([]);
   const [fieldLandType, setFieldLandType] = useState([]);
   const [fieldVariety, setFieldVariety] = useState([]);
-  const [fieldTableData, setFieldTableData] = useState([]);
   const [fieldLoading, setFieldLoading] = useState(false);
 
   const fieldParams = useMemo(() => {
     const p = new URLSearchParams();
     if (fieldDates.from) p.set('from', fieldDates.from);
     if (fieldDates.to) p.set('to', fieldDates.to);
-    if (baseSeason) p.set('baseSeason', baseSeason);
     if (fieldTestType && fieldTestType !== 'All') p.set('testType', fieldTestType);
     const cmp = resolveCompareRange(fieldDates.from, fieldDates.to);
     if (cmp?.from) p.set('pyFrom', cmp.from);
     if (cmp?.to) p.set('pyTo', cmp.to);
     return p.toString() ? `?${p.toString()}` : '';
-  }, [fieldDates.from, fieldDates.to, baseSeason, fieldTestType, resolveCompareRange]);
+  }, [fieldDates.from, fieldDates.to, fieldTestType, resolveCompareRange]);
 
-  const fetchFieldData = useCallback(async () => {
+  const fetchFieldData = useCallback(async (signal) => {
     setFieldLoading(true);
+    let keepLoading = false;
     try {
-      const results = await Promise.allSettled([
-        api.get(`/bi/brix-field/stats${fieldParams}`),
-        api.get(`/bi/brix-field/brix-trend${fieldParams}`),
-        api.get(`/bi/brix-field/field-condition-trend${fieldParams}`),
-        api.get(`/bi/brix-field/crop-condition${fieldParams}`),
-        api.get(`/bi/brix-field/by-soil-type${fieldParams}`),
-        api.get(`/bi/brix-field/by-land-type${fieldParams}`),
-        api.get(`/bi/brix-field/by-variety${fieldParams}`),
-        api.get(`/bi/brix-field/table-data${fieldParams}`),
-      ]);
+      const cfg = signal ? { signal } : undefined;
+      const { data } = await api.get(`/bi/brix-field/dashboard${fieldParams}`, cfg);
+      if (signal?.aborted) return;
 
-      if (results[0].status === 'fulfilled') {
-        const d = results[0].value.data;
-        if (d.availableSeasons) setAvailableSeasons(d.availableSeasons);
-        if (d.seasonMapping) setSeasonMapping(d.seasonMapping);
-        applyStatsDateRange(d.dateRange, 'field');
-        setFieldStats(d.stats);
+      if (data.seasonMapping) mergeSeasonMapping(data.seasonMapping);
+      if (data.dateRange) applyStatsDateRange(data.dateRange, 'field');
+      if (Array.isArray(data.testTypes) && data.testTypes.length) setTestTypes(data.testTypes);
+
+      // First hit seeds From/To only — skip full chart work until dates exist
+      if (data.seedOnly) {
+        keepLoading = true;
+        return;
       }
-      if (results[1].status === 'fulfilled') setFieldTrend(results[1].value.data);
-      if (results[2].status === 'fulfilled') setFieldCondTrend(results[2].value.data);
-      if (results[3].status === 'fulfilled') {
-        const raw = results[3].value.data || [];
-        const colors = { Good: '#3b82f6', Diseased: '#ef4444', Dry: '#f59e0b' };
-        setFieldCropCond(raw.map(r => ({
-          ...r,
-          name: r.condition,
-          value: r.count,
-          color: colors[r.condition] || '#94a3b8',
-        })));
-      }
-      if (results[4].status === 'fulfilled') setFieldSoilType(results[4].value.data);
-      if (results[5].status === 'fulfilled') {
-        const raw = results[5].value.data || [];
-        const landColors = ['#1d4ed8', '#60a5fa', '#3b82f6', '#93c5fd'];
-        setFieldLandType(raw.map((r, i) => ({
-          ...r,
-          value: r.samples,
-          color: landColors[i % landColors.length],
-        })));
-      }
-      if (results[6].status === 'fulfilled') setFieldVariety(results[6].value.data);
-      if (results[7] && results[7].status === 'fulfilled') setFieldTableData(results[7].value.data);
+
+      setFieldStats(data.stats);
+      setFieldTrend(data.trend || []);
+      setFieldCondTrend(data.conditionTrend || []);
+
+      const cropRaw = data.cropCondition || [];
+      const colors = { Good: '#3b82f6', Diseased: '#ef4444', Dry: '#f59e0b' };
+      setFieldCropCond(cropRaw.map((r) => ({
+        ...r,
+        name: r.condition,
+        value: r.count,
+        color: colors[r.condition] || '#94a3b8',
+      })));
+
+      setFieldSoilType(data.soilType || []);
+
+      const landRaw = data.landType || [];
+      const landColors = ['#1d4ed8', '#60a5fa', '#3b82f6', '#93c5fd'];
+      setFieldLandType(landRaw.map((r, i) => ({
+        ...r,
+        value: r.samples,
+        color: landColors[i % landColors.length],
+      })));
+
+      setFieldVariety(data.variety || []);
     } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
       console.error('Field data fetch failed', e);
     } finally {
-      setFieldLoading(false);
+      if (!signal?.aborted && !keepLoading) setFieldLoading(false);
     }
-  }, [fieldParams, applyStatsDateRange]);
+  }, [fieldParams, applyStatsDateRange, mergeSeasonMapping]);
 
-  // Fetch test-type options once on mount
+  // Fetch Field charts only while that tab is active (debounced + abortable)
   useEffect(() => {
-    api.get('/bi/brix-field/test-types')
-      .then(r => setTestTypes(r.data))
-      .catch(() => { });
-  }, []);
-
-  // Re-fetch field data whenever filters change
-  useEffect(() => {
-    fetchFieldData();
-  }, [fetchFieldData]);
+    if (activeTab !== 'field') return undefined;
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      fetchFieldData(ac.signal);
+    }, 80);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [activeTab, fetchFieldData]);
 
   // ─── Yard live-data state ───────────────────────────────────────
   const [yardDelivery, setYardDelivery] = useState('All');
@@ -474,7 +476,6 @@ export default function BrixSamplingDashboard() {
   const [yardVehicle, setYardVehicle] = useState([]);
   const [yardCondition, setYardCondition] = useState([]);
   const [yardCenters, setYardCenters] = useState([]);
-  const [yardTableData, setYardTableData] = useState([]);
   const [yardLoading, setYardLoading] = useState(false);
 
   // Build query string from filter state
@@ -482,112 +483,77 @@ export default function BrixSamplingDashboard() {
     const p = new URLSearchParams();
     if (yardDates.from) p.set('from', yardDates.from);
     if (yardDates.to) p.set('to', yardDates.to);
-    if (baseSeason) p.set('baseSeason', baseSeason);
     if (yardDelivery && yardDelivery !== 'All') p.set('deliveryPoint', yardDelivery);
     const cmp = resolveCompareRange(yardDates.from, yardDates.to);
     if (cmp?.from) p.set('pyFrom', cmp.from);
     if (cmp?.to) p.set('pyTo', cmp.to);
     return p.toString() ? `?${p.toString()}` : '';
-  }, [yardDates.from, yardDates.to, baseSeason, yardDelivery, resolveCompareRange]);
+  }, [yardDates.from, yardDates.to, yardDelivery, resolveCompareRange]);
 
-  const fetchYardData = useCallback(async () => {
+  const fetchYardData = useCallback(async (signal) => {
     setYardLoading(true);
+    let keepLoading = false;
     try {
-      const results = await Promise.allSettled([
-        api.get(`/bi/brix-yard/stats${yardParams}`),
-        api.get(`/bi/brix-yard/brix-trend${yardParams}`),
-        api.get(`/bi/brix-yard/by-vehicle${yardParams}`),
-        api.get(`/bi/brix-yard/condition-distribution${yardParams}`),
-        api.get(`/bi/brix-yard/center-wise${yardParams}`),
-        api.get(`/bi/brix-yard/table-data${yardParams}`),
-      ]);
+      const cfg = signal ? { signal } : undefined;
+      const { data } = await api.get(`/bi/brix-yard/dashboard${yardParams}`, cfg);
+      if (signal?.aborted) return;
 
-      if (results[0].status === 'fulfilled') {
-        const d = results[0].value.data;
-        if (d.availableSeasons) setAvailableSeasons(d.availableSeasons);
-        if (d.seasonMapping) setSeasonMapping(d.seasonMapping);
-        applyStatsDateRange(d.dateRange, 'yard');
-        setYardStats(d.stats);
+      if (data.seasonMapping) mergeSeasonMapping(data.seasonMapping);
+      if (data.dateRange) applyStatsDateRange(data.dateRange, 'yard');
+      if (Array.isArray(data.deliveryPoints) && data.deliveryPoints.length) {
+        setDeliveryPoints(data.deliveryPoints);
       }
-      if (results[1].status === 'fulfilled') setYardTrend(results[1].value.data);
-      if (results[2].status === 'fulfilled') setYardVehicle(results[2].value.data);
-      if (results[3].status === 'fulfilled') {
-        const rawCond = results[3].value.data || [];
-        setYardCondition(rawCond.filter(r => r.condition).map(r => ({
-          ...r,
-          name: r.condition,
-          value: r.count,
-          color: CONDITION_COLORS[r.condition] || '#94a3b8',
-        })));
+
+      if (data.seedOnly) {
+        keepLoading = true;
+        return;
       }
-      if (results[4].status === 'fulfilled') setYardCenters(results[4].value.data);
-      if (results[5] && results[5].status === 'fulfilled') setYardTableData(results[5].value.data);
+
+      setYardStats(data.stats);
+      setYardTrend(data.trend || []);
+      setYardVehicle(data.vehicle || []);
+
+      const rawCond = data.condition || [];
+      setYardCondition(rawCond.filter((r) => r.condition).map((r) => ({
+        ...r,
+        name: r.condition,
+        value: r.count,
+        color: CONDITION_COLORS[r.condition] || '#94a3b8',
+      })));
+
+      setYardCenters(data.centers || []);
     } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
       console.error('Yard data fetch failed', e);
     } finally {
-      setYardLoading(false);
+      if (!signal?.aborted && !keepLoading) setYardLoading(false);
     }
-  }, [yardParams, applyStatsDateRange]);
+  }, [yardParams, applyStatsDateRange, mergeSeasonMapping]);
 
-  // Fetch delivery-point slicer options once on mount
+  // Fetch Yard charts only while that tab is active (debounced + abortable)
   useEffect(() => {
-    api.get('/bi/brix-yard/delivery-points')
-      .then(r => setDeliveryPoints(r.data))
-      .catch(() => { });
-  }, []);
-
-  // Re-fetch whenever filter params change
-  useEffect(() => {
-    fetchYardData();
-  }, [fetchYardData]);
+    if (activeTab !== 'yard') return undefined;
+    const ac = new AbortController();
+    const t = setTimeout(() => {
+      fetchYardData(ac.signal);
+    }, 80);
+    return () => {
+      clearTimeout(t);
+      ac.abort();
+    };
+  }, [activeTab, fetchYardData]);
 
   const handleQuickDate = (type) => {
     try {
       const toIso = resolveDashboardToDate(null, dbMaxDateStr);
       const today = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
-
-      const formatDate = (d) => {
-        if (!(d instanceof Date) || isNaN(d)) return '';
-        return formatYMD(d);
-      };
-
-      if (type === 'MTD' || type === 'YTD') {
-        const { from, to } = getPresetDateRange(type, today);
-        setDateFrom(clampToDb(from));
-        setDateTo(clampToDb(to));
-      } else if (type === 'STD') {
-        const year = today.getFullYear();
-        const month = today.getMonth();
-        let activeSeasonLabel = baseSeason;
-        if (!activeSeasonLabel && seasonMapping && Object.keys(seasonMapping).length > 0) {
-          for (const [label, mapping] of Object.entries(seasonMapping)) {
-            const sStart = new Date(mapping.startDate);
-            const sEnd = new Date(mapping.endDate);
-            if (today >= sStart && today <= sEnd) {
-              activeSeasonLabel = label;
-              break;
-            }
-          }
-          if (!activeSeasonLabel) {
-            const sorted = Object.keys(seasonMapping).sort().reverse();
-            activeSeasonLabel = sorted[0];
-          }
-        }
-
-        let stdStart;
-        if (activeSeasonLabel && seasonMapping && seasonMapping[activeSeasonLabel]) {
-          stdStart = new Date(seasonMapping[activeSeasonLabel].startDate);
-        } else {
-          let stdYear = year;
-          if (month < 9) stdYear -= 1;
-          stdStart = new Date(stdYear, 9, 1);
-        }
-
-        setDateTo(clampToDb(formatDate(today)));
-        setDateFrom(clampToDb(formatDate(stdStart)));
+      if (type === 'Custom') {
+        setRangePreset('Custom');
+        return;
       }
-
-      setBaseSeason('');
+      const { from, to } = getCockpitPresetDateRange(type, today, seasonMapping);
+      setDateFrom(clampToDb(from));
+      setDateTo(clampToDb(to));
       setRangePreset(type);
     } catch (err) {
       console.error('Error in handleQuickDate:', err);
@@ -651,7 +617,7 @@ export default function BrixSamplingDashboard() {
           <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
           <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            {['MTD', 'STD', 'YTD'].map(type => (
+            {['MTD', 'STD', 'WTD'].map(type => (
               <button key={type} onClick={() => handleQuickDate(type)}
                 className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                   rangePreset === type
@@ -661,49 +627,37 @@ export default function BrixSamplingDashboard() {
                 {type}
               </button>
             ))}
+            <button type="button" onClick={() => handleQuickDate('Custom')}
+              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                rangePreset === 'Custom'
+                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                  : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+              }`}>
+              Custom
+            </button>
           </div>
 
           <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Base Season</span>
-              <select value={baseSeason} onChange={e => {
-                  const next = e.target.value;
-                  setBaseSeason(next);
-                  setRangePreset('Custom');
-                  if (next && seasonMapping[next]) {
-                    const start = toInputDate(seasonMapping[next].startDate);
-                    const end = toInputDate(seasonMapping[next].endDate);
-                    setFieldDates({
-                      from: clampIso(start, fieldDateRange.min, fieldDateRange.max),
-                      to: clampIso(end, fieldDateRange.min, fieldDateRange.max),
-                    });
-                    setYardDates({
-                      from: clampIso(start, yardDateRange.min, yardDateRange.max),
-                      to: clampIso(end, yardDateRange.min, yardDateRange.max),
-                    });
-                  } else {
-                    setFieldDates({ from: fieldDateRange.min, to: fieldDateRange.max });
-                    setYardDates({ from: yardDateRange.min, to: yardDateRange.max });
-                  }
-                }}
-                className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
-                  darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
-                }`}>
-                <option value="">-- Custom --</option>
-                {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Compare</span>
-              <select value={comparisonType} onChange={e => setComparisonType(e.target.value)}
-                className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
-                  darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
-                }`}>
+            <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                Compare
+              </span>
+              <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
                 {comparisonOptions.map((comp) => (
-                  <option key={comp.id} value={comp.id}>{comp.label}</option>
+                  <button
+                    key={comp.id}
+                    type="button"
+                    onClick={() => setComparisonType(comp.id)}
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                      comparisonType === comp.id
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                    }`}
+                  >
+                    {comp.label}
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             {activeTab === 'field' && (
@@ -734,30 +688,12 @@ export default function BrixSamplingDashboard() {
 
             <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            <div className={`flex items-center gap-1 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-              {[
-                { id: 'visual', icon: <BarChart3 className="h-3.5 w-3.5" />, label: 'Visual' },
-                { id: 'raw', icon: <Table className="h-3.5 w-3.5" />, label: 'Data' }
-              ].map(v => (
-                <button key={v.id} onClick={() => setActiveView(v.id)}
-                  className={`shrink-0 flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
-                    activeView === v.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
-                  }`}>
-                  {v.icon}{v.label}
-                </button>
-              ))}
-            </div>
-
-            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-
             <div className="flex shrink-0 flex-col gap-0.5">
               <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
               <input type="date" value={dateFrom}
                 min={dbMinDateStr || undefined}
                 max={(dateTo && dbMaxDateStr ? (dateTo < dbMaxDateStr ? dateTo : dbMaxDateStr) : (dateTo || dbMaxDateStr)) || undefined}
-                onChange={e => { setDateFrom(clampToDb(e.target.value)); setBaseSeason(''); setRangePreset('Custom'); }}
+                onChange={e => { setDateFrom(clampToDb(e.target.value)); setRangePreset('Custom'); }}
                 className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
                   darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
                 }`} />
@@ -767,7 +703,7 @@ export default function BrixSamplingDashboard() {
               <input type="date" value={dateTo}
                 min={(dateFrom && dbMinDateStr ? (dateFrom > dbMinDateStr ? dateFrom : dbMinDateStr) : (dateFrom || dbMinDateStr)) || undefined}
                 max={dbMaxDateStr || undefined}
-                onChange={e => { setDateTo(clampToDb(e.target.value)); setBaseSeason(''); setRangePreset('Custom'); }}
+                onChange={e => { setDateTo(clampToDb(e.target.value)); setRangePreset('Custom'); }}
                 className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
                   darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
                 }`} />
@@ -791,8 +727,7 @@ export default function BrixSamplingDashboard() {
           </div>
         )}
 
-        {activeView === 'visual' ? (
-          <div className="flex-1 flex flex-col justify-between overflow-hidden gap-2 min-h-0">
+        <div className="flex-1 flex flex-col justify-between overflow-hidden gap-2 min-h-0">
 
             {/* ════════════════════════════════════════════════════
                 FIELD TAB  — Matching reference mockup design
@@ -1313,81 +1248,6 @@ export default function BrixSamplingDashboard() {
               </div>
             )}
           </div>
-        ) : (
-          /* ── Raw Data Table view ── */
-          <div className="flex-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-4 shadow-sm overflow-auto">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2">Raw Brix Sampling Data Records ({activeTab === 'field' ? 'Field' : 'Yard'})</h3>
-            <div className="overflow-x-auto">
-              {activeTab === 'field' ? (
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px]">
-                      <th className="pb-2">Sampling Date</th>
-                      <th className="pb-2">Location</th>
-                      <th className="pb-2 text-right">Top Brix %</th>
-                      <th className="pb-2 text-right">Middle Brix %</th>
-                      <th className="pb-2 text-right">Bottom Brix %</th>
-                      <th className="pb-2 text-right">Maturity Index</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                    {fieldTableData.map((d, i) => (
-                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-2 font-semibold">{d.date}</td>
-                        <td className="py-2">{d.location}</td>
-                        <td className="py-2 text-right text-blue-600 font-bold">{d.topBrix}%</td>
-                        <td className="py-2 text-right text-emerald-600 font-bold">{d.midBrix}%</td>
-                        <td className="py-2 text-right text-orange-600 font-bold">{d.bottomBrix}%</td>
-                        <td className="py-2 text-right font-mono font-bold">{d.maturity}</td>
-                      </tr>
-                    ))}
-                    {fieldTableData.length === 0 && !fieldLoading && (
-                      <tr><td colSpan={6} className="text-center py-4 text-slate-500">No field data found for this date range</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              ) : (
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[10px]">
-                      <th className="pb-2">Sampling Date</th>
-                      <th className="pb-2">Name</th>
-                      <th className="pb-2">Delivery Point</th>
-                      <th className="pb-2 text-right">Middle Brix %</th>
-                      <th className="pb-2 text-center">Vehicle</th>
-                      <th className="pb-2 text-center">Diseased</th>
-                      <th className="pb-2 text-center">Stale</th>
-                      <th className="pb-2">Condition</th>
-                      <th className="pb-2">Variety</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                    {yardTableData.map((d, i) => (
-                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-2 font-semibold">{d.date}</td>
-                        <td className="py-2">{d.name}</td>
-                        <td className="py-2">{d.location}</td>
-                        <td className="py-2 text-right text-emerald-600 font-bold">{d.midBrix}%</td>
-                        <td className="py-2 text-center">{d.vehicleType}</td>
-                        <td className="py-2 text-center">
-                          {d.diseased === 'Yes' ? <span className="bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">Yes</span> : 'No'}
-                        </td>
-                        <td className="py-2 text-center">
-                          {d.stale === 'Yes' ? <span className="bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">Yes</span> : 'No'}
-                        </td>
-                        <td className="py-2">{d.consignmentCondition}</td>
-                        <td className="py-2">{d.variety}</td>
-                      </tr>
-                    ))}
-                    {yardTableData.length === 0 && !yardLoading && (
-                      <tr><td colSpan={9} className="text-center py-4 text-slate-500">No yard data found for this date range</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );

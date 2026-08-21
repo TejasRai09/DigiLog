@@ -99,7 +99,7 @@ export function formatDMYShort(iso) {
  * Prior-period window for PP comparison (aligned with MTD / QTD / STD / YTD / Custom selection).
  * @param {string} startDate - YYYY-MM-DD
  * @param {string} endDate - YYYY-MM-DD
- * @param {'MTD' | 'QTD' | 'STD' | 'YTD' | 'Custom'} rangePreset
+ * @param {'MTD' | 'QTD' | 'STD' | 'YTD' | 'WTD' | 'Custom'} rangePreset
  */
 export function computePriorPeriodRange(startDate, endDate, rangePreset) {
   const startD = new Date(`${startDate}T12:00:00`);
@@ -130,6 +130,10 @@ export function computePriorPeriodRange(startDate, endDate, rangePreset) {
     pStart.setFullYear(startD.getFullYear() - 1);
     pEnd.setFullYear(endD.getFullYear() - 1);
     label = 'Prev. Year';
+  } else if (rangePreset === 'WTD') {
+    pStart.setDate(startD.getDate() - 7);
+    pEnd.setDate(endD.getDate() - 7);
+    label = 'Prev. Week';
   } else {
     // Equal-length window ending the day before current From (no overlap)
     const diffDays = Math.round((endD - startD) / (1000 * 60 * 60 * 24)) + 1;
@@ -287,4 +291,158 @@ export function alignCrushingSeasonCompareRange(fromDate, toDate, seasonLabel) {
   if (end > bounds.end) end = bounds.end;
   if (start > end) return { start: bounds.start, end: bounds.end };
   return { start, end };
+}
+
+/**
+ * Map a calendar date into a season_mapping window (config start_date / end_date).
+ * Tries month/day in each year spanned by the mapping and keeps the first in-bounds hit.
+ */
+export function compareDateIsoInMappedSeason(iso, startDate, endDate) {
+  if (!iso || iso.length < 10 || !startDate || !endDate) return null;
+  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const startY = Number(String(startDate).slice(0, 4));
+  const endY = Number(String(endDate).slice(0, 4));
+  if (!Number.isFinite(startY) || !Number.isFinite(endY)) return null;
+
+  const years = [];
+  for (let y = startY; y <= endY; y += 1) years.push(y);
+  for (const y of years) {
+    const candidate = formatYMD(new Date(y, d.getMonth(), d.getDate()));
+    if (candidate >= startDate && candidate <= endDate) return candidate;
+  }
+  if (iso.slice(5) <= String(endDate).slice(5)) {
+    const c = formatYMD(new Date(endY, d.getMonth(), d.getDate()));
+    if (c >= startDate && c <= endDate) return c;
+  }
+  return null;
+}
+
+/** Whole days from a → b (can be negative). */
+export function daysBetweenIso(a, b) {
+  const da = new Date(`${String(a).slice(0, 10)}T12:00:00`);
+  const db = new Date(`${String(b).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime())) return null;
+  return Math.round((db.getTime() - da.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+export function addDaysIso(iso, days) {
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime()) || !Number.isFinite(days)) return null;
+  d.setDate(d.getDate() + days);
+  return formatYMD(d);
+}
+
+/**
+ * Align From–To into a mapped season by season-day offset (day 1→N).
+ * Day 0 of current season → day 0 of target season (same progress into the campaign).
+ * Used for milling STD compare when seasons start on different calendar dates.
+ */
+export function alignMappedSeasonByDayOffset(fromDate, toDate, targetSeasonLabel, seasonMapping = {}) {
+  const target = seasonMapping?.[targetSeasonLabel];
+  const tgtStart = target?.startDate ? String(target.startDate).slice(0, 10) : null;
+  const tgtEnd = target?.endDate ? String(target.endDate).slice(0, 10) : null;
+  if (!tgtStart || !tgtEnd) {
+    return alignMappedSeasonCompareRange(fromDate, toDate, targetSeasonLabel, seasonMapping);
+  }
+
+  const from = fromDate <= toDate ? fromDate : toDate;
+  const to = fromDate <= toDate ? toDate : fromDate;
+  const currentLabel = findSeasonLabelForDate(to, seasonMapping) || findSeasonLabelForDate(from, seasonMapping);
+  const curStart = currentLabel && seasonMapping?.[currentLabel]?.startDate
+    ? String(seasonMapping[currentLabel].startDate).slice(0, 10)
+    : null;
+
+  // No current season start → fall back to calendar month/day mapping
+  if (!curStart) {
+    return alignMappedSeasonCompareRange(from, to, targetSeasonLabel, seasonMapping);
+  }
+
+  const offsetFrom = daysBetweenIso(curStart, from);
+  const offsetTo = daysBetweenIso(curStart, to);
+  if (offsetFrom == null || offsetTo == null) {
+    return { start: tgtStart, end: tgtEnd, fyStart: tgtStart, fyEnd: tgtEnd };
+  }
+
+  let start = addDaysIso(tgtStart, Math.max(0, offsetFrom));
+  let end = addDaysIso(tgtStart, Math.max(0, offsetTo));
+  if (!start || !end) return { start: tgtStart, end: tgtEnd, fyStart: tgtStart, fyEnd: tgtEnd };
+
+  if (start < tgtStart) start = tgtStart;
+  if (end > tgtEnd) end = tgtEnd;
+  if (start > end) return { start: tgtStart, end: tgtEnd, fyStart: tgtStart, fyEnd: tgtEnd };
+  return { start, end, fyStart: tgtStart, fyEnd: tgtEnd };
+}
+
+/**
+ * Align current From–To into a season_mapping row (e.g. 2024-2025 → 2024-10-27…2025-03-29).
+ * Calendar month/day mapping (not season-day offset).
+ * @param {Record<string, { startDate?: string; endDate?: string }>} seasonMapping
+ */
+export function alignMappedSeasonCompareRange(fromDate, toDate, seasonLabel, seasonMapping = {}) {
+  const bounds = seasonMapping?.[seasonLabel];
+  const startDate = bounds?.startDate ? String(bounds.startDate).slice(0, 10) : null;
+  const endDate = bounds?.endDate ? String(bounds.endDate).slice(0, 10) : null;
+  if (!startDate || !endDate) {
+    // Fallback: Indian FY if mapping row is missing
+    return alignSeasonCompareRange(fromDate, toDate, seasonLabel);
+  }
+
+  const from = fromDate <= toDate ? fromDate : toDate;
+  const to = fromDate <= toDate ? toDate : fromDate;
+  const startIso = compareDateIsoInMappedSeason(from, startDate, endDate);
+  const endIso = compareDateIsoInMappedSeason(to, startDate, endDate);
+  if (!startIso || !endIso) {
+    return { start: startDate, end: endDate, fyStart: startDate, fyEnd: endDate };
+  }
+  let start = startIso <= endIso ? startIso : endIso;
+  let end = startIso <= endIso ? endIso : startIso;
+  if (start < startDate) start = startDate;
+  if (end > endDate) end = endDate;
+  if (start > end) return { start: startDate, end: endDate, fyStart: startDate, fyEnd: endDate };
+  return { start, end, fyStart: startDate, fyEnd: endDate };
+}
+
+/** Season containing iso, else latest season in mapping (by startDate desc). */
+export function findSeasonLabelForDate(iso, seasonMapping = {}) {
+  const d = iso ? String(iso).slice(0, 10) : null;
+  const entries = Object.entries(seasonMapping || {})
+    .map(([label, m]) => ({
+      label,
+      start: m?.startDate ? String(m.startDate).slice(0, 10) : null,
+      end: m?.endDate ? String(m.endDate).slice(0, 10) : null,
+    }))
+    .filter((e) => e.start && e.end)
+    .sort((a, b) => b.start.localeCompare(a.start));
+
+  if (!entries.length) return null;
+  if (d) {
+    const hit = entries.find((e) => d >= e.start && d <= e.end);
+    if (hit) return hit.label;
+  }
+  return entries[0].label;
+}
+
+/**
+ * Compare chips from season_mapping: prior seasons older than the season of `refIso`.
+ * @returns {{ season1: string|null; season2: string|null; season3: string|null; current: string|null }}
+ */
+export function getSeasonComparisonLabelsFromMapping(refIso, seasonMapping = {}) {
+  const entries = Object.entries(seasonMapping || {})
+    .map(([label, m]) => ({
+      label,
+      start: m?.startDate ? String(m.startDate).slice(0, 10) : null,
+    }))
+    .filter((e) => e.start)
+    .sort((a, b) => b.start.localeCompare(a.start));
+
+  const current = findSeasonLabelForDate(refIso, seasonMapping) || entries[0]?.label || null;
+  const idx = current ? entries.findIndex((e) => e.label === current) : -1;
+  const older = idx >= 0 ? entries.slice(idx + 1) : entries.slice(1);
+  return {
+    current,
+    season1: older[0]?.label || null,
+    season2: older[1]?.label || null,
+    season3: older[2]?.label || null,
+  };
 }

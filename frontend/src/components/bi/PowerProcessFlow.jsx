@@ -70,22 +70,43 @@ function BoilerSVG({ x, y }) {
   );
 }
 
-function TurbineSVG({ x, y, spinning = true }) {
+function TurbineSVG({ x, y, spinning = true, clipId = 'ph-turbine-clip' }) {
   return (
-    <svg x={x} y={y} width="100" height="100" viewBox="0 0 100 100" overflow="visible">
+    <svg x={x} y={y} width="100" height="100" viewBox="0 0 100 100" overflow="hidden">
+      <defs>
+        <clipPath id={clipId}>
+          <circle cx="50" cy="50" r="34" />
+        </clipPath>
+      </defs>
       <circle cx="50" cy="50" r="45" fill="#E5E7EB" stroke="#374151" strokeWidth="6" />
       <circle cx="50" cy="50" r="35" fill="#F3F4F6" stroke="#9CA3AF" strokeWidth="2" />
-      <g
-        style={{ transformOrigin: '50px 50px' }}
-        className={spinning ? 'ph-turbine-spin' : undefined}
-      >
-        <circle cx="50" cy="50" r="12" fill="#1F2937" />
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
-          <g key={angle} transform={`rotate(${angle} 50 50)`}>
-            <path d="M 47 38 L 53 38 L 56 10 C 50 5, 44 10, 44 10 Z" fill="#3B82F6" stroke="#1D4ED8" strokeWidth="1" />
-          </g>
-        ))}
-        <circle cx="50" cy="50" r="5" fill="#60A5FA" />
+      {/* Rotate in SVG space around (50,50) — CSS transform-origin is unreliable on nested <g>. */}
+      <g clipPath={`url(#${clipId})`}>
+        <g>
+          {spinning ? (
+            <animateTransform
+              attributeName="transform"
+              attributeType="XML"
+              type="rotate"
+              from="0 50 50"
+              to="360 50 50"
+              dur="2s"
+              repeatCount="indefinite"
+            />
+          ) : null}
+          <circle cx="50" cy="50" r="12" fill="#1F2937" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+            <g key={angle} transform={`rotate(${angle} 50 50)`}>
+              <path
+                d="M 47 38 L 53 38 L 55 16 C 50 12, 45 16, 45 16 Z"
+                fill="#3B82F6"
+                stroke="#1D4ED8"
+                strokeWidth="1"
+              />
+            </g>
+          ))}
+          <circle cx="50" cy="50" r="5" fill="#60A5FA" />
+        </g>
       </g>
     </svg>
   );
@@ -210,23 +231,16 @@ export default function PowerProcessFlow({ powerKpis, steamKpis, dm = false }) {
           0% { stroke-dashoffset: 30; }
           100% { stroke-dashoffset: 0; }
         }
-        @keyframes phTurbineSpin {
-          to { transform: rotate(360deg); }
-        }
-        .ph-turbine-spin {
-          animation: phTurbineSpin 2s linear infinite;
-          transform-box: fill-box;
-          transform-origin: center;
-        }
         @media (prefers-reduced-motion: reduce) {
-          .ph-flow-path, .ph-turbine-spin, .animate-pulse { animation: none !important; }
+          .ph-flow-path, .animate-pulse { animation: none !important; }
         }
       `}</style>
 
       <div
-        className={`flex-1 min-h-0 w-full rounded-2xl border ${dm ? 'border-slate-800' : 'border-slate-100'}`}
+        className={`flex-1 min-h-0 w-full overflow-auto rounded-2xl border ${dm ? 'border-slate-800' : 'border-slate-100'}`}
         style={{ boxShadow: cardShadow(dm), background: canvasBg }}
       >
+        {/* Size by width so the diagram spans the card (no left/right letterbox). */}
         <svg
           viewBox="0 0 1920 940"
           className="block w-full h-full"
@@ -350,7 +364,7 @@ export default function PowerProcessFlow({ powerKpis, steamKpis, dm = false }) {
               </LabelObj>
 
               {/* —— Turbine 30 MW —— */}
-              <TurbineSVG x={760} y={95} spinning={active.t30} />
+              <TurbineSVG x={760} y={95} spinning={active.t30} clipId="ph-turbine-clip-30" />
               <LabelObj x={770} y={198} w={80} h={28} className={chip.label}>
                 30 MW
               </LabelObj>
@@ -374,7 +388,7 @@ export default function PowerProcessFlow({ powerKpis, steamKpis, dm = false }) {
               </LabelObj>
 
               {/* —— Turbine 3 Old —— */}
-              <TurbineSVG x={760} y={330} spinning={active.t3o} />
+              <TurbineSVG x={760} y={330} spinning={active.t3o} clipId="ph-turbine-clip-3o" />
               <LabelObj x={770} y={433} w={80} h={28} className={chip.label}>
                 3 MW (O)
               </LabelObj>
@@ -392,7 +406,7 @@ export default function PowerProcessFlow({ powerKpis, steamKpis, dm = false }) {
               </LabelObj>
 
               {/* —— Turbine 3 New —— */}
-              <TurbineSVG x={760} y={510} spinning={active.t3n} />
+              <TurbineSVG x={760} y={510} spinning={active.t3n} clipId="ph-turbine-clip-3n" />
               <LabelObj x={770} y={613} w={80} h={28} className={chip.label}>
                 3 MW (N)
               </LabelObj>
@@ -410,7 +424,7 @@ export default function PowerProcessFlow({ powerKpis, steamKpis, dm = false }) {
               </LabelObj>
 
               {/* —— Turbine 4 MW —— */}
-              <TurbineSVG x={760} y={740} spinning={active.t4} />
+              <TurbineSVG x={760} y={740} spinning={active.t4} clipId="ph-turbine-clip-4" />
               <LabelObj x={770} y={843} w={80} h={28} className={chip.label}>
                 4 MW
               </LabelObj>

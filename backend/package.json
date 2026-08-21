@@ -27,6 +27,7 @@
     "db:import-ehs-accident": "node scripts/import-ehs-accident-excel.js",
     "db:generate-purchy-formulas": "node scripts/generate-purchy-formula-excel.js",
     "db:generate-management-formulas": "node scripts/generate-management-dashboard-formulas-excel.js",
+    "db:generate-milling-formulas": "node scripts/generate-milling-dashboard-formulas-excel.js",
     "db:extract-aph-history": "python ../scripts/import_air_preheater_maintenance_history.py",
     "db:import-air-preheater-xlsx": "node ../scripts/import_air_preheater_history.js --replace",
     "db:import-aph-history": "node scripts/data_feed_power_history/import-equipment-maintenance-history.js --file scripts/data_feed_power_history/feed-data/air-pre-heater-mechanical-history.json --replace-history --create-equipment",

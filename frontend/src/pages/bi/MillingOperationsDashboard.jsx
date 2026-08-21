@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   MdArrowBack,
   MdCalendarMonth,
@@ -13,17 +14,13 @@ import {
   MdWarning,
   MdThermostat,
   MdOpacity,
+  MdFactory,
   MdDashboard,
   MdTableChart,
   MdPrecisionManufacturing,
 } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiViewTabs, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
-import MillRawDataTable from '../../components/bi/MillRawDataTable';
-import {
-  STOPPAGE_RAW_COLUMNS,
-  buildStoppageTableRows,
-} from '../../utils/millingBiRawTable';
+import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 import {
   Area,
   AreaChart,
@@ -43,15 +40,19 @@ import {
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import {
-  computePriorPeriodRange,
   formatDMYShort,
   formatYMD,
-  getSeasonComparisonLabels,
   isSeasonComparisonType,
-  alignSeasonCompareRange,
   resolveDashboardToDate,
   seasonLabelForComparisonType,
 } from '../../utils/distilleryBiDateRange';
+import {
+  buildCockpitComparisonOptions,
+  getCockpitPresetDateRange,
+  getCockpitSeasonLabels,
+  resolveCockpitCompareRange,
+  resolveCockpitPriorRange,
+} from '../../utils/biCockpitDateFilters';
 import {
   filterMillStoppages,
   filterMillSeasonCompareRows,
@@ -61,15 +62,12 @@ import {
 import MillThermalReportsTab from './MillThermalReportsTab';
 import MillLubeRollerTab from './MillLubeRollerTab';
 
-function getCockpitPresetDateRange(preset, now = new Date()) {
-  const to = formatYMD(now);
-  if (preset === 'MTD') return { from: formatYMD(new Date(now.getFullYear(), now.getMonth(), 1)), to };
-  if (preset === 'STD') {
-    const seasonStartYear = now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
-    return { from: formatYMD(new Date(seasonStartYear, 9, 1)), to };
-  }
-  if (preset === 'YTD') return { from: formatYMD(new Date(now.getFullYear(), 0, 1)), to };
-  return { from: formatYMD(new Date(now.getFullYear(), now.getMonth(), 1)), to };
+/** Power BI mill date slicer starts here (11 Mar 2023). */
+const MILL_RANGE_MIN = '2023-03-11';
+
+function clampMillRangeMin(iso) {
+  if (!iso) return MILL_RANGE_MIN;
+  return iso < MILL_RANGE_MIN ? MILL_RANGE_MIN : iso;
 }
 
 /** Section → bar/badge color (matches the milling stoppage option list). */
@@ -92,33 +90,72 @@ const ALL_SECTIONS = Object.keys(SECTION_COLORS);
 const sectionColor = (sec) => SECTION_COLORS[sec] || '#94a3b8';
 
 const NAV_TABS = [
-  { id: 'outages',    label: 'Mill Outage',           icon: MdWarning,    enabled: true  },
-  { id: 'thermal',    label: 'Equipment Temperature', icon: MdThermostat, enabled: true  },
-  { id: 'lube-press', label: 'Lube & Roller Temp',    icon: MdOpacity,    enabled: true  },
+  { id: 'outages',      label: 'Mill Outage',            icon: MdWarning,    enabled: true },
+  { id: 'thermal',      label: 'Equipment Temperature',  icon: MdThermostat, enabled: true },
+  { id: 'shredder-otg', label: 'Shredder and OTG Temp',  icon: MdFactory,    enabled: true },
+  { id: 'lube-press',   label: 'Lube & Roller Temp',     icon: MdOpacity,    enabled: true },
 ];
 
-const InfoTooltip = ({ definition, isDarkMode, placement = 'top' }) => (
-  <div className="group relative z-20 ml-1.5 inline-flex shrink-0 cursor-help items-center">
-    <MdInfoOutline className="h-3.5 w-3.5 text-slate-400 transition-colors hover:text-blue-500" />
+const InfoTooltip = ({ definition, isDarkMode, placement = 'top' }) => {
+  const triggerRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState(null);
+
+  const updateCoords = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setCoords({
+      left: rect.left + rect.width / 2,
+      top: placement === 'bottom' ? rect.bottom + 8 : rect.top - 8,
+      placement,
+    });
+  }, [placement]);
+
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    updateCoords();
+    const onScroll = () => updateCoords();
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open, updateCoords]);
+
+  return (
     <div
-      className={`pointer-events-none absolute left-1/2 z-[200] w-64 -translate-x-1/2 rounded-lg p-3 text-center text-[11px] font-normal leading-relaxed text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${
-        placement === 'bottom'
-          ? 'top-full mt-2'
-          : 'bottom-full mb-2'
-      } ${isDarkMode ? 'bg-slate-700' : 'bg-slate-800'}`}
-      role="tooltip"
+      ref={triggerRef}
+      className="relative z-20 ml-1.5 inline-flex shrink-0 cursor-help items-center"
+      onMouseEnter={() => { updateCoords(); setOpen(true); }}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => { updateCoords(); setOpen(true); }}
+      onBlur={() => setOpen(false)}
     >
-      {definition}
-      <div
-        className={`absolute left-1/2 -translate-x-1/2 border-4 border-transparent ${
-          placement === 'bottom'
-            ? `bottom-full ${isDarkMode ? 'border-b-slate-700' : 'border-b-slate-800'}`
-            : `top-full ${isDarkMode ? 'border-t-slate-700' : 'border-t-slate-800'}`
-        }`}
-      />
+      <MdInfoOutline className="h-3.5 w-3.5 text-slate-400 transition-colors hover:text-blue-500" />
+      {open && coords && createPortal(
+        <div
+          className={`pointer-events-none fixed z-[600] w-64 -translate-x-1/2 rounded-lg p-3 text-center text-[11px] font-normal leading-relaxed text-white shadow-xl ${
+            coords.placement === 'bottom' ? '' : '-translate-y-full'
+          } ${isDarkMode ? 'bg-slate-700' : 'bg-slate-800'}`}
+          style={{ left: coords.left, top: coords.top }}
+          role="tooltip"
+        >
+          {definition}
+          <div
+            className={`absolute left-1/2 -translate-x-1/2 border-4 border-transparent ${
+              coords.placement === 'bottom'
+                ? `bottom-full ${isDarkMode ? 'border-b-slate-700' : 'border-b-slate-800'}`
+                : `top-full ${isDarkMode ? 'border-t-slate-700' : 'border-t-slate-800'}`
+            }`}
+          />
+        </div>,
+        document.body,
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 /** Distillery-style KPI card with sparkline. */
 const KpiCard = ({
@@ -157,7 +194,7 @@ const KpiCard = ({
     ((v) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 
   return (
-    <div className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-2.5 transition-shadow hover:shadow-md sm:overflow-visible sm:p-3 ${cardClasses}`}>
+    <div className={`relative z-0 flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-2.5 transition-shadow hover:z-10 hover:shadow-md sm:p-3 ${cardClasses}`}>
       <div className="mb-2 flex items-start justify-between overflow-visible">
         <div className={`flex min-w-0 items-center text-xs font-bold ${t.title}`}>
           {title}
@@ -280,17 +317,43 @@ function isoToLabel(iso) {
 
 export default function MillingOperationsDashboard() {
   const [activeTab, setActiveTab] = useState('outages');
-  const [viewMode, setViewMode] = useState('dashboard');
   const [comparisonType, setComparisonType] = useState('PP');
   const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
-  const [rangePreset, setRangePreset] = useState('MTD');
-  const initial = () => getCockpitPresetDateRange('MTD');
-  const [fromDate, setFromDate] = useState(() => initial().from);
-  const [toDate, setToDate] = useState(() => initial().to);
+  const [seasonMapping, setSeasonMapping] = useState({});
+  const [rangePreset, setRangePreset] = useState('STD');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const pinRange = useRef(false);
+  const [dataExtent, setDataExtent] = useState({ min: MILL_RANGE_MIN, max: null });
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const [selectedSections, setSelectedSections] = useState(ALL_SECTIONS);
   const [isSectionOpen, setIsSectionOpen] = useState(false);
+  const sectionBtnRef = useRef(null);
+  const [sectionMenuPos, setSectionMenuPos] = useState(null);
+
+  useLayoutEffect(() => {
+    if (!isSectionOpen) {
+      setSectionMenuPos(null);
+      return undefined;
+    }
+    const place = () => {
+      const el = sectionBtnRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const width = Math.min(288, window.innerWidth - 24);
+      let left = rect.right - width;
+      if (left < 12) left = 12;
+      setSectionMenuPos({ top: rect.bottom + 8, left, width });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [isSectionOpen]);
 
   const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -303,12 +366,16 @@ export default function MillingOperationsDashboard() {
         setLoadError(null);
         setLoading(true);
         const [opsRes, settingsRes] = await Promise.all([
-          api.get('/bi/milling-operations'),
+          // Without from/to the API only returns the last 365 days — 2023–24 PBI windows vanish.
+          api.get('/bi/milling-operations', { params: { from: MILL_RANGE_MIN } }),
           api.get('/bi/settings').catch(() => ({ data: { thirdSeasonCompareEnabled: false } })),
         ]);
         if (!cancelled) {
           setRawData(Array.isArray(opsRes.data?.records) ? opsRes.data.records : []);
           setThirdSeasonEnabled(Boolean(settingsRes.data?.thirdSeasonCompareEnabled));
+          if (settingsRes.data?.seasonMapping && typeof settingsRes.data.seasonMapping === 'object') {
+            setSeasonMapping(settingsRes.data.seasonMapping);
+          }
         }
       } catch (err) {
         if (!cancelled) {
@@ -331,14 +398,27 @@ export default function MillingOperationsDashboard() {
   }, [thirdSeasonEnabled, comparisonType]);
 
   /**
-   * Data bounds are kept for display hints (e.g. "Data available: Mar 2023 – Mar 2026")
-   * but presets anchor to *today* so MTD / STD / YTD resolve against the
-   * current month, season start (Oct 1), and calendar year respectively.
+   * Stoppage date list for MTD/STD/WTD (To = today if in data, else latest day).
+   * Shared From–To defaults to the union min/max across tabs (Custom).
    */
   const dataBounds = useMemo(() => {
     const isos = rawData.map((r) => r.dateIso).filter(Boolean).sort();
     return { min: isos[0] || null, max: isos[isos.length - 1] || null, isos };
   }, [rawData]);
+
+  const absorbDateBounds = useCallback((min, max) => {
+    if (!min && !max) return;
+    setDataExtent((prev) => {
+      const nextMin = clampMillRangeMin([prev.min, min].filter(Boolean).sort()[0] || null);
+      const nextMax = [prev.max, max].filter(Boolean).sort().at(-1) || null;
+      if (nextMin === prev.min && nextMax === prev.max) return prev;
+      return { min: nextMin, max: nextMax };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (dataBounds.min || dataBounds.max) absorbDateBounds(dataBounds.min, dataBounds.max);
+  }, [dataBounds.min, dataBounds.max, absorbDateBounds]);
 
   const rangeToIso = useMemo(() => {
     if (!dataBounds.max) return null;
@@ -350,21 +430,22 @@ export default function MillingOperationsDashboard() {
     return new Date(`${rangeToIso}T12:00:00`);
   }, [rangeToIso]);
 
-  // Default MTD (and other presets): To = today if in data, else latest data day.
+  // Apply MTD/STD/WTD From–To whenever bounds or mapping update (shared across all tabs).
   useEffect(() => {
     if (!rangeToIso) return;
     if (rangePreset === 'Custom') return;
-    const { from, to } = getCockpitPresetDateRange(rangePreset, presetRefDate);
+    const { from, to } = getCockpitPresetDateRange(rangePreset, presetRefDate, seasonMapping);
     setFromDate(from);
     setToDate(to);
-  }, [rangeToIso, rangePreset, presetRefDate]);
+  }, [rangeToIso, rangePreset, presetRefDate, seasonMapping]);
 
   const toggleSection = (sec) => {
     setSelectedSections((prev) => (prev.includes(sec) ? prev.filter((s) => s !== sec) : [...prev, sec]));
   };
 
   const applyPreset = (preset) => {
-    const { from, to } = getCockpitPresetDateRange(preset, presetRefDate);
+    pinRange.current = true;
+    const { from, to } = getCockpitPresetDateRange(preset, presetRefDate, seasonMapping);
     setRangePreset(preset);
     setFromDate(from);
     setToDate(to);
@@ -376,6 +457,7 @@ export default function MillingOperationsDashboard() {
     let v = e.target.value;
     let nextTo = toDate;
     if (v && nextTo && v > nextTo) nextTo = v;
+    pinRange.current = true;
     setFromDate(v);
     if (nextTo !== toDate) setToDate(nextTo);
     if (rangePreset !== 'Custom') setRangePreset('Custom');
@@ -384,6 +466,7 @@ export default function MillingOperationsDashboard() {
     let v = e.target.value;
     let nextFrom = fromDate;
     if (v && nextFrom && v < nextFrom) nextFrom = v;
+    pinRange.current = true;
     setToDate(v);
     if (nextFrom !== fromDate) setFromDate(nextFrom);
     if (rangePreset !== 'Custom') setRangePreset('Custom');
@@ -395,49 +478,67 @@ export default function MillingOperationsDashboard() {
     [rawData, fromDate, toDate, selectedSections],
   );
 
+  /** STD + season_mapping: Prev. Season = same day-of-season (day 1→N), not calendar −1 year. */
   const priorRange = useMemo(
-    () => computePriorPeriodRange(fromDate, toDate, rangePreset),
-    [fromDate, toDate, rangePreset],
+    () => resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMapping),
+    [fromDate, toDate, rangePreset, seasonMapping],
   );
 
-  const dynamicPPLabel = useMemo(() => {
-    if (rangePreset === 'MTD') return 'Prev. Month';
-    if (rangePreset === 'STD') return 'Prev. Season';
-    if (rangePreset === 'YTD') return 'Prev. Year';
-    return 'Prev. Period';
-  }, [rangePreset]);
+  const seasonLabels = useMemo(() => {
+    const refIso = toDate || rangeToIso || formatYMD(new Date());
+    return getCockpitSeasonLabels(refIso, seasonMapping);
+  }, [seasonMapping, toDate, rangeToIso]);
 
-  const seasonLabels = useMemo(() => getSeasonComparisonLabels(new Date()), []);
-
-  const comparisonOptions = useMemo(() => {
-    const opts = [
-      { id: 'PP', label: dynamicPPLabel },
-      { id: 'S1', label: seasonLabels.season1 },
-      { id: 'S2', label: seasonLabels.season2 },
-    ];
-    if (thirdSeasonEnabled) {
-      opts.push({ id: 'S3', label: seasonLabels.season3 });
-    }
-    return opts;
-  }, [dynamicPPLabel, seasonLabels, thirdSeasonEnabled]);
+  const comparisonOptions = useMemo(
+    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
+    [rangePreset, seasonLabels, thirdSeasonEnabled],
+  );
 
   const activeSeasonLabel = useMemo(
     () => (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
     [comparisonType, seasonLabels],
   );
 
+  useEffect(() => {
+    if (!isSeasonComparisonType(comparisonType)) return;
+    const label = seasonLabelForComparisonType(comparisonType, seasonLabels);
+    if (!label) setComparisonType('PP');
+  }, [comparisonType, seasonLabels]);
+
   const compareData = useMemo(() => {
     if (comparisonType === 'PP') {
       return filterMillStoppages(rawData, priorRange.start, priorRange.end, selectedSections);
     }
     if (activeSeasonLabel) {
-      return filterMillSeasonCompareRows(rawData, fromDate, toDate, activeSeasonLabel, selectedSections);
+      return filterMillSeasonCompareRows(
+        rawData,
+        fromDate,
+        toDate,
+        activeSeasonLabel,
+        selectedSections,
+        seasonMapping,
+        { bySeasonDay: rangePreset === 'STD' },
+      );
     }
     return [];
-  }, [rawData, comparisonType, priorRange, fromDate, toDate, activeSeasonLabel, selectedSections]);
+  }, [rawData, comparisonType, priorRange, fromDate, toDate, activeSeasonLabel, selectedSections, seasonMapping, rangePreset]);
 
   const timeFilterLabel = rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} – ${formatDMYShort(toDate)}` : rangePreset;
   const periodLabel = rangePreset === 'Custom' ? 'Custom' : rangePreset;
+
+  const compareRange = useMemo(() => {
+    if (comparisonType === 'PP') {
+      return { start: priorRange.start, end: priorRange.end };
+    }
+    return resolveCockpitCompareRange(
+      fromDate,
+      toDate,
+      comparisonType,
+      seasonLabels,
+      seasonMapping,
+      rangePreset,
+    );
+  }, [comparisonType, priorRange, seasonLabels, fromDate, toDate, seasonMapping, rangePreset]);
 
   const comparisonLabel = useMemo(() => {
     const fOpt = { month: 'short', day: 'numeric' };
@@ -450,27 +551,30 @@ export default function MillingOperationsDashboard() {
       return `${priorRange.label} (${friendly(priorRange.start)} - ${friendly(priorRange.end)})`;
     }
 
-    if (!activeSeasonLabel) return '';
+    if (!activeSeasonLabel || !compareRange.start) return '';
+    return `${activeSeasonLabel} (${friendly(compareRange.start)} - ${friendly(compareRange.end)})`;
+  }, [comparisonType, priorRange, activeSeasonLabel, compareRange]);
 
-    const from = fromDate <= toDate ? fromDate : toDate;
-    const to = fromDate <= toDate ? toDate : fromDate;
-    const { start, end } = alignSeasonCompareRange(from, to, activeSeasonLabel);
-    return `${activeSeasonLabel} (${friendly(start)} - ${friendly(end)})`;
-  }, [comparisonType, priorRange, activeSeasonLabel, fromDate, toDate]);
+  const compareAlign = useMemo(
+    () => ({
+      comparisonType,
+      fromDate,
+      compareFrom: compareRange.start,
+      seasonLabel: activeSeasonLabel,
+      seasonMapping,
+      bySeasonDay: rangePreset === 'STD',
+    }),
+    [comparisonType, fromDate, compareRange.start, activeSeasonLabel, seasonMapping, rangePreset],
+  );
 
   /** Per-day stoppage totals (current + compare overlay). */
   const dailySeries = useMemo(() => {
-    const base = buildMillDailyStoppageSeries(
-      filteredData,
-      compareData,
-      isSeasonComparisonType(comparisonType),
-      activeSeasonLabel,
-    );
+    const base = buildMillDailyStoppageSeries(filteredData, compareData, compareAlign);
     return base.map((pt) => ({
       ...pt,
       date: isoToLabel(pt.dateIso),
     }));
-  }, [filteredData, compareData, comparisonType, activeSeasonLabel]);
+  }, [filteredData, compareData, compareAlign]);
 
   /** Section roll-up totals for the bar chart (sorted desc). */
   const sectionTotals = useMemo(() => {
@@ -547,9 +651,11 @@ export default function MillingOperationsDashboard() {
   const headerSubtitle =
     activeTab === 'thermal'
       ? 'Equipment temperature analytics · Reference: Data_Mill'
-      : activeTab === 'lube-press'
-        ? 'Lube pressure & roller temperature · Reference: DataLube_Names'
-        : 'Mill stoppage analytics & outage telemetry';
+      : activeTab === 'shredder-otg'
+        ? 'Shredder and OTG bearing temperature · Reference: DataShredder_Names'
+        : activeTab === 'lube-press'
+          ? 'Lube pressure & roller temperature · Reference: DataLube_Names'
+          : 'Mill stoppage analytics & outage telemetry';
 
   if (loading) {
     return (
@@ -560,8 +666,8 @@ export default function MillingOperationsDashboard() {
   }
 
   const sectionPanelClass = isDarkMode
-    ? 'absolute right-0 top-full z-[320] mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-slate-700 bg-slate-800 p-2 shadow-xl'
-    : 'absolute right-0 top-full z-[320] mt-2 w-[min(18rem,calc(100vw-1.5rem))] rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
+    ? 'fixed z-[600] rounded-xl border border-slate-700 bg-slate-800 p-2 shadow-xl'
+    : 'fixed z-[600] rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
 
   return (
     <div className={`flex h-[calc(100dvh-3.75rem)] min-h-0 w-full flex-col overflow-hidden p-1.5 font-sans transition-colors duration-300 sm:p-2 ${appClasses}`}>
@@ -577,7 +683,7 @@ export default function MillingOperationsDashboard() {
       ) : null}
 
       {/* Fixed header: back link, title, filters */}
-      <div className="mb-2 flex shrink-0 flex-col gap-2">
+      <div className="relative z-30 mb-2 flex shrink-0 flex-col gap-2 overflow-visible">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
           <BiDashboardHeader
             title="Milling Division Cockpit"
@@ -594,11 +700,6 @@ export default function MillingOperationsDashboard() {
               subtitle={rangePreset === 'Custom' ? 'All' : rangePreset}
               isDarkMode={isDarkMode}
               tooltip={`${filteredData?.length} operating days logged in this period.`}
-            />
-            <BiViewTabs
-              activeTab={viewMode}
-              setActiveTab={setViewMode}
-              isDarkMode={isDarkMode}
             />
           </div>
         </div>
@@ -634,8 +735,9 @@ export default function MillingOperationsDashboard() {
               </div>
 
               {/* Section multi-select (mill-stoppage only) */}
-              <div className={`relative z-[310] shrink-0 ${activeTab === 'outages' ? '' : 'hidden'}`}>
+              <div className={`relative shrink-0 ${activeTab === 'outages' ? '' : 'hidden'}`}>
                 <button
+                  ref={sectionBtnRef}
                   type="button"
                   onClick={() => setIsSectionOpen(!isSectionOpen)}
                   className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border p-1.5 px-2 text-[10px] font-bold transition-colors sm:gap-2 sm:px-3 sm:text-xs ${cardClasses} ${textClasses.muted} ${
@@ -647,15 +749,22 @@ export default function MillingOperationsDashboard() {
                   <MdExpandMore className={`h-3 w-3 transition-transform ${isSectionOpen ? 'rotate-180' : ''}`} />
                 </button>
 
-                {isSectionOpen && (
+                {isSectionOpen && sectionMenuPos && createPortal(
                   <>
                     <button
                       type="button"
                       aria-label="Close menu"
-                      className="fixed inset-0 z-[300] cursor-default bg-transparent"
+                      className="fixed inset-0 z-[590] cursor-default bg-transparent"
                       onClick={() => setIsSectionOpen(false)}
                     />
-                    <div className={sectionPanelClass}>
+                    <div
+                      className={sectionPanelClass}
+                      style={{
+                        top: sectionMenuPos.top,
+                        left: sectionMenuPos.left,
+                        width: sectionMenuPos.width,
+                      }}
+                    >
                       <div
                         className={`mb-2 flex items-center justify-between border-b px-2 pb-2 text-[10px] font-bold uppercase tracking-wider ${
                           isDarkMode ? 'border-slate-700 text-slate-500' : 'border-slate-100 text-slate-400'
@@ -698,7 +807,8 @@ export default function MillingOperationsDashboard() {
                         ))}
                       </div>
                     </div>
-                  </>
+                  </>,
+                  document.body,
                 )}
               </div>
 
@@ -706,7 +816,7 @@ export default function MillingOperationsDashboard() {
               <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
                 <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
                 <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
-                  {['MTD', 'STD', 'YTD'].map((preset) => (
+                  {['MTD', 'STD', 'WTD'].map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -743,7 +853,8 @@ export default function MillingOperationsDashboard() {
                   <input
                     type="date"
                     value={fromDate}
-                    max={toDate}
+                    min={MILL_RANGE_MIN}
+                    max={toDate || dataExtent.max || undefined}
                     onChange={handleFromChange}
                     className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
@@ -755,7 +866,8 @@ export default function MillingOperationsDashboard() {
                   <input
                     type="date"
                     value={toDate}
-                    min={fromDate}
+                    min={fromDate || dataExtent.min || undefined}
+                    max={dataExtent.max || undefined}
                     onChange={handleToChange}
                     className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
@@ -764,23 +876,20 @@ export default function MillingOperationsDashboard() {
                 </div>
               </div>
 
-              {viewMode === 'dashboard' && activeTab === 'outages' && (
-                <div className="flex w-full min-w-0 basis-full flex-wrap items-center gap-1.5 sm:basis-auto sm:gap-2 lg:w-auto">
-                  <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
-                    Compare:
+              <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
+                  <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${textClasses.muted}`}>
+                    Compare
                   </span>
-                  <div className={`flex min-w-0 flex-wrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
+                  <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
                     {comparisonOptions.map((comp) => (
                       <button
                         key={comp.id}
                         type="button"
                         onClick={() => setComparisonType(comp.id)}
-                        className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
+                        className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                           comparisonType === comp.id
-                            ? isDarkMode
-                              ? 'bg-slate-700 text-slate-100 shadow-sm'
-                              : 'bg-slate-800 text-white shadow-sm'
-                            : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                            : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                         }`}
                       >
                         {comp.label}
@@ -788,38 +897,25 @@ export default function MillingOperationsDashboard() {
                     ))}
                   </div>
                 </div>
-              )}
         </BiFilterBarLayout>
       </div>
 
       {/* Scrollable body — KPIs, charts, tables */}
       <div
         className={`min-h-0 min-w-0 flex-1 overflow-x-hidden pr-0.5 ${
-          activeTab === 'outages' && viewMode === 'dashboard'
+          activeTab === 'outages'
             ? 'overflow-y-auto'
             : 'flex flex-col overflow-hidden'
         }`}
       >
         <div
           className={`min-w-0 pb-1 ${
-            activeTab === 'outages' && viewMode === 'dashboard'
+            activeTab === 'outages'
               ? ''
               : 'flex min-h-0 flex-1 flex-col overflow-hidden'
           }`}
         >
         {activeTab === 'outages' ? (
-          viewMode === 'table' ? (
-            <MillRawDataTable
-              title="Mill Stoppage Log"
-              periodLabel={periodLabel}
-              columns={STOPPAGE_RAW_COLUMNS}
-              rows={buildStoppageTableRows(filteredData)}
-              loading={loading}
-              isDarkMode={isDarkMode}
-              cardClasses={cardClasses}
-              textClasses={textClasses}
-            />
-          ) : (
             <div className="flex min-w-0 flex-col gap-2">
               <MillOutageTab
                 kpis={kpis}
@@ -837,30 +933,44 @@ export default function MillingOperationsDashboard() {
                 gridStyle={gridStyle}
               />
             </div>
-          )
-        ) : activeTab === 'thermal' ? (
+        ) : activeTab === 'thermal' || activeTab === 'shredder-otg' ? (
           <MillThermalReportsTab
+            section={activeTab}
             fromDate={fromDate}
             toDate={toDate}
+            compareFrom={compareRange.start}
+            compareTo={compareRange.end}
+            comparisonType={comparisonType}
+            seasonLabel={activeSeasonLabel}
+            seasonMapping={seasonMapping}
+            bySeasonDay={rangePreset === 'STD'}
+            comparisonLabel={comparisonLabel}
             isDarkMode={isDarkMode}
             cardClasses={cardClasses}
             textClasses={textClasses}
             axisStyle={axisStyle}
             gridStyle={gridStyle}
             periodLabel={periodLabel}
-            viewMode={viewMode}
+            onDateBounds={absorbDateBounds}
           />
         ) : activeTab === 'lube-press' ? (
           <MillLubeRollerTab
             fromDate={fromDate}
             toDate={toDate}
+            compareFrom={compareRange.start}
+            compareTo={compareRange.end}
+            comparisonType={comparisonType}
+            seasonLabel={activeSeasonLabel}
+            seasonMapping={seasonMapping}
+            bySeasonDay={rangePreset === 'STD'}
+            comparisonLabel={comparisonLabel}
             isDarkMode={isDarkMode}
             cardClasses={cardClasses}
             textClasses={textClasses}
             axisStyle={axisStyle}
             gridStyle={gridStyle}
             periodLabel={periodLabel}
-            viewMode={viewMode}
+            onDateBounds={absorbDateBounds}
           />
         ) : (
           <ComingSoonTab tab={activeTab} cardClasses={cardClasses} textClasses={textClasses} />

@@ -30,7 +30,7 @@ function countNonZero(rows, key) {
 }
 
 /** Aggregate KPIs for a filtered set of power + steam rows (PBI measure equivalents). */
-export function computePowerKpis(powerRows, steamRows = []) {
+export function computePowerKpis(powerRows, steamRows = [], { tariffRate = 4.85 } = {}) {
   const p = powerRows || [];
   const s = steamRows || [];
 
@@ -102,6 +102,8 @@ export function computePowerKpis(powerRows, steamRows = []) {
     Export_Sugar,
     Import_Instances: countNonZero(p, 'Imp_Grid'),
     'Int_Cons%': safeDiv(Total_Internal_Con, Total_Power_Gen),
+    Int_Cons_pct: safeDiv(Total_Internal_Con * 100, Total_Power_Gen),
+    Export_Grid: ExportGrid30,
     'Export%': safeDiv(ExportGrid30, Total_Power_Gen),
     Total_Import: sum(p, 'Imp_Grid'),
     OpDays_30MW: countNonZero(p, 'PowerGen30'),
@@ -116,9 +118,9 @@ export function computePowerKpis(powerRows, steamRows = []) {
     PowerGen3_New: PowerGen3New / 1e6,
     PowerGen3Old_Mn: PowerGen3Old / 1e6,
     PowerGen4Mn: PowerGen4MW / 1e6,
-    AmtSugar: Export_Sugar * 4.85,
-    AmtDistill: PowerCons_Dist_CPU_4MW * 4.85,
-    AMtGrid: ExportGrid30 * 4.85,
+    AmtSugar: Export_Sugar * tariffRate,
+    AmtDistill: PowerCons_Dist_CPU_4MW * tariffRate,
+    AMtGrid: ExportGrid30 * tariffRate,
   };
 }
 
@@ -214,7 +216,7 @@ export function computeOutageKpis(stoppageRows) {
 }
 
 /** Daily series for charts — one point per power Date with joined steam when available. */
-export function buildDailySeries(powerRows, steamRows) {
+export function buildDailySeries(powerRows, steamRows, { tariffRate = 4.85 } = {}) {
   const steamByDate = new Map();
   for (const r of steamRows || []) {
     if (r.Date) steamByDate.set(r.Date, r);
@@ -222,7 +224,7 @@ export function buildDailySeries(powerRows, steamRows) {
 
   return (powerRows || []).map((p) => {
     const s = steamByDate.get(p.Date) || {};
-    const powerK = computePowerKpis([p], [s]);
+    const powerK = computePowerKpis([p], [s], { tariffRate });
     const steamK = computeSteamKpis([s]);
     const totalGen = powerK.Total_Power_Gen;
     return {

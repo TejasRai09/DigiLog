@@ -4,6 +4,11 @@ const { sendServerError, MSG } = require('../utils/httpError');
 const SETTING_KEY = 'bi_third_season_compare';
 const DASHBOARD_SEASONS_KEY = 'bi_dashboard_seasons';
 const LEGACY_VISIBLE_SEASONS_KEY = 'bi_visible_seasons';
+const THEORETICAL_YIELD_KEY = 'distillery_theoretical_yield';
+const POWER_TARIFF_KEY = 'power_tariff_rate';
+
+const THEORETICAL_YIELD_DEFAULT = 64.4;
+const POWER_TARIFF_DEFAULT = 4.85;
 
 function parseBool(v) {
   return v === '1' || v === 'true' || v === true;
@@ -33,8 +38,8 @@ function parseJsonArray(v) {
 const getBiSettings = async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?, ?)',
-      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY],
+      'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?)',
+      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY],
     );
     const map = {};
     rows.forEach(r => { map[r.setting_key] = r.setting_value; });
@@ -49,9 +54,27 @@ const getBiSettings = async (_req, res) => {
       };
     }
 
+    let seasonMapping = {};
+    try {
+      const [seasonRows] = await pool.query(
+        'SELECT season_label, start_date, end_date FROM season_mapping ORDER BY start_date DESC',
+      );
+      seasonRows.forEach((s) => {
+        seasonMapping[s.season_label] = {
+          startDate: s.start_date ? String(s.start_date).slice(0, 10) : null,
+          endDate: s.end_date ? String(s.end_date).slice(0, 10) : null,
+        };
+      });
+    } catch (_) {
+      seasonMapping = {};
+    }
+
     res.json({
       thirdSeasonCompareEnabled: parseBool(map[SETTING_KEY]),
       dashboardSeasons,
+      seasonMapping,
+      theoreticalYield: parseFloat(map[THEORETICAL_YIELD_KEY] ?? THEORETICAL_YIELD_DEFAULT) || THEORETICAL_YIELD_DEFAULT,
+      powerTariffRate: parseFloat(map[POWER_TARIFF_KEY] ?? POWER_TARIFF_DEFAULT) || POWER_TARIFF_DEFAULT,
     });
   } catch (err) {
     sendServerError(res, 'getBiSettings', err, MSG.LOAD);
@@ -62,8 +85,8 @@ const getBiSettings = async (_req, res) => {
 const getAdminBiSettings = async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT setting_key, setting_value, updated_at FROM portal_settings WHERE setting_key IN (?, ?, ?)',
-      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY],
+      'SELECT setting_key, setting_value, updated_at FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?)',
+      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY],
     );
     const map = {};
     rows.forEach(r => { map[r.setting_key] = r.setting_value; });
@@ -81,6 +104,8 @@ const getAdminBiSettings = async (_req, res) => {
     res.json({
       thirdSeasonCompareEnabled: parseBool(map[SETTING_KEY]),
       dashboardSeasons,
+      theoreticalYield: parseFloat(map[THEORETICAL_YIELD_KEY] ?? THEORETICAL_YIELD_DEFAULT) || THEORETICAL_YIELD_DEFAULT,
+      powerTariffRate: parseFloat(map[POWER_TARIFF_KEY] ?? POWER_TARIFF_DEFAULT) || POWER_TARIFF_DEFAULT,
       updatedAt: rows[0]?.updated_at ?? null,
     });
   } catch (err) {
@@ -95,6 +120,11 @@ const updateAdminBiSettings = async (req, res) => {
     let dashboardSeasons = (req.body?.dashboardSeasons && typeof req.body.dashboardSeasons === 'object')
       ? req.body.dashboardSeasons
       : {};
+
+    const rawYield = parseFloat(req.body?.theoreticalYield);
+    const theoreticalYield = Number.isFinite(rawYield) && rawYield > 0 ? rawYield : THEORETICAL_YIELD_DEFAULT;
+    const rawTariff = parseFloat(req.body?.powerTariffRate);
+    const powerTariffRate = Number.isFinite(rawTariff) && rawTariff > 0 ? rawTariff : POWER_TARIFF_DEFAULT;
 
     // Support legacy payload if visibleSeasons array is passed directly
     if (Array.isArray(req.body?.visibleSeasons) && Object.keys(dashboardSeasons).length === 0) {
@@ -118,10 +148,26 @@ const updateAdminBiSettings = async (req, res) => {
       [DASHBOARD_SEASONS_KEY, JSON.stringify(dashboardSeasons)],
     );
 
+    await pool.query(
+      `INSERT INTO portal_settings (setting_key, setting_value)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [THEORETICAL_YIELD_KEY, String(theoreticalYield)],
+    );
+
+    await pool.query(
+      `INSERT INTO portal_settings (setting_key, setting_value)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [POWER_TARIFF_KEY, String(powerTariffRate)],
+    );
+
     res.json({
       message: 'BI dashboard settings saved.',
       thirdSeasonCompareEnabled: enabled,
       dashboardSeasons,
+      theoreticalYield,
+      powerTariffRate,
     });
   } catch (err) {
     sendServerError(res, 'updateAdminBiSettings', err, MSG.SAVE);

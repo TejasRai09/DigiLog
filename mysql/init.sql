@@ -200,6 +200,14 @@ INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
 VALUES ('bi_third_season_compare', '0')
 ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
 
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('distillery_theoretical_yield', '64.4')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('power_tariff_rate', '4.85')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
 -- Homepage big-card access (Forms Hub / BI Control Tower on `/`).
 CREATE TABLE IF NOT EXISTS `user_homepage_cards` (
   `user_id`    INT          NOT NULL,
@@ -226,12 +234,14 @@ INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
   JOIN `apps` a ON a.id = m.app_id
   WHERE a.name = 'BI Control Tower';
 
--- Data Upload tab access (admin grants per employee).
+-- Data Upload tab access (admin grants per employee + section).
+-- section_key: purchy | management | milling
 CREATE TABLE IF NOT EXISTS `user_data_upload_access` (
   `user_id`     INT NOT NULL,
+  `section_key` VARCHAR(32) NOT NULL,
   `granted_by`  INT DEFAULT NULL,
   `created_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`user_id`),
+  PRIMARY KEY (`user_id`, `section_key`),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`granted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

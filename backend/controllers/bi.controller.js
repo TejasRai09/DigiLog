@@ -61,7 +61,12 @@ function buildDateBound(query, options = {}) {
 function dateKey(d) {
   if (!d) return null;
   if (typeof d === 'string') return d.slice(0, 10);
-  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  if (d instanceof Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
   return String(d).slice(0, 10);
 }
 

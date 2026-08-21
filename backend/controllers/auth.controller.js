@@ -6,6 +6,7 @@ const { signToken } = require('../utils/jwt');
 const { getMicrosoftUserProfile } = require('../services/microsoft.service');
 const { verifyGoogleIdToken, getGoogleUserProfile } = require('../services/google.service');
 const { toAuthUser } = require('../utils/userPublic');
+const { getUserDataUploadSections } = require('../utils/dataUploadSections');
 const { unlinkStoredAvatar, avatarStorageKey, resolveAvatarAbsPath } = require('../utils/avatarFile');
 const { logServerError, sendServerError, MSG } = require('../utils/httpError');
 
@@ -31,10 +32,18 @@ const enforceAdminPortalRules = (user, adminPortal) => {
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 
-const buildTokenResponse = (row) => ({
-  token: signToken({ id: row.id, role: row.role }),
-  user: toAuthUser(row),
-});
+async function buildTokenResponse(row) {
+  const user = toAuthUser(row);
+  const dataUploadSections = await getUserDataUploadSections(user);
+  return {
+    token: signToken({ id: row.id, role: row.role }),
+    user: {
+      ...user,
+      dataUploadSections,
+      dataUploadEnabled: dataUploadSections.length > 0,
+    },
+  };
+}
 
 // POST /api/auth/login
 const login = async (req, res) => {
@@ -82,7 +91,7 @@ const login = async (req, res) => {
     if (!portalCheck.ok)
       return res.status(portalCheck.status).json({ message: portalCheck.message });
 
-    res.json(buildTokenResponse(user));
+    res.json(await buildTokenResponse(user));
   } catch (err) {
     sendServerError(res, 'login', err, MSG.SERVER);
   }
@@ -126,7 +135,7 @@ const outlookLogin = async (req, res) => {
     if (!portalCheck.ok)
       return res.status(portalCheck.status).json({ message: portalCheck.message });
 
-    res.json(buildTokenResponse(user));
+    res.json(await buildTokenResponse(user));
   } catch (err) {
     sendServerError(res, 'outlookLogin', err, MSG.SERVER);
   }
@@ -175,7 +184,7 @@ const googleLogin = async (req, res) => {
     if (!portalCheck.ok)
       return res.status(portalCheck.status).json({ message: portalCheck.message });
 
-    res.json(buildTokenResponse(user));
+    res.json(await buildTokenResponse(user));
   } catch (err) {
     sendServerError(res, 'googleLogin', err, MSG.SERVER);
   }
@@ -183,7 +192,18 @@ const googleLogin = async (req, res) => {
 
 // GET /api/auth/me
 const getMe = async (req, res) => {
-  res.json({ user: req.user });
+  try {
+    const dataUploadSections = await getUserDataUploadSections(req.user);
+    res.json({
+      user: {
+        ...req.user,
+        dataUploadSections,
+        dataUploadEnabled: dataUploadSections.length > 0,
+      },
+    });
+  } catch (err) {
+    sendServerError(res, 'getMe', err, MSG.LOAD);
+  }
 };
 
 // POST /api/auth/me/avatar — multipart field name: avatar (PNG/JPEG), stored under uploads/avatars

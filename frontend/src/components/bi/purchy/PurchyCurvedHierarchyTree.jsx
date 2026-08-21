@@ -41,7 +41,9 @@ export default function PurchyCurvedHierarchyTree({
   }, [columns, coordDeps]);
 
   const bumpCoords = () => {
-    setTimeout(() => setCoordTrigger((p) => p + 1), 60);
+    [10, 50, 100, 150, 200, 250].forEach((t) => {
+      setTimeout(() => setCoordTrigger((p) => p + 1), t);
+    });
   };
 
   const connectorPaths = useMemo(() => {
@@ -161,6 +163,7 @@ export default function PurchyCurvedHierarchyTree({
 
           {columns.map((column) => {
             const scrollable = column.nodes.length > SUBNODE_SCROLL_THRESHOLD;
+            const maxVal = Math.max(...column.nodes.map(n => Number(n.value) || 0), 0.01);
             return (
             <div key={column.key} className="z-10 flex flex-col justify-start">
               <div className={`mb-2 flex max-w-[175px] shrink-0 items-center justify-between border-b pb-1 ${isDarkMode ? 'border-slate-700' : 'border-slate-100'}`}>
@@ -191,6 +194,7 @@ export default function PurchyCurvedHierarchyTree({
                 ) : (
                   column.nodes.map((node) => {
                     const isActive = column.selectedId === node.id;
+                    const widthPct = Math.max(2, (Number(node.value) / maxVal) * 100);
                     return (
                       <button
                         key={node.id}
@@ -208,7 +212,7 @@ export default function PurchyCurvedHierarchyTree({
                         {!isActive && (
                           <div
                             className={`pointer-events-none absolute inset-y-0 left-0 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`}
-                            style={{ width: `${Math.min(node.value * 2.8, 100)}%` }}
+                            style={{ width: `${Math.min(widthPct, 100)}%` }}
                           />
                         )}
                         <div className="relative z-10 flex w-full items-start justify-between gap-1">
@@ -220,7 +224,7 @@ export default function PurchyCurvedHierarchyTree({
                         </div>
                         {isActive && (
                           <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-blue-800">
-                            <div className="h-full bg-blue-300" style={{ width: `${Math.min(node.value * 2.8, 100)}%` }} />
+                            <div className="h-full bg-blue-300" style={{ width: `${Math.min(widthPct, 100)}%` }} />
                           </div>
                         )}
                       </button>

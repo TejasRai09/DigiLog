@@ -17,7 +17,13 @@ import BiDashboardHeader from "../../components/bi/BiDashboardHeader";
 import BiKpiCard from "../../components/bi/BiKpiCard";
 import { BiKeyMetricBox, BiFilterBarLayout } from "../../components/bi/BiLayoutElements";
 import ProcurementCutToCrushScene from "../../components/bi/ProcurementCutToCrushScene";
-import { getMtdRangeForDashboard, resolveDashboardToDate } from "../../utils/distilleryBiDateRange";
+import { formatYMD, resolveDashboardToDate } from "../../utils/distilleryBiDateRange";
+import {
+  buildCockpitComparisonOptions,
+  getCockpitPresetDateRange,
+  getCockpitSeasonLabels,
+  resolveCockpitCompareRange,
+} from "../../utils/biCockpitDateFilters";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
@@ -1312,13 +1318,6 @@ const compact = (v) => {
   return x.toLocaleString("en-IN");
 };
 
-/** Shift YYYY-MM-DD by −years (same month/day). */
-function shiftYearIso(iso, years = -1) {
-  if (!iso || String(iso).length < 10) return iso;
-  const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
-  return `${y + years}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-}
-
 function pctChange(curr, prior) {
   const c = n(curr);
   const p = n(prior);
@@ -1448,7 +1447,10 @@ export default function CanePerformanceDashboard(){
   const[modeFilter, setModeFilter] = useState("All");
   const[centerFilter, setCenterFilter] = useState("All");
   const[challanFilter, setChallanFilter] = useState("");
-  const[rangePreset, setRangePreset] = useState("MTD"); // MTD | STD | YTD | Custom
+  const[rangePreset, setRangePreset] = useState("STD"); // MTD | STD | WTD | Custom
+  const[comparisonType, setComparisonType] = useState("PP"); // PP | S1 | S2 | S3
+  const[seasonMapping, setSeasonMapping] = useState({});
+  const[thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const[dbMinDateStr, setDbMinDateStr] = useState("");
   const[dbMaxDateStr, setDbMaxDateStr] = useState("");
   const[dbMaxDate, setDbMaxDate] = useState(null);
@@ -1475,6 +1477,31 @@ export default function CanePerformanceDashboard(){
     return iso;
   }, [dbMinDateStr, dbMaxDateStr]);
 
+  React.useEffect(() => {
+    api.get("/bi/settings")
+      .then((r) => {
+        setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled));
+        if (r.data?.seasonMapping && typeof r.data.seasonMapping === "object") {
+          setSeasonMapping(r.data.seasonMapping);
+        }
+      })
+      .catch(() => setThirdSeasonEnabled(false));
+  }, []);
+
+  React.useEffect(() => {
+    if (!thirdSeasonEnabled && comparisonType === "S3") setComparisonType("PP");
+  }, [thirdSeasonEnabled, comparisonType]);
+
+  const seasonLabels = useMemo(() => {
+    const refIso = dbMaxDateStr || formatYMD(new Date());
+    return getCockpitSeasonLabels(refIso, seasonMapping);
+  }, [dbMaxDateStr, seasonMapping]);
+
+  const comparisonOptions = useMemo(
+    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
+    [rangePreset, seasonLabels, thirdSeasonEnabled],
+  );
+
   const applyDateRange = useCallback((dateRange) => {
     if (!dateRange) return;
     const minStr = toInputDate(dateRange.minDate);
@@ -1491,25 +1518,39 @@ export default function CanePerformanceDashboard(){
     if (dateRangeSeeded.current) return;
     if (!minStr && !maxStr) return;
     dateRangeSeeded.current = true;
-    const mtd = getMtdRangeForDashboard(null, maxStr || minStr);
+    const toIso = resolveDashboardToDate(null, maxStr || minStr);
+    const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
+    const std = getCockpitPresetDateRange("STD", ref, seasonMapping);
     const clamp = (iso) => {
       if (!iso) return iso;
       if (minStr && iso < minStr) return minStr;
       if (maxStr && iso > maxStr) return maxStr;
       return iso;
     };
-    const from = clamp(mtd.from) || minStr;
-    const to = clamp(mtd.to) || maxStr;
-    setRangePreset("MTD");
+    const from = clamp(std.from) || minStr;
+    const to = clamp(std.to) || maxStr;
+    setRangePreset("STD");
     if (from) setFromDate(from);
     if (to) setToDate(to);
-  }, []);
+  }, [seasonMapping]);
 
   const pyRange = useMemo(() => {
-    if (rangePreset !== "MTD" && rangePreset !== "STD" && rangePreset !== "YTD") return null;
     if (!fromDate || !toDate) return null;
-    return { from: shiftYearIso(fromDate, -1), to: shiftYearIso(toDate, -1) };
-  }, [rangePreset, fromDate, toDate]);
+    const resolved = resolveCockpitCompareRange(
+      fromDate,
+      toDate,
+      comparisonType,
+      seasonLabels,
+      seasonMapping,
+      rangePreset,
+    );
+    if (!resolved?.start || !resolved?.end) return null;
+    return {
+      from: resolved.start,
+      to: resolved.end,
+      label: resolved.label || (comparisonType === "PP" ? "Prev. Period" : ""),
+    };
+  }, [comparisonType, fromDate, toDate, rangePreset, seasonLabels, seasonMapping]);
 
   // Refetch when filters change OR when tab needs different data packs
   const filterKey = useMemo(() => {
@@ -1620,33 +1661,19 @@ export default function CanePerformanceDashboard(){
         ? dbMaxDate
         : null);
     if (!today) return;
-
-    const year = today.getFullYear();
-    const month = today.getMonth();
-
-    let stdYear = year;
-    if (month < 9) stdYear -= 1;
-    const stdStart = new Date(stdYear, 9, 1);
-    const ytdStart = new Date(year, 0, 1);
-    const mtdStart = new Date(year, month, 1);
-
-    const formatDate = (d) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    };
-
+    if (type === "Custom") {
+      setRangePreset("Custom");
+      return;
+    }
+    const { from, to } = getCockpitPresetDateRange(type, today, seasonMapping);
+    setFromDate(clampToDb(from));
+    setToDate(clampToDb(to));
     setRangePreset(type);
-    setToDate(clampToDb(formatDate(today)));
-    if (type === "YTD") setFromDate(clampToDb(formatDate(ytdStart)));
-    if (type === "STD") setFromDate(clampToDb(formatDate(stdStart)));
-    if (type === "MTD") setFromDate(clampToDb(formatDate(mtdStart)));
   };
 
-  const showCompare = rangePreset === "MTD" || rangePreset === "STD" || rangePreset === "YTD";
+  const showCompare = Boolean(pyRange);
   const prior = showCompare ? liveData?.prior : null;
-  const pyLabel = rangePreset ? `vs PY ${rangePreset}` : "vs PY";
+  const pyLabel = pyRange?.label ? `vs ${pyRange.label}` : "vs PY";
   const priorOverrun = useMemo(() => overrunMap(prior?.overruns), [prior]);
   const priorCntOverrun = useMemo(() => overrunMap(prior?.cntOverruns), [prior]);
   const priorHoldByMode = useMemo(() => {
@@ -1838,7 +1865,7 @@ export default function CanePerformanceDashboard(){
           <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
           <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            {['MTD', 'STD', 'YTD'].map(type => (
+            {['MTD', 'STD', 'WTD'].map(type => (
               <button
                 key={type}
                 type="button"
@@ -1853,6 +1880,40 @@ export default function CanePerformanceDashboard(){
                 {type}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => handleQuickDate('Custom')}
+              aria-pressed={rangePreset === 'Custom'}
+              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                rangePreset === 'Custom'
+                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                  : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+
+          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
+              Compare
+            </span>
+            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+              {comparisonOptions.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  onClick={() => setComparisonType(comp.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    comparisonType === comp.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {comp.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">

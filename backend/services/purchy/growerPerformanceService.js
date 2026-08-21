@@ -1,7 +1,29 @@
 const { pool } = require('../../config/mysql');
-const { buildFilterContext, filteredGrowersCte } = require('./purchyFilterBuilder');
+const { buildFilterContext } = require('./purchyFilterBuilder');
+const { query2025Facts } = require('./purchyPbiFacts');
 
 const SUMMARY_YEARS = ['2021', '2022', '2023', '2024', '2025'];
+
+/** Known loyalty / dishonour slicer labels (avoid DISTINCT on computed view columns). */
+const STATIC_LOYALTY_SLICERS = [
+  '0. Never supplied',
+  '1. Supplied 1 year',
+  '2. Supplied 2 years',
+  '3. Supplied 3 years',
+  '4. Supplied 4 years',
+  '5. Supplied 5 years',
+];
+
+const STATIC_DISHONOUR_BUCKETS = [
+  'No Indent',
+  '0% - No Failure',
+  '1-20% Failure',
+  '21-40% Failure',
+  '41-60% Failure',
+  '61-80% Failure',
+  '81-99% Failure',
+  '100% Failure',
+];
 
 const HISTORICAL_YEAR_COLS = {
   2021: {
@@ -69,11 +91,11 @@ function buildHistoricalYearRow(year, row) {
   };
 }
 
-function build2025YearRow(row) {
-  const issuedN = Number(row.issued_2025) || 0;
-  const weightedN = Number(row.weighted_2025) || 0;
+function build2025YearRow(row, tx) {
+  const issuedN = tx.indentCount;
+  const weightedN = tx.supplyCount;
   const ttlBondN = Number(row.ttl_bond_2025) || 0;
-  const supplyN = Number(row.supply_qty_2025) || 0;
+  const supplyN = tx.supplyQty;
 
   return {
     year: '2025',
@@ -90,57 +112,19 @@ function build2025YearRow(row) {
 }
 
 async function get2025TransactionMetrics(ctx) {
-  const fg = filteredGrowersCte(ctx);
-  const params = ctx.params;
-
-  const indentSql = `
-    SELECT
-      COUNT(*) AS indent_count,
-      IFNULL(SUM(i.supllymodeqty), 0) AS indent_qty
-    FROM purchy_indent i
-    INNER JOIN (${fg}) fg
-      ON fg.village_code = i.villagecode AND fg.grower_code = i.growercode`;
-
-  const supplySql = `
-    SELECT
-      COUNT(*) AS supply_count,
-      IFNULL(SUM(s.purchasemodeqty), 0) AS supply_qty
-    FROM purchy_supply s
-    INNER JOIN (${fg}) fg
-      ON fg.village_code = s.villagecode AND fg.grower_code = s.growercode`;
-
-  const dishonourSql = `
-    SELECT
-      COUNT(*) AS dishonour_count,
-      IFNULL(SUM(d.mode_qty), 0) AS dishonour_qty
-    FROM purchy_dishonour d
-    INNER JOIN purchy_indent i
-      ON CAST(d.society_purchy_no AS CHAR) COLLATE utf8mb4_0900_ai_ci = i.societypurchy_no
-    INNER JOIN (${fg}) fg
-      ON fg.village_code = i.villagecode AND fg.grower_code = i.growercode`;
-
-  const [indentRow, supplyRow, dishonourRow] = await Promise.all([
-    queryOne(indentSql, params),
-    queryOne(supplySql, params),
-    queryOne(dishonourSql, params),
-  ]);
-
-  return {
-    indentCount: Number(indentRow.indent_count) || 0,
-    indentQty: Number(indentRow.indent_qty) || 0,
-    supplyCount: Number(supplyRow.supply_count) || 0,
-    supplyQty: Number(supplyRow.supply_qty) || 0,
-    dishonourCount: Number(dishonourRow.dishonour_count) || 0,
-    dishonourQty: Number(dishonourRow.dishonour_qty) || 0,
-  };
+  return query2025Facts(ctx);
 }
 
 async function getSummary(query) {
   const ctx = buildFilterContext(query);
-  const aggRow = await queryOne(buildGrowerSummaryAggregateSql(ctx), ctx.params);
+  // Grower summary only needs indent + supply counts; skip unused dishonour fact scan.
+  const [aggRow, tx] = await Promise.all([
+    queryOne(buildGrowerSummaryAggregateSql(ctx), ctx.params),
+    query2025Facts(ctx, { includeDishonour: false }),
+  ]);
 
   const rows = ['2021', '2022', '2023', '2024'].map((year) => buildHistoricalYearRow(year, aggRow));
-  rows.push(build2025YearRow(aggRow));
+  rows.push(build2025YearRow(aggRow, tx));
   return rows;
 }
 
@@ -150,13 +134,15 @@ async function getDetail(query) {
   const pageSize = Math.min(500, Math.max(1, parseInt(query.pageSize, 10) || 100));
   const offset = (page - 1) * pageSize;
 
-  const countRow = await queryOne(
-    `SELECT COUNT(*) AS total FROM purchy_grower_summary_v gs ${ctx.joins} ${ctx.whereSql}`,
-    ctx.params,
-  );
+  const countSql = `SELECT
+      COUNT(*) AS total,
+      IFNULL(SUM(gs.total_bond), 0) AS total_bond,
+      IFNULL(SUM(gs.indent_qty), 0) AS indent_qty,
+      IFNULL(SUM(gs.weight_qty_2025), 0) AS weight_qty_2025,
+      IFNULL(SUM(gs.indent_failer_qty), 0) AS indent_failer_qty
+     FROM purchy_grower_summary_v gs ${ctx.joins} ${ctx.whereSql}`;
 
-  const [rows] = await pool.query(
-    `SELECT
+  const pageSql = `SELECT
       gs.grower_name_key,
       gs.village_name_key,
       gs.society_name,
@@ -168,55 +154,74 @@ async function getDetail(query) {
     FROM purchy_grower_summary_v gs
     ${ctx.joins}
     ${ctx.whereSql}
-    ORDER BY gs.society_name, gs.village_name, gs.grower_name
-    LIMIT ? OFFSET ?`,
-    [...ctx.params, pageSize, offset],
-  );
+    ORDER BY IFNULL(gs.weight_qty_2025, 0) ASC, gs.society_name, gs.village_name, gs.grower_name
+    LIMIT ? OFFSET ?`;
+
+  const [countRow, pageResult] = await Promise.all([
+    queryOne(countSql, ctx.params),
+    pool.query(pageSql, [...ctx.params, pageSize, offset]),
+  ]);
+  const rows = pageResult[0];
 
   return {
     total: Number(countRow.total) || 0,
     page,
     pageSize,
     rows,
+    totals: {
+      total_bond: Number(countRow.total_bond) || 0,
+      indent_qty: Number(countRow.indent_qty) || 0,
+      weight_qty_2025: Number(countRow.weight_qty_2025) || 0,
+      indent_failer_qty: Number(countRow.indent_failer_qty) || 0,
+    },
   };
 }
 
 async function getFilterOptions() {
-  const [societies] = await pool.query(
-    'SELECT DISTINCT society_name AS value FROM purchy_grower_summary_v WHERE society_name IS NOT NULL ORDER BY society_name',
-  );
-  const [loyalty] = await pool.query(
-    'SELECT DISTINCT loyalty_slicer AS value FROM purchy_grower_summary_v ORDER BY loyalty_slicer',
-  );
-  const [buckets] = await pool.query(
-    'SELECT DISTINCT dishonour_bucket AS value FROM purchy_grower_summary_v ORDER BY dishonour_bucket',
-  );
-  const [zoneHeads] = await pool.query(
-    'SELECT DISTINCT zone_head AS value FROM purchy_field_staff WHERE zone_head IS NOT NULL ORDER BY zone_head',
-  );
-  const [zonalManagers] = await pool.query(
-    'SELECT DISTINCT zonal_manager AS value FROM purchy_field_staff WHERE zonal_manager IS NOT NULL ORDER BY zonal_manager',
-  );
-  const [zonalIncharges] = await pool.query(
-    'SELECT DISTINCT zonal_incharge AS value FROM purchy_field_staff WHERE zonal_incharge IS NOT NULL ORDER BY zonal_incharge',
-  );
-  const [villageStaff] = await pool.query(
-    'SELECT DISTINCT village_staff AS value FROM purchy_field_staff WHERE village_staff IS NOT NULL ORDER BY village_staff',
-  );
-
-  const [villageNames] = await pool.query(
-    'SELECT DISTINCT village_name_key AS value FROM purchy_grower_summary_v WHERE village_name_key IS NOT NULL ORDER BY village_name_key LIMIT 1000',
-  );
+  // Loyalty / dishonour buckets are fixed labels — skip DISTINCT over the computed view.
+  // Society + staff + villages load in parallel from indexed base tables where possible.
+  const [
+    societiesRes,
+    zoneHeadsRes,
+    zonalManagersRes,
+    zonalInchargesRes,
+    villageStaffRes,
+    villageNamesRes,
+  ] = await Promise.all([
+    pool.query(
+      'SELECT DISTINCT society_name AS value FROM purchy_grower_summary WHERE society_name IS NOT NULL AND society_name <> \'\' ORDER BY society_name',
+    ),
+    pool.query(
+      'SELECT DISTINCT zone_head AS value FROM purchy_field_staff WHERE zone_head IS NOT NULL AND zone_head <> \'\' ORDER BY zone_head',
+    ),
+    pool.query(
+      'SELECT DISTINCT zonal_manager AS value FROM purchy_field_staff WHERE zonal_manager IS NOT NULL AND zonal_manager <> \'\' ORDER BY zonal_manager',
+    ),
+    pool.query(
+      'SELECT DISTINCT zonal_incharge AS value FROM purchy_field_staff WHERE zonal_incharge IS NOT NULL AND zonal_incharge <> \'\' ORDER BY zonal_incharge',
+    ),
+    pool.query(
+      'SELECT DISTINCT village_staff AS value FROM purchy_field_staff WHERE village_staff IS NOT NULL AND village_staff <> \'\' ORDER BY village_staff',
+    ),
+    pool.query(
+      `SELECT DISTINCT
+         CONCAT(IFNULL(village_code, ''), '-', IFNULL(village_name, '')) AS value
+       FROM purchy_grower_summary
+       WHERE village_name IS NOT NULL AND village_name <> ''
+       ORDER BY value
+       LIMIT 1000`,
+    ),
+  ]);
 
   return {
-    societyName: societies.map((r) => r.value),
-    loyaltySlicer: loyalty.map((r) => r.value),
-    dishonourBucket: buckets.map((r) => r.value),
-    villageName: villageNames.map((r) => r.value),
-    zoneHead: zoneHeads.map((r) => r.value),
-    zonalManager: zonalManagers.map((r) => r.value),
-    zonalIncharge: zonalIncharges.map((r) => r.value),
-    villageStaff: villageStaff.map((r) => r.value),
+    societyName: societiesRes[0].map((r) => r.value),
+    loyaltySlicer: STATIC_LOYALTY_SLICERS,
+    dishonourBucket: STATIC_DISHONOUR_BUCKETS,
+    villageName: villageNamesRes[0].map((r) => r.value),
+    zoneHead: zoneHeadsRes[0].map((r) => r.value),
+    zonalManager: zonalManagersRes[0].map((r) => r.value),
+    zonalIncharge: zonalInchargesRes[0].map((r) => r.value),
+    villageStaff: villageStaffRes[0].map((r) => r.value),
   };
 }
 

@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 import {
   MdInfoOutline,
   MdCalendarMonth,
-  MdDashboard,
-  MdTableChart,
   MdTrendingUp,
   MdTrendingDown,
   MdRemove,
@@ -36,62 +34,7 @@ import {
 } from '../../utils/distilleryBiComparison';
 import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiViewTabs, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
-
-/** Raw table columns — aligned with `mapRowToBiPoint` / `distillery_operations` (BI API). */
-const DISTILLERY_BI_RAW_COLUMNS = [
-  { key: 'dateFull', label: 'Date', kind: 'date' },
-  { key: 'operationModeRaw', label: 'Operation mode', kind: 'text' },
-  { key: 'mode', label: 'Mode class', kind: 'modeBadge' },
-  { key: 'syrupMolConsumed', label: 'Syrup / molasses (Q)', kind: 'num' },
-  { key: 'totalWash', label: 'Wash distilled', kind: 'num' },
-  { key: 'trs', label: 'TRS', kind: 'num' },
-  { key: 'ufs', label: 'UFS', kind: 'num' },
-  { key: 'alcohol', label: 'Alcohol %', kind: 'num' },
-  { key: 'totalProd', label: 'Actual ethanol (BL)', kind: 'num' },
-  { key: 'alBlRatioPct', label: 'Al / BL ratio %', kind: 'num' },
-  { key: 'recovery', label: 'REC BL', kind: 'num' },
-  { key: 'totalBhMolassesQtls', label: 'Total BH molasses (Q)', kind: 'num' },
-  { key: 'totalChMolassesQtls', label: 'Total CH molasses (Q)', kind: 'num' },
-  { key: 'molInStore', label: 'Mol in store (Q)', kind: 'num' },
-  { key: 'ethInStore', label: 'Ethanol storage (BL)', kind: 'num' },
-  { key: 'fs', label: 'FS', kind: 'num' },
-  { key: 'fermSugar', label: 'Ferm. sugar FS%×100', kind: 'num' },
-  { key: 'feRaw', label: 'FE (stored)', kind: 'num' },
-  { key: 'deRaw', label: 'DE (stored)', kind: 'num' },
-  { key: 'fermEff', label: 'Ferm. eff %', kind: 'num' },
-  { key: 'distEff', label: 'Dist. eff %', kind: 'num' },
-  { key: 'overallEff', label: 'Overall eff % (OE)', kind: 'num' },
-  { key: 'recBl', label: 'Rec (BL)', kind: 'num' },
-  { key: 'bHeavyProd', label: 'B Heavy (BL, alloc.)', kind: 'num' },
-  { key: 'cHeavyProd', label: 'C Heavy (BL, alloc.)', kind: 'num' },
-  { key: 'syrupProd', label: 'Syrup (BL, alloc.)', kind: 'num' },
-  { key: 'mixedProd', label: 'Mixed (BL, alloc.)', kind: 'num' },
-  { key: 'recordedAt', label: 'Timestamp', kind: 'ts' },
-];
-
-function formatDistilleryRawScalar(kind, row, key) {
-  const v = row[key];
-  switch (kind) {
-    case 'date':
-      return row.dateFull ?? row.date ?? '';
-    case 'text':
-      return v !== undefined && v !== null && String(v) !== '' ? String(v) : '';
-    case 'num': {
-      if (v === undefined || v === null || Number.isNaN(Number(v))) return null;
-      return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    case 'ts':
-      if (!v) return '';
-      try {
-        return new Date(v).toLocaleString();
-      } catch {
-        return String(v);
-      }
-    default:
-      return '';
-  }
-}
+import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 
 const FLOATING_LAYER_Z = 9999;
 const FLOATING_BACKDROP_Z = 9998;
@@ -536,7 +479,6 @@ function rowDateIso(row) {
 }
 
 export default function DistilleryAnalyticsDashboard() {
-  const [activeTab, setActiveTab] = useState('dashboard');
   const initialRange = () => getPresetDateRange('MTD');
   const [rangePreset, setRangePreset] = useState('MTD');
   const [fromDate, setFromDate] = useState(() => initialRange().from);
@@ -873,11 +815,6 @@ export default function DistilleryAnalyticsDashboard() {
               isDarkMode={isDarkMode}
               tooltip={`${operatingDaysCount} days with ethanol production > 0 — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
             />
-            <BiViewTabs
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              isDarkMode={isDarkMode}
-            />
           </div>
         </div>
 
@@ -961,8 +898,7 @@ export default function DistilleryAnalyticsDashboard() {
               </div>
             </div>
 
-            {activeTab === 'dashboard' && (
-              <div className="flex w-full min-w-0 basis-full flex-wrap items-center gap-1.5 sm:basis-auto sm:gap-2 lg:w-auto">
+            <div className="flex w-full min-w-0 basis-full flex-wrap items-center gap-1.5 sm:basis-auto sm:gap-2 lg:w-auto">
                 <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
                   Compare:
                 </span>
@@ -985,12 +921,10 @@ export default function DistilleryAnalyticsDashboard() {
                   ))}
                 </div>
               </div>
-            )}
         </BiFilterBarLayout>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto max-md:pb-1 md:flex md:flex-col md:overflow-y-hidden">
-      {activeTab === 'dashboard' ? (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2 md:overflow-hidden">
           <div className="mt-2 grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
             <MetricCard
@@ -1068,106 +1002,6 @@ export default function DistilleryAnalyticsDashboard() {
           />
 
         </div>
-      ) : (
-        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm ${cardClasses}`}>
-          <div
-            className={`flex items-center border-b p-4 ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
-          >
-            <h3 className={`text-sm font-bold ${textClasses.title}`}>
-              Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({periodLabel} View)</span>
-            </h3>
-          </div>
-
-          <div className="min-w-0 flex-1 overflow-auto">
-            <table className="w-max min-w-full text-left text-sm">
-              <thead
-                className={`sticky top-0 z-10 border-b text-[10px] uppercase tracking-wide backdrop-blur-sm ${
-                  isDarkMode
-                    ? 'border-slate-700 bg-slate-900/90 text-slate-400'
-                    : 'border-slate-200 bg-slate-100/90 text-slate-500'
-                }`}
-              >
-                <tr>
-                  {DISTILLERY_BI_RAW_COLUMNS.map((col) => (
-                    <th
-                      key={col.key}
-                      className={`whitespace-nowrap px-3 py-2.5 font-bold ${
-                        col.kind === 'num' ? 'text-right' : 'text-left'
-                      }`}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className={isDarkMode ? 'divide-y divide-slate-800' : 'divide-y divide-slate-100'}>
-                {[...filteredData].reverse().map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className={isDarkMode ? 'transition-colors hover:bg-slate-800/50' : 'transition-colors hover:bg-slate-50'}
-                  >
-                    {DISTILLERY_BI_RAW_COLUMNS.map((col) => {
-                      if (col.kind === 'modeBadge') {
-                        return (
-                          <td key={col.key} className="px-3 py-2">
-                            <span
-                              className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-bold tracking-wide ${
-                                row.mode === 'B Heavy'
-                                  ? isDarkMode
-                                    ? 'bg-blue-500/20 text-blue-400'
-                                    : 'bg-blue-100 text-blue-800'
-                                  : row.mode === 'C Heavy'
-                                    ? isDarkMode
-                                      ? 'bg-emerald-500/20 text-emerald-400'
-                                      : 'bg-emerald-100 text-emerald-800'
-                                    : row.mode === 'Syrup'
-                                      ? isDarkMode
-                                        ? 'bg-indigo-500/20 text-indigo-400'
-                                        : 'bg-indigo-100 text-indigo-800'
-                                      : isDarkMode
-                                        ? 'bg-purple-500/20 text-purple-400'
-                                        : 'bg-purple-100 text-purple-800'
-                              }`}
-                            >
-                              {row.mode}
-                            </span>
-                          </td>
-                        );
-                      }
-                      const raw = formatDistilleryRawScalar(col.kind, row, col.key);
-                      const display =
-                        raw === null || raw === '' ? '—' : raw;
-                      const isNum = col.kind === 'num';
-                      return (
-                        <td
-                          key={col.key}
-                          className={`whitespace-nowrap px-3 py-2 ${
-                            isNum ? 'text-right font-mono' : 'font-medium'
-                          } ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} ${
-                            col.kind === 'date' ? textClasses.title : ''
-                          }`}
-                        >
-                          {display}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {filteredData.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={DISTILLERY_BI_RAW_COLUMNS.length}
-                      className={`px-6 py-12 text-center font-semibold ${textClasses.muted}`}
-                    >
-                      No data available for the selected filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   );

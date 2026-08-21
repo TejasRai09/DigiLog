@@ -14,12 +14,19 @@ import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import ChartCardToolbar from '../../components/bi/ChartCardToolbar';
 import MillChartExpandModal from '../../components/bi/MillChartExpandModal';
-import MillRawDataTable from '../../components/bi/MillRawDataTable';
 import {
-  buildLogbookColumns,
-  buildLogbookTableRows,
-  collectVariableKeys,
+  filterSeriesByRange,
+  seriesDateBounds,
 } from '../../utils/millingBiRawTable';
+import {
+  applyMillCompareToChart,
+  averageLogbookValues,
+  millCompareLineProps,
+  millExpandLines,
+  millPctDelta,
+} from '../../utils/millingBiComparison';
+import MillComparePct from '../../components/bi/MillComparePct';
+import MillPairedChartTooltip, { MILL_CHART_TOOLTIP_PROPS, MillTooltipAnchor } from '../../components/bi/MillPairedChartTooltip';
 
 /* ─── Sub-tabs ────────────────────────────────────────────────────────────── */
 const SUB_TABS = [
@@ -65,6 +72,8 @@ const GRID_PANELS = [
 ];
 
 /* ─── Data hook ───────────────────────────────────────────────────────────── */
+const MILL_BI_FROM = '2023-03-11';
+
 function useLubeRollerData() {
   const [data, setData] = useState({ mapping: [], series: [] });
   const [loading, setLoading] = useState(true);
@@ -77,7 +86,9 @@ function useLubeRollerData() {
       try {
         setLoading(true);
         setError(null);
-        const { data: resp } = await api.get('/bi/milling-lube-roller');
+        const { data: resp } = await api.get('/bi/milling-lube-roller', {
+          params: { from: MILL_BI_FROM },
+        });
         if (cancelled) return;
         setData({
           mapping: Array.isArray(resp?.mapping) ? resp.mapping : [],
@@ -99,38 +110,12 @@ function useLubeRollerData() {
 }
 
 /* ─── Tooltip ─────────────────────────────────────────────────────────────── */
-function LubeTooltip({ active, payload, label, lines, isDarkMode }) {
-  if (!active || !payload?.length) return null;
-  const entries = payload
-    .map((p) => ({
-      label: lines.find((l) => l.variable === p.dataKey)?.label || p.name || p.dataKey,
-      color: p.color,
-      value: p.value,
-    }))
-    .filter((e) => e.value != null);
-  if (!entries.length) return null;
-  return (
-    <div className={`rounded-xl border p-2 text-[10px] font-bold shadow-xl backdrop-blur-sm ${
-      isDarkMode ? 'border-slate-700 bg-slate-800/95 text-slate-200' : 'border-slate-200 bg-white/95 text-slate-700'
-    }`}>
-      <p className={`mb-1 border-b pb-1 ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-100 text-slate-500'}`}>{label}</p>
-      <div className="space-y-0.5">
-        {entries.map((e, i) => (
-          <div key={i} className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
-              <span className="h-1.5 w-2.5 rounded-full" style={{ backgroundColor: e.color }} />
-              <span>{e.label}</span>
-            </div>
-            <span className="font-mono">{Number(e.value).toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function LubeTooltip(props) {
+  return <MillPairedChartTooltip {...props} valueFormat="plain" />;
 }
 
 /* ─── Summary sub-tab ─────────────────────────────────────────────────────── */
-function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
+function LubeSummaryView({ series, compareSeries = [], compareAlign, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
   const [selectedUnit, setSelectedUnit] = useState('Mill 3');
   const [activeLines, setActiveLines] = useState(() => new Set(ROLLER_PARAMS.map((r) => r.suffix)));
   const [activePressures, setActivePressures] = useState(() => new Set(PRESSURE_PARAMS.map((p) => p.variable)));
@@ -147,28 +132,13 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
     }
   };
 
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
 
-  // Compute averages for the selected unit params
-  const avgValues = useMemo(() => {
-    const sums = {}, counts = {};
-    for (const row of filteredSeries) {
-      for (const [k, v] of Object.entries(row.values || {})) {
-        if (v != null && Number.isFinite(v)) {
-          sums[k] = (sums[k] || 0) + v;
-          counts[k] = (counts[k] || 0) + 1;
-        }
-      }
-    }
-    const out = {};
-    for (const k of Object.keys(sums)) out[k] = sums[k] / counts[k];
-    return out;
-  }, [filteredSeries]);
+  const avgValues = useMemo(() => averageLogbookValues(filteredSeries), [filteredSeries]);
+  const compareAvgs = useMemo(() => averageLogbookValues(compareSeries), [compareSeries]);
 
   // Get the mill prefix from selectedUnit
   const millPrefix = useMemo(() => {
@@ -192,10 +162,14 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
   const chartData = useMemo(() => {
     if (loading || chartLines.length === 0) return [];
     const allVars = chartLines.map((l) => l.variable);
-    return filteredSeries
+    const raw = filteredSeries
       .filter((row) => allVars.some((v) => row.values?.[v] != null && Number.isFinite(row.values[v])))
       .map((row) => {
-        const pt = { label: row.dateIso ? row.dateIso.slice(5).replace('-', '/') : '', timeIso: row.timeIso };
+        const pt = {
+          label: row.dateIso ? row.dateIso.slice(5).replace('-', '/') : '',
+          dateIso: row.dateIso,
+          timeIso: row.timeIso,
+        };
         for (const { variable } of chartLines) {
           const v = row.values?.[variable];
           pt[variable] = v != null && Number.isFinite(v) ? Number(v) : null;
@@ -203,7 +177,8 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
         return pt;
       })
       .sort((a, b) => (a.timeIso || '').localeCompare(b.timeIso || ''));
-  }, [filteredSeries, chartLines, loading]);
+    return applyMillCompareToChart(raw, chartLines, compareSeries, compareAlign);
+  }, [filteredSeries, chartLines, loading, compareSeries, compareAlign]);
 
   // Params for the LHS card
   const paramItems = useMemo(() => {
@@ -213,6 +188,7 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
         label: p.label,
         color: p.color,
         value: avgValues[p.variable],
+        compareValue: compareAvgs[p.variable],
         unit: p.unit,
         isActive: activePressures.has(p.variable),
       }));
@@ -224,11 +200,12 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
         label: r.label,
         color: r.color,
         value: avgValues[variable],
+        compareValue: compareAvgs[variable],
         unit: '°C',
         isActive: activeLines.has(r.suffix),
       };
     });
-  }, [isPressureMode, avgValues, activePressures, activeLines, millPrefix]);
+  }, [isPressureMode, avgValues, compareAvgs, activePressures, activeLines, millPrefix]);
 
   const toggleParam = (key) => {
     if (isPressureMode) {
@@ -324,11 +301,20 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
                       {item.label}
                     </span>
                   </div>
-                  <span className={`font-mono text-xs font-black ${item.isActive ? textClasses.title : textClasses.muted}`}>
+                  <span className={`flex flex-col items-end font-mono text-xs font-black ${item.isActive ? textClasses.title : textClasses.muted}`}>
                     {loading
                       ? '—'
                       : item.value != null
-                        ? `${item.value.toFixed(2)} ${item.unit}`
+                        ? (
+                          <>
+                            <span>{`${item.value.toFixed(2)} ${item.unit}`}</span>
+                            <MillComparePct
+                              pct={millPctDelta(item.value, item.compareValue)}
+                              inverseGood={!isPressureMode}
+                              isDarkMode={isDarkMode}
+                            />
+                          </>
+                        )
                         : `— ${item.unit}`}
                   </span>
                 </button>
@@ -352,7 +338,7 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
                 isDarkMode={isDarkMode}
                 onExpand={() => onExpand?.({
                   title: `${selectedUnit} — Daily Trend Curves`,
-                  lines: chartLines,
+                  lines: millExpandLines(chartLines),
                   chartData,
                 })}
               />
@@ -360,7 +346,7 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
           </div>
 
           {/* Chart */}
-          <div className="flex-1 min-h-0">
+          <MillTooltipAnchor className="relative z-20 min-h-0 flex-1 overflow-visible">
             {loading ? (
               <div className="flex h-full items-center justify-center"><Spinner size="md" /></div>
             ) : chartData.length === 0 ? (
@@ -374,16 +360,22 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
                   <XAxis dataKey="label" tick={{ ...axisStyle, fontSize: 9 }} stroke={isDarkMode ? '#334155' : '#cbd5e1'} interval="preserveStartEnd" />
                   <YAxis tick={{ ...axisStyle, fontSize: 9 }} stroke={isDarkMode ? '#334155' : '#cbd5e1'}
                     domain={isPressureMode ? [1.5, 5] : [15, 65]} />
-                  <Tooltip content={(props) => <LubeTooltip {...props} lines={chartLines} isDarkMode={isDarkMode} />} />
+                  <Tooltip
+                    {...MILL_CHART_TOOLTIP_PROPS}
+                    content={(props) => <LubeTooltip {...props} lines={chartLines} isDarkMode={isDarkMode} />}
+                  />
                   <Legend wrapperStyle={{ fontSize: 9, fontWeight: 'bold' }} iconType="circle" />
                   {chartLines.map((l) => (
                     <Line key={l.variable} type="monotone" dataKey={l.variable} name={l.label}
                       stroke={l.color} strokeWidth={2.5} dot={false} connectNulls isAnimationActive={false} />
                   ))}
+                  {chartLines.map((l) => (
+                    <Line key={`${l.variable}-cmp`} {...millCompareLineProps(l)} />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </MillTooltipAnchor>
         </div>
       </div>
     </div>
@@ -391,13 +383,11 @@ function LubeSummaryView({ series, loading, error, fromDate, toDate, isDarkMode,
 }
 
 /* ─── Grid sub-tab ────────────────────────────────────────────────────────── */
-function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+function LubeGridView({ series, compareSeries = [], compareAlign, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
 
   if (error) return (
     <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
@@ -409,13 +399,17 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
     <div className="flex h-full min-h-0 flex-col">
       <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-12 gap-3">
       {GRID_PANELS.map((panel) => {
-        const chartData = loading ? [] : filteredSeries
+        const rawPoints = loading ? [] : filteredSeries
           .filter((row) => panel.lines.some(({ variable }) => {
             const v = row.values?.[variable];
             return v != null && Number.isFinite(v);
           }))
           .map((row) => {
-            const pt = { label: row.dateIso ? row.dateIso.slice(5).replace('-', '/') : '', timeIso: row.timeIso };
+            const pt = {
+              label: row.dateIso ? row.dateIso.slice(5).replace('-', '/') : '',
+              dateIso: row.dateIso,
+              timeIso: row.timeIso,
+            };
             for (const { variable } of panel.lines) {
               const v = row.values?.[variable];
               pt[variable] = v != null && Number.isFinite(v) ? Number(v) : null;
@@ -423,6 +417,7 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
             return pt;
           })
           .sort((a, b) => (a.timeIso || '').localeCompare(b.timeIso || ''));
+        const chartData = applyMillCompareToChart(rawPoints, panel.lines, compareSeries, compareAlign);
 
         return (
           <div key={panel.key} className={`col-span-12 flex min-h-0 flex-col rounded-2xl border p-4 md:col-span-6 ${cardClasses}`}>
@@ -435,13 +430,13 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
                 }`}>{loading ? 'Loading…' : `${chartData.length} pts`}</span>
                 <ChartCardToolbar
                   isDarkMode={isDarkMode}
-                  onExpand={() => onExpand?.({ title: panel.title, lines: panel.lines, chartData })}
+                  onExpand={() => onExpand?.({ title: panel.title, lines: millExpandLines(panel.lines), chartData })}
                 />
               </div>
             </div>
 
             {/* Chart */}
-            <div className="flex-1 min-h-0">
+            <MillTooltipAnchor className="relative z-20 min-h-0 flex-1 overflow-visible">
               {loading ? (
                 <div className="flex h-full items-center justify-center"><Spinner size="md" /></div>
               ) : chartData.length === 0 ? (
@@ -454,15 +449,21 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
                     <CartesianGrid strokeDasharray="3 3" vertical={false} {...gridStyle} />
                     <XAxis dataKey="label" tick={{ ...axisStyle, fontSize: 8 }} stroke={isDarkMode ? '#334155' : '#cbd5e1'} interval="preserveStartEnd" />
                     <YAxis tick={{ ...axisStyle, fontSize: 8 }} stroke={isDarkMode ? '#334155' : '#cbd5e1'} domain={panel.domain} />
-                    <Tooltip content={(props) => <LubeTooltip {...props} lines={panel.lines} isDarkMode={isDarkMode} />} />
+                    <Tooltip
+                      {...MILL_CHART_TOOLTIP_PROPS}
+                      content={(props) => <LubeTooltip {...props} lines={panel.lines} isDarkMode={isDarkMode} />}
+                    />
                     {panel.lines.map((l) => (
                       <Line key={l.variable} type="monotone" dataKey={l.variable} name={l.label}
                         stroke={l.color} strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
                     ))}
+                    {panel.lines.map((l) => (
+                      <Line key={`${l.variable}-cmp`} {...millCompareLineProps(l)} />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               )}
-            </div>
+            </MillTooltipAnchor>
 
             {/* Legend */}
             <div className="mt-2 flex shrink-0 flex-wrap gap-x-3 gap-y-0.5">
@@ -485,18 +486,31 @@ function LubeGridView({ series, loading, error, fromDate, toDate, isDarkMode, ca
 export default function MillLubeRollerTab({
   fromDate,
   toDate,
+  compareFrom,
+  compareTo,
+  comparisonType,
+  seasonLabel,
+  seasonMapping = {},
+  bySeasonDay = false,
+  comparisonLabel,
   isDarkMode,
   cardClasses,
   textClasses,
   axisStyle,
   gridStyle,
   periodLabel,
-  viewMode = 'dashboard',
+  onDateBounds,
 }) {
   const [activeSubTab, setActiveSubTab] = useState('summary');
   const [selectedShift, setSelectedShift] = useState('All');
   const [expandedChart, setExpandedChart] = useState(null);
   const { data, loading, error, reload } = useLubeRollerData();
+
+  useEffect(() => {
+    if (!onDateBounds) return;
+    const { min, max } = seriesDateBounds(data.series);
+    if (min && max) onDateBounds(min, max);
+  }, [data.series, onDateBounds]);
 
   const availableShifts = useMemo(() => {
     const set = new Set();
@@ -513,15 +527,13 @@ export default function MillLubeRollerTab({
       : data.series.filter((r) => (r.shift || '').trim().toUpperCase() === selectedShift),
     [data.series, selectedShift]);
 
-  const subLabel = SUB_TABS.find((t) => t.id === activeSubTab)?.label || '';
-  const variableKeys = useMemo(() => collectVariableKeys(filteredByShift), [filteredByShift]);
-  const rawColumns = useMemo(
-    () => buildLogbookColumns(data.mapping, variableKeys),
-    [data.mapping, variableKeys],
+  const compareAlign = useMemo(
+    () => ({ comparisonType, fromDate, compareFrom, seasonLabel, seasonMapping, bySeasonDay }),
+    [comparisonType, fromDate, compareFrom, seasonLabel, seasonMapping, bySeasonDay],
   );
-  const rawRows = useMemo(
-    () => buildLogbookTableRows(filteredByShift, variableKeys, fromDate, toDate, selectedShift),
-    [filteredByShift, variableKeys, fromDate, toDate, selectedShift],
+  const compareSeries = useMemo(
+    () => (compareFrom && compareTo ? filterSeriesByRange(filteredByShift, compareFrom, compareTo) : []),
+    [filteredByShift, compareFrom, compareTo],
   );
 
   return (
@@ -559,6 +571,11 @@ export default function MillLubeRollerTab({
               {sh}
             </button>
           ))}
+          {comparisonLabel ? (
+            <span className={`ml-1 max-w-[14rem] truncate text-[9px] font-bold ${textClasses.muted}`} title={comparisonLabel}>
+              vs {comparisonLabel}
+            </span>
+          ) : null}
         </div>
 
         <button type="button" onClick={reload}
@@ -572,26 +589,11 @@ export default function MillLubeRollerTab({
 
       {/* Content */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        {viewMode === 'table' ? (
-          error ? (
-            <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
-              isDarkMode ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : 'border-rose-200 bg-rose-50 text-rose-900'
-            }`}>{error}</div>
-          ) : (
-            <MillRawDataTable
-              title={`Lube & Roller Temp — ${subLabel}`}
-              periodLabel={periodLabel}
-              columns={rawColumns}
-              rows={rawRows}
-              loading={loading}
-              isDarkMode={isDarkMode}
-              cardClasses={cardClasses}
-              textClasses={textClasses}
-            />
-          )
-        ) : activeSubTab === 'summary' ? (
+        {activeSubTab === 'summary' ? (
           <LubeSummaryView
             series={filteredByShift}
+            compareSeries={compareSeries}
+            compareAlign={compareAlign}
             loading={loading}
             error={error}
             fromDate={fromDate}
@@ -606,6 +608,8 @@ export default function MillLubeRollerTab({
         ) : (
           <LubeGridView
             series={filteredByShift}
+            compareSeries={compareSeries}
+            compareAlign={compareAlign}
             loading={loading}
             error={error}
             fromDate={fromDate}

@@ -3,6 +3,11 @@ const xlsx = require('xlsx');
 const { pool } = require('../../config/mysql');
 const { excelDateToISO, minMaxDates } = require('../../utils/excelDateUtils');
 const { validateRequiredHeaders, headersFromSheet } = require('../../utils/excelColumnValidation');
+const {
+  pickStr,
+  seasonLabelForDate,
+  loadSeasonMappings,
+} = require('./centreIndentPurchaseMeta');
 
 const BATCH_SIZE = 1000;
 
@@ -35,17 +40,20 @@ function num(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function mapIndentRow(r) {
+function mapIndentRow(r, seasonMappings = []) {
+  const indent_date = excelDateToISO(r['Indent Date']);
   return {
     code: str(r['Code']),
     center_name: str(r['Center Name']),
-    indent_date: excelDateToISO(r['Indent Date']),
+    indent_date,
     no_of_purchy: r['No of Purchy'] != null && r['No of Purchy'] !== '' ? parseInt(r['No of Purchy'], 10) || 0 : 0,
     indent_qty: num(r['Qty in Qtls']),
     category: str(r['Category']),
-    unique_id: str(r['Unique ID']),
-    bonding_id: str(r['Bonding Id']),
-    season_label: str(r['SeasonLabelIndent']),
+    unique_id: pickStr(r, ['Unique ID', 'UniqueID', 'unique_id']),
+    bonding_id: pickStr(r, ['Bonding Id', 'Bonding ID', 'bonding_id']),
+    season_label:
+      pickStr(r, ['SeasonLabelIndent', 'Season Label', 'SeasonLabel', 'season_label'])
+      || seasonLabelForDate(indent_date, seasonMappings),
   };
 }
 
@@ -81,11 +89,12 @@ async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheet
 
   try {
     const existingDates = await loadExistingDates(conn, 'indent_date');
+    const seasonMappings = await loadSeasonMappings(conn);
     log('dedup', `Found ${existingDates.size} existing indent dates in DB.`);
 
     let batch = [];
     for (let i = 0; i < rows.length; i += 1) {
-      const mapped = mapIndentRow(rows[i]);
+      const mapped = mapIndentRow(rows[i], seasonMappings);
       if (!mapped.indent_date) {
         skipped += 1;
         continue;

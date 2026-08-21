@@ -1,6 +1,9 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
-const { whereAnd, slugId, pctRatio, LOYALTY_COLORS, VARIETY_COLORS } = require('./purchyDrilldownUtils');
+const { slugId, pctRatio, LOYALTY_COLORS, VARIETY_COLORS } = require('./purchyDrilldownUtils');
+const {
+  gsFromIndent,
+} = require('./purchyPbiFacts');
 
 const HIERARCHY_COLS = [
   { key: 'zone', col: 'zone_head', title: 'ZONE HEAD' },
@@ -10,9 +13,9 @@ const HIERARCHY_COLS = [
   { key: 'village', col: 'village_name_key', title: 'VILLAGE_NAME_KEY' },
 ];
 
-async function queryOne(sql, params) {
-  const [[row]] = await pool.query(sql, params);
-  return row || {};
+function staffLabel(value) {
+  const s = value == null ? '' : String(value).trim();
+  return s || 'Unassigned';
 }
 
 function ensureStaffJoin(ctx) {
@@ -38,11 +41,12 @@ function nestHierarchyRows(rows) {
 
   rows.forEach((row) => {
     let parentChildren = root.children;
-    let parentNode = root;
+    const path = [];
 
     levelKeys.forEach((col) => {
       const label = row[col] || 'Unassigned';
-      const id = slugId(`${col}-${label}`);
+      path.push(`${col}:${label}`);
+      const id = slugId(path.join('|'));
       let node = parentChildren.find((n) => n.id === id);
       if (!node) {
         node = {
@@ -58,56 +62,152 @@ function nestHierarchyRows(rows) {
       node.indentCnt += Number(row.indent_cnt) || 0;
       node.dishonourCnt += Number(row.dishonour_cnt) || 0;
       node.growerCount += Number(row.grower_count) || 0;
-      parentNode = node;
       parentChildren = node.children;
     });
   });
 
   function finalize(node) {
     node.value = Number((pctRatio(node.dishonourCnt, node.indentCnt) * 100).toFixed(2));
-    node.children.sort((a, b) => b.value - a.value);
     node.children.forEach(finalize);
+    node.children.sort((a, b) => {
+      const aUn = a.name === 'Unassigned' ? 1 : 0;
+      const bUn = b.name === 'Unassigned' ? 1 : 0;
+      if (aUn !== bUn) return aUn - bUn;
+      return b.value - a.value;
+    });
   }
 
   root.indentCnt = rows.reduce((s, r) => s + (Number(r.indent_cnt) || 0), 0);
   root.dishonourCnt = rows.reduce((s, r) => s + (Number(r.dishonour_cnt) || 0), 0);
   root.growerCount = rows.reduce((s, r) => s + (Number(r.grower_count) || 0), 0);
-  root.children.forEach(finalize);
+  finalize(root);
 
   return root;
 }
 
+async function loadStaffByVillage() {
+  const [rows] = await pool.query(`
+    SELECT village_code, zone_head, zonal_manager, zonal_incharge, village_staff, village_name
+    FROM purchy_field_staff
+  `);
+  const map = new Map();
+  for (const r of rows) {
+    if (r.village_code == null || map.has(r.village_code)) continue;
+    map.set(r.village_code, r);
+  }
+  return map;
+}
+
 async function getStaffDrilldown(query) {
-  const ctx = ensureStaffJoin(buildFilterContext(query));
+  const ctx = buildFilterContext(query);
+  const factCtx = ctx.needsStaff ? ensureStaffJoin(ctx) : ctx;
 
-  const flatSql = `
-    SELECT
-      COALESCE(NULLIF(TRIM(fs.zone_head), ''), 'Unassigned') AS zone_head,
-      COALESCE(NULLIF(TRIM(fs.zonal_manager), ''), 'Unassigned') AS zonal_manager,
-      COALESCE(NULLIF(TRIM(fs.zonal_incharge), ''), 'Unassigned') AS zonal_incharge,
-      COALESCE(NULLIF(TRIM(fs.village_staff), ''), 'Unassigned') AS village_staff,
-      gs.village_name_key,
-      COUNT(*) AS grower_count,
-      IFNULL(SUM(gs.no_of_purchy_indent), 0) AS indent_cnt,
-      IFNULL(SUM(gs.no_of_indent_failer_purchy), 0) AS dishonour_cnt
-    FROM purchy_grower_summary_v gs
-    ${ctx.joins}
-    ${ctx.whereSql}
-    GROUP BY zone_head, zonal_manager, zonal_incharge, village_staff, gs.village_name_key
-  `;
+  const unfiltered = !factCtx.whereSql && !factCtx.joins;
 
-  const [flatRows] = await pool.query(flatSql, ctx.params);
+  const indentSql = unfiltered
+    ? `SELECT gs.village_code AS village_code,
+        SUM(gs.no_of_purchy_indent) AS indent_cnt,
+        COUNT(DISTINCT gs.grower_code) AS grower_count
+       FROM purchy_grower_summary gs
+       GROUP BY gs.village_code`
+    : `SELECT
+        gs.village_code,
+        MAX(gs.village_name_key) AS village_name_key,
+        SUM(gs.no_of_purchy_indent) AS indent_cnt,
+        COUNT(DISTINCT gs.grower_code) AS grower_count
+      FROM purchy_grower_summary_v gs
+      ${factCtx.joins}
+      ${factCtx.whereSql}
+      GROUP BY gs.village_code`;
+
+  const dishonourSql = unfiltered
+    ? `SELECT gs.village_code AS village_code, SUM(gs.no_of_indent_failer_purchy) AS dishonour_cnt
+       FROM purchy_grower_summary gs
+       GROUP BY gs.village_code`
+    : `SELECT
+        gs.village_code,
+        SUM(gs.no_of_indent_failer_purchy) AS dishonour_cnt
+      FROM purchy_grower_summary_v gs
+      ${factCtx.joins}
+      ${factCtx.whereSql}
+      GROUP BY gs.village_code`;
+
+  const [indentRows, dishonourRows, staffByVillage] = await Promise.all([
+    pool.query(indentSql, factCtx.params).then(([rows]) => rows),
+    pool.query(dishonourSql, factCtx.params).then(([rows]) => rows),
+    loadStaffByVillage(),
+  ]);
+
+  const dhByVillage = new Map();
+  for (const r of dishonourRows) {
+    dhByVillage.set(Number(r.village_code), Number(r.dishonour_cnt) || 0);
+  }
+
+  const flatRows = indentRows.map((r) => {
+    const villageCode = Number(r.village_code);
+    const staff = staffByVillage.get(villageCode);
+    const villageNameKey = staff
+      ? `${staff.village_code}-${staff.village_name || ''}`.replace(/-$/, '') || r.village_name_key
+      : r.village_name_key;
+    return {
+      zone_head: staffLabel(staff?.zone_head),
+      zonal_manager: staffLabel(staff?.zonal_manager),
+      zonal_incharge: staffLabel(staff?.zonal_incharge),
+      village_staff: staffLabel(staff?.village_staff),
+      village_name_key: villageNameKey || 'Unassigned',
+      grower_count: Number(r.grower_count) || 0,
+      indent_cnt: Number(r.indent_cnt) || 0,
+      dishonour_cnt: dhByVillage.get(villageCode) || 0,
+    };
+  });
+
   const nestedTree = nestHierarchyRows(flatRows);
 
-  const [loyaltyRows] = await pool.query(
-    `SELECT gs.loyalty_slicer AS label, COUNT(*) AS count
-     FROM purchy_grower_summary_v gs
-     ${ctx.joins}
-     ${ctx.whereSql}
-     GROUP BY gs.loyalty_slicer
-     ORDER BY count DESC`,
-    ctx.params,
-  );
+  const chartCtx = factCtx;
+
+  const [loyaltyRows, varietyRows, villageOpts, societyOpts] = await Promise.all([
+    pool.query(
+      `SELECT gs.loyalty_slicer AS label, COUNT(*) AS count
+       FROM purchy_grower_summary_v gs
+       ${chartCtx.joins}
+       ${chartCtx.whereSql}
+       GROUP BY gs.loyalty_slicer
+       ORDER BY count DESC`,
+      chartCtx.params,
+    ).then(([rows]) => rows),
+    pool.query(
+      unfiltered
+        ? `SELECT COALESCE(NULLIF(TRIM(varietyname), ''), 'Unknown') AS name, COUNT(*) AS cnt
+           FROM purchy_supply
+           GROUP BY name
+           ORDER BY cnt DESC
+           LIMIT 5`
+        : `SELECT
+            COALESCE(NULLIF(TRIM(s.varietyname), ''), 'Unknown') AS name,
+            COUNT(*) AS cnt
+          FROM purchy_supply s
+          INNER JOIN purchy_grower_summary_v gs
+            ON s.villagecode = gs.village_code AND s.growercode = gs.grower_code
+          ${chartCtx.joins}
+          ${chartCtx.whereSql}
+          GROUP BY name
+          ORDER BY cnt DESC
+          LIMIT 5`,
+      chartCtx.params,
+    ).then(([rows]) => rows),
+    pool.query(
+      `SELECT DISTINCT gs.village_name_key AS value
+       FROM purchy_grower_summary_v gs ${chartCtx.joins} ${chartCtx.whereSql}
+       ORDER BY value LIMIT 500`,
+      chartCtx.params,
+    ).then(([rows]) => rows),
+    pool.query(
+      `SELECT DISTINCT gs.society_name AS value
+       FROM purchy_grower_summary_v gs ${chartCtx.joins} ${chartCtx.whereSql}
+       ORDER BY value`,
+      chartCtx.params,
+    ).then(([rows]) => rows),
+  ]);
 
   const loyaltyTotal = loyaltyRows.reduce((s, r) => s + Number(r.count), 0) || 1;
   const loyaltyDonut = loyaltyRows.map((r) => {
@@ -121,21 +221,6 @@ async function getStaffDrilldown(query) {
     };
   });
 
-  const [varietyRows] = await pool.query(
-    `SELECT
-      COALESCE(NULLIF(TRIM(s.varietyname), ''), 'Unknown') AS name,
-      COUNT(*) AS cnt
-    FROM purchy_supply s
-    INNER JOIN purchy_grower_summary_v gs
-      ON s.villagecode = gs.village_code AND s.growercode = gs.grower_code
-    ${ctx.joins}
-    ${ctx.whereSql}
-    GROUP BY name
-    ORDER BY cnt DESC
-    LIMIT 5`,
-    ctx.params,
-  );
-
   const varietyTotal = varietyRows.reduce((s, r) => s + Number(r.cnt), 0) || 1;
   const varietyTreemap = varietyRows.map((r, idx) => ({
     name: r.name,
@@ -144,28 +229,11 @@ async function getStaffDrilldown(query) {
     count: `${(Number(r.cnt) / 1000).toFixed(1)}K`,
   }));
 
-  const [villageOpts] = await pool.query(
-    `SELECT DISTINCT gs.village_name_key AS value
-     FROM purchy_grower_summary_v gs ${ctx.joins} ${ctx.whereSql}
-     ORDER BY value LIMIT 500`,
-    ctx.params,
-  );
-
-  const [societyOpts] = await pool.query(
-    `SELECT DISTINCT gs.society_name AS value
-     FROM purchy_grower_summary_v gs ${ctx.joins} ${ctx.whereSql}
-     ORDER BY value`,
-    ctx.params,
-  );
-
-  const rootValue = nestedTree.value;
-  const rootPct = pctRatio(nestedTree.dishonourCnt, nestedTree.indentCnt);
-
   return {
-    rootPct,
-    rootValue,
+    rootPct: pctRatio(nestedTree.dishonourCnt, nestedTree.indentCnt),
+    rootValue: nestedTree.value,
     rootLabel: '2025 Dishonour % (Count)',
-    growerCount: nestedTree.growerCount,
+    growerCount: loyaltyTotal,
     nestedTree,
     loyaltyDonut,
     varietyTreemap,

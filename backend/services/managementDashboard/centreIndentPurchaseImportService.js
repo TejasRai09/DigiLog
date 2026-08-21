@@ -1,7 +1,9 @@
 const fs = require('fs');
 const xlsx = require('xlsx');
+const { pool } = require('../../config/mysql');
 const { runCentreIndentImport } = require('./centreIndentImportService');
 const { runCentrePurchaseImport } = require('./centrePurchaseImportService');
+const { backfillSeasonLabels } = require('./centreIndentPurchaseMeta');
 
 function combineDateRange(a = {}, b = {}) {
   const mins = [a.dateMin, b.dateMin].filter(Boolean).sort();
@@ -45,6 +47,13 @@ async function runCentreIndentPurchaseImport({ filePath, onProgress }) {
     sheetIndex: 1,
     onProgress,
   });
+
+  const conn = await pool.getConnection();
+  try {
+    await backfillSeasonLabels(conn);
+  } finally {
+    conn.release();
+  }
 
   const { dateMin, dateMax } = combineDateRange(indent, purchase);
   const imported = (indent.imported || 0) + (purchase.imported || 0);
