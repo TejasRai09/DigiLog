@@ -3,19 +3,26 @@ import { MdNaturePeople } from 'react-icons/md';
 import api from '../../api/axios';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
 import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
-import { getMtdRangeForDashboard, resolveDashboardToDate } from '../../utils/distilleryBiDateRange';
+import {
+  resolveDashboardToDate,
+  formatYMD,
+} from '../../utils/distilleryBiDateRange';
+import {
+  applyCockpitCompareSelection,
+  buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
+  getCockpitPresetDateRange,
+  getCockpitSeasonLabels,
+  resolveCockpitCompareRange,
+} from '../../utils/biCockpitDateFilters';
 import {
   TrendingUp,
   TrendingDown,
   Info,
   Award,
-  Sun,
-  Moon,
-  Calendar,
   Search,
   Wheat,
   ShoppingCart,
-  RefreshCw
 } from 'lucide-react';
 
 // ─── Maturity gradient helper (Power BI: #D64550 → #33DE41) ─────
@@ -247,139 +254,186 @@ export default function CentreMaturityDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [rangePreset, setRangePreset] = useState('MTD'); // MTD | STD | YTD | Custom
-  const [selectedSeason, setSelectedSeason] = useState('');
-  const [selectedCompSeason, setSelectedCompSeason] = useState('');
-  
+  const [rangePreset, setRangePreset] = useState('STD'); // MTD | STD | WTD | Custom
+  const [comparisonType, setComparisonType] = useState('PP');
+
   // API Live Data State
   const [centers, setCenters] = useState([]);
   const [seasonKpi, setSeasonKpi] = useState({
     indentQty: { value: '0', change: null, variance: null, isUp: true },
     purchaseQty: { value: '0', change: null, variance: null, isUp: true },
     maturity: { value: 0, variance: null, change: null, isUp: true },
-    baseSeason: '',
-    compSeason: '',
     hasCompare: false,
+    compareLabel: '',
   });
-  const [availableSeasons, setAvailableSeasons] = useState([]);
-  const [compSeasons, setCompSeasons] = useState([]);
   const [seasonMapping, setSeasonMapping] = useState({});
   const [dbMaxDate, setDbMaxDate] = useState(null);
   const [dbMinDateStr, setDbMinDateStr] = useState('');
   const [dbMaxDateStr, setDbMaxDateStr] = useState('');
   const [loading, setLoading] = useState(true);
   const dateSeededRef = useRef(false);
+  const fetchGenRef = useRef(0);
+  const dateFromRef = useRef(dateFrom);
+  const dateToRef = useRef(dateTo);
+  const rangePresetRef = useRef(rangePreset);
+  dateFromRef.current = dateFrom;
+  dateToRef.current = dateTo;
+  rangePresetRef.current = rangePreset;
 
-  // Fetch Live Data from Backend
+  const clampToData = useCallback((iso) => {
+    if (!iso) return iso;
+    if (dbMinDateStr && iso < dbMinDateStr) return dbMinDateStr;
+    if (dbMaxDateStr && iso > dbMaxDateStr) return dbMaxDateStr;
+    return iso;
+  }, [dbMinDateStr, dbMaxDateStr]);
+
+  const seasonLabels = useMemo(() => {
+    const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
+    return getCockpitSeasonLabels(refIso, seasonMapping);
+  }, [dateTo, dbMaxDateStr, seasonMapping]);
+
+  useEffect(() => {
+    api.get('/bi/settings')
+      .then((r) => {
+        if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
+          setSeasonMapping((prev) => ({ ...r.data.seasonMapping, ...prev }));
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  const comparisonOptions = useMemo(() => {
+    const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, dateTo, dbMaxDateStr]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: dateFrom,
+      toDate: dateTo,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dbMinDateStr,
+      dataMax: dbMaxDateStr,
+      setComparisonType,
+    });
+  }, [dateFrom, dateTo, rangePreset, seasonMapping, seasonLabels, dbMinDateStr, dbMaxDateStr]);
+
+  const resolveCompareRange = useCallback((from, to) => {
+    if (!from || !to) return null;
+    const resolved = resolveCockpitCompareRange(
+      from,
+      to,
+      comparisonType,
+      seasonLabels,
+      seasonMapping,
+      rangePreset,
+    );
+    if (!resolved?.start || !resolved?.end) return null;
+    return {
+      from: resolved.start,
+      to: resolved.end,
+      label: resolved.label || (comparisonType === 'PP' ? 'Prev. Period' : ''),
+    };
+  }, [comparisonType, rangePreset, seasonLabels, seasonMapping]);
+
+  const compareBadgeLabel = useMemo(() => {
+    const cmp = resolveCompareRange(dateFrom, dateTo);
+    return cmp?.label ? `vs ${cmp.label}` : 'vs Prev. Period';
+  }, [resolveCompareRange, dateFrom, dateTo]);
+
   const fetchData = useCallback(async () => {
+    const gen = ++fetchGenRef.current;
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (dateFrom) params.append('from', dateFrom);
       if (dateTo) params.append('to', dateTo);
-      if (selectedSeason) params.append('season', selectedSeason);
-      if (selectedCompSeason) params.append('compSeason', selectedCompSeason);
+      const cmp = resolveCompareRange(dateFrom, dateTo);
+      if (cmp?.from) params.append('pyFrom', cmp.from);
+      if (cmp?.to) params.append('pyTo', cmp.to);
+      if (cmp?.label) params.append('compareLabel', cmp.label);
 
       const res = await api.get(`/bi/centre-maturity/data?${params.toString()}`);
-      if (res.data) {
-        setCenters(res.data.centers || []);
-        if (res.data.seasonKpi) setSeasonKpi(res.data.seasonKpi);
-        if (res.data.availableSeasons) setAvailableSeasons(res.data.availableSeasons);
-        if (res.data.compSeasons) setCompSeasons(res.data.compSeasons);
-        if (res.data.seasonMapping) setSeasonMapping(res.data.seasonMapping);
-        if (res.data.dateRange?.maxDate) setDbMaxDate(new Date(res.data.dateRange.maxDate));
-        // Seed date range to data min/max on very first successful fetch
-        if (!dateSeededRef.current && res.data.dateRange) {
-          const minStr = res.data.dateRange.minDate
-            ? String(res.data.dateRange.minDate).slice(0, 10)
-            : '';
-          const maxStr = res.data.dateRange.maxDate
-            ? String(res.data.dateRange.maxDate).slice(0, 10)
-            : '';
-          if (minStr) setDbMinDateStr(minStr);
-          if (maxStr) setDbMaxDateStr(maxStr);
-          if (minStr && maxStr && !dateFrom && !dateTo) {
-            dateSeededRef.current = true;
-            const mtd = getMtdRangeForDashboard(null, maxStr);
-            const clamp = (iso) => {
-              if (!iso) return iso;
-              if (iso < minStr) return minStr;
-              if (iso > maxStr) return maxStr;
-              return iso;
-            };
-            setRangePreset('MTD');
-            setDateFrom(clamp(mtd.from) || minStr);
-            setDateTo(clamp(mtd.to) || maxStr);
-          }
-        }
+      if (gen !== fetchGenRef.current) return;
+      if (!res.data) return;
+
+      const mappingFromApi = (res.data.seasonMapping && typeof res.data.seasonMapping === 'object')
+        ? res.data.seasonMapping
+        : null;
+      if (mappingFromApi) {
+        setSeasonMapping((prev) => ({ ...prev, ...mappingFromApi }));
       }
+      if (res.data.dateRange?.maxDate) setDbMaxDate(new Date(res.data.dateRange.maxDate));
+
+      const minStr = res.data.dateRange?.minDate
+        ? String(res.data.dateRange.minDate).slice(0, 10)
+        : '';
+      const maxStr = res.data.dateRange?.maxDate
+        ? String(res.data.dateRange.maxDate).slice(0, 10)
+        : '';
+      if (minStr) setDbMinDateStr(minStr);
+      if (maxStr) setDbMaxDateStr(maxStr);
+
+      const userAlreadyPickedDates = Boolean(dateFromRef.current && dateToRef.current);
+
+      // First response often has no From/To yet. Seed STD dates and wait —
+      // do not paint the unfiltered (all-time) totals as STD.
+      if (!dateFrom && !dateTo) {
+        if (!userAlreadyPickedDates && minStr && maxStr && rangePresetRef.current === 'STD') {
+          dateSeededRef.current = true;
+          const toIso = resolveDashboardToDate(null, maxStr);
+          const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
+          const mappingForSeed = mappingFromApi
+            ? { ...seasonMapping, ...mappingFromApi }
+            : seasonMapping;
+          const std = getCockpitPresetDateRange('STD', ref, mappingForSeed);
+          const clamp = (iso) => {
+            if (!iso) return iso;
+            if (iso < minStr) return minStr;
+            if (iso > maxStr) return maxStr;
+            return iso;
+          };
+          setDateFrom(clamp(std.from) || minStr);
+          setDateTo(clamp(std.to) || maxStr);
+        }
+        return;
+      }
+
+      dateSeededRef.current = true;
+      setCenters(res.data.centers || []);
+      if (res.data.seasonKpi) setSeasonKpi(res.data.seasonKpi);
     } catch (err) {
+      if (gen !== fetchGenRef.current) return;
       console.error('Failed to load Centre Maturity BI data:', err);
     } finally {
-      setLoading(false);
+      if (gen === fetchGenRef.current) setLoading(false);
     }
-  }, [dateFrom, dateTo, selectedSeason, selectedCompSeason]);
+  }, [dateFrom, dateTo, resolveCompareRange]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
   const handleQuickDate = (type) => {
+    if (type === 'Custom') {
+      setRangePreset('Custom');
+      return;
+    }
     const toIso = resolveDashboardToDate(null, dbMaxDateStr);
     const today = toIso
       ? new Date(`${toIso}T12:00:00`)
       : (dbMaxDate || new Date());
-    const year = today.getFullYear();
-    const month = today.getMonth(); // 0-indexed: 9 is October
-    
-    // Find the relevant season (either selected or the one that contains 'today')
-    let activeSeasonLabel = selectedSeason;
-    if (!activeSeasonLabel && Object.keys(seasonMapping).length > 0) {
-      // Find which season today falls into
-      for (const [label, mapping] of Object.entries(seasonMapping)) {
-        const sStart = new Date(mapping.startDate);
-        const sEnd = new Date(mapping.endDate);
-        if (today >= sStart && today <= sEnd) {
-          activeSeasonLabel = label;
-          break;
-        }
-      }
-      // Fallback to the latest season if today doesn't fall in any
-      if (!activeSeasonLabel) {
-        const sorted = Object.keys(seasonMapping).sort().reverse();
-        activeSeasonLabel = sorted[0];
-      }
-    }
-
-    // STD: Starts from the exact start_date of the active season, OR Oct 1st fallback
-    let stdStart;
-    if (activeSeasonLabel && seasonMapping[activeSeasonLabel]) {
-      stdStart = new Date(seasonMapping[activeSeasonLabel].startDate);
-    } else {
-      let stdYear = year;
-      if (month < 9) stdYear -= 1; 
-      stdStart = new Date(stdYear, 9, 1);
-    }
-
-    // YTD: Starts from Jan 1st of the current calendar year
-    const ytdStart = new Date(year, 0, 1);
-    
-    // MTD: Starts 1st of current month
-    const mtdStart = new Date(year, month, 1);
-
-    const formatDate = (d) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    };
-    
+    const { from, to } = getCockpitPresetDateRange(type, today, seasonMapping);
+    setDateFrom(clampToData(from));
+    setDateTo(clampToData(to));
     setRangePreset(type);
-    setDateTo(formatDate(today));
-    if (type === 'YTD') setDateFrom(formatDate(ytdStart));
-    if (type === 'STD') setDateFrom(formatDate(stdStart));
-    if (type === 'MTD') setDateFrom(formatDate(mtdStart));
-    setSelectedSeason(''); // Clear season so date takes precedence
   };
 
   // Split center data into 4 columns for display
@@ -454,37 +508,8 @@ export default function CentreMaturityDashboard() {
 
             <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            {availableSeasons.length > 0 && (
-              <>
-                <div className="flex shrink-0 flex-col gap-0.5">
-                  <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Base Season</span>
-                  <select
-                    value={selectedSeason}
-                    onChange={e => { setRangePreset('Custom'); setSelectedSeason(e.target.value); }}
-                    className={`min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px]
-                      ${darkMode ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-                    <option value="">Latest</option>
-                    {availableSeasons.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div className="flex shrink-0 flex-col gap-0.5">
-                  <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Comp Season</span>
-                  <select
-                    value={selectedCompSeason}
-                    onChange={e => setSelectedCompSeason(e.target.value)}
-                    className={`min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px]
-                      ${darkMode ? 'bg-slate-900 border-slate-600 text-white' : 'bg-white border-slate-200 text-slate-800'}`}>
-                    <option value="">Previous</option>
-                    {(compSeasons.length ? compSeasons : availableSeasons).map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              </>
-            )}
-
-            <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-
             <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-              {['MTD', 'STD', 'YTD'].map(type => (
+              {['MTD', 'STD', 'WTD'].map(type => (
                 <button
                   key={type}
                   type="button"
@@ -492,13 +517,25 @@ export default function CentreMaturityDashboard() {
                   aria-pressed={rangePreset === type}
                   className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                     rangePreset === type
-                      ? 'bg-blue-600 text-white shadow-md'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                   }`}
                 >
                   {type}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => handleQuickDate('Custom')}
+                aria-pressed={rangePreset === 'Custom'}
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  rangePreset === 'Custom'
+                    ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                    : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                }`}
+              >
+                Custom
+              </button>
             </div>
 
             <div className="flex shrink-0 flex-col gap-0.5">
@@ -515,6 +552,28 @@ export default function CentreMaturityDashboard() {
                 onChange={e => { setRangePreset('Custom'); setDateTo(e.target.value); }}
                 className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px]
                   ${darkMode ? 'bg-slate-900 border-slate-600 text-slate-100 [color-scheme:dark]' : 'bg-white border-slate-200 text-slate-800'}`} />
+            </div>
+
+            <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:w-auto sm:basis-auto sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                Compare
+              </span>
+              <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+                {comparisonOptions.map((comp) => (
+                  <button
+                    key={comp.id}
+                    type="button"
+                    onClick={() => onCompareSelect(comp.id)}
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                      comparisonType === comp.id
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                    }`}
+                  >
+                    {comp.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
           </div>
@@ -535,7 +594,7 @@ export default function CentreMaturityDashboard() {
             icon={Wheat}
             darkMode={darkMode}
             accentColor="#3b82f6"
-            subtitle={seasonKpi.compSeason ? `vs ${seasonKpi.compSeason}` : 'Base Season'}
+            subtitle={seasonKpi.compareLabel ? `vs ${seasonKpi.compareLabel}` : compareBadgeLabel}
           />
           <KpiCard
             title="Purchase Qty (Qtl)"
@@ -547,7 +606,7 @@ export default function CentreMaturityDashboard() {
             icon={ShoppingCart}
             darkMode={darkMode}
             accentColor="#10b981"
-            subtitle={seasonKpi.compSeason ? `vs ${seasonKpi.compSeason}` : 'Base Season'}
+            subtitle={seasonKpi.compareLabel ? `vs ${seasonKpi.compareLabel}` : compareBadgeLabel}
           />
 
           {/* Average Maturity Card — use season KPI (same formula as PBI) */}
@@ -586,7 +645,7 @@ export default function CentreMaturityDashboard() {
                     </span>
                   )}
                   <span className={`text-[10px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {seasonKpi.compSeason ? `vs ${seasonKpi.compSeason}` : 'Purchase / Indent Ratio'}
+                    {seasonKpi.compareLabel ? `vs ${seasonKpi.compareLabel}` : compareBadgeLabel}
                   </span>
                 </div>
               </div>

@@ -34,7 +34,7 @@ export const ADMIN_CONFIG_SECTIONS = [
   {
     id: 'bi-dashboards',
     label: 'BI Dashboards',
-    description: 'Season comparison and analytics portal options.',
+    description: 'Calculation constants. Compare seasons come from Season Mapping.',
     Icon: MdInsights,
     Component: BiDashboardSettingsSection,
   },

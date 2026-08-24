@@ -46,8 +46,9 @@ function ChartTip({ active, payload, label, dm, suffix = '' }) {
 /**
  * Single-screen Power Summary with clear Generation | Consumption columns.
  */
-export default function PowerSummaryView({ powerKpis, daily, dm }) {
+export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparisonLabel, daily, dm }) {
   const p = powerKpis || {};
+  const cp = comparePowerKpis || {};
   const chartDaily = (daily || []).map((d) => ({
     ...d,
     Export_pct: clampPct(d.Export_pct),
@@ -68,6 +69,8 @@ export default function PowerSummaryView({ powerKpis, daily, dm }) {
           compact
           label="Bagasse Produced"
           value={p.Baggase}
+          compareValue={cp.Baggase}
+          compareLabel={comparisonLabel}
           unit="Qtls"
           dm={dm}
           color="amber"
@@ -78,6 +81,8 @@ export default function PowerSummaryView({ powerKpis, daily, dm }) {
           compact
           label="Cane Crushed"
           value={p.Crush}
+          compareValue={cp.Crush}
+          compareLabel={comparisonLabel}
           unit="Qtls"
           dm={dm}
           color="green"
@@ -95,7 +100,7 @@ export default function PowerSummaryView({ powerKpis, daily, dm }) {
           </div>
 
           <div
-            className="flex-1 min-h-0 p-2 grid gap-2 overflow-hidden"
+            className="flex-1 min-h-0 p-2 grid gap-2 overflow-visible"
             style={{ gridTemplateRows: 'auto minmax(0, 1.2fr) auto minmax(0, 1fr)' }}
           >
             {/* Total gen hero */}
@@ -186,7 +191,7 @@ export default function PowerSummaryView({ powerKpis, daily, dm }) {
           </div>
 
           <div
-            className="flex-1 min-h-0 p-2 grid gap-2 overflow-hidden"
+            className="flex-1 min-h-0 p-2 grid gap-2 overflow-visible"
             style={{ gridTemplateRows: 'auto minmax(0, 1.15fr) minmax(0, 1.2fr) auto' }}
           >
             {/* Grid + Inhouse */}

@@ -4,6 +4,7 @@ const { uploadDataFileMiddleware } = require('../middleware/dataUploadMulter');
 const {
   getMyAccess,
   requireDataUploadAccess,
+  requireDataUploadSection,
   listFiles,
   uploadFile,
   getPurchySlots,
@@ -20,15 +21,31 @@ router.get('/access', authenticate, getMyAccess);
 
 router.use(authenticate, requireDataUploadAccess);
 
-router.get('/files', listFiles);
-router.get('/purchy-slots', getPurchySlots);
-router.get('/purchy-import/:jobId', getPurchyImportStatus);
-router.get('/management-dashboard-import/:jobId', getManagementDashboardImportStatus);
-router.get('/management-dashboard/files', listManagementDashboardFiles);
-router.post('/management-dashboard/:slot', uploadDataFileMiddleware, uploadManagementDashboardSlot);
-router.post('/purchy', uploadDataFileMiddleware, uploadPurchySlot);
-router.post('/', uploadDataFileMiddleware, uploadFile);
 router.get('/files/:id/download', downloadFile);
 router.delete('/files/:id', deleteFile);
+
+router.get('/purchy-slots', requireDataUploadSection('purchy'), getPurchySlots);
+router.get('/purchy-import/:jobId', requireDataUploadSection('purchy'), getPurchyImportStatus);
+router.post('/purchy', requireDataUploadSection('purchy'), uploadDataFileMiddleware, uploadPurchySlot);
+
+router.get(
+  '/management-dashboard-import/:jobId',
+  requireDataUploadSection('management'),
+  getManagementDashboardImportStatus,
+);
+router.get(
+  '/management-dashboard/files',
+  requireDataUploadSection('management'),
+  listManagementDashboardFiles,
+);
+router.post(
+  '/management-dashboard/:slot',
+  requireDataUploadSection('management'),
+  uploadDataFileMiddleware,
+  uploadManagementDashboardSlot,
+);
+
+router.get('/files', requireDataUploadSection('milling'), listFiles);
+router.post('/', requireDataUploadSection('milling'), uploadDataFileMiddleware, uploadFile);
 
 module.exports = router;

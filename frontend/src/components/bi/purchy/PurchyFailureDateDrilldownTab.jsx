@@ -121,9 +121,8 @@ export default function PurchyFailureDateDrilldownTab({
   filterOptions = {},
 }) {
   const [filters, setFilters] = useState({ societyName: [] });
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
-  const [datesInitialized, setDatesInitialized] = useState(false);
+  const [dateFrom, setDateFrom] = useState('2025-10-24');
+  const [dateTo, setDateTo] = useState('2026-03-06');
 
   const mergedParams = useMemo(
     () => ({ ...globalQueryParams, ...purchyFiltersToParams(filters) }),
@@ -140,22 +139,6 @@ export default function PurchyFailureDateDrilldownTab({
   );
 
   const data = useLiveData ? (liveData || staticFallback) : staticFallback;
-
-  useEffect(() => {
-    if (!useLiveData || datesInitialized) return;
-    if (liveData?.dateFrom && liveData?.dateTo) {
-      setDateFrom(liveData.dateFrom);
-      setDateTo(liveData.dateTo);
-      setDatesInitialized(true);
-    }
-  }, [useLiveData, liveData, datesInitialized]);
-
-  useEffect(() => {
-    if (!useLiveData) {
-      setDateFrom(data.dateFrom);
-      setDateTo(data.dateTo);
-    }
-  }, [useLiveData, data.dateFrom, data.dateTo]);
 
   const chartData = useMemo(() => {
     const from = dateFrom || data.dateFrom;

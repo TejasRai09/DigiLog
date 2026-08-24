@@ -5,6 +5,8 @@
  *
  * Rules:
  *   - Match hierarchy leaves by equip_no (tag)
+ *   - If several leaves share the same tag, also match Sub Equipment name
+ *     (do not copy one card onto every sibling)
  *   - Do NOT overwrite equipment name — use hierarchy lookup_name
  *   - All form data is electrical discipline
  *   - Specs / schedule / history: section=electrical;
@@ -329,7 +331,9 @@ function loadWorkbook(filePath) {
       sheetName: trim(row['sheet name']),
       tag,
       excelName: lifeCardName,
+      subEquipment: trim(row['Sub Equipment'] || row[' Sub Equipment'] || lifeCardName),
       excelLocation: trim(row.LOCATION),
+      histLocation: trim(row.LOCATION),
       commissioned: emptyToNull(row['DATE OF COMMISSIONING']),
       specs,
       schedule,
@@ -349,27 +353,89 @@ async function loadHierarchyLeaves(conn) {
   return rows;
 }
 
-function findHierarchyLeaf(leaves, tag) {
-  const exact = leaves.filter((leaf) => normTag(leaf.equip_no) === normTag(tag));
-  if (exact.length === 1) return exact[0];
-  if (exact.length > 1) return exact[0];
-
-  const compact = leaves.filter((leaf) => tagsMatch(leaf.equip_no, tag));
-  if (compact.length >= 1) return compact[0];
-  return null;
+function namesMatch(a, b) {
+  const na = trim(a).toLowerCase().replace(/\s+/g, ' ');
+  const nb = trim(b).toLowerCase().replace(/\s+/g, ' ');
+  return Boolean(na && nb && na === nb);
 }
 
-async function findExistingEquipId(conn, tag) {
-  const [byEquip] = await conn.execute(
-    'SELECT id, name FROM shn_equipment WHERE equip_no = ? OR tag_name = ? LIMIT 1',
+function equipmentNameKey(value) {
+  return trim(value)
+    .toLowerCase()
+    .replace(/[.\-_]/g, ' ')
+    .replace(/\bno\s+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function equipmentNameKeyVariants(value) {
+  const key = equipmentNameKey(value);
+  if (!key) return [];
+  const variants = [key];
+  if (key.startsWith('cane ')) variants.push(key.slice(5));
+  return variants;
+}
+
+function equipmentNamesMatch(a, b) {
+  const left = new Set(equipmentNameKeyVariants(a));
+  return equipmentNameKeyVariants(b).some((key) => left.has(key));
+}
+
+function leafSubEquipmentName(leaf) {
+  return trim(leaf.lookup_name || leaf.name);
+}
+
+/**
+ * Unique tag → that one leaf.
+ * Shared tag → also require Sub Equipment name. Never fan out to every sibling.
+ */
+function findHierarchyLeaf(leaves, card) {
+  const byTag = leaves.filter((leaf) => tagsMatch(leaf.equip_no, card.tag));
+  if (!byTag.length) return null;
+  if (byTag.length === 1) return byTag[0];
+
+  const name = trim(card.subEquipment || card.excelName);
+  if (!name) return null;
+
+  const byName = byTag.filter((leaf) => equipmentNamesMatch(leafSubEquipmentName(leaf), name));
+  if (byName.length === 1) return byName[0];
+
+  const loc = trim(card.histLocation || card.excelLocation);
+  if (byName.length > 1 && loc) {
+    const byLoc = byName.filter((leaf) => namesMatch(trim(leaf.hist_location), loc));
+    if (byLoc.length === 1) return byLoc[0];
+    if (byLoc.length > 1) return byLoc[0];
+  }
+  return byName[0] || null;
+}
+
+async function findExistingEquipId(conn, tag, name, location) {
+  if (tag && name && location) {
+    const [rows] = await conn.execute(
+      `SELECT id, name FROM shn_equipment
+       WHERE (equip_no = ? OR tag_name = ?) AND name = ? AND location = ?
+       LIMIT 1`,
+      [tag, tag, name, location],
+    );
+    if (rows[0]) return rows[0];
+  }
+  if (tag && name) {
+    const [rows] = await conn.execute(
+      `SELECT id, name FROM shn_equipment
+       WHERE (equip_no = ? OR tag_name = ?) AND name = ?
+       LIMIT 1`,
+      [tag, tag, name],
+    );
+    if (rows[0]) return rows[0];
+  }
+  // Unique-tag fallback (legacy mill-house electrical workbooks)
+  const [byTag] = await conn.execute(
+    `SELECT id, name, equip_no, tag_name FROM shn_equipment
+     WHERE equip_no = ? OR tag_name = ?`,
     [tag, tag],
   );
-  if (byEquip[0]) return byEquip[0];
-
-  const [all] = await conn.execute(
-    'SELECT id, name, equip_no, tag_name FROM shn_equipment WHERE equip_no IS NOT NULL OR tag_name IS NOT NULL',
-  );
-  return all.find((row) => tagsMatch(row.equip_no, tag) || tagsMatch(row.tag_name, tag)) || null;
+  if (byTag.length === 1) return byTag[0];
+  return null;
 }
 
 async function deleteEquipmentTree(conn, equipId) {
@@ -502,18 +568,18 @@ async function main() {
 
     for (let i = 0; i < cards.length; i += 1) {
       const card = cards[i];
-      const leaf = findHierarchyLeaf(leaves, card.tag);
+      const leaf = findHierarchyLeaf(leaves, card);
 
       const equipmentName = leaf
         ? trim(leaf.lookup_name || leaf.name)
-        : card.excelName || card.tag;
+        : (card.subEquipment || card.excelName || card.tag);
 
       const location = leaf
         ? (emptyToNull(leaf.hist_location) || emptyToNull(card.excelLocation))
         : emptyToNull(card.excelLocation);
 
       if (!leaf) {
-        unmatched.push(card.tag);
+        unmatched.push(`${card.tag} | ${card.subEquipment || card.excelName || ''}`);
         stats.orphan += 1;
       }
 
@@ -524,7 +590,7 @@ async function main() {
         stats.history += card.history.length;
         if (i < 3 || !leaf) {
           console.log(
-            `[dry-run] ${card.tag} -> name="${equipmentName}" leaf=${leaf ? leaf.id : 'NONE'} `
+            `[dry-run] ${card.tag} / ${equipmentName} -> leaf=${leaf ? leaf.id : 'NONE'} `
             + `specs=${card.specs.length - 1} sched=${card.schedule.length} hist=${card.history.length}`,
           );
         }
@@ -533,12 +599,12 @@ async function main() {
 
       await conn.beginTransaction();
       try {
-        const existing = await findExistingEquipId(conn, card.tag);
+        const existing = await findExistingEquipId(conn, card.tag, equipmentName, location);
         if (existing) {
           if (!opts.replace) {
             await conn.rollback();
             stats.skipped += 1;
-            console.log(`[skip] ${card.tag} already exists as shn_equipment#${existing.id} (${existing.name})`);
+            console.log(`[skip] ${card.tag} (${equipmentName}) already exists as shn_equipment#${existing.id}`);
             continue;
           }
           await deleteEquipmentTree(conn, existing.id);

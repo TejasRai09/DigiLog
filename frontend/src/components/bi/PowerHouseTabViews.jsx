@@ -54,8 +54,8 @@ function DTableCompact({ cols, rows, dm }) {
   return (
     <div className={`rounded-lg border overflow-hidden h-full ${dm ? 'border-slate-800 bg-slate-950/40' : 'border-slate-200 bg-white'}`}>
       <div className="overflow-auto h-full">
-        <table className="w-full text-[10px] text-left">
-          <thead className={`sticky top-0 z-[1] ${dm ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'} uppercase text-[9px]`}>
+        <table className="w-full text-xs text-left">
+          <thead className={`sticky top-0 z-[1] ${dm ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'} uppercase text-[11px]`}>
             <tr>
               {cols.map((c) => (
                 <th key={c.key} className="px-1.5 py-1 font-bold whitespace-nowrap">
@@ -96,8 +96,9 @@ function gridStroke(dm) {
 /* ═══════════════════════════════════════════════════════════════════
    GENERATION — matches PBI: OpDays header, 4 TG rows, right sidebar
    ═══════════════════════════════════════════════════════════════════ */
-export function PowerGenerationView({ powerKpis, daily, dm }) {
+export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLabel, daily, dm }) {
   const p = powerKpis || {};
+  const cp = comparePowerKpis || {};
   const rows = [
     { title: 'Total 30MW', gen: p.PowerGen30, plf: p.PLF_30MW, genKey: 'PowerGen30', plfKey: 'PLF_30MW', color: TG_COLORS.g30 },
     { title: 'Total 3MW New', gen: p.PowerGen3New, plf: p.PLF_3New, genKey: 'PowerGen3New', plfKey: 'PLF_3New', color: TG_COLORS.g3n },
@@ -109,27 +110,27 @@ export function PowerGenerationView({ powerKpis, daily, dm }) {
   return (
     <FitShell>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-        <KPICard compact label="Operating Days · 30MW" value={p.OpDays_30MW} dm={dm} color="blue" icon={Gauge} info="Days with non-zero 30 MW generation in the selected range." />
-        <KPICard compact label="Operating Days · 3MW (New)" value={p.OpDays_3MW_New} dm={dm} color="green" icon={Zap} info="Days with non-zero 3 MW New generation." />
-        <KPICard compact label="Operating Days · 3MW (Old)" value={p.OpDays_3MW_Old} dm={dm} color="amber" icon={Zap} info="Days with non-zero 3 MW Old generation." />
-        <KPICard compact label="Operating Days · 4MW" value={p.OpDays_4MW} dm={dm} color="violet" icon={CalendarDays} info="Days with non-zero 4 MW generation." />
+        <KPICard compact label="Operating Days · 30MW" value={p.OpDays_30MW} compareValue={cp.OpDays_30MW} compareLabel={comparisonLabel} dm={dm} color="blue" icon={Gauge} info="Days with non-zero 30 MW generation in the selected range." />
+        <KPICard compact label="Operating Days · 3MW (New)" value={p.OpDays_3MW_New} compareValue={cp.OpDays_3MW_New} compareLabel={comparisonLabel} dm={dm} color="green" icon={Zap} info="Days with non-zero 3 MW New generation." />
+        <KPICard compact label="Operating Days · 3MW (Old)" value={p.OpDays_3MW_Old} compareValue={cp.OpDays_3MW_Old} compareLabel={comparisonLabel} dm={dm} color="amber" icon={Zap} info="Days with non-zero 3 MW Old generation." />
+        <KPICard compact label="Operating Days · 4MW" value={p.OpDays_4MW} compareValue={cp.OpDays_4MW} compareLabel={comparisonLabel} dm={dm} color="violet" icon={CalendarDays} info="Days with non-zero 4 MW generation." />
       </div>
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
         <div className="lg:col-span-8 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(4, minmax(0, 1fr))' }}>
           {rows.map((r) => (
-            <div key={r.title} className="min-h-0 grid grid-cols-[7.5rem_minmax(0,1fr)] gap-1.5">
-              <BandCard title={r.title} dm={dm} className="h-full" bodyClassName="flex flex-col justify-center gap-1">
+            <div key={r.title} className="min-h-0 grid grid-cols-[minmax(10.5rem,12rem)_minmax(0,1fr)] gap-1.5">
+              <BandCard title={r.title} dm={dm} className="h-full overflow-visible" bodyClassName="flex flex-col justify-center gap-1 overflow-visible px-2.5 pb-2">
                 <MetricLine label="PLF (%)" value={r.plf != null ? formatNum(r.plf, 1) : '—'} dm={dm} emphasize />
                 <MetricLine label="Power Gen." value={r.gen} dm={dm} emphasize />
               </BandCard>
-              <BandCard title={`${r.title.replace('Total ', '')} — Gen & PLF`} dm={dm} className="h-full">
+              <BandCard title={`${r.title.replace('Total ', '')} — Gen & PLF`} dm={dm} className="h-full" bodyClassName="overflow-visible">
                 <ResponsiveContainer width="100%" height="100%" minHeight={56}>
-                  <AreaChart data={daily} margin={{ top: 2, right: 8, left: 0, bottom: 0 }}>
+                  <AreaChart data={daily} margin={{ top: 2, right: 8, left: 4, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
                     <XAxis dataKey="label" hide />
-                    <YAxis yAxisId="l" tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} />
-                    <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 8, fill: axisStroke(dm) }} width={24} />
+                    <YAxis yAxisId="l" tick={{ fontSize: 8, fill: axisStroke(dm) }} width={32} />
+                    <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} />
                     <Tooltip content={<ChartTip dm={dm} />} />
                     <Area yAxisId="l" type="monotone" dataKey={r.genKey} name="Gen" stroke={r.color} fill={`${r.color}33`} strokeWidth={1.5} />
                     <Line yAxisId="r" type="monotone" dataKey={r.plfKey} name="PLF %" stroke="#ef4444" dot={false} strokeWidth={1.25} />
@@ -141,7 +142,7 @@ export function PowerGenerationView({ powerKpis, daily, dm }) {
         </div>
 
         <div className="lg:col-span-4 min-h-0 grid gap-1.5" style={{ gridTemplateRows: '1.2fr auto auto 1fr' }}>
-          <BandCard title="Power Generation — TG wise break-up" dm={dm}>
+          <BandCard title="Power Generation — TG wise break-up" dm={dm} bodyClassName="overflow-visible">
             <ResponsiveContainer width="100%" height="100%" minHeight={80}>
               <AreaChart data={daily} stackOffset="expand" margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
@@ -172,7 +173,7 @@ export function PowerGenerationView({ powerKpis, daily, dm }) {
           </BandCard>
 
           <div className="grid grid-cols-2 gap-1.5">
-            <KPICard compact label="Import Instances" value={p.Import_Instances} dm={dm} color="amber" icon={Plug} info="Count of days with grid import." />
+            <KPICard compact label="Import Instances" value={p.Import_Instances} compareValue={cp.Import_Instances} compareLabel={comparisonLabel} dm={dm} color="amber" icon={Plug} info="Count of days with grid import." />
             <BandCard title="Total Import" dm={dm} bodyClassName="p-1.5 flex flex-col gap-1">
               <p className="text-lg font-black tabular-nums text-red-600">{formatCompact(p.Total_Import)}</p>
               <div className="flex-1 min-h-[36px]">
@@ -205,8 +206,9 @@ export function PowerGenerationView({ powerKpis, daily, dm }) {
 /* ═══════════════════════════════════════════════════════════════════
    CONSUMPTION — donuts left, KPI+trend rows right (PBI aligned)
    ═══════════════════════════════════════════════════════════════════ */
-export function PowerConsumptionView({ powerKpis, daily, consumptionPie, externalPie, dm }) {
+export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLabel, daily, consumptionPie, externalPie, dm }) {
   const p = powerKpis || {};
+  const cp = comparePowerKpis || {};
   const trendRows = [
     { label: 'Power to Grid', value: p.ExportGrid30, key: 'ExportGrid30', color: '#3b82f6' },
     { label: 'Power to Sugar', value: p.Export_Sugar, key: 'Export_Sugar', color: '#3b82f6' },
@@ -217,13 +219,15 @@ export function PowerConsumptionView({ powerKpis, daily, consumptionPie, externa
   return (
     <FitShell>
       <div className="grid grid-cols-2 gap-3 shrink-0">
-        <KPICard compact label="Power to Grid" value={p.ExportGrid30} unit="kWh" dm={dm} color="blue" icon={Plug} info="Export to grid (kWh) in the selected range." />
-        <KPICard compact label="Inhouse Consumption" value={p.Total_Internal_Con} unit="kWh" dm={dm} color="amber" icon={Factory} info="Sugar + Aux + Distillery internal consumption (kWh)." />
+        <KPICard compact label="Export to Grid" value={p.Export_Grid} compareValue={cp.Export_Grid} compareLabel={comparisonLabel} dm={dm} color="blue" icon={Zap} />
+        <KPICard compact label="Internal Cons. (%)" value={p.Int_Cons_pct} compareValue={cp.Int_Cons_pct} compareLabel={comparisonLabel} unit="%" dm={dm} color="amber" icon={Factory} />
+        <KPICard compact label="Export to Sugar" value={p.Export_Sugar} compareValue={cp.Export_Sugar} compareLabel={comparisonLabel} dm={dm} color="green" icon={Plug} />
+        <KPICard compact label="Export to Cogen" value={p.Export_Cogen} compareValue={cp.Export_Cogen} compareLabel={comparisonLabel} dm={dm} color="violet" icon={Plug} />
       </div>
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
         <div className="lg:col-span-3 min-h-0 grid gap-1.5" style={{ gridTemplateRows: '1fr 1fr' }}>
-          <BandCard title="External & Internal — Breakup" dm={dm}>
+          <BandCard title="External & Internal — Breakup" dm={dm} bodyClassName="overflow-visible">
             <ResponsiveContainer width="100%" height="100%" minHeight={120}>
               <PieChart>
                 <Pie data={externalPie} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="74%" paddingAngle={2}>
@@ -236,7 +240,7 @@ export function PowerConsumptionView({ powerKpis, daily, consumptionPie, externa
               </PieChart>
             </ResponsiveContainer>
           </BandCard>
-          <BandCard title="Internal Consumption — Breakup" dm={dm}>
+          <BandCard title="Internal Consumption — Breakup" dm={dm} bodyClassName="overflow-visible">
             <ResponsiveContainer width="100%" height="100%" minHeight={120}>
               <PieChart>
                 <Pie data={consumptionPie} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="74%" paddingAngle={2}>
@@ -278,8 +282,9 @@ export function PowerConsumptionView({ powerKpis, daily, consumptionPie, externa
 /* ═══════════════════════════════════════════════════════════════════
    STEAM SUMMARY — 150 / 70 / 35 aligned rows (PBI)
    ═══════════════════════════════════════════════════════════════════ */
-export function SteamSummaryView({ steamKpis, daily, dm }) {
+export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel, daily, dm }) {
   const s = steamKpis || {};
+  const cs = compareSteamKpis || {};
   const bands = [
     {
       tph: '150 TPH',
@@ -334,8 +339,8 @@ export function SteamSummaryView({ steamKpis, daily, dm }) {
   return (
     <FitShell>
       <div className="grid grid-cols-2 gap-3 shrink-0">
-        <KPICard compact label="Total Steam Gen." value={s.TotalSteamgen} unit="MT" dm={dm} color="blue" icon={Flame} info="Steam generated across 150 / 70 / 35 TPH boilers (MT)." />
-        <KPICard compact label="Total Bagasse Con." value={s.TotalBaggase} unit="MT" dm={dm} color="amber" icon={Leaf} info="Bagasse consumed across boilers (MT)." />
+        <KPICard compact label="Total Steam Gen." value={s.TotalSteamgen} compareValue={cs.TotalSteamgen} compareLabel={comparisonLabel} unit="MT" dm={dm} color="blue" icon={Flame} info="Steam generated across 150 / 70 / 35 TPH boilers (MT)." />
+        <KPICard compact label="Total Bagasse Con." value={s.TotalBaggase} compareValue={cs.TotalBaggase} compareLabel={comparisonLabel} unit="MT" dm={dm} color="amber" icon={Leaf} info="Bagasse consumed across boilers (MT)." />
       </div>
 
       <div className="flex-1 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(3, minmax(0, 1fr))' }}>
@@ -347,7 +352,7 @@ export function SteamSummaryView({ steamKpis, daily, dm }) {
               <MetricLine label="Steam to Bagasse" value={b.sb != null ? formatNum(b.sb, 2) : '—'} dm={dm} />
             </BandCard>
 
-            <BandCard title={`Steam Generation & Bagasse — ${b.tph}`} dm={dm} className="lg:col-span-5 h-full">
+            <BandCard title={`Steam Generation & Bagasse — ${b.tph}`} dm={dm} className="lg:col-span-5 h-full" bodyClassName="overflow-visible">
               <ResponsiveContainer width="100%" height="100%" minHeight={70}>
                 <AreaChart data={daily} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
@@ -361,13 +366,19 @@ export function SteamSummaryView({ steamKpis, daily, dm }) {
               </ResponsiveContainer>
             </BandCard>
 
-            <div className="lg:col-span-5 min-h-0 grid grid-cols-[8.5rem_minmax(0,1fr)] gap-1.5">
-              <BandCard title={`Steam to TG — ${b.tph}`} dm={dm} className="h-full" bodyClassName="flex flex-col justify-center gap-0.5">
+            <div className="lg:col-span-5 min-h-0 grid grid-cols-[minmax(11.5rem,13.5rem)_minmax(0,1fr)] gap-1.5">
+              <BandCard
+                title={`Steam to TG — ${b.tph}`}
+                titleWrap
+                dm={dm}
+                className="h-full"
+                bodyClassName="flex flex-col justify-center gap-1 overflow-visible px-2.5 pb-2"
+              >
                 {b.tg.map(([lab, val]) => (
                   <MetricLine key={lab} label={lab} value={val} dm={dm} />
                 ))}
               </BandCard>
-              <BandCard title={`Steam to Turbine from ${b.tph}`} dm={dm} className="h-full">
+              <BandCard title={`Steam to Turbine from ${b.tph}`} dm={dm} className="h-full" bodyClassName="overflow-visible">
                 <ResponsiveContainer width="100%" height="100%" minHeight={70}>
                   <AreaChart data={daily} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
@@ -393,8 +404,9 @@ export function SteamSummaryView({ steamKpis, daily, dm }) {
 /* ═══════════════════════════════════════════════════════════════════
    STEAM CONSUMPTION — process rows 150/70/35 + right KPI grid
    ═══════════════════════════════════════════════════════════════════ */
-export function SteamConsumptionView({ steamKpis, daily, dm }) {
+export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLabel, daily, dm }) {
   const s = steamKpis || {};
+  const cs = compareSteamKpis || {};
   const processRows = [
     {
       tag: '150',
@@ -448,32 +460,32 @@ export function SteamConsumptionView({ steamKpis, daily, dm }) {
   return (
     <FitShell>
       <div className="grid grid-cols-3 gap-3 shrink-0">
-        <KPICard compact label="Steam Gen · 150 TPH" value={s.SteamGen150} dm={dm} color="blue" icon={Flame} info="Steam generation from 150 TPH boiler (MT)." />
-        <KPICard compact label="Steam Gen · 70 TPH" value={s.SteamGen70} dm={dm} color="amber" icon={Flame} info="Steam generation from 70 TPH boiler (MT)." />
-        <KPICard compact label="Steam Gen · 35 TPH" value={s.SteamGen35} dm={dm} color="green" icon={Droplets} info="Steam generation from 35 TPH boiler (MT)." />
+        <KPICard compact label="Steam Gen · 150 TPH" value={s.SteamGen150} compareValue={cs.SteamGen150} compareLabel={comparisonLabel} dm={dm} color="blue" icon={Flame} info="Steam generation from 150 TPH boiler (MT)." />
+        <KPICard compact label="Steam Gen · 70 TPH" value={s.SteamGen70} compareValue={cs.SteamGen70} compareLabel={comparisonLabel} dm={dm} color="amber" icon={Flame} info="Steam generation from 70 TPH boiler (MT)." />
+        <KPICard compact label="Steam Gen · 35 TPH" value={s.SteamGen35} compareValue={cs.SteamGen35} compareLabel={comparisonLabel} dm={dm} color="green" icon={Droplets} info="Steam generation from 35 TPH boiler (MT)." />
       </div>
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
         <BandCard title="Steam to Process" tone="amber" dm={dm} className="lg:col-span-7 h-full" bodyClassName="p-1.5 flex flex-col gap-1.5 min-h-0">
           <div className="flex-1 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(3, minmax(0, 1fr))' }}>
             {processRows.map((row) => (
-              <div key={row.tag} className="min-h-0 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-1.5">
-                <div className={`rounded-lg border flex flex-col ${dm ? 'border-slate-700 bg-slate-950/50' : 'border-slate-200 bg-slate-50'}`}>
-                  <div className="px-2 py-0.5 bg-gradient-to-r from-slate-800 via-blue-950 to-slate-900 text-center text-[10px] font-black text-white">
+              <div key={row.tag} className="min-h-0 grid grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)] gap-2">
+                <div className={`rounded-lg border flex flex-col min-w-0 overflow-hidden ${dm ? 'border-slate-700 bg-slate-950/50' : 'border-slate-200 bg-slate-50'}`}>
+                  <div className="px-2 py-0.5 bg-gradient-to-r from-slate-800 via-blue-950 to-slate-900 text-center text-[10px] font-black text-white shrink-0">
                     {row.tag}
                   </div>
-                  <div className="flex-1 p-1.5 flex flex-col justify-center gap-0.5">
+                  <div className="flex-1 min-h-0 p-2 flex flex-col justify-center gap-1">
                     {row.metrics.map(([lab, val]) => (
-                      <MetricLine key={lab} label={lab} value={val} dm={dm} />
+                      <MetricLine key={lab} label={lab} value={val} dm={dm} stacked />
                     ))}
                   </div>
                 </div>
-                <div className="min-h-0 rounded-lg border overflow-hidden" style={{ borderColor: dm ? '#334155' : '#e2e8f0' }}>
+                <div className="min-h-0 min-w-0 rounded-lg border overflow-hidden" style={{ borderColor: dm ? '#334155' : '#e2e8f0' }}>
                   <ResponsiveContainer width="100%" height="100%" minHeight={56}>
-                    <LineChart data={daily} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
+                    <LineChart data={daily} margin={{ top: 4, right: 8, left: 4, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
                       <XAxis dataKey="label" hide />
-                      <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} />
+                      <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={36} />
                       <Tooltip content={<ChartTip dm={dm} />} />
                       <Legend wrapperStyle={{ fontSize: 9 }} />
                       {row.keys.map((k) => (
@@ -488,7 +500,7 @@ export function SteamConsumptionView({ steamKpis, daily, dm }) {
         </BandCard>
 
         <div className="lg:col-span-5 min-h-0 flex flex-col gap-1.5">
-          <BandCard title="Steam to Process Trend" dm={dm} className="flex-[1.1] min-h-0">
+          <BandCard title="Steam to Process Trend" dm={dm} className="flex-[1.1] min-h-0" bodyClassName="overflow-visible">
             <ResponsiveContainer width="100%" height="100%" minHeight={90}>
               <AreaChart data={daily} stackOffset="expand" margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
@@ -528,6 +540,9 @@ export function SteamConsumptionView({ steamKpis, daily, dm }) {
    OUTAGE — PBI Outage Dashboard layout
    ═══════════════════════════════════════════════════════════════════ */
 export function PowerOutageView({
+  outageKpis,
+  compareOutageKpis,
+  comparisonLabel,
   dm,
   sections,
   categories,
@@ -536,10 +551,11 @@ export function PowerOutageView({
   setOutageSection,
   setOutageCategory,
   filteredStoppages,
-  outageKpis,
   outageDaily,
   outageBySection,
 }) {
+  const o = outageKpis || {};
+  const co = compareOutageKpis || {};
   const filteredKpis = computeOutageKpis(filteredStoppages);
   const boilerStack = buildOutageStackedBySubSection(filteredStoppages, isBoilerSection).slice(0, 8);
   const turbineStack = buildOutageStackedBySubSection(filteredStoppages, isTurbineSection).slice(0, 8);

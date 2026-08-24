@@ -10,6 +10,7 @@ import api from '../../../api/axios';
 import Spinner from '../../Spinner';
 import EmployeeFormMappingModal from '../EmployeeFormMappingModal';
 import EmployeeDataUploadAccessModal from '../EmployeeDataUploadAccessModal';
+import { DATA_UPLOAD_SECTIONS } from '../../../config/dataUploadSections';
 import AssignManagerModal from '../AssignManagerModal';
 import ConfigSectionPanel from './ConfigSectionPanel';
 
@@ -357,10 +358,19 @@ export default function EmployeeManagementSection() {
                           {u.role === 'employee' ? (
                             (() => {
                               const row = dataUploadAssignments.find((a) => String(a.user?._id) === String(u._id));
-                              return row?.enabled ? (
-                                <span className="badge bg-emerald-50 text-emerald-800">Yes</span>
-                              ) : (
-                                <span className="text-gray-300">—</span>
+                              const secs = Array.isArray(row?.sections) ? row.sections : [];
+                              if (!secs.length) return <span className="text-gray-300">—</span>;
+                              return (
+                                <div className="flex flex-col gap-1">
+                                  {secs.map((key) => {
+                                    const label = DATA_UPLOAD_SECTIONS.find((s) => s.key === key)?.label || key;
+                                    return (
+                                      <span key={key} className="badge w-fit bg-emerald-50 text-emerald-800">
+                                        {label}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
                               );
                             })()
                           ) : (
@@ -476,7 +486,7 @@ export default function EmployeeManagementSection() {
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
                 >
                   <MdUpload className="h-4 w-4 text-emerald-600" />
-                  Data upload access
+                  Data upload mapping
                 </button>
               )}
               <button

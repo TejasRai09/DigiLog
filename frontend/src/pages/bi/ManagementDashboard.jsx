@@ -17,41 +17,22 @@ import Spinner from '../../components/Spinner';
 import { filterKpiSeries } from '../../data/managementDashboardStaticData';
 import { MANAGEMENT_DATE_BOUNDS } from '../../data/managementDashboardMeta';
 import { mergeManagementDashboardApi } from '../../utils/mergeManagementDashboardApi';
+import { formatYMD } from '../../utils/distilleryBiDateRange';
 import {
-  formatYMD,
-  computePriorPeriodRange,
-  getSeasonComparisonLabels,
-  alignCrushingSeasonCompareRange,
-  seasonLabelForComparisonType,
-} from '../../utils/distilleryBiDateRange';
+  applyCockpitCompareSelection,
+  buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
+  getCockpitPresetDateRange,
+  getCockpitSeasonLabels,
+  resolveCockpitCompareRange,
+} from '../../utils/biCockpitDateFilters';
 
 const PRESETS = [
-  { id: 'STD', label: 'STD' },
   { id: 'MTD', label: 'MTD' },
-  { id: 'YTD', label: 'YTD' },
-  { id: 'ALL', label: 'All' },
+  { id: 'STD', label: 'STD' },
+  { id: 'WTD', label: 'WTD' },
+  { id: 'Custom', label: 'Custom' },
 ];
-
-function getPresetRange(preset, ref = new Date(), bounds = {}) {
-  const to = formatYMD(ref);
-  const min = bounds.min || bounds.from;
-  const max = bounds.max || bounds.to || to;
-
-  if (preset === 'STD') {
-    const seasonStartYear = ref.getMonth() >= 9 ? ref.getFullYear() : ref.getFullYear() - 1;
-    return clampRange(
-      formatYMD(new Date(seasonStartYear, 9, 1)),
-      to,
-      min,
-      max,
-    );
-  }
-  if (preset === 'YTD') {
-    return clampRange(formatYMD(new Date(ref.getFullYear(), 0, 1)), to, min, max);
-  }
-  if (preset === 'ALL') return { from: min, to: max };
-  return clampRange(formatYMD(new Date(ref.getFullYear(), ref.getMonth(), 1)), to, min, max);
-}
 
 function clampRange(from, to, min, max) {
   let f = from;
@@ -62,6 +43,14 @@ function clampRange(from, to, min, max) {
   if (min && t && t < min) t = min;
   if (f && t && f > t) f = t;
   return { from: f, to: t };
+}
+
+function getPresetRange(preset, ref = new Date(), bounds = {}, seasonMapping = {}) {
+  const min = bounds.min || bounds.from;
+  const max = bounds.max || bounds.to || formatYMD(ref);
+  if (preset === 'Custom') return { from: min, to: max };
+  const { from, to } = getCockpitPresetDateRange(preset, ref, seasonMapping);
+  return clampRange(from, to, min, max);
 }
 
 const ROW_ICON_FILES = {
@@ -111,13 +100,52 @@ export default function ManagementDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Compare toggle — always one of 'PP'/'S1'/'S2'
+  // Compare toggle — PP + all Season Mapping seasons (except current)
   const [compareType, setCompareType] = useState('PP');
   const [pyData, setPyData] = useState(null);
   const [pyLoading, setPyLoading] = useState(false);
+  const [seasonMapping, setSeasonMapping] = useState({});
 
   const dateBounds = dashboardData?.dateBounds || MANAGEMENT_DATE_BOUNDS;
   const dma = dashboardData?.dma ?? 7;
+
+  useEffect(() => {
+    api.get('/bi/settings')
+      .then((r) => {
+        if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
+          setSeasonMapping(r.data.seasonMapping);
+        }
+      })
+      .catch(() => { });
+  }, []);
+
+  const seasonLabels = useMemo(() => {
+    const refIso = to || dateBounds.max || formatYMD(new Date());
+    return getCockpitSeasonLabels(refIso, seasonMapping);
+  }, [to, dateBounds.max, seasonMapping]);
+
+  const compareOptions = useMemo(() => {
+    const refIso = to || dateBounds.max || formatYMD(new Date());
+    return buildCockpitComparisonOptions(preset, seasonMapping, refIso);
+  }, [preset, seasonMapping, to, dateBounds.max]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(compareType, compareOptions, setCompareType);
+  }, [compareType, compareOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: from,
+      toDate: to,
+      rangePreset: preset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dateBounds.min,
+      dataMax: dateBounds.max,
+      setComparisonType: setCompareType,
+    });
+  }, [from, to, preset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max]);
 
   const fetchDashboard = useCallback(async (fromDate, toDate) => {
     setLoading(true);
@@ -143,17 +171,24 @@ export default function ManagementDashboard() {
     fetchDashboard(from, to);
   }, [from, to, fetchDashboard]);
 
-  // ── Prior-period range ──────────────────────────────────────────────
+  // ── Compare range (cockpit: STD = day-of-season offset) ─────────────
   const priorRange = useMemo(() => {
-    if (compareType === 'PP') {
-      return computePriorPeriodRange(from, to, preset);
-    }
-    // Season comparison — crushing season Oct–Sep (matches STD preset)
-    const seasonLabel = seasonLabelForComparisonType(compareType, seasonLabels);
-    if (!seasonLabel) return null;
-    const { start, end } = alignCrushingSeasonCompareRange(from, to, seasonLabel);
-    return { start, end, label: seasonLabel };
-  }, [compareType, from, to, preset]);
+    if (!from || !to) return null;
+    const resolved = resolveCockpitCompareRange(
+      from,
+      to,
+      compareType,
+      seasonLabels,
+      seasonMapping,
+      preset,
+    );
+    if (!resolved?.start || !resolved?.end) return null;
+    return {
+      start: resolved.start,
+      end: resolved.end,
+      label: resolved.label || (compareType === 'PP' ? 'Prev. Period' : ''),
+    };
+  }, [compareType, from, to, preset, seasonLabels, seasonMapping]);
 
   // Compute compare label for display
   const compareLabel = useMemo(() => {
@@ -164,7 +199,7 @@ export default function ManagementDashboard() {
       return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
     return `${priorRange.label} (${fmt(priorRange.start)} – ${fmt(priorRange.end)})`;
-  }, [compareType, priorRange]);
+  }, [priorRange]);
 
   // Fetch prior-period data whenever priorRange changes
   useEffect(() => {
@@ -191,18 +226,6 @@ export default function ManagementDashboard() {
     })();
     return () => { cancelled = true; };
   }, [priorRange, dma]);
-
-  // ── Season labels for the compare toggle ────────────────────────────
-  const seasonLabels = useMemo(() => {
-    const ref = dateBounds.max ? new Date(`${dateBounds.max}T12:00:00`) : new Date();
-    return getSeasonComparisonLabels(ref);
-  }, [dateBounds.max]);
-
-  const compareOptions = useMemo(() => [
-    { id: 'PP', label: preset === 'MTD' ? 'Prev. Month' : preset === 'STD' ? 'Prev. Season' : preset === 'YTD' ? 'Prev. Year' : 'Prev. Period' },
-    { id: 'S1', label: seasonLabels.season1 },
-    { id: 'S2', label: seasonLabels.season2 },
-  ], [preset, seasonLabels]);
 
   const calcDelta = useCallback((curValue, prevValue) => {
     const parseCompareNum = (value) => {
@@ -255,13 +278,17 @@ export default function ManagementDashboard() {
 
   const applyPreset = useCallback(
     (p) => {
+      if (p === 'Custom') {
+        setPreset('Custom');
+        return;
+      }
       setPreset(p);
       const ref = dateBounds.max ? new Date(`${dateBounds.max}T12:00:00`) : new Date();
-      const r = getPresetRange(p, ref, dateBounds);
+      const r = getPresetRange(p, ref, dateBounds, seasonMapping);
       setFrom(r.from || dateBounds.min);
       setTo(r.to || dateBounds.max);
     },
-    [dateBounds],
+    [dateBounds, seasonMapping],
   );
 
   useEffect(() => {
@@ -321,22 +348,24 @@ export default function ManagementDashboard() {
           actions={
         <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact alignEnd>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
-            {PRESETS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => applyPreset(p.id)}
-                className={`rounded-md px-2 py-0.5 text-[10px] font-black transition ${
-                  preset === p.id
-                    ? 'bg-indigo-600 text-white'
-                    : dm
-                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
+            <div className={`flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => applyPreset(p.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-md px-2 py-0.5 text-[10px] font-black transition-all ${
+                    preset === p.id
+                      ? p.id === 'Custom'
+                        ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                        : 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
 
             <div className={`hidden h-4 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
@@ -348,7 +377,7 @@ export default function ManagementDashboard() {
                 min={dateBounds.min || dateBounds.from}
                 max={to || dateBounds.max || dateBounds.to}
                 onChange={(e) => {
-                  setPreset('CUSTOM');
+                  setPreset('Custom');
                   setFrom(e.target.value);
                 }}
                 className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -363,7 +392,7 @@ export default function ManagementDashboard() {
               min={from || dateBounds.min || dateBounds.from}
               max={dateBounds.max || dateBounds.to}
               onChange={(e) => {
-                setPreset('CUSTOM');
+                setPreset('Custom');
                 setTo(e.target.value);
               }}
               className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
@@ -379,19 +408,19 @@ export default function ManagementDashboard() {
 
             <div className={`hidden h-4 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-            <span className={`shrink-0 whitespace-nowrap text-[8px] font-bold uppercase tracking-wider ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
-              Compare:
-            </span>
-            <div className={`flex min-w-0 flex-wrap gap-0.5 rounded-md border p-0.5 ${dm ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+            <div className={`flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              <span className={`ml-0.5 shrink-0 text-[8px] font-bold uppercase tracking-wider ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
+                Compare
+              </span>
               {compareOptions.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setCompareType(opt.id)}
-                  className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[8px] font-black transition-all sm:text-[9px] ${
+                  onClick={() => onCompareSelect(opt.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[8px] font-black transition-all sm:text-[9px] ${
                     compareType === opt.id
-                      ? dm ? 'bg-slate-700 text-slate-100 shadow-sm' : 'bg-slate-800 text-white shadow-sm'
-                      : `text-slate-500 ${dm ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                   }`}
                 >
                   {opt.label}

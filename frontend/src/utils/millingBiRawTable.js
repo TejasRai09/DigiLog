@@ -17,6 +17,19 @@ export function filterSeriesByRange(series, fromDate, toDate) {
   return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
 }
 
+/** Min / max dateIso in a logbook series. */
+export function seriesDateBounds(series) {
+  let min = null;
+  let max = null;
+  for (const r of series || []) {
+    const d = r.dateIso;
+    if (!d) continue;
+    if (!min || d < min) min = d;
+    if (!max || d > max) max = d;
+  }
+  return { min, max };
+}
+
 function formatTimeFromIso(timeIso) {
   if (!timeIso) return '';
   const d = new Date(timeIso);

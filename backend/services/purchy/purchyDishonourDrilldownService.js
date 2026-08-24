@@ -1,8 +1,7 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
-const { whereAnd, pctRatio } = require('./purchyDrilldownUtils');
-
-const DISHONOUR_GROWER_FILTER = 'gs.no_of_indent_failer_purchy > 0';
+const { whereAnd } = require('./purchyDrilldownUtils');
+const { query2025Facts, query2025FactsGrouped, growerFactJoinSql } = require('./purchyPbiFacts');
 
 async function queryOne(sql, params) {
   const [[row]] = await pool.query(sql, params);
@@ -18,23 +17,15 @@ function mapTreeRow(row) {
 }
 
 async function getTreeLevel(ctx, groupCol, parentFilterSql, parentParams, limit = 100) {
-  const [rows] = await pool.query(
-    `SELECT
-      ${groupCol} AS id,
-      ${groupCol} AS label,
-      CASE WHEN SUM(gs.indent_qty) > 0
-        THEN SUM(gs.indent_failer_qty) / SUM(gs.indent_qty)
-        ELSE 0 END AS pct
-    FROM purchy_grower_summary_v gs
-    ${ctx.joins}
-    ${whereAnd(ctx, `${DISHONOUR_GROWER_FILTER}${parentFilterSql ? ` AND ${parentFilterSql}` : ''}`)}
-    GROUP BY ${groupCol}
-    HAVING SUM(gs.indent_qty) > 0
-    ORDER BY pct DESC
-    LIMIT ?`,
-    [...ctx.params, ...parentParams, limit],
-  );
-  return rows.map(mapTreeRow);
+  const childCtx = parentFilterSql
+    ? { ...ctx, params: [...ctx.params, ...parentParams] }
+    : ctx;
+  const rows = await query2025FactsGrouped(childCtx, groupCol, parentFilterSql || '');
+  return rows
+    .filter((r) => r.indentCount > 0)
+    .sort((a, b) => b.dishonourPctCount - a.dishonourPctCount)
+    .slice(0, limit)
+    .map((r) => mapTreeRow({ id: r.grp, label: r.grp, pct: r.dishonourPctCount }));
 }
 
 async function getDishonourDrilldown(query) {
@@ -47,20 +38,20 @@ async function getDishonourDrilldown(query) {
   const selectedVillage = query.selectedVillage || null;
   const selectedGrower = query.selectedGrower || null;
 
-  const totalsRow = await queryOne(
-    `SELECT
-      COUNT(DISTINCT gs.grower_name_key) AS growers,
-      COUNT(DISTINCT gs.village_name_key) AS villages,
-      IFNULL(SUM(gs.indent_qty), 0) AS indent_qty,
-      IFNULL(SUM(gs.weight_qty_2025), 0) AS supply_qty,
-      IFNULL(SUM(gs.indent_failer_qty), 0) AS dishonour_qty
-    FROM purchy_grower_summary_v gs
-    ${ctx.joins}
-    ${whereAnd(ctx, DISHONOUR_GROWER_FILTER)}`,
-    ctx.params,
-  );
+  const [tx, totalsRow] = await Promise.all([
+    query2025Facts(ctx),
+    queryOne(
+      `SELECT
+        COUNT(DISTINCT gs.grower_name_key) AS growers,
+        COUNT(DISTINCT gs.village_name_key) AS villages
+      FROM purchy_grower_summary_v gs
+      ${ctx.joins}
+      ${ctx.whereSql}`,
+      ctx.params,
+    ),
+  ]);
 
-  const rootPct = pctRatio(totalsRow.dishonour_qty, totalsRow.indent_qty);
+  const rootPct = tx.dishonourPctCount;
 
   const societies = await getTreeLevel(ctx, 'gs.society_name', null, []);
 
@@ -79,7 +70,7 @@ async function getDishonourDrilldown(query) {
     );
   }
 
-  const detailWhereParts = [DISHONOUR_GROWER_FILTER];
+  const detailWhereParts = [];
   const detailParams = [...ctx.params];
   if (selectedGrower) {
     detailWhereParts.push('gs.grower_name_key = ?');
@@ -92,7 +83,9 @@ async function getDishonourDrilldown(query) {
     detailParams.push(selectedSociety);
   }
 
-  const detailWhere = whereAnd(ctx, detailWhereParts.join(' AND '));
+  const detailWhere = detailWhereParts.length
+    ? whereAnd(ctx, detailWhereParts.join(' AND '))
+    : ctx.whereSql;
 
   const countRow = await queryOne(
     `SELECT COUNT(*) AS total FROM purchy_grower_summary_v gs ${ctx.joins} ${detailWhere}`,
@@ -102,14 +95,15 @@ async function getDishonourDrilldown(query) {
   const [detailRows] = await pool.query(
     `SELECT
       gs.grower_name_key AS growerNameKey,
-      gs.indent_qty AS indentQty,
-      gs.weight_qty_2025 AS supplyQty,
-      gs.indent_failer_qty AS dishonourQty,
-      CASE WHEN gs.indent_qty > 0 THEN gs.indent_failer_qty / gs.indent_qty ELSE 0 END AS dishonourPct
+      IFNULL(ind.indent_qty, 0) AS indentQty,
+      IFNULL(sup.supply_qty, 0) AS supplyQty,
+      IFNULL(dh.dishonour_qty, 0) AS dishonourQty,
+      CASE WHEN IFNULL(ind.indent_qty, 0) > 0 THEN IFNULL(dh.dishonour_qty, 0) / ind.indent_qty ELSE 0 END AS dishonourPct
     FROM purchy_grower_summary_v gs
     ${ctx.joins}
+    ${growerFactJoinSql()}
     ${detailWhere}
-    ORDER BY dishonourPct DESC, gs.indent_failer_qty DESC
+    ORDER BY dishonourPct DESC, dishonourQty DESC
     LIMIT ? OFFSET ?`,
     [...detailParams, pageSize, offset],
   );
@@ -119,7 +113,7 @@ async function getDishonourDrilldown(query) {
       growers: Number(totalsRow.growers) || 0,
       villages: Number(totalsRow.villages) || 0,
     },
-    rootLabel: '2025 Dishonour % (Qty)',
+    rootLabel: '2025 Dishonour % (Count)',
     rootPct,
     tree: {
       societies: societies.map((s) => ({
@@ -141,10 +135,10 @@ async function getDishonourDrilldown(query) {
     page,
     pageSize,
     totals: {
-      indentQty: Number(totalsRow.indent_qty) || 0,
-      supplyQty: Number(totalsRow.supply_qty) || 0,
-      dishonourQty: Number(totalsRow.dishonour_qty) || 0,
-      dishonourPct: rootPct,
+      indentQty: tx.indentQty,
+      supplyQty: tx.supplyQty,
+      dishonourQty: tx.dishonourQty,
+      dishonourPct: tx.dishonourPctQty,
     },
   };
 }

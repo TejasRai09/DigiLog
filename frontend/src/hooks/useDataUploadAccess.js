@@ -1,43 +1,75 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import api from '../api/axios';
 import useAuth from './useAuth';
+import { DATA_UPLOAD_SECTION_KEYS } from '../config/dataUploadSections';
 
-/** Whether the signed-in user can see the Data Upload tab and page. */
+/** Whether the signed-in user can see Data Upload, and which sections. */
 export default function useDataUploadAccess() {
   const { user } = useAuth();
-  const [enabled, setEnabled] = useState(user?.role === 'admin');
-  const [loading, setLoading] = useState(!!user);
+  const userKey = user?.id ?? user?._id;
 
-  useEffect(() => {
+  const [sections, setSections] = useState(() => {
+    if (!user) return [];
+    if (user.role === 'admin') return [...DATA_UPLOAD_SECTION_KEYS];
+    if (Array.isArray(user.dataUploadSections)) return [...user.dataUploadSections];
+    return [];
+  });
+  const [loading, setLoading] = useState(() => {
+    if (!user) return false;
+    if (user.role === 'admin') return false;
+    return !Array.isArray(user.dataUploadSections);
+  });
+
+  const refresh = useCallback(async () => {
     if (!user) {
-      setEnabled(false);
+      setSections([]);
       setLoading(false);
       return;
     }
     if (user.role === 'admin') {
-      setEnabled(true);
+      setSections([...DATA_UPLOAD_SECTION_KEYS]);
       setLoading(false);
       return;
     }
 
-    let cancelled = false;
-    setLoading(true);
-    api
-      .get('/data-upload/access')
-      .then(({ data }) => {
-        if (!cancelled) setEnabled(!!data.enabled);
-      })
-      .catch(() => {
-        if (!cancelled) setEnabled(false);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    // Instant path: sections already on auth user from login /auth/me
+    if (Array.isArray(user.dataUploadSections) && user.dataUploadSections.length >= 0) {
+      setSections([...user.dataUploadSections]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
-    return () => {
-      cancelled = true;
+    try {
+      const { data } = await api.get('/data-upload/access');
+      setSections(Array.isArray(data.sections) ? data.sections : []);
+    } catch (err) {
+      console.error('[useDataUploadAccess]', err?.response?.status, err?.message);
+      if (!Array.isArray(user.dataUploadSections)) setSections([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    refresh();
+  }, [userKey, user?.role, user?.dataUploadSections, refresh]);
+
+  useEffect(() => {
+    if (user?.role !== 'employee') return undefined;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
     };
-  }, [user?.id, user?.role]);
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [user?.role, refresh]);
 
-  return { enabled, loading };
+  const enabled = sections.length > 0;
+  const canAccess = (key) => sections.includes(key);
+
+  return { enabled, loading, sections, canAccess, refresh };
 }

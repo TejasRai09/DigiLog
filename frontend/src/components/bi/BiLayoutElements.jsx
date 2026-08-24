@@ -1,5 +1,5 @@
 import React from 'react';
-import { MdDashboard, MdTableChart, MdLightMode, MdDarkMode } from 'react-icons/md';
+import { MdLightMode, MdDarkMode } from 'react-icons/md';
 
 function formatMetricValue(value) {
   if (value === undefined || value === null || value === '') return '';
@@ -39,49 +39,14 @@ export function BiKeyMetricBox({ value, title, subtitle, isDarkMode, tooltip, co
       >
         {display}
       </span>
-      <span className={`max-w-full truncate font-bold leading-tight ${compact ? 'mt-0.5 text-[7px]' : 'mt-1 text-[8px]'} ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+      <span className={`max-w-full truncate font-bold leading-tight ${compact ? 'mt-0.5 text-[9px]' : 'mt-1 text-[11px]'} ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
         {title}
       </span>
       {subtitle && !compact && (
-        <span className={`max-w-full truncate text-[7px] font-semibold leading-tight ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+        <span className={`max-w-full truncate text-[9px] font-semibold leading-tight ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
           {subtitle}
         </span>
       )}
-    </div>
-  );
-}
-
-export function BiViewTabs({ activeTab, setActiveTab, isDarkMode }) {
-  const textClasses = isDarkMode 
-    ? { muted: 'text-slate-500', hover: 'hover:text-slate-300' }
-    : { muted: 'text-slate-400', hover: 'hover:text-slate-600' };
-
-  return (
-    <div className="flex gap-4">
-      <button
-        type="button"
-        onClick={() => setActiveTab('dashboard')}
-        className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-          activeTab === 'dashboard'
-            ? 'border-blue-500 text-blue-500'
-            : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-        }`}
-      >
-        <MdDashboard className="h-3.5 w-3.5" />
-        Visual Dashboard
-      </button>
-      <button
-        type="button"
-        onClick={() => setActiveTab('table')}
-        className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-          activeTab === 'table'
-            ? 'border-blue-500 text-blue-500'
-            : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-        }`}
-      >
-        <MdTableChart className="h-3.5 w-3.5" />
-        Raw Data Table
-      </button>
     </div>
   );
 }
@@ -90,7 +55,7 @@ export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact
   return (
     <div className={`flex min-w-0 flex-col px-0.5 ${alignEnd ? 'ml-auto w-auto max-w-full' : 'w-full'} ${compact ? 'gap-0 py-0' : 'gap-2 py-1 lg:py-1.5'}`}>
         <div
-          className={`distillery-filter-bar relative flex min-w-0 max-w-full flex-wrap items-center overflow-x-hidden border shadow-sm backdrop-blur-md ${
+          className={`distillery-filter-bar relative z-20 flex min-w-0 max-w-full flex-wrap items-center overflow-visible border shadow-sm backdrop-blur-md ${
             alignEnd ? 'ml-auto w-auto justify-end' : 'w-full lg:w-auto'
           } ${
             compact

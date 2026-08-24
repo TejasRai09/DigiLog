@@ -20,6 +20,7 @@ const {
 } = require('../controllers/biPurchy.controller');
 const {
   getYardStats,
+  getYardDashboard,
   getYardBrixTrend,
   getYardByVehicle,
   getYardConditionDist,
@@ -29,6 +30,7 @@ const {
 } = require('../controllers/biBrixYard.controller');
 const {
   getFieldStats,
+  getFieldDashboard,
   getFieldBrixTrend,
   getFieldConditionTrend,
   getFieldCropCondition,
@@ -56,6 +58,7 @@ router.get('/milling-shredder', authenticate, getMillingShredderBi);
 router.get('/milling-lube-roller', authenticate, getMillingLubeRollerBi);
 
 // ─── Brix Yard Sampling BI ───────────────────────────────────────
+router.get('/brix-yard/dashboard',             authenticate, getYardDashboard);
 router.get('/brix-yard/stats',                 authenticate, getYardStats);
 router.get('/brix-yard/brix-trend',            authenticate, getYardBrixTrend);
 router.get('/brix-yard/by-vehicle',            authenticate, getYardByVehicle);
@@ -65,6 +68,7 @@ router.get('/brix-yard/delivery-points',       authenticate, getYardDeliveryPoin
 router.get('/brix-yard/table-data',            authenticate, getYardTableData);
 
 // ─── Brix Field Sampling BI ──────────────────────────────────────
+router.get('/brix-field/dashboard',             authenticate, getFieldDashboard);
 router.get('/brix-field/stats',                 authenticate, getFieldStats);
 router.get('/brix-field/brix-trend',            authenticate, getFieldBrixTrend);
 router.get('/brix-field/field-condition-trend',  authenticate, getFieldConditionTrend);

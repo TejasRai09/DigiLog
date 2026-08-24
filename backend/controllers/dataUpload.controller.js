@@ -24,16 +24,43 @@ const {
   resolveMdSlot,
   isManagementDashboardCategory,
 } = require('../utils/managementDashboardUploadSlots');
+const {
+  DATA_UPLOAD_SECTIONS,
+  DATA_UPLOAD_SECTION_KEYS,
+  normalizeSectionKeys,
+  getUserDataUploadSections,
+} = require('../utils/dataUploadSections');
 const { sendServerError, MSG, logServerError } = require('../utils/httpError');
 
 async function hasDataUploadAccess(user) {
+  const sections = await getUserDataUploadSections(user);
+  return sections.length > 0;
+}
+
+async function hasDataUploadSection(user, sectionKey) {
   if (!user) return false;
   if (user.role === 'admin') return true;
+  const key = String(sectionKey || '').trim().toLowerCase();
+  if (!DATA_UPLOAD_SECTION_KEYS.includes(key)) return false;
+  const userId = user.id ?? user._id;
+  if (userId == null) return false;
   const [[row]] = await pool.query(
-    'SELECT user_id FROM user_data_upload_access WHERE user_id = ? LIMIT 1',
-    [user.id],
+    'SELECT user_id FROM user_data_upload_access WHERE user_id = ? AND section_key = ? LIMIT 1',
+    [userId, key],
   );
   return !!row;
+}
+
+function requireDataUploadSection(sectionKey) {
+  return async (req, res, next) => {
+    try {
+      if (await hasDataUploadSection(req.user, sectionKey)) return next();
+      return res.status(403).json({ message: 'You do not have access to this Data Upload section.' });
+    } catch (err) {
+      logServerError('requireDataUploadSection', err);
+      return res.status(500).json({ message: MSG.SERVER });
+    }
+  };
 }
 
 function mapFileRow(r) {
@@ -82,8 +109,12 @@ function validateCategory(category) {
 /** GET /api/data-upload/access */
 async function getMyAccess(req, res) {
   try {
-    const enabled = await hasDataUploadAccess(req.user);
-    res.json({ enabled });
+    const sections = await getUserDataUploadSections(req.user);
+    res.json({
+      enabled: sections.length > 0,
+      sections,
+      sectionMeta: DATA_UPLOAD_SECTIONS,
+    });
   } catch (err) {
     sendServerError(res, 'getMyAccess', err, MSG.LOAD);
   }
@@ -233,17 +264,25 @@ async function getAdminDataUploadAccess(req, res) {
        WHERE u.role = 'employee'
        ORDER BY u.name`,
     );
-    const [grants] = await pool.query('SELECT user_id, granted_by, created_at FROM user_data_upload_access');
-    const grantByUser = new Map(grants.map((g) => [g.user_id, g]));
+    const [grants] = await pool.query(
+      'SELECT user_id, section_key, granted_by, created_at FROM user_data_upload_access',
+    );
+    const sectionsByUser = new Map();
+    for (const g of grants) {
+      const uid = Number(g.user_id);
+      const list = sectionsByUser.get(uid) || [];
+      list.push(g.section_key);
+      sectionsByUser.set(uid, list);
+    }
 
     res.json({
+      sections: DATA_UPLOAD_SECTIONS,
       assignments: users.map((u) => {
-        const g = grantByUser.get(u.id);
+        const sections = normalizeSectionKeys(sectionsByUser.get(Number(u.id)) || []);
         return {
           user: { _id: u.id, id: u.id, name: u.name, email: u.email },
-          enabled: !!g,
-          grantedBy: g?.granted_by ?? null,
-          grantedAt: g?.created_at ?? null,
+          sections,
+          enabled: sections.length > 0,
         };
       }),
     });
@@ -252,12 +291,21 @@ async function getAdminDataUploadAccess(req, res) {
   }
 }
 
-/** PUT /api/admin/data-upload-access — { userId, enabled } */
+/** PUT /api/admin/data-upload-access — { userId, sections: string[] } */
 async function upsertAdminDataUploadAccess(req, res) {
-  const { userId, enabled } = req.body;
-  if (!userId) return res.status(400).json({ message: 'userId is required.' });
-  if (typeof enabled !== 'boolean') {
-    return res.status(400).json({ message: 'enabled must be a boolean.' });
+  const userId = Number(req.body?.userId);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return res.status(400).json({ message: 'userId is required.' });
+  }
+
+  // Back-compat: { enabled: true } → all sections; { enabled: false } → none
+  let sections;
+  if (Array.isArray(req.body?.sections)) {
+    sections = normalizeSectionKeys(req.body.sections);
+  } else if (typeof req.body?.enabled === 'boolean') {
+    sections = req.body.enabled ? [...DATA_UPLOAD_SECTION_KEYS] : [];
+  } else {
+    return res.status(400).json({ message: 'sections must be an array of section keys.' });
   }
 
   try {
@@ -267,18 +315,30 @@ async function upsertAdminDataUploadAccess(req, res) {
       return res.status(400).json({ message: 'Data upload access applies to employees only.' });
     }
 
-    if (enabled) {
-      await pool.query(
-        `INSERT INTO user_data_upload_access (user_id, granted_by)
-         VALUES (?, ?)
-         ON DUPLICATE KEY UPDATE granted_by = VALUES(granted_by)`,
-        [userId, req.user.id],
-      );
-    } else {
-      await pool.query('DELETE FROM user_data_upload_access WHERE user_id = ?', [userId]);
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query('DELETE FROM user_data_upload_access WHERE user_id = ?', [userId]);
+      for (const sectionKey of sections) {
+        await conn.query(
+          `INSERT INTO user_data_upload_access (user_id, section_key, granted_by)
+           VALUES (?, ?, ?)`,
+          [userId, sectionKey, req.user.id],
+        );
+      }
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
     }
 
-    res.json({ message: 'Data upload access saved.', enabled });
+    res.json({
+      message: 'Data upload access saved.',
+      enabled: sections.length > 0,
+      sections,
+    });
   } catch (err) {
     sendServerError(res, 'upsertAdminDataUploadAccess', err, MSG.SAVE);
   }
@@ -487,6 +547,7 @@ module.exports = {
   hasDataUploadAccess,
   getMyAccess,
   requireDataUploadAccess,
+  requireDataUploadSection,
   listFiles,
   uploadFile,
   getPurchySlots,

@@ -19,7 +19,6 @@ import PowerSummaryView from '../../components/bi/PowerSummaryView';
 import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 import {
   PowerConsumptionView,
-  PowerDataView,
   PowerGenerationView,
   PowerOutageView,
   SteamConsumptionView,
@@ -33,7 +32,15 @@ import {
   computeSteamKpis,
   groupOutageBy,
 } from '../../utils/powerHouseMeasures';
-import { formatYMD, getMtdRangeForDashboard, resolveDashboardToDate } from '../../utils/distilleryBiDateRange';
+import { formatYMD, resolveDashboardToDate } from '../../utils/distilleryBiDateRange';
+import {
+  applyCockpitCompareSelection,
+  buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
+  getCockpitPresetDateRange,
+  getCockpitSeasonLabels,
+  resolveCockpitCompareRange,
+} from '../../utils/biCockpitDateFilters';
 
 const TABS = [
   { id: 'summary', label: 'Power Summary', icon: Activity },
@@ -43,7 +50,6 @@ const TABS = [
   { id: 'steam-consumption', label: 'Steam Consumption', icon: Flame },
   { id: 'outage', label: 'Outage', icon: TimerReset },
   { id: 'process', label: 'Process', icon: Factory },
-  { id: 'data', label: 'Data', icon: Table2 },
 ];
 
 const FIT_TABS = new Set([
@@ -54,18 +60,7 @@ const FIT_TABS = new Set([
   'steam-consumption',
   'outage',
   'process',
-  'data',
 ]);
-
-function getPresetRange(preset, now = new Date()) {
-  const to = formatYMD(now);
-  if (preset === 'STD') {
-    const seasonStartYear = now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
-    return { from: formatYMD(new Date(seasonStartYear, 9, 1)), to };
-  }
-  if (preset === 'YTD') return { from: formatYMD(new Date(now.getFullYear(), 0, 1)), to };
-  return { from: formatYMD(new Date(now.getFullYear(), now.getMonth(), 1)), to };
-}
 
 function clampDate(value, min, max) {
   if (!value) return value;
@@ -87,7 +82,9 @@ function clampRange(from, to, min, max) {
 export default function PowerHouseDashboard() {
   const [tab, setTab] = useState('summary');
   const [dm, setDm] = useState(false);
-  const [preset, setPreset] = useState('MTD');
+  const [rangePreset, setRangePreset] = useState('STD');
+  const [comparisonType, setComparisonType] = useState('PP');
+  const [seasonMapping, setSeasonMapping] = useState({});
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [dateBounds, setDateBounds] = useState({ min: null, max: null });
@@ -99,9 +96,41 @@ export default function PowerHouseDashboard() {
   const [stoppageRows, setStoppageRows] = useState([]);
   const [outageSection, setOutageSection] = useState('ALL');
   const [outageCategory, setOutageCategory] = useState('ALL');
-  const [dataSub, setDataSub] = useState('power');
+  const [powerTariffRate, setPowerTariffRate] = useState(4.85);
+
+  const [comparePowerRows, setComparePowerRows] = useState([]);
+  const [compareSteamRows, setCompareSteamRows] = useState([]);
+  const [compareStoppageRows, setCompareStoppageRows] = useState([]);
 
   const fitLayout = FIT_TABS.has(tab) && !loading;
+
+  const seasonLabels = useMemo(() => {
+    const refIso = to || dateBounds.max || formatYMD(new Date());
+    return getCockpitSeasonLabels(refIso, seasonMapping);
+  }, [to, dateBounds.max, seasonMapping]);
+
+  const comparisonOptions = useMemo(() => {
+    const refIso = to || dateBounds.max || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, to, dateBounds.max]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: from,
+      toDate: to,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dateBounds.min,
+      dataMax: dateBounds.max,
+      setComparisonType,
+    });
+  }, [from, to, rangePreset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,27 +138,32 @@ export default function PowerHouseDashboard() {
       setLoading(true);
       setError(null);
       try {
-        const res = await api.get('/bi/power-house');
+        const [powerRes, settingsRes] = await Promise.all([
+          api.get('/bi/power-house'),
+          api.get('/bi/settings').catch(() => null),
+        ]);
         if (cancelled) return;
-        const bounds = res.data?.meta?.dateBounds || {};
+
+        let mapping = {};
+        if (settingsRes?.data?.seasonMapping && typeof settingsRes.data.seasonMapping === 'object') {
+          mapping = settingsRes.data.seasonMapping;
+          setSeasonMapping(mapping);
+        }
+        const tariff = settingsRes?.data?.powerTariffRate;
+        if (typeof tariff === 'number' && tariff > 0) setPowerTariffRate(tariff);
+
+        const bounds = powerRes.data?.meta?.dateBounds || {};
         const min = bounds.min || null;
         const max = bounds.max || null;
         setDateBounds({ min, max });
 
-        const isos = [];
-        for (const row of [
-          ...(Array.isArray(res.data?.powerRows) ? res.data.powerRows : []),
-          ...(Array.isArray(res.data?.steamRows) ? res.data.steamRows : []),
-          ...(Array.isArray(res.data?.stoppageRows) ? res.data.stoppageRows : []),
-        ]) {
-          const d = row?.Date != null ? String(row.Date).slice(0, 10) : '';
-          if (d) isos.push(d);
-        }
-        const mtd = getMtdRangeForDashboard(isos.length ? isos : null, max);
-        const clamped = clampRange(mtd.from, mtd.to, min, max);
+        const toIso = resolveDashboardToDate(null, max);
+        const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
+        const std = getCockpitPresetDateRange('STD', ref, mapping);
+        const clamped = clampRange(std.from, std.to, min, max);
         setFrom(clamped.from || min || '');
         setTo(clamped.to || max || '');
-        setPreset('MTD');
+        setRangePreset('STD');
         setRangeReady(true);
       } catch (err) {
         if (!cancelled) {
@@ -148,13 +182,42 @@ export default function PowerHouseDashboard() {
     };
   }, []);
 
+  /** Compare window for future PY KPIs (API not wired yet). */
+  const compareRange = useMemo(() => {
+    if (!from || !to) return null;
+    const resolved = resolveCockpitCompareRange(
+      from,
+      to,
+      comparisonType,
+      seasonLabels,
+      seasonMapping,
+      rangePreset,
+    );
+    if (!resolved?.start || !resolved?.end) return null;
+    return {
+      start: resolved.start,
+      end: resolved.end,
+      label: resolved.label || (comparisonType === 'PP' ? 'Prev. Period' : ''),
+    };
+  }, [comparisonType, from, to, rangePreset, seasonLabels, seasonMapping]);
+
   const load = useCallback(async () => {
     if (!rangeReady || !from || !to) return;
     setLoading(true);
     setError(null);
     try {
       const qs = new URLSearchParams({ from, to }).toString();
-      const res = await api.get(`/bi/power-house?${qs}`);
+      let res, compareRes;
+      if (compareRange?.start && compareRange?.end) {
+        const compareQs = new URLSearchParams({ from: compareRange.start, to: compareRange.end }).toString();
+        [res, compareRes] = await Promise.all([
+          api.get(`/bi/power-house?${qs}`),
+          api.get(`/bi/power-house?${compareQs}`).catch(() => ({ data: {} })),
+        ]);
+      } else {
+        res = await api.get(`/bi/power-house?${qs}`);
+      }
+
       const bounds = res.data?.meta?.dateBounds || {};
       if (bounds.min || bounds.max) {
         setDateBounds((prev) => ({
@@ -165,15 +228,28 @@ export default function PowerHouseDashboard() {
       setPowerRows(Array.isArray(res.data?.powerRows) ? res.data.powerRows : []);
       setSteamRows(Array.isArray(res.data?.steamRows) ? res.data.steamRows : []);
       setStoppageRows(Array.isArray(res.data?.stoppageRows) ? res.data.stoppageRows : []);
+
+      if (compareRes?.data) {
+        setComparePowerRows(Array.isArray(compareRes.data.powerRows) ? compareRes.data.powerRows : []);
+        setCompareSteamRows(Array.isArray(compareRes.data.steamRows) ? compareRes.data.steamRows : []);
+        setCompareStoppageRows(Array.isArray(compareRes.data.stoppageRows) ? compareRes.data.stoppageRows : []);
+      } else {
+        setComparePowerRows([]);
+        setCompareSteamRows([]);
+        setCompareStoppageRows([]);
+      }
     } catch (err) {
       setPowerRows([]);
       setSteamRows([]);
       setStoppageRows([]);
+      setComparePowerRows([]);
+      setCompareSteamRows([]);
+      setCompareStoppageRows([]);
       setError(err.response?.data?.message || err.message || 'Failed to load Power House data.');
     } finally {
       setLoading(false);
     }
-  }, [from, to, rangeReady]);
+  }, [from, to, rangeReady, compareRange]);
 
   useEffect(() => {
     if (!rangeReady || !from || !to) return;
@@ -181,38 +257,50 @@ export default function PowerHouseDashboard() {
   }, [from, to, rangeReady, load]);
 
   const applyPreset = (p) => {
-    setPreset(p);
-    if (p === 'ALL' && dateBounds.min && dateBounds.max) {
-      setFrom(dateBounds.min);
-      setTo(dateBounds.max);
+    if (p === 'Custom') {
+      setRangePreset('Custom');
       return;
     }
+    setRangePreset(p);
     const toIso = resolveDashboardToDate(null, dateBounds.max);
     const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
-    const r = getPresetRange(p, ref);
+    const r = getCockpitPresetDateRange(p, ref, seasonMapping);
     const clamped = clampRange(r.from, r.to, dateBounds.min, dateBounds.max);
     setFrom(clamped.from);
     setTo(clamped.to);
   };
 
   const onFromChange = (value) => {
-    setPreset('CUSTOM');
+    setRangePreset('Custom');
     const next = clampDate(value, dateBounds.min, dateBounds.max);
     setFrom(next);
     if (to && next && next > to) setTo(next);
   };
 
   const onToChange = (value) => {
-    setPreset('CUSTOM');
+    setRangePreset('Custom');
     const next = clampDate(value, dateBounds.min, dateBounds.max);
     setTo(next);
     if (from && next && next < from) setFrom(next);
   };
 
-  const powerKpis = useMemo(() => computePowerKpis(powerRows, steamRows), [powerRows, steamRows]);
+  const powerKpis = useMemo(
+    () => computePowerKpis(powerRows, steamRows, { tariffRate: powerTariffRate }),
+    [powerRows, steamRows, powerTariffRate],
+  );
   const steamKpis = useMemo(() => computeSteamKpis(steamRows), [steamRows]);
   const outageKpis = useMemo(() => computeOutageKpis(stoppageRows), [stoppageRows]);
-  const daily = useMemo(() => buildDailySeries(powerRows, steamRows), [powerRows, steamRows]);
+
+  const comparePowerKpis = useMemo(
+    () => computePowerKpis(comparePowerRows, compareSteamRows, { tariffRate: powerTariffRate }),
+    [comparePowerRows, compareSteamRows, powerTariffRate],
+  );
+  const compareSteamKpis = useMemo(() => computeSteamKpis(compareSteamRows), [compareSteamRows]);
+  const compareOutageKpis = useMemo(() => computeOutageKpis(compareStoppageRows), [compareStoppageRows]);
+  const daily = useMemo(
+    () => buildDailySeries(powerRows, steamRows, { tariffRate: powerTariffRate }),
+    [powerRows, steamRows, powerTariffRate],
+  );
 
   const filteredStoppages = useMemo(() => {
     const wantSection = outageSection === 'ALL' ? null : String(outageSection).trim();
@@ -292,7 +380,7 @@ export default function PowerHouseDashboard() {
             <BiKeyMetricBox
               value={daily.length}
               title="Operating Days"
-              subtitle={preset}
+              subtitle={compareRange?.label ? `${rangePreset} · vs ${compareRange.label}` : rangePreset}
               isDarkMode={dm}
             />
           </div>
@@ -318,14 +406,14 @@ export default function PowerHouseDashboard() {
           </div>
           <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
           <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            {['ALL', 'MTD', 'YTD', 'STD'].map((p) => (
+            {['MTD', 'STD', 'WTD'].map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => applyPreset(p)}
                 disabled={!dateBounds.min || !dateBounds.max}
                 className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
-                  preset === p
+                  rangePreset === p
                     ? 'bg-blue-600 text-white shadow-md'
                     : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                 }`}
@@ -333,6 +421,39 @@ export default function PowerHouseDashboard() {
                 {p}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => applyPreset('Custom')}
+              disabled={!dateBounds.min || !dateBounds.max}
+              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                rangePreset === 'Custom'
+                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                  : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
+              Compare
+            </span>
+            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+              {comparisonOptions.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  onClick={() => onCompareSelect(comp.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    comparisonType === comp.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {comp.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
             <div className="flex shrink-0 flex-col gap-0.5">
@@ -370,7 +491,7 @@ export default function PowerHouseDashboard() {
           loading
             ? 'relative min-h-[calc(100vh-8.5rem)] px-3 py-5'
             : fitLayout
-              ? 'flex-1 min-h-0 px-3 py-2 overflow-hidden flex flex-col'
+              ? `flex-1 min-h-0 overflow-hidden flex flex-col ${tab === 'process' ? 'px-1 py-1 sm:px-2 sm:py-1.5' : 'px-3 py-2'}`
               : 'px-4 py-5'
         }`}
       >
@@ -407,61 +528,44 @@ export default function PowerHouseDashboard() {
           </div>
         )}
 
-        {!loading && !error && tab === 'summary' && (
-          <PowerSummaryView powerKpis={powerKpis} daily={daily} dm={dm} />
-        )}
-
-        {!loading && !error && tab === 'generation' && (
-          <PowerGenerationView powerKpis={powerKpis} daily={daily} dm={dm} />
-        )}
-
-        {!loading && !error && tab === 'consumption' && (
-          <PowerConsumptionView
-            powerKpis={powerKpis}
-            daily={daily}
-            consumptionPie={consumptionPie}
-            externalPie={externalPie}
-            dm={dm}
-          />
-        )}
-
-        {!loading && !error && tab === 'steam-summary' && (
-          <SteamSummaryView steamKpis={steamKpis} daily={daily} dm={dm} />
-        )}
-
-        {!loading && !error && tab === 'steam-consumption' && (
-          <SteamConsumptionView steamKpis={steamKpis} daily={daily} dm={dm} />
-        )}
-
-        {!loading && !error && tab === 'outage' && (
-          <PowerOutageView
-            dm={dm}
-            sections={sections}
-            categories={categories}
-            outageSection={outageSection}
-            outageCategory={outageCategory}
-            setOutageSection={setOutageSection}
-            setOutageCategory={setOutageCategory}
-            filteredStoppages={filteredStoppages}
-            outageKpis={outageKpis}
-            outageDaily={outageDaily}
-            outageBySection={outageBySection}
-          />
-        )}
-
-        {!loading && !error && tab === 'process' && (
-          <PowerProcessFlow powerKpis={powerKpis} steamKpis={steamKpis} dm={dm} />
-        )}
-
-        {!loading && !error && tab === 'data' && (
-          <PowerDataView
-            dm={dm}
-            dataSub={dataSub}
-            setDataSub={setDataSub}
-            powerRows={powerRows}
-            steamRows={steamRows}
-            stoppageRows={stoppageRows}
-          />
+        {!loading && !error && (
+          tab === 'summary' ? (
+            <PowerSummaryView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+          ) : tab === 'generation' ? (
+            <PowerGenerationView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+          ) : tab === 'consumption' ? (
+            <PowerConsumptionView
+              powerKpis={powerKpis}
+              comparePowerKpis={comparePowerKpis}
+              comparisonLabel={compareRange?.label}
+              daily={daily}
+              consumptionPie={consumptionPie}
+              externalPie={externalPie}
+              dm={dm}
+            />
+          ) : tab === 'steam-summary' ? (
+            <SteamSummaryView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+          ) : tab === 'steam-consumption' ? (
+            <SteamConsumptionView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+          ) : tab === 'outage' ? (
+            <PowerOutageView
+              dm={dm}
+              outageKpis={outageKpis}
+              compareOutageKpis={compareOutageKpis}
+              comparisonLabel={compareRange?.label}
+              sections={sections}
+              categories={categories}
+              outageSection={outageSection}
+              outageCategory={outageCategory}
+              setOutageSection={setOutageSection}
+              setOutageCategory={setOutageCategory}
+              filteredStoppages={filteredStoppages}
+              outageDaily={outageDaily}
+              outageBySection={outageBySection}
+            />
+          ) : tab === 'process' ? (
+            <PowerProcessFlow powerKpis={powerKpis} steamKpis={steamKpis} dm={dm} />
+          ) : null
         )}
       </main>
     </div>

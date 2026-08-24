@@ -20,21 +20,29 @@ import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import ChartCardToolbar from '../../components/bi/ChartCardToolbar';
 import MillChartExpandModal from '../../components/bi/MillChartExpandModal';
-import MillRawDataTable from '../../components/bi/MillRawDataTable';
 import {
-  buildLogbookColumns,
-  buildLogbookTableRows,
-  collectVariableKeys,
-  isOtgVariable,
-  isShredderVariable,
+  filterSeriesByRange,
+  seriesDateBounds,
 } from '../../utils/millingBiRawTable';
+import {
+  applyMillCompareToChart,
+  averageLogbookValues,
+  millCompareLineProps,
+  millExpandLines,
+  millPctDelta,
+} from '../../utils/millingBiComparison';
+import MillComparePct from '../../components/bi/MillComparePct';
+import MillPairedChartTooltip, { MILL_CHART_TOOLTIP_PROPS, MillTooltipAnchor } from '../../components/bi/MillPairedChartTooltip';
 
-const SUB_TABS = [
-  { id: 'summary-temp',  label: 'Summary - Equipment Temp', icon: MdThermostat, enabled: true  },
-  { id: 'equip-temp-1',  label: 'Equipment Temp 1',         icon: MdSettings,   enabled: true  },
-  { id: 'equip-temp-2',  label: 'Equipment Temp 2',         icon: MdSettings,   enabled: true  },
-  { id: 'shredder-temp', label: 'Shredder Temp',             icon: MdFactory,    enabled: true  },
-  { id: 'otg-temp',     label: 'OTG Bearing Temp',          icon: MdSettings,   enabled: true  },
+const EQUIP_SUB_TABS = [
+  { id: 'summary-temp', label: 'Summary - Equipment Temp', icon: MdThermostat, enabled: true },
+  { id: 'equip-temp-1', label: 'Equipment Temp 1',         icon: MdSettings,   enabled: true },
+  { id: 'equip-temp-2', label: 'Equipment Temp 2',         icon: MdSettings,   enabled: true },
+];
+
+const SHRED_OTG_SUB_TABS = [
+  { id: 'shredder-temp', label: 'Shredder Temp',    icon: MdFactory,  enabled: true },
+  { id: 'otg-temp',      label: 'OTG Bearing Temp', icon: MdSettings, enabled: true },
 ];
 
 /** All 13 equipment units recorded in mill_logbook1, ordered as they appear in the form. */
@@ -107,20 +115,29 @@ function dateOnlyLabel(dateIso) {
   return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
 }
 
+/** Earliest Power BI mill slicer date — also used so BI APIs do not apply the 365-day lookback. */
+const MILL_BI_FROM = '2023-03-11';
+
 /** Hook that fetches the equipment-temp dataset once and caches it in component state. */
-function useEquipmentTempData() {
+function useEquipmentTempData(enabled = true) {
   const [data, setData] = useState({ mapping: [], series: [] });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const { data: resp } = await api.get('/bi/milling-equipment-temp');
+        const { data: resp } = await api.get('/bi/milling-equipment-temp', {
+          params: { from: MILL_BI_FROM },
+        });
         if (cancelled) return;
         setData({
           mapping: Array.isArray(resp?.mapping) ? resp.mapping : [],
@@ -138,27 +155,28 @@ function useEquipmentTempData() {
     return () => {
       cancelled = true;
     };
-  }, [reloadKey]);
+  }, [reloadKey, enabled]);
 
   return { data, loading, error, reload: () => setReloadKey((k) => k + 1) };
 }
 
 /** Hook that fetches the shredder + OTG dataset from mill_logbook2. */
-function useShredderData() {
+function useShredderData(enabled = false) {
   const [data, setData] = useState({ mapping: [], series: [] });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [fetched, setFetched] = useState(false);
 
   useEffect(() => {
-    if (!fetched && reloadKey === 0) return; // lazy – only fetch when first activated
+    if (!enabled) return;
     let cancelled = false;
     (async () => {
       try {
         setLoading(true);
         setError(null);
-        const { data: resp } = await api.get('/bi/milling-shredder');
+        const { data: resp } = await api.get('/bi/milling-shredder', {
+          params: { from: MILL_BI_FROM },
+        });
         if (cancelled) return;
         setData({
           mapping: Array.isArray(resp?.mapping) ? resp.mapping : [],
@@ -174,48 +192,66 @@ function useShredderData() {
       }
     })();
     return () => { cancelled = true; };
-  }, [reloadKey, fetched]);
+  }, [reloadKey, enabled]);
 
-  const activate = () => { if (!fetched) setFetched(true); };
-  const reload = () => setReloadKey((k) => k + 1);
-  return { data, loading, error, activate, reload };
+  return { data, loading, error, reload: () => setReloadKey((k) => k + 1) };
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
  * Tab wrapper – owns the sub-nav and routes between sub-views.
  * ────────────────────────────────────────────────────────────────────────── */
 export default function MillThermalReportsTab({
+  section = 'thermal',
   fromDate,
   toDate,
+  compareFrom,
+  compareTo,
+  comparisonType,
+  seasonLabel,
+  seasonMapping = {},
+  bySeasonDay = false,
+  comparisonLabel,
   isDarkMode,
   cardClasses,
   textClasses,
   axisStyle,
   gridStyle,
   periodLabel,
-  viewMode = 'dashboard',
+  onDateBounds,
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('summary-temp');
+  const isThermal = section === 'thermal';
+  const isShredderOtg = section === 'shredder-otg';
+  const subTabs = isThermal ? EQUIP_SUB_TABS : isShredderOtg ? SHRED_OTG_SUB_TABS : [];
+
+  const [activeSubTab, setActiveSubTab] = useState(isThermal ? 'summary-temp' : 'shredder-temp');
   const [selectedShift, setSelectedShift] = useState('All');
   const [expandedChart, setExpandedChart] = useState(null); // { title, lines, chartData }
-  const { data, loading, error, reload } = useEquipmentTempData();
-  const shredder = useShredderData();
+  const { data, loading, error, reload } = useEquipmentTempData(isThermal);
+  const shredder = useShredderData(isShredderOtg);
 
-  // Lazy-load shredder data the first time either shredder sub-tab is opened
-  const handleSubTabClick = (id) => {
-    if (id === 'shredder-temp' || id === 'otg-temp') shredder.activate();
-    setActiveSubTab(id);
-  };
+  useEffect(() => {
+    setActiveSubTab(isThermal ? 'summary-temp' : 'shredder-temp');
+  }, [isThermal]);
 
-  // Distinct, sorted shift values across both datasets
+  useEffect(() => {
+    if (!onDateBounds) return;
+    const source = isThermal ? data.series : shredder.data.series;
+    const { min, max } = seriesDateBounds(source);
+    if (min && max) onDateBounds(min, max);
+  }, [isThermal, data.series, shredder.data.series, onDateBounds]);
+
+  const activeView = activeSubTab;
+
+  // Distinct, sorted shift values for the active dataset
   const availableShifts = useMemo(() => {
+    const source = isThermal ? data.series : shredder.data.series;
     const set = new Set();
-    for (const r of [...data.series, ...shredder.data.series]) {
+    for (const r of source) {
       const s = (r.shift || '').trim().toUpperCase();
       if (s) set.add(s);
     }
     return ['All', ...[...set].sort()];
-  }, [data.series, shredder.data.series]);
+  }, [isThermal, data.series, shredder.data.series]);
 
   // Pre-filter series by selected shift before passing to sub-views
   const shiftFilter = (arr) =>
@@ -226,114 +262,67 @@ export default function MillThermalReportsTab({
   const millSeries   = useMemo(() => shiftFilter(data.series),           [data.series, selectedShift]);
   const shredSeries  = useMemo(() => shiftFilter(shredder.data.series),  [shredder.data.series, selectedShift]);
 
-  const rawTableConfig = useMemo(() => {
-    const subLabel = SUB_TABS.find((t) => t.id === activeSubTab)?.label || '';
-
-    if (['summary-temp', 'equip-temp-1', 'equip-temp-2'].includes(activeSubTab)) {
-      const variableKeys = collectVariableKeys(millSeries);
-      return {
-        title: `Equipment Temperature — ${subLabel}`,
-        mapping: data.mapping,
-        series: millSeries,
-        variableKeys,
-        loading,
-        error,
-      };
-    }
-    if (activeSubTab === 'shredder-temp') {
-      const variableKeys = collectVariableKeys(shredSeries, isShredderVariable);
-      return {
-        title: `Shredder Log — ${subLabel}`,
-        mapping: shredder.data.mapping,
-        series: shredSeries,
-        variableKeys,
-        loading: shredder.loading,
-        error: shredder.error,
-      };
-    }
-    if (activeSubTab === 'otg-temp') {
-      const variableKeys = collectVariableKeys(shredSeries, isOtgVariable);
-      return {
-        title: `OTG Bearing Log — ${subLabel}`,
-        mapping: shredder.data.mapping,
-        series: shredSeries,
-        variableKeys,
-        loading: shredder.loading,
-        error: shredder.error,
-      };
-    }
-    return null;
-  }, [
-    activeSubTab,
-    data.mapping,
-    millSeries,
-    shredSeries,
-    loading,
-    error,
-    shredder.loading,
-    shredder.error,
-    shredder.data.mapping,
-  ]);
-
-  const rawColumns = useMemo(
-    () => (rawTableConfig ? buildLogbookColumns(rawTableConfig.mapping, rawTableConfig.variableKeys) : []),
-    [rawTableConfig],
+  const compareAlign = useMemo(
+    () => ({ comparisonType, fromDate, compareFrom, seasonLabel, seasonMapping, bySeasonDay }),
+    [comparisonType, fromDate, compareFrom, seasonLabel, seasonMapping, bySeasonDay],
+  );
+  const millCompareSeries = useMemo(
+    () => (compareFrom && compareTo ? filterSeriesByRange(millSeries, compareFrom, compareTo) : []),
+    [millSeries, compareFrom, compareTo],
+  );
+  const shredCompareSeries = useMemo(
+    () => (compareFrom && compareTo ? filterSeriesByRange(shredSeries, compareFrom, compareTo) : []),
+    [shredSeries, compareFrom, compareTo],
   );
 
-  const rawRows = useMemo(
-    () => (rawTableConfig
-      ? buildLogbookTableRows(
-        rawTableConfig.series,
-        rawTableConfig.variableKeys,
-        fromDate,
-        toDate,
-        selectedShift,
-      )
-      : []),
-    [rawTableConfig, fromDate, toDate, selectedShift],
-  );
+  const viewError = isThermal ? error : shredder.error;
+  const handleReload = isThermal ? reload : shredder.reload;
 
   return (
     <div className="flex h-full min-w-0 flex-col gap-3">
-      {/* Sub-nav strip */}
+      {/* Sub-nav strip: equipment sub-tabs (thermal only) + shared shift / compare / refresh */}
       <div
         className={`flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border px-3 py-2 ${cardClasses}`}
       >
-        <div className="flex flex-wrap gap-4">
-          {SUB_TABS.map((t) => {
-            const Icon = t.icon;
-            const active = activeSubTab === t.id;
-            const disabled = !t.enabled;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                disabled={disabled}
-                title={disabled ? 'Coming soon' : undefined}
-                onClick={() => (disabled ? null : handleSubTabClick(t.id))}
-                className={`flex items-center gap-1.5 border-b-2 pb-1 text-[11px] font-black transition-colors ${
-                  active
-                    ? 'border-blue-500 text-blue-500'
-                    : disabled
-                      ? `cursor-not-allowed border-transparent ${isDarkMode ? 'text-slate-600' : 'text-slate-300'}`
-                      : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-                }`}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {t.label}
-                {disabled && (
-                  <span
-                    className={`ml-1 rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${
-                      isDarkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-400'
-                    }`}
-                  >
-                    Soon
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {subTabs.length > 0 ? (
+          <div className="flex flex-wrap gap-4">
+            {subTabs.map((t) => {
+              const Icon = t.icon;
+              const active = activeSubTab === t.id;
+              const disabled = !t.enabled;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  disabled={disabled}
+                  title={disabled ? 'Coming soon' : undefined}
+                  onClick={() => (disabled ? null : setActiveSubTab(t.id))}
+                  className={`flex items-center gap-1.5 border-b-2 pb-1 text-[11px] font-black transition-colors ${
+                    active
+                      ? 'border-blue-500 text-blue-500'
+                      : disabled
+                        ? `cursor-not-allowed border-transparent ${isDarkMode ? 'text-slate-600' : 'text-slate-300'}`
+                        : `border-transparent ${textClasses.muted} ${textClasses.hover}`
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                  {disabled && (
+                    <span
+                      className={`ml-1 rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${
+                        isDarkMode ? 'bg-slate-700 text-slate-400' : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      Soon
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div />
+        )}
         {/* Shift filter chips */}
         <div className="flex items-center gap-1.5">
           <span className={`text-[9px] font-black uppercase tracking-widest ${textClasses.muted}`}>Shift</span>
@@ -353,11 +342,16 @@ export default function MillThermalReportsTab({
               {sh}
             </button>
           ))}
+          {comparisonLabel ? (
+            <span className={`ml-1 max-w-[14rem] truncate text-[9px] font-bold ${textClasses.muted}`} title={comparisonLabel}>
+              vs {comparisonLabel}
+            </span>
+          ) : null}
         </div>
 
         <button
           type="button"
-          onClick={reload}
+          onClick={handleReload}
           className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-bold transition-colors ${
             isDarkMode
               ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
@@ -370,48 +364,29 @@ export default function MillThermalReportsTab({
 
       <div
         className={`flex min-h-0 min-w-0 flex-1 flex-col ${
-          viewMode === 'table'
-          || activeSubTab === 'shredder-temp'
-          || activeSubTab === 'summary-temp'
-          || activeSubTab === 'equip-temp-1'
-          || activeSubTab === 'otg-temp'
+          activeView === 'shredder-temp'
+          || activeView === 'summary-temp'
+          || activeView === 'equip-temp-1'
+          || activeView === 'otg-temp'
             ? 'overflow-hidden'
             : 'overflow-y-auto'
         }`}
       >
-      {viewMode === 'table' ? (
-        rawTableConfig?.error ? (
-          <div
-            className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
-              isDarkMode ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : 'border-rose-200 bg-rose-50 text-rose-900'
-            }`}
-          >
-            {rawTableConfig.error}
-          </div>
-        ) : (
-          <MillRawDataTable
-            title={rawTableConfig?.title || 'Equipment Temperature'}
-            periodLabel={periodLabel}
-            columns={rawColumns}
-            rows={rawRows}
-            loading={rawTableConfig?.loading}
-            isDarkMode={isDarkMode}
-            cardClasses={cardClasses}
-            textClasses={textClasses}
-          />
-        )
-      ) : error ? (
+      {viewError ? (
         <div
           className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
             isDarkMode ? 'border-rose-500/40 bg-rose-500/10 text-rose-200' : 'border-rose-200 bg-rose-50 text-rose-900'
           }`}
         >
-          {error}
+          {viewError}
         </div>
-      ) : activeSubTab === 'summary-temp' ? (
+      ) : activeView === 'summary-temp' ? (
         <SummaryEquipmentTempView
           mapping={data.mapping}
           series={millSeries}
+          compareSeries={millCompareSeries}
+          compareAlign={compareAlign}
+          comparisonLabel={comparisonLabel}
           loading={loading}
           fromDate={fromDate}
           toDate={toDate}
@@ -423,9 +398,12 @@ export default function MillThermalReportsTab({
           periodLabel={periodLabel}
           onExpand={setExpandedChart}
         />
-      ) : activeSubTab === 'equip-temp-1' ? (
+      ) : activeView === 'equip-temp-1' ? (
         <EquipTemp1View
           series={millSeries}
+          compareSeries={millCompareSeries}
+          compareAlign={compareAlign}
+          comparisonLabel={comparisonLabel}
           loading={loading}
           fromDate={fromDate}
           toDate={toDate}
@@ -436,9 +414,12 @@ export default function MillThermalReportsTab({
           gridStyle={gridStyle}
           onExpand={setExpandedChart}
         />
-      ) : activeSubTab === 'equip-temp-2' ? (
+      ) : activeView === 'equip-temp-2' ? (
         <EquipTemp2View
           series={millSeries}
+          compareSeries={millCompareSeries}
+          compareAlign={compareAlign}
+          comparisonLabel={comparisonLabel}
           loading={loading}
           fromDate={fromDate}
           toDate={toDate}
@@ -449,9 +430,12 @@ export default function MillThermalReportsTab({
           gridStyle={gridStyle}
           onExpand={setExpandedChart}
         />
-      ) : activeSubTab === 'shredder-temp' ? (
+      ) : activeView === 'shredder-temp' ? (
         <ShredTempView
           series={shredSeries}
+          compareSeries={shredCompareSeries}
+          compareAlign={compareAlign}
+          comparisonLabel={comparisonLabel}
           loading={shredder.loading}
           error={shredder.error}
           fromDate={fromDate}
@@ -463,9 +447,12 @@ export default function MillThermalReportsTab({
           gridStyle={gridStyle}
           onExpand={setExpandedChart}
         />
-      ) : activeSubTab === 'otg-temp' ? (
+      ) : activeView === 'otg-temp' ? (
         <OtgBearingTempView
           series={shredSeries}
+          compareSeries={shredCompareSeries}
+          compareAlign={compareAlign}
+          comparisonLabel={comparisonLabel}
           loading={shredder.loading}
           error={shredder.error}
           fromDate={fromDate}
@@ -501,6 +488,9 @@ export default function MillThermalReportsTab({
 function SummaryEquipmentTempView({
   mapping,
   series,
+  compareSeries = [],
+  compareAlign,
+  comparisonLabel,
   loading,
   fromDate,
   toDate,
@@ -564,12 +554,12 @@ function SummaryEquipmentTempView({
     });
 
   /** mill_logbook1 rows that fall inside the date range (inclusive). */
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
+
+  const compareAvgs = useMemo(() => averageLogbookValues(compareSeries), [compareSeries]);
 
   /** Per-variable latest non-null reading + simple stats inside the active window. */
   const readingRows = useMemo(() => {
@@ -603,11 +593,12 @@ function SummaryEquipmentTempView({
         min,
         max,
         avg,
+        compareAvg: compareAvgs[variable] ?? null,
         readings: count,
         color: colorForIndex(idx),
       };
     });
-  }, [machineVariables, filteredSeries]);
+  }, [machineVariables, filteredSeries, compareAvgs]);
 
   const activeReadingRows = useMemo(
     () => readingRows.filter((row) => selectedVars.has(row.variable)),
@@ -645,6 +636,11 @@ function SummaryEquipmentTempView({
       });
   }, [activeReadingRows, filteredSeries]);
 
+  const dailyCurveWithCompare = useMemo(
+    () => applyMillCompareToChart(dailyCurve, activeReadingRows, compareSeries, compareAlign),
+    [dailyCurve, activeReadingRows, compareSeries, compareAlign],
+  );
+
   if (machines.length === 0) {
     return (
       <div
@@ -672,6 +668,7 @@ function SummaryEquipmentTempView({
           </div>
           <span className={`text-[10px] font-bold ${textClasses.muted}`}>
             {machines.length} machines · {periodLabel}
+            {comparisonLabel ? ` · vs ${comparisonLabel}` : ''}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -802,7 +799,14 @@ function SummaryEquipmentTempView({
                           {row.latest == null ? '—' : `${row.latest.toFixed(1)}°`}
                         </td>
                         <td className={`whitespace-nowrap px-3 py-2 text-right font-mono ${textClasses.muted}`}>
-                          {row.avg == null ? '—' : `${row.avg.toFixed(1)}°`}
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span>{row.avg == null ? '—' : `${row.avg.toFixed(1)}°`}</span>
+                            <MillComparePct
+                              pct={millPctDelta(row.avg, row.compareAvg)}
+                              inverseGood
+                              isDarkMode={isDarkMode}
+                            />
+                          </div>
                         </td>
                         <td className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
                           row.max == null ? textClasses.muted : isDarkMode ? 'text-amber-400' : 'text-amber-600'
@@ -830,24 +834,24 @@ function SummaryEquipmentTempView({
               <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
                 isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
               }`}>
-                {dailyCurve.length} readings
+                {dailyCurveWithCompare.length} readings
               </span>
               <ChartCardToolbar
                 isDarkMode={isDarkMode}
                 onExpand={() => onExpand?.({
                   title: `${selectedMachine} — Daily Temp Curve`,
-                  lines: activeReadingRows.map((r) => ({ variable: r.variable, label: r.label, color: r.color })),
-                  chartData: dailyCurve,
+                  lines: millExpandLines(activeReadingRows.map((r) => ({ variable: r.variable, label: r.label, color: r.color }))),
+                  chartData: dailyCurveWithCompare,
                 })}
               />
             </div>
           </div>
-          <div className="min-h-0 w-full flex-1">
+          <MillTooltipAnchor className="relative z-20 min-h-0 w-full flex-1 overflow-visible">
             {loading ? (
               <div className="flex h-full min-h-[200px] items-center justify-center">
                 <Spinner size="lg" />
               </div>
-            ) : dailyCurve.length === 0 ? (
+            ) : dailyCurveWithCompare.length === 0 ? (
               <CurveEmptyState
                 isDarkMode={isDarkMode}
                 textClasses={textClasses}
@@ -855,7 +859,7 @@ function SummaryEquipmentTempView({
               />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={dailyCurve} margin={{ top: 8, right: 16, left: -18, bottom: 24 }}>
+                <LineChart data={dailyCurveWithCompare} margin={{ top: 8, right: 16, left: -18, bottom: 24 }}>
                   <CartesianGrid vertical={false} {...gridStyle} />
                   <XAxis
                     dataKey="label"
@@ -873,6 +877,7 @@ function SummaryEquipmentTempView({
                     unit="°"
                   />
                   <Tooltip
+                    {...MILL_CHART_TOOLTIP_PROPS}
                     content={(props) => <CurveTooltip {...props} readingRows={activeReadingRows} isDarkMode={isDarkMode} />}
                   />
                   <Legend wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} iconType="circle" />
@@ -890,10 +895,13 @@ function SummaryEquipmentTempView({
                       isAnimationActive={false}
                     />
                   ))}
+                  {activeReadingRows.map((r) => (
+                    <Line key={`${r.variable}-cmp`} {...millCompareLineProps(r)} />
+                  ))}
                 </LineChart>
               </ResponsiveContainer>
             )}
-          </div>
+          </MillTooltipAnchor>
           <p className={`mt-2 shrink-0 text-[10px] font-semibold ${textClasses.muted}`}>
             Equipment column from <code>Data_Mill</code> · values from Equipment Temperature form (<code>mill_logbook1</code>).
           </p>
@@ -928,13 +936,11 @@ const TEMP1_LINES = [
   { suffix: 'MtrTemp',     label: 'Motor Temp',         color: '#ec4899' },
 ];
 
-function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+function EquipTemp1View({ series, compareSeries = [], compareAlign, loading, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -942,7 +948,7 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
       {EQUIP_TEMP1_PANELS.map((panel) => {
         const vars = TEMP1_LINES.map((t) => ({ ...t, variable: `${panel.key}_${t.suffix}` }));
 
-        const chartData = loading ? [] : filteredSeries
+        const rawPoints = loading ? [] : filteredSeries
           .filter((row) => vars.some(({ variable }) => {
             const v = row.values?.[variable];
             return v != null && Number.isFinite(v);
@@ -960,6 +966,7 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
             return point;
           })
           .sort((a, b) => (a.timeIso || a.dateIso || '').localeCompare(b.timeIso || b.dateIso || ''));
+        const chartData = applyMillCompareToChart(rawPoints, vars, compareSeries, compareAlign);
 
         return (
           <div
@@ -985,13 +992,13 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
                 )}
                 <ChartCardToolbar
                   isDarkMode={isDarkMode}
-                  onExpand={() => onExpand?.({ title: panel.title, lines: vars, chartData })}
+                  onExpand={() => onExpand?.({ title: panel.title, lines: millExpandLines(vars), chartData })}
                 />
               </div>
             </div>
 
             {/* Chart */}
-            <div className="flex-1 min-h-0">
+            <MillTooltipAnchor className="relative z-20 min-h-0 flex-1 overflow-visible">
               {loading ? (
                 <div className="flex h-full items-center justify-center">
                   <Spinner size="md" />
@@ -1018,6 +1025,7 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
                       domain={[15, 55]}
                     />
                     <Tooltip
+                      {...MILL_CHART_TOOLTIP_PROPS}
                       content={(props) => <PanelTooltip {...props} vars={vars} isDarkMode={isDarkMode} />}
                     />
                     {vars.map((v) => (
@@ -1033,10 +1041,13 @@ function EquipTemp1View({ series, loading, fromDate, toDate, isDarkMode, cardCla
                         isAnimationActive={false}
                       />
                     ))}
+                    {vars.map((v) => (
+                      <Line key={`${v.variable}-cmp`} {...millCompareLineProps(v)} />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               )}
-            </div>
+            </MillTooltipAnchor>
 
             {/* Legend strip */}
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 shrink-0">
@@ -1086,13 +1097,11 @@ const TEMP2_LINES_PARTIAL = [
   { suffix: 'MtrTemp',     label: 'Motor Temp',      color: '#ec4899' },
 ];
 
-function EquipTemp2View({ series, loading, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+function EquipTemp2View({ series, compareSeries = [], compareAlign, loading, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
 
   return (
     <div className="grid grid-cols-12 gap-3">
@@ -1105,7 +1114,7 @@ function EquipTemp2View({ series, loading, fromDate, toDate, isDarkMode, cardCla
           ? 'col-span-12 md:col-span-6'
           : 'col-span-12 md:col-span-6 lg:col-span-4';
 
-        const chartData = loading ? [] : filteredSeries
+        const rawPoints = loading ? [] : filteredSeries
           .filter((row) => vars.some(({ variable }) => {
             const v = row.values?.[variable];
             return v != null && Number.isFinite(v);
@@ -1123,6 +1132,7 @@ function EquipTemp2View({ series, loading, fromDate, toDate, isDarkMode, cardCla
             return point;
           })
           .sort((a, b) => (a.timeIso || a.dateIso || '').localeCompare(b.timeIso || b.dateIso || ''));
+        const chartData = applyMillCompareToChart(rawPoints, vars, compareSeries, compareAlign);
 
         return (
           <div
@@ -1147,13 +1157,13 @@ function EquipTemp2View({ series, loading, fromDate, toDate, isDarkMode, cardCla
                 )}
                 <ChartCardToolbar
                   isDarkMode={isDarkMode}
-                  onExpand={() => onExpand?.({ title: panel.title, lines: vars, chartData })}
+                  onExpand={() => onExpand?.({ title: panel.title, lines: millExpandLines(vars), chartData })}
                 />
               </div>
             </div>
 
             {/* Chart area */}
-            <div className="flex-1 min-h-0">
+            <MillTooltipAnchor className="relative z-20 min-h-0 flex-1 overflow-visible">
               {loading ? (
                 <div className="flex h-full items-center justify-center">
                   <Spinner size="md" />
@@ -1180,6 +1190,7 @@ function EquipTemp2View({ series, loading, fromDate, toDate, isDarkMode, cardCla
                       domain={[15, 60]}
                     />
                     <Tooltip
+                      {...MILL_CHART_TOOLTIP_PROPS}
                       content={(props) => <PanelTooltip {...props} vars={vars} isDarkMode={isDarkMode} />}
                     />
                     {vars.map((v) => (
@@ -1195,10 +1206,13 @@ function EquipTemp2View({ series, loading, fromDate, toDate, isDarkMode, cardCla
                         isAnimationActive={false}
                       />
                     ))}
+                    {vars.map((v) => (
+                      <Line key={`${v.variable}-cmp`} {...millCompareLineProps(v)} />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               )}
-            </div>
+            </MillTooltipAnchor>
 
             {/* Legend */}
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 shrink-0">
@@ -1265,6 +1279,7 @@ function buildShredChartData(filteredSeries, lines) {
     .map((row) => {
       const point = {
         label: row.dateIso ? row.dateIso.slice(5).replace('-', '/') : '',
+        dateIso: row.dateIso,
         timeIso: row.timeIso,
       };
       for (const { variable } of lines) {
@@ -1276,7 +1291,7 @@ function buildShredChartData(filteredSeries, lines) {
     .sort((a, b) => (a.timeIso || '').localeCompare(b.timeIso || ''));
 }
 
-function ShredParamCard({ title, subtitle, params, avgValues, selectedVars, onToggleVar, onToggleAll, loading, isDarkMode, cardClasses, textClasses, fullHeight = false }) {
+function ShredParamCard({ title, subtitle, params, avgValues, compareAvgs = {}, selectedVars, onToggleVar, onToggleAll, loading, isDarkMode, cardClasses, textClasses, fullHeight = false, inverseGood = true }) {
   const allSelected = params.every((p) => selectedVars.has(p.variable));
   const noneSelected = params.every((p) => !selectedVars.has(p.variable));
 
@@ -1324,14 +1339,21 @@ function ShredParamCard({ title, subtitle, params, avgValues, selectedVars, onTo
                 />
                 <span className={`text-xs font-semibold ${textClasses.title}`}>{p.label}</span>
               </div>
-              <span className={`font-mono text-sm font-black tabular-nums ${selected ? textClasses.title : textClasses.muted}`}>
+              <span className={`flex flex-col items-end font-mono text-sm font-black tabular-nums ${selected ? textClasses.title : textClasses.muted}`}>
                 {loading
                   ? '—'
                   : avgValues[p.variable] != null
                     ? (
                       <>
-                        {avgValues[p.variable].toFixed(2)}{' '}
-                        <span className={`text-[10px] font-bold ${textClasses.muted}`}>{p.unit}</span>
+                        <span>
+                          {avgValues[p.variable].toFixed(2)}{' '}
+                          <span className={`text-[10px] font-bold ${textClasses.muted}`}>{p.unit}</span>
+                        </span>
+                        <MillComparePct
+                          pct={millPctDelta(avgValues[p.variable], compareAvgs[p.variable])}
+                          inverseGood={inverseGood}
+                          isDarkMode={isDarkMode}
+                        />
                       </>
                     )
                     : <span className={textClasses.muted}>— {p.unit}</span>}
@@ -1355,11 +1377,11 @@ function ShredTrendChart({ title, lines, chartData, loading, isDarkMode, cardCla
           <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
             isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
           }`}>{loading ? 'Loading…' : `${chartData.length} pts`}</span>
-          <ChartCardToolbar isDarkMode={isDarkMode} onExpand={() => onExpand?.({ title, lines, chartData })} />
+          <ChartCardToolbar isDarkMode={isDarkMode} onExpand={() => onExpand?.({ title, lines: millExpandLines(lines), chartData })} />
         </div>
       </div>
 
-      <div className="flex-1 min-h-0">
+      <MillTooltipAnchor className="relative z-20 min-h-0 flex-1 overflow-visible">
         {loading ? (
           <div className="flex h-full items-center justify-center"><Spinner size="md" /></div>
         ) : chartData.length === 0 ? (
@@ -1372,15 +1394,21 @@ function ShredTrendChart({ title, lines, chartData, loading, isDarkMode, cardCla
               <CartesianGrid strokeDasharray="3 3" vertical={false} {...gridStyle} />
               <XAxis dataKey="label" tick={{ ...axisStyle, fontSize: 8 }} stroke={isDarkMode ? '#334155' : '#cbd5e1'} interval="preserveStartEnd" />
               <YAxis tick={{ ...axisStyle, fontSize: 8 }} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
-              <Tooltip content={(props) => <ShredTooltip {...props} lines={lines} isDarkMode={isDarkMode} />} />
+              <Tooltip
+                {...MILL_CHART_TOOLTIP_PROPS}
+                content={(props) => <ShredTooltip {...props} lines={lines} isDarkMode={isDarkMode} />}
+              />
               {lines.map((l) => (
                 <Line key={l.variable} type="monotone" dataKey={l.variable} name={l.label}
                   stroke={l.color} strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
               ))}
+              {lines.map((l) => (
+                <Line key={`${l.variable}-cmp`} {...millCompareLineProps(l)} />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         )}
-      </div>
+      </MillTooltipAnchor>
     </div>
   );
 }
@@ -1390,7 +1418,7 @@ const SHRED_ALL_VARS = new Set([
   ...SHRED_RHS_PARAMS.map((p) => p.variable),
 ]);
 
-function ShredTempView({ series, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
+function ShredTempView({ series, compareSeries = [], compareAlign, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
   // All vars selected by default (every line visible)
   const [selectedVars, setSelectedVars] = useState(() => new Set(SHRED_ALL_VARS));
 
@@ -1412,28 +1440,13 @@ function ShredTempView({ series, loading, error, fromDate, toDate, isDarkMode, c
       return next;
     });
 
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
 
-  // Average of each variable across the filtered period
-  const avgValues = useMemo(() => {
-    const sums = {}, counts = {};
-    for (const row of filteredSeries) {
-      for (const [k, v] of Object.entries(row.values || {})) {
-        if (v != null && Number.isFinite(v)) {
-          sums[k] = (sums[k] || 0) + v;
-          counts[k] = (counts[k] || 0) + 1;
-        }
-      }
-    }
-    const result = {};
-    for (const k of Object.keys(sums)) result[k] = sums[k] / counts[k];
-    return result;
-  }, [filteredSeries]);
+  const avgValues = useMemo(() => averageLogbookValues(filteredSeries), [filteredSeries]);
+  const compareAvgs = useMemo(() => averageLogbookValues(compareSeries), [compareSeries]);
 
   // Only show lines whose variable is in selectedVars
   const activeTempLines = useMemo(
@@ -1446,12 +1459,16 @@ function ShredTempView({ series, loading, error, fromDate, toDate, isDarkMode, c
   );
 
   const tempChartData = useMemo(
-    () => (loading || activeTempLines.length === 0 ? [] : buildShredChartData(filteredSeries, activeTempLines)),
-    [filteredSeries, activeTempLines, loading],
+    () => (loading || activeTempLines.length === 0
+      ? []
+      : applyMillCompareToChart(buildShredChartData(filteredSeries, activeTempLines), activeTempLines, compareSeries, compareAlign)),
+    [filteredSeries, activeTempLines, loading, compareSeries, compareAlign],
   );
   const vibChartData = useMemo(
-    () => (loading || activeVibLines.length === 0 ? [] : buildShredChartData(filteredSeries, activeVibLines)),
-    [filteredSeries, activeVibLines, loading],
+    () => (loading || activeVibLines.length === 0
+      ? []
+      : applyMillCompareToChart(buildShredChartData(filteredSeries, activeVibLines), activeVibLines, compareSeries, compareAlign)),
+    [filteredSeries, activeVibLines, loading, compareSeries, compareAlign],
   );
 
   if (error) {
@@ -1471,6 +1488,7 @@ function ShredTempView({ series, loading, error, fromDate, toDate, isDarkMode, c
           subtitle="Left Hand Side"
           params={SHRED_LHS_PARAMS}
           avgValues={avgValues}
+          compareAvgs={compareAvgs}
           selectedVars={selectedVars}
           onToggleVar={toggleVar}
           onToggleAll={toggleAll}
@@ -1517,6 +1535,7 @@ function ShredTempView({ series, loading, error, fromDate, toDate, isDarkMode, c
           subtitle="Right Hand Side"
           params={SHRED_RHS_PARAMS}
           avgValues={avgValues}
+          compareAvgs={compareAvgs}
           selectedVars={selectedVars}
           onToggleVar={toggleVar}
           onToggleAll={toggleAll}
@@ -1552,13 +1571,11 @@ const OTG_TEMP_PANELS = [
 ];
 
 /** Generic panel-grid renderer shared by ShredTempView and OtgBearingTempView. */
-function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
-  const filteredSeries = useMemo(() => {
-    if (!fromDate || !toDate) return series;
-    const lo = fromDate <= toDate ? fromDate : toDate;
-    const hi = fromDate <= toDate ? toDate : fromDate;
-    return series.filter((r) => r.dateIso && r.dateIso >= lo && r.dateIso <= hi);
-  }, [series, fromDate, toDate]);
+function ShredPanelGrid({ panels, series, compareSeries = [], compareAlign, loading, error, fromDate, toDate, isDarkMode, cardClasses, textClasses, axisStyle, gridStyle, onExpand }) {
+  const filteredSeries = useMemo(
+    () => filterSeriesByRange(series, fromDate, toDate),
+    [series, fromDate, toDate],
+  );
 
   if (error) {
     return (
@@ -1572,7 +1589,7 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
     <div className="flex h-full min-h-0 flex-col">
       <div className="grid min-h-0 flex-1 auto-rows-fr grid-cols-12 gap-3">
       {panels.map((panel) => {
-        const chartData = loading ? [] : filteredSeries
+        const rawPoints = loading ? [] : filteredSeries
           .filter((row) => panel.lines.some(({ variable }) => {
             const v = row.values?.[variable];
             return v != null && Number.isFinite(v);
@@ -1580,6 +1597,7 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
           .map((row) => {
             const point = {
               label: row.dateIso ? row.dateIso.slice(5).replace('-', '/') : '',
+              dateIso: row.dateIso,
               timeIso: row.timeIso,
             };
             for (const { variable } of panel.lines) {
@@ -1589,6 +1607,7 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
             return point;
           })
           .sort((a, b) => (a.timeIso || '').localeCompare(b.timeIso || ''));
+        const chartData = applyMillCompareToChart(rawPoints, panel.lines, compareSeries, compareAlign);
 
         return (
           <div
@@ -1612,13 +1631,13 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
                 )}
                 <ChartCardToolbar
                   isDarkMode={isDarkMode}
-                  onExpand={() => onExpand?.({ title: panel.title, lines: panel.lines, chartData })}
+                  onExpand={() => onExpand?.({ title: panel.title, lines: millExpandLines(panel.lines), chartData })}
                 />
               </div>
             </div>
 
             {/* Chart */}
-            <div className="flex-1 min-h-0">
+            <MillTooltipAnchor className="relative z-20 min-h-0 flex-1 overflow-visible">
               {loading ? (
                 <div className="flex h-full items-center justify-center">
                   <Spinner size="md" />
@@ -1644,6 +1663,7 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
                       stroke={isDarkMode ? '#334155' : '#cbd5e1'}
                     />
                     <Tooltip
+                      {...MILL_CHART_TOOLTIP_PROPS}
                       content={(props) => <ShredTooltip {...props} lines={panel.lines} isDarkMode={isDarkMode} />}
                     />
                     {panel.lines.map((l) => (
@@ -1659,10 +1679,13 @@ function ShredPanelGrid({ panels, series, loading, error, fromDate, toDate, isDa
                         isAnimationActive={false}
                       />
                     ))}
+                    {panel.lines.map((l) => (
+                      <Line key={`${l.variable}-cmp`} {...millCompareLineProps(l)} />
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               )}
-            </div>
+            </MillTooltipAnchor>
 
             {/* Legend */}
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 shrink-0">
@@ -1685,95 +1708,16 @@ function OtgBearingTempView(props) {
   return <ShredPanelGrid panels={OTG_TEMP_PANELS} {...props} />;
 }
 
-function ShredTooltip({ active, payload, label, lines, isDarkMode }) {
-  if (!active || !payload?.length) return null;
-  const entries = payload
-    .map((p) => ({ label: lines.find((l) => l.variable === p.dataKey)?.label || p.dataKey, color: p.color, value: p.value }))
-    .filter((e) => e.value != null);
-  if (!entries.length) return null;
-  return (
-    <div className={`rounded-xl border p-2 text-[10px] font-bold shadow-xl backdrop-blur-sm ${
-      isDarkMode ? 'border-slate-700 bg-slate-800/95 text-slate-200' : 'border-slate-200 bg-white/95 text-slate-700'
-    }`}>
-      <p className={`mb-1 border-b pb-1 ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-100 text-slate-500'}`}>{label}</p>
-      <div className="space-y-0.5">
-        {entries.map((e, i) => (
-          <div key={i} className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-1">
-              <span className="h-1.5 w-2.5 rounded-full" style={{ backgroundColor: e.color }} />
-              <span>{e.label}</span>
-            </div>
-            <span className="font-mono">{Number(e.value).toFixed(2)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function ShredTooltip({ lines, ...props }) {
+  return <MillPairedChartTooltip {...props} lines={lines} valueFormat="plain" />;
 }
 
-function PanelTooltip({ active, payload, label, vars, isDarkMode }) {
-  if (!active || !payload || !payload.length) return null;
-  const present = payload.filter((p) => p.value != null && Number.isFinite(p.value));
-  if (!present.length) return null;
-  return (
-    <div
-      className={`max-w-[220px] rounded-xl border p-2.5 text-[11px] font-bold shadow-xl ${
-        isDarkMode ? 'border-slate-700 bg-slate-800/95 text-slate-200' : 'border-slate-200 bg-white/95 text-slate-700'
-      }`}
-    >
-      <p className={`mb-1.5 border-b pb-1.5 text-[10px] ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
-        {label}
-      </p>
-      <div className="space-y-1">
-        {present.map((entry, i) => {
-          const meta = vars.find((v) => v.variable === entry.dataKey);
-          return (
-            <div key={i} className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>{meta?.label || entry.dataKey}:</span>
-              </div>
-              <span className="font-mono">{Number(entry.value).toFixed(1)}°</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function PanelTooltip({ vars, ...props }) {
+  return <MillPairedChartTooltip {...props} lines={vars} valueFormat="degree" />;
 }
 
-function CurveTooltip({ active, payload, label, readingRows, isDarkMode }) {
-  if (!active || !payload || !payload.length) return null;
-  // Filter to lines that actually have a value at this point.
-  const present = payload.filter((p) => p.value != null && Number.isFinite(p.value));
-  if (present.length === 0) return null;
-  return (
-    <div
-      className={`max-w-[260px] rounded-xl border p-3 text-[11px] font-bold shadow-xl backdrop-blur-sm ${
-        isDarkMode ? 'border-slate-700 bg-slate-800/95 text-slate-200' : 'border-slate-200 bg-white/95 text-slate-700'
-      }`}
-    >
-      <p className={`mb-2 border-b pb-2 ${isDarkMode ? 'border-slate-700 text-slate-400' : 'border-slate-100 text-slate-500'}`}>
-        {label}
-      </p>
-      <div className="space-y-1.5">
-        {present.map((entry, i) => {
-          const meta = readingRows.find((r) => r.variable === entry.dataKey);
-          return (
-            <div key={i} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                <span className={isDarkMode ? 'text-slate-300' : 'text-slate-600'}>
-                  {meta?.label || entry.dataKey}:
-                </span>
-              </div>
-              <span className="font-mono">{Number(entry.value).toFixed(1)}°</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function CurveTooltip({ readingRows, ...props }) {
+  return <MillPairedChartTooltip {...props} lines={readingRows} valueFormat="degree" />;
 }
 
 function CurveEmptyState({ isDarkMode, textClasses, message }) {

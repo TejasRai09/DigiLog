@@ -55,6 +55,14 @@ function str(v) {
   return s === '' ? null : s;
 }
 
+function parsePurchaseModeQty(purchasemodename) {
+  const name = str(purchasemodename);
+  if (!name) return null;
+  const space = name.indexOf(' ');
+  if (space <= 0) return null;
+  return num(name.slice(0, space));
+}
+
 function formatDateParts(d) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -248,7 +256,7 @@ function mapSupplyRow(r) {
     netwt: num(r.NetWt),
     societycode: int(r.societycode),
     societyname: str(r.societyname),
-    purchasemodeqty: num(r.purchasemodeqty),
+    purchasemodeqty: parsePurchaseModeQty(r.purchasemodename) ?? num(r.purchasemodeqty),
   };
 }
 
