@@ -19,7 +19,9 @@ import { MANAGEMENT_DATE_BOUNDS } from '../../data/managementDashboardMeta';
 import { mergeManagementDashboardApi } from '../../utils/mergeManagementDashboardApi';
 import { formatYMD } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
@@ -98,12 +100,11 @@ export default function ManagementDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Compare toggle — PP / S1 / S2 / optional S3
+  // Compare toggle — PP + all Season Mapping seasons (except current)
   const [compareType, setCompareType] = useState('PP');
   const [pyData, setPyData] = useState(null);
   const [pyLoading, setPyLoading] = useState(false);
   const [seasonMapping, setSeasonMapping] = useState({});
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
 
   const dateBounds = dashboardData?.dateBounds || MANAGEMENT_DATE_BOUNDS;
   const dma = dashboardData?.dma ?? 7;
@@ -111,27 +112,40 @@ export default function ManagementDashboard() {
   useEffect(() => {
     api.get('/bi/settings')
       .then((r) => {
-        setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled));
         if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
           setSeasonMapping(r.data.seasonMapping);
         }
       })
-      .catch(() => setThirdSeasonEnabled(false));
+      .catch(() => { });
   }, []);
 
-  useEffect(() => {
-    if (!thirdSeasonEnabled && compareType === 'S3') setCompareType('PP');
-  }, [thirdSeasonEnabled, compareType]);
-
   const seasonLabels = useMemo(() => {
-    const refIso = dateBounds.max || formatYMD(new Date());
+    const refIso = to || dateBounds.max || formatYMD(new Date());
     return getCockpitSeasonLabels(refIso, seasonMapping);
-  }, [dateBounds.max, seasonMapping]);
+  }, [to, dateBounds.max, seasonMapping]);
 
-  const compareOptions = useMemo(
-    () => buildCockpitComparisonOptions(preset, seasonLabels, thirdSeasonEnabled),
-    [preset, seasonLabels, thirdSeasonEnabled],
-  );
+  const compareOptions = useMemo(() => {
+    const refIso = to || dateBounds.max || formatYMD(new Date());
+    return buildCockpitComparisonOptions(preset, seasonMapping, refIso);
+  }, [preset, seasonMapping, to, dateBounds.max]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(compareType, compareOptions, setCompareType);
+  }, [compareType, compareOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: from,
+      toDate: to,
+      rangePreset: preset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dateBounds.min,
+      dataMax: dateBounds.max,
+      setComparisonType: setCompareType,
+    });
+  }, [from, to, preset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max]);
 
   const fetchDashboard = useCallback(async (fromDate, toDate) => {
     setLoading(true);
@@ -402,7 +416,7 @@ export default function ManagementDashboard() {
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => setCompareType(opt.id)}
+                  onClick={() => onCompareSelect(opt.id)}
                   className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[8px] font-black transition-all sm:text-[9px] ${
                     compareType === opt.id
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'

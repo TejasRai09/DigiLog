@@ -8,7 +8,9 @@ import {
   formatYMD,
 } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
@@ -253,8 +255,7 @@ export default function CentreMaturityDashboard() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [rangePreset, setRangePreset] = useState('STD'); // MTD | STD | WTD | Custom
-  const [comparisonType, setComparisonType] = useState('PP'); // PP | S1 | S2 | S3
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
+  const [comparisonType, setComparisonType] = useState('PP');
 
   // API Live Data State
   const [centers, setCenters] = useState([]);
@@ -287,29 +288,42 @@ export default function CentreMaturityDashboard() {
   }, [dbMinDateStr, dbMaxDateStr]);
 
   const seasonLabels = useMemo(() => {
-    const refIso = dbMaxDateStr || formatYMD(new Date());
+    const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
     return getCockpitSeasonLabels(refIso, seasonMapping);
-  }, [dbMaxDateStr, seasonMapping]);
+  }, [dateTo, dbMaxDateStr, seasonMapping]);
 
   useEffect(() => {
     api.get('/bi/settings')
       .then((r) => {
-        setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled));
         if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
           setSeasonMapping((prev) => ({ ...r.data.seasonMapping, ...prev }));
         }
       })
-      .catch(() => setThirdSeasonEnabled(false));
+      .catch(() => { });
   }, []);
 
-  useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === 'S3') setComparisonType('PP');
-  }, [thirdSeasonEnabled, comparisonType]);
+  const comparisonOptions = useMemo(() => {
+    const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, dateTo, dbMaxDateStr]);
 
-  const comparisonOptions = useMemo(
-    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
-    [rangePreset, seasonLabels, thirdSeasonEnabled],
-  );
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: dateFrom,
+      toDate: dateTo,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dbMinDateStr,
+      dataMax: dbMaxDateStr,
+      setComparisonType,
+    });
+  }, [dateFrom, dateTo, rangePreset, seasonMapping, seasonLabels, dbMinDateStr, dbMaxDateStr]);
 
   const resolveCompareRange = useCallback((from, to) => {
     if (!from || !to) return null;
@@ -549,7 +563,7 @@ export default function CentreMaturityDashboard() {
                   <button
                     key={comp.id}
                     type="button"
-                    onClick={() => setComparisonType(comp.id)}
+                    onClick={() => onCompareSelect(comp.id)}
                     className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                       comparisonType === comp.id
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'

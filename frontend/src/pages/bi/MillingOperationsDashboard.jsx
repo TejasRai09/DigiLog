@@ -44,14 +44,16 @@ import {
   formatYMD,
   isSeasonComparisonType,
   resolveDashboardToDate,
-  seasonLabelForComparisonType,
 } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
   resolveCockpitPriorRange,
+  resolveSeasonLabelFromCompareId,
 } from '../../utils/biCockpitDateFilters';
 import {
   filterMillStoppages,
@@ -318,7 +320,6 @@ function isoToLabel(iso) {
 export default function MillingOperationsDashboard() {
   const [activeTab, setActiveTab] = useState('outages');
   const [comparisonType, setComparisonType] = useState('PP');
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const [seasonMapping, setSeasonMapping] = useState({});
   const [rangePreset, setRangePreset] = useState('STD');
   const [fromDate, setFromDate] = useState('');
@@ -368,11 +369,10 @@ export default function MillingOperationsDashboard() {
         const [opsRes, settingsRes] = await Promise.all([
           // Without from/to the API only returns the last 365 days — 2023–24 PBI windows vanish.
           api.get('/bi/milling-operations', { params: { from: MILL_RANGE_MIN } }),
-          api.get('/bi/settings').catch(() => ({ data: { thirdSeasonCompareEnabled: false } })),
+          api.get('/bi/settings').catch(() => ({ data: {} })),
         ]);
         if (!cancelled) {
           setRawData(Array.isArray(opsRes.data?.records) ? opsRes.data.records : []);
-          setThirdSeasonEnabled(Boolean(settingsRes.data?.thirdSeasonCompareEnabled));
           if (settingsRes.data?.seasonMapping && typeof settingsRes.data.seasonMapping === 'object') {
             setSeasonMapping(settingsRes.data.seasonMapping);
           }
@@ -390,12 +390,6 @@ export default function MillingOperationsDashboard() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === 'S3') {
-      setComparisonType('PP');
-    }
-  }, [thirdSeasonEnabled, comparisonType]);
 
   /**
    * Stoppage date list for MTD/STD/WTD (To = today if in data, else latest day).
@@ -489,21 +483,39 @@ export default function MillingOperationsDashboard() {
     return getCockpitSeasonLabels(refIso, seasonMapping);
   }, [seasonMapping, toDate, rangeToIso]);
 
-  const comparisonOptions = useMemo(
-    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
-    [rangePreset, seasonLabels, thirdSeasonEnabled],
-  );
+  const comparisonOptions = useMemo(() => {
+    const refIso = toDate || rangeToIso || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, toDate, rangeToIso]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate,
+      toDate,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dataBounds.min || dataExtent.min,
+      dataMax: dataBounds.max || dataExtent.max,
+      setComparisonType,
+    });
+  }, [fromDate, toDate, rangePreset, seasonMapping, seasonLabels, dataBounds.min, dataBounds.max, dataExtent.min, dataExtent.max]);
 
   const activeSeasonLabel = useMemo(
-    () => (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
-    [comparisonType, seasonLabels],
+    () => resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping),
+    [comparisonType, seasonLabels, seasonMapping],
   );
 
   useEffect(() => {
     if (!isSeasonComparisonType(comparisonType)) return;
-    const label = seasonLabelForComparisonType(comparisonType, seasonLabels);
+    const label = resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping);
     if (!label) setComparisonType('PP');
-  }, [comparisonType, seasonLabels]);
+  }, [comparisonType, seasonLabels, seasonMapping]);
 
   const compareData = useMemo(() => {
     if (comparisonType === 'PP') {
@@ -885,7 +897,7 @@ export default function MillingOperationsDashboard() {
                       <button
                         key={comp.id}
                         type="button"
-                        onClick={() => setComparisonType(comp.id)}
+                        onClick={() => onCompareSelect(comp.id)}
                         className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                           comparisonType === comp.id
                             ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'

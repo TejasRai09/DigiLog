@@ -19,7 +19,9 @@ import { BiKeyMetricBox, BiFilterBarLayout } from "../../components/bi/BiLayoutE
 import ProcurementCutToCrushScene from "../../components/bi/ProcurementCutToCrushScene";
 import { formatYMD, resolveDashboardToDate } from "../../utils/distilleryBiDateRange";
 import {
+  applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
@@ -1448,9 +1450,8 @@ export default function CanePerformanceDashboard(){
   const[centerFilter, setCenterFilter] = useState("All");
   const[challanFilter, setChallanFilter] = useState("");
   const[rangePreset, setRangePreset] = useState("STD"); // MTD | STD | WTD | Custom
-  const[comparisonType, setComparisonType] = useState("PP"); // PP | S1 | S2 | S3
+  const[comparisonType, setComparisonType] = useState("PP");
   const[seasonMapping, setSeasonMapping] = useState({});
-  const[thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const[dbMinDateStr, setDbMinDateStr] = useState("");
   const[dbMaxDateStr, setDbMaxDateStr] = useState("");
   const[dbMaxDate, setDbMaxDate] = useState(null);
@@ -1480,27 +1481,40 @@ export default function CanePerformanceDashboard(){
   React.useEffect(() => {
     api.get("/bi/settings")
       .then((r) => {
-        setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled));
         if (r.data?.seasonMapping && typeof r.data.seasonMapping === "object") {
           setSeasonMapping(r.data.seasonMapping);
         }
       })
-      .catch(() => setThirdSeasonEnabled(false));
+      .catch(() => { });
   }, []);
 
-  React.useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === "S3") setComparisonType("PP");
-  }, [thirdSeasonEnabled, comparisonType]);
-
   const seasonLabels = useMemo(() => {
-    const refIso = dbMaxDateStr || formatYMD(new Date());
+    const refIso = toDate || dbMaxDateStr || formatYMD(new Date());
     return getCockpitSeasonLabels(refIso, seasonMapping);
-  }, [dbMaxDateStr, seasonMapping]);
+  }, [toDate, dbMaxDateStr, seasonMapping]);
 
-  const comparisonOptions = useMemo(
-    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
-    [rangePreset, seasonLabels, thirdSeasonEnabled],
-  );
+  const comparisonOptions = useMemo(() => {
+    const refIso = toDate || dbMaxDateStr || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, toDate, dbMaxDateStr]);
+
+  React.useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate,
+      toDate,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dbMinDateStr,
+      dataMax: dbMaxDateStr,
+      setComparisonType,
+    });
+  }, [fromDate, toDate, rangePreset, seasonMapping, seasonLabels, dbMinDateStr, dbMaxDateStr]);
 
   const applyDateRange = useCallback((dateRange) => {
     if (!dateRange) return;
@@ -1903,7 +1917,7 @@ export default function CanePerformanceDashboard(){
                 <button
                   key={comp.id}
                   type="button"
-                  onClick={() => setComparisonType(comp.id)}
+                  onClick={() => onCompareSelect(comp.id)}
                   className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                     comparisonType === comp.id
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'

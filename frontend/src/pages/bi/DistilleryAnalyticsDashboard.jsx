@@ -28,6 +28,13 @@ import {
   seasonLabelForComparisonType,
 } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
+  buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
+  resolveCockpitCompareRange,
+  resolveSeasonLabelFromCompareId,
+} from '../../utils/biCockpitDateFilters';
+import {
   aggregateKpisFromRows,
   averageNonBlank,
   filterSeasonCompareRowsBySeason,
@@ -484,7 +491,7 @@ export default function DistilleryAnalyticsDashboard() {
   const [fromDate, setFromDate] = useState(() => initialRange().from);
   const [toDate, setToDate] = useState(() => initialRange().to);
   const [comparisonType, setComparisonType] = useState('PP');
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
+  const [seasonMapping, setSeasonMapping] = useState({});
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const availableModes = ['B Heavy', 'C Heavy', 'Syrup', 'Mixed'];
@@ -507,11 +514,13 @@ export default function DistilleryAnalyticsDashboard() {
         setLoading(true);
         const [opsRes, settingsRes] = await Promise.all([
           api.get('/bi/distillery-operations'),
-          api.get('/bi/settings').catch(() => ({ data: { thirdSeasonCompareEnabled: false } })),
+          api.get('/bi/settings').catch(() => ({ data: {} })),
         ]);
         if (!cancelled) {
           setRawData(Array.isArray(opsRes.data?.records) ? opsRes.data.records : []);
-          setThirdSeasonEnabled(Boolean(settingsRes.data?.thirdSeasonCompareEnabled));
+          if (settingsRes.data?.seasonMapping && typeof settingsRes.data.seasonMapping === 'object') {
+            setSeasonMapping(settingsRes.data.seasonMapping);
+          }
         }
       } catch (e) {
         if (!cancelled) {
@@ -526,12 +535,6 @@ export default function DistilleryAnalyticsDashboard() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === 'S3') {
-      setComparisonType('PP');
-    }
-  }, [thirdSeasonEnabled, comparisonType]);
 
   const dataBounds = useMemo(() => {
     const isos = rawData.map(rowDateIso).filter(Boolean).sort();
@@ -621,19 +624,39 @@ export default function DistilleryAnalyticsDashboard() {
     return 'Prev. Period';
   }, [rangePreset]);
 
-  const seasonLabels = useMemo(() => getSeasonComparisonLabels(presetRefDate), [presetRefDate]);
+  const seasonLabels = useMemo(() => {
+    if (Object.keys(seasonMapping).length > 0) {
+      return getSeasonComparisonLabels(presetRefDate); // kept for legacy S1/S2 resolve only
+    }
+    return getSeasonComparisonLabels(presetRefDate);
+  }, [presetRefDate, seasonMapping]);
 
   const comparisonOptions = useMemo(() => {
-    const opts = [
-      { id: 'PP', label: dynamicPPLabel },
-      { id: 'S1', label: seasonLabels.season1 },
-      { id: 'S2', label: seasonLabels.season2 },
-    ];
-    if (thirdSeasonEnabled) {
-      opts.push({ id: 'S3', label: seasonLabels.season3 });
+    const cockpitPreset = rangePreset === 'QTD' || rangePreset === 'YTD' ? 'Custom' : rangePreset;
+    const opts = buildCockpitComparisonOptions(cockpitPreset, seasonMapping, toDate || rangeToIso);
+    if (opts[0]?.id === 'PP') {
+      return [{ id: 'PP', label: dynamicPPLabel }, ...opts.slice(1)];
     }
     return opts;
-  }, [dynamicPPLabel, seasonLabels, thirdSeasonEnabled]);
+  }, [dynamicPPLabel, seasonMapping, toDate, rangeToIso, rangePreset]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate,
+      toDate,
+      rangePreset: rangePreset === 'QTD' || rangePreset === 'YTD' ? 'Custom' : rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dataBounds.min,
+      dataMax: dataBounds.max,
+      setComparisonType,
+    });
+  }, [fromDate, toDate, rangePreset, seasonMapping, seasonLabels, dataBounds.min, dataBounds.max]);
 
   const priorPeriodRange = useMemo(
     () => computePriorPeriodRange(fromDate, toDate, rangePreset),
@@ -653,14 +676,18 @@ export default function DistilleryAnalyticsDashboard() {
 
     if (!isSeasonComparisonType(comparisonType)) return '';
 
-    const seasonLabel = seasonLabelForComparisonType(comparisonType, seasonLabels);
+    const seasonLabel =
+      resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping)
+      || seasonLabelForComparisonType(comparisonType, seasonLabels);
     if (!seasonLabel) return '';
 
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
-    const { start, end } = alignSeasonCompareRange(from, to, seasonLabel);
-    return `${seasonLabel} (${formatDateFriendly(start)} - ${formatDateFriendly(end)})`;
-  }, [fromDate, toDate, comparisonType, rangePreset, priorPeriodRange, seasonLabels]);
+    const resolved = Object.keys(seasonMapping).length
+      ? resolveCockpitCompareRange(from, to, comparisonType, seasonLabels, seasonMapping, 'Custom')
+      : alignSeasonCompareRange(from, to, seasonLabel);
+    return `${seasonLabel} (${formatDateFriendly(resolved.start)} - ${formatDateFriendly(resolved.end)})`;
+  }, [fromDate, toDate, comparisonType, rangePreset, priorPeriodRange, seasonLabels, seasonMapping]);
 
   const priorDataSlice = useMemo(() => {
     let slice = rawData.filter((row) => {
@@ -674,16 +701,34 @@ export default function DistilleryAnalyticsDashboard() {
   }, [rawData, priorPeriodRange, selectedModes]);
 
   const activeSeasonLabel = useMemo(
-    () => (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
-    [comparisonType, seasonLabels],
+    () => resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping)
+      || (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
+    [comparisonType, seasonLabels, seasonMapping],
   );
 
   const seasonCompareSlice = useMemo(() => {
     if (!activeSeasonLabel) return [];
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
+    if (Object.keys(seasonMapping).length > 0) {
+      const resolved = resolveCockpitCompareRange(
+        from,
+        to,
+        comparisonType,
+        seasonLabels,
+        seasonMapping,
+        'Custom',
+      );
+      if (!resolved.start || !resolved.end) return [];
+      return rawData.filter((row) => {
+        const iso = rowDateIso(row);
+        if (!iso || iso < resolved.start || iso > resolved.end) return false;
+        if (selectedModes.length > 0 && !selectedModes.includes(row.mode)) return false;
+        return true;
+      });
+    }
     return filterSeasonCompareRowsBySeason(rawData, from, to, activeSeasonLabel, rowDateIso, selectedModes);
-  }, [rawData, fromDate, toDate, activeSeasonLabel, selectedModes]);
+  }, [rawData, fromDate, toDate, activeSeasonLabel, selectedModes, seasonMapping, comparisonType, seasonLabels]);
 
   /** Prior-period rows for comparisons — same slices as KPI cards (no day overlay). */
   const comparisonDataSlice = useMemo(() => {
@@ -907,7 +952,7 @@ export default function DistilleryAnalyticsDashboard() {
                     <button
                       key={comp.id}
                       type="button"
-                      onClick={() => setComparisonType(comp.id)}
+                      onClick={() => onCompareSelect(comp.id)}
                       className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
                         comparisonType === comp.id
                           ? isDarkMode

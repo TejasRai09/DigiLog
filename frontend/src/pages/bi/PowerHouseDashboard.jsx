@@ -34,7 +34,9 @@ import {
 } from '../../utils/powerHouseMeasures';
 import { formatYMD, resolveDashboardToDate } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
@@ -83,7 +85,6 @@ export default function PowerHouseDashboard() {
   const [rangePreset, setRangePreset] = useState('STD');
   const [comparisonType, setComparisonType] = useState('PP');
   const [seasonMapping, setSeasonMapping] = useState({});
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [dateBounds, setDateBounds] = useState({ min: null, max: null });
@@ -103,19 +104,33 @@ export default function PowerHouseDashboard() {
 
   const fitLayout = FIT_TABS.has(tab) && !loading;
 
-  useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === 'S3') setComparisonType('PP');
-  }, [thirdSeasonEnabled, comparisonType]);
-
   const seasonLabels = useMemo(() => {
-    const refIso = dateBounds.max || formatYMD(new Date());
+    const refIso = to || dateBounds.max || formatYMD(new Date());
     return getCockpitSeasonLabels(refIso, seasonMapping);
-  }, [dateBounds.max, seasonMapping]);
+  }, [to, dateBounds.max, seasonMapping]);
 
-  const comparisonOptions = useMemo(
-    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
-    [rangePreset, seasonLabels, thirdSeasonEnabled],
-  );
+  const comparisonOptions = useMemo(() => {
+    const refIso = to || dateBounds.max || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, to, dateBounds.max]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: from,
+      toDate: to,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dateBounds.min,
+      dataMax: dateBounds.max,
+      setComparisonType,
+    });
+  }, [from, to, rangePreset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max]);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +149,6 @@ export default function PowerHouseDashboard() {
           mapping = settingsRes.data.seasonMapping;
           setSeasonMapping(mapping);
         }
-        setThirdSeasonEnabled(Boolean(settingsRes?.data?.thirdSeasonCompareEnabled));
         const tariff = settingsRes?.data?.powerTariffRate;
         if (typeof tariff === 'number' && tariff > 0) setPowerTariffRate(tariff);
 
@@ -429,7 +443,7 @@ export default function PowerHouseDashboard() {
                 <button
                   key={comp.id}
                   type="button"
-                  onClick={() => setComparisonType(comp.id)}
+                  onClick={() => onCompareSelect(comp.id)}
                   className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                     comparisonType === comp.id
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'

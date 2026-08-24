@@ -113,39 +113,27 @@ const getAdminBiSettings = async (_req, res) => {
   }
 };
 
-/** PUT /api/admin/bi-settings body: { thirdSeasonCompareEnabled: boolean, dashboardSeasons: Record<string, string[]> } */
+/** PUT /api/admin/bi-settings body: { theoreticalYield?, powerTariffRate? } */
 const updateAdminBiSettings = async (req, res) => {
   try {
-    const enabled = Boolean(req.body?.thirdSeasonCompareEnabled);
-    let dashboardSeasons = (req.body?.dashboardSeasons && typeof req.body.dashboardSeasons === 'object')
-      ? req.body.dashboardSeasons
-      : {};
-
     const rawYield = parseFloat(req.body?.theoreticalYield);
     const theoreticalYield = Number.isFinite(rawYield) && rawYield > 0 ? rawYield : THEORETICAL_YIELD_DEFAULT;
     const rawTariff = parseFloat(req.body?.powerTariffRate);
     const powerTariffRate = Number.isFinite(rawTariff) && rawTariff > 0 ? rawTariff : POWER_TARIFF_DEFAULT;
 
-    // Support legacy payload if visibleSeasons array is passed directly
-    if (Array.isArray(req.body?.visibleSeasons) && Object.keys(dashboardSeasons).length === 0) {
-      dashboardSeasons = {
-        brix_sampling: req.body.visibleSeasons,
-        centre_maturity: req.body.visibleSeasons,
-      };
-    }
-
+    // Compare chips use season_mapping only — clear obsolete gates/filters.
     await pool.query(
       `INSERT INTO portal_settings (setting_key, setting_value)
        VALUES (?, ?)
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [SETTING_KEY, enabled ? '1' : '0'],
+      [SETTING_KEY, '0'],
     );
 
     await pool.query(
       `INSERT INTO portal_settings (setting_key, setting_value)
        VALUES (?, ?)
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [DASHBOARD_SEASONS_KEY, JSON.stringify(dashboardSeasons)],
+      [DASHBOARD_SEASONS_KEY, '{}'],
     );
 
     await pool.query(
@@ -164,8 +152,7 @@ const updateAdminBiSettings = async (req, res) => {
 
     res.json({
       message: 'BI dashboard settings saved.',
-      thirdSeasonCompareEnabled: enabled,
-      dashboardSeasons,
+      thirdSeasonCompareEnabled: false,
       theoreticalYield,
       powerTariffRate,
     });

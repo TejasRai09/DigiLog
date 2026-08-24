@@ -175,7 +175,9 @@ export const SEASON_YEARS_BACK = {
 };
 
 export function isSeasonComparisonType(type) {
-  return type === 'S1' || type === 'S2' || type === 'S3';
+  if (type === 'S1' || type === 'S2' || type === 'S3') return true;
+  if (typeof type === 'string' && type.startsWith('SEASON:')) return true;
+  return false;
 }
 
 export function yearsBackForSeasonComparison(type) {
@@ -245,9 +247,12 @@ export function alignSeasonCompareRange(fromDate, toDate, seasonLabel) {
 }
 
 export function seasonLabelForComparisonType(type, seasonLabels) {
-  if (type === 'S1') return seasonLabels.season1;
-  if (type === 'S2') return seasonLabels.season2;
-  if (type === 'S3') return seasonLabels.season3;
+  if (typeof type === 'string' && type.startsWith('SEASON:')) {
+    return type.slice('SEASON:'.length);
+  }
+  if (type === 'S1') return seasonLabels?.season1;
+  if (type === 'S2') return seasonLabels?.season2;
+  if (type === 'S3') return seasonLabels?.season3;
   return null;
 }
 

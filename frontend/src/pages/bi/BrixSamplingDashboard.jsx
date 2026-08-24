@@ -39,7 +39,9 @@ import {
   resolveDashboardToDate,
 } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
@@ -218,8 +220,7 @@ export default function BrixSamplingDashboard() {
   const [fieldDates, setFieldDates] = useState({ from: '', to: '' });
   const [yardDates, setYardDates] = useState({ from: '', to: '' });
   const [rangePreset, setRangePreset] = useState('STD'); // MTD | STD | WTD | Custom
-  const [comparisonType, setComparisonType] = useState('PP'); // PP | S1 | S2 | S3
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
+  const [comparisonType, setComparisonType] = useState('PP');
   const [seasonMapping, setSeasonMapping] = useState({});
   // Per-tab sampling date bounds (field → brix_field_sampling.Date, yard → brix_yard_sampling.Date)
   const [fieldDateRange, setFieldDateRange] = useState({ min: '', max: '' });
@@ -315,11 +316,11 @@ export default function BrixSamplingDashboard() {
     });
   }, [seasonMapping]);
 
-  // Cockpit-style season compare labels + settings (mapping + third season)
+  // Cockpit-style season compare labels from Season Mapping
   const seasonLabels = useMemo(() => {
-    const refIso = dbMaxDateStr || formatYMD(new Date());
+    const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
     return getCockpitSeasonLabels(refIso, seasonMapping);
-  }, [dbMaxDateStr, seasonMapping]);
+  }, [dateTo, dbMaxDateStr, seasonMapping]);
 
   /** Avoid setState when mapping is unchanged — otherwise params recreate and refetch forever. */
   const mergeSeasonMapping = useCallback((next) => {
@@ -337,22 +338,35 @@ export default function BrixSamplingDashboard() {
   useEffect(() => {
     api.get('/bi/settings')
       .then((r) => {
-        setThirdSeasonEnabled(Boolean(r.data?.thirdSeasonCompareEnabled));
         if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
           mergeSeasonMapping(r.data.seasonMapping);
         }
       })
-      .catch(() => setThirdSeasonEnabled(false));
+      .catch(() => { });
   }, [mergeSeasonMapping]);
 
-  useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === 'S3') setComparisonType('PP');
-  }, [thirdSeasonEnabled, comparisonType]);
+  const comparisonOptions = useMemo(() => {
+    const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+  }, [rangePreset, seasonMapping, dateTo, dbMaxDateStr]);
 
-  const comparisonOptions = useMemo(
-    () => buildCockpitComparisonOptions(rangePreset, seasonLabels, thirdSeasonEnabled),
-    [rangePreset, seasonLabels, thirdSeasonEnabled],
-  );
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate: dateFrom,
+      toDate: dateTo,
+      rangePreset,
+      seasonMapping,
+      seasonLabels,
+      dataMin: dbMinDateStr,
+      dataMax: dbMaxDateStr,
+      setComparisonType,
+    });
+  }, [dateFrom, dateTo, rangePreset, seasonMapping, seasonLabels, dbMinDateStr, dbMaxDateStr]);
 
   /** Resolve compare From–To (milling cockpit: STD = day 1→N). */
   const resolveCompareRange = useCallback((from, to) => {
@@ -647,7 +661,7 @@ export default function BrixSamplingDashboard() {
                   <button
                     key={comp.id}
                     type="button"
-                    onClick={() => setComparisonType(comp.id)}
+                    onClick={() => onCompareSelect(comp.id)}
                     className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                       comparisonType === comp.id
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'

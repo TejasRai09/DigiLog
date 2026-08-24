@@ -78,36 +78,13 @@ const STATS_SELECT = `
 `;
 
 async function querySeasonMeta() {
-  const [[seasonsRes], [visRows]] = await Promise.all([
-    pool.query('SELECT season_label, start_date, end_date FROM season_mapping ORDER BY start_date DESC'),
-    pool.query(
-      'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?)',
-      ['bi_dashboard_seasons', 'bi_visible_seasons'],
-    ),
-  ]);
+  const [seasonsRes] = await pool.query(
+    'SELECT season_label, start_date, end_date FROM season_mapping ORDER BY start_date DESC',
+  );
 
-  const visMap = {};
-  visRows.forEach((r) => { visMap[r.setting_key] = r.setting_value; });
-
-  let visibleSeasons = [];
-  if (visMap.bi_dashboard_seasons) {
-    try {
-      const parsed = JSON.parse(visMap.bi_dashboard_seasons);
-      visibleSeasons = parsed.brix_sampling || [];
-    } catch (_) { /* ignore */ }
-  }
-  if (visibleSeasons.length === 0 && visMap.bi_visible_seasons) {
-    try { visibleSeasons = JSON.parse(visMap.bi_visible_seasons); } catch (_) { /* ignore */ }
-  }
-
-  let filtered = seasonsRes;
-  if (Array.isArray(visibleSeasons) && visibleSeasons.length > 0) {
-    filtered = seasonsRes.filter((s) => visibleSeasons.includes(s.season_label));
-  }
-
-  const availableSeasons = filtered.map((s) => s.season_label);
+  const availableSeasons = seasonsRes.map((s) => s.season_label);
   const seasonMapping = {};
-  filtered.forEach((s) => {
+  seasonsRes.forEach((s) => {
     seasonMapping[s.season_label] = { startDate: s.start_date, endDate: s.end_date };
   });
   return { availableSeasons, seasonMapping };
