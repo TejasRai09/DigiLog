@@ -292,15 +292,29 @@ export default function CentreMaturityDashboard() {
     return getCockpitSeasonLabels(refIso, seasonMapping);
   }, [dateTo, dbMaxDateStr, seasonMapping]);
 
+  /** Avoid setState when mapping is unchanged — otherwise params recreate and refetch forever. */
+  const mergeSeasonMapping = useCallback((next) => {
+    if (!next || typeof next !== 'object') return;
+    setSeasonMapping((prev) => {
+      const merged = { ...prev, ...next };
+      try {
+        if (JSON.stringify(prev) === JSON.stringify(merged)) return prev;
+      } catch {
+        /* fall through */
+      }
+      return merged;
+    });
+  }, []);
+
   useEffect(() => {
     api.get('/bi/settings')
       .then((r) => {
         if (r.data?.seasonMapping && typeof r.data.seasonMapping === 'object') {
-          setSeasonMapping((prev) => ({ ...r.data.seasonMapping, ...prev }));
+          mergeSeasonMapping(r.data.seasonMapping);
         }
       })
       .catch(() => { });
-  }, []);
+  }, [mergeSeasonMapping]);
 
   const comparisonOptions = useMemo(() => {
     const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
@@ -368,7 +382,7 @@ export default function CentreMaturityDashboard() {
         ? res.data.seasonMapping
         : null;
       if (mappingFromApi) {
-        setSeasonMapping((prev) => ({ ...prev, ...mappingFromApi }));
+        mergeSeasonMapping(mappingFromApi);
       }
       if (res.data.dateRange?.maxDate) setDbMaxDate(new Date(res.data.dateRange.maxDate));
 
@@ -415,7 +429,7 @@ export default function CentreMaturityDashboard() {
     } finally {
       if (gen === fetchGenRef.current) setLoading(false);
     }
-  }, [dateFrom, dateTo, resolveCompareRange]);
+  }, [dateFrom, dateTo, resolveCompareRange, mergeSeasonMapping]);
 
   useEffect(() => {
     fetchData();

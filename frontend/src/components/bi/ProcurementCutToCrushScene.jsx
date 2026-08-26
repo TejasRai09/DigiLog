@@ -1494,16 +1494,26 @@ function ProcurementCutToCrushScene({
         {/* Top strip: 5 summary KPIs + fullscreen */}
         <div className="absolute top-3 left-3 right-3 flex items-start gap-2 pointer-events-auto">
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2 min-w-0">
-            {summaryKpis.map((k) => (
-              <BiKpiCard
-                key={k.title}
-                title={k.title}
-                displayValue={k.value}
-                value={100}
-                pyValue={0}
-                isDarkMode={true}
-              />
-            ))}
+            {summaryKpis.map((k) => {
+              // BiKpiCard derives its % badge from (value, pyValue) — since k.value is already a
+              // formatted display string, encode the real delta via a matching mock pair (same
+              // trick as Gate1KpiCard elsewhere in Cane Performance) so the badge/color is real.
+              const hasDelta = k.delta != null && Number.isFinite(k.delta);
+              const mockValue = 100;
+              const mockPyValue = hasDelta ? 100 / (1 + k.delta / 100) : 0;
+              return (
+                <BiKpiCard
+                  key={k.title}
+                  title={k.title}
+                  displayValue={k.value}
+                  value={mockValue}
+                  pyValue={mockPyValue}
+                  isDarkMode={true}
+                  inverseColor={k.lowerBetter}
+                  comparisonLabel="last period"
+                />
+              );
+            })}
           </div>
           <button
             type="button"
