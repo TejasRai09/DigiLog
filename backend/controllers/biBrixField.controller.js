@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { getBrixThreshold } = require('../utils/biConstants');
 
 // ─── Helper: build WHERE clause from query params ────────────────
 async function buildWhere(query, extraConditions = []) {
@@ -52,7 +53,15 @@ function toYmd(v) {
   return String(v).slice(0, 10);
 }
 
-const STATS_SELECT = `
+/** Sanitize an admin-configured Brix threshold before splicing it into raw SQL (no bind params, numeric-only). */
+function sanitizeThreshold(threshold) {
+  const t = Number(threshold);
+  return Number.isFinite(t) && t > 0 ? t : 18;
+}
+
+function buildStatsSelect(threshold) {
+  const t = sanitizeThreshold(threshold);
+  return `
   COUNT(*)                                                             AS totalSamples,
   ROUND(AVG(\`MiddleBrix\`), 2)                                        AS avgMidBrix,
   ROUND(AVG(\`TopBrix\`), 2)                                           AS avgTopBrix,
@@ -63,11 +72,12 @@ const STATS_SELECT = `
            THEN \`TopBrix\` / \`BottomBrix\`
            ELSE NULL END
     ), 2)                                                              AS avgMaturity,
-  SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)                 AS countBottomBrixLt18,
+  SUM(CASE WHEN \`BottomBrix\` < ${t} THEN 1 ELSE 0 END)               AS countBottomBrixLt18,
   ROUND(
-    SUM(CASE WHEN \`BottomBrix\` < 18 THEN 1 ELSE 0 END)
+    SUM(CASE WHEN \`BottomBrix\` < ${t} THEN 1 ELSE 0 END)
     / NULLIF(COUNT(*), 0) * 100, 1)                                   AS pctBottomBrixLt18
 `;
+}
 
 async function querySeasonMeta() {
   const [seasonsRes] = await pool.query(
@@ -102,7 +112,7 @@ async function queryTestTypes() {
   return rows.map((r) => r.testType);
 }
 
-function mkStats(currRow, prevRow) {
+function mkStats(currRow, prevRow, brixThreshold) {
   const hasCompare = Boolean(prevRow) && (Number(prevRow.totalSamples) || 0) > 0;
   const calcChange = (curr, prev) => {
     const c = parseFloat(curr) || 0;
@@ -130,6 +140,7 @@ function mkStats(currRow, prevRow) {
       avgMidBrix: mk(currRow.avgMidBrix, prevRow?.avgMidBrix),
       avgMaturity: mk(currRow.avgMaturity, prevRow?.avgMaturity),
       pctBottomBrixLt18: mk(currRow.pctBottomBrixLt18, prevRow?.pctBottomBrixLt18, { lowerBetter: true }),
+      brixThreshold,
     },
   };
 }
@@ -161,13 +172,16 @@ async function loadFieldStatsBundle(query, clause, params, effectiveFrom, effect
     prevParams.push(testType);
   }
 
+  const brixThreshold = await getBrixThreshold();
+  const statsSelect = buildStatsSelect(brixThreshold);
+
   const currPromise = pool.query(
-    `SELECT ${STATS_SELECT} FROM \`brix_field_sampling\` ${clause}`,
+    `SELECT ${statsSelect} FROM \`brix_field_sampling\` ${clause}`,
     params,
   );
   const prevPromise = prevConditions.length
     ? pool.query(
-      `SELECT ${STATS_SELECT} FROM \`brix_field_sampling\` WHERE ${prevConditions.join(' AND ')}`,
+      `SELECT ${statsSelect} FROM \`brix_field_sampling\` WHERE ${prevConditions.join(' AND ')}`,
       prevParams,
     )
     : Promise.resolve([[null]]);
@@ -179,7 +193,7 @@ async function loadFieldStatsBundle(query, clause, params, effectiveFrom, effect
     metaPromise,
   ]);
 
-  const { hasCompare, stats } = mkStats(currRow, prevRow);
+  const { hasCompare, stats } = mkStats(currRow, prevRow, brixThreshold);
 
   return {
     stats,

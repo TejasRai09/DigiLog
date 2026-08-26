@@ -129,7 +129,7 @@ export function KPICard({ label, value, compareValue, compareLabel, inverseGood 
 
   return (
     <div
-      className={`relative rounded-2xl border flex items-center gap-3 transition-all duration-200 hover:-translate-y-1 ${
+      className={`relative rounded-2xl border flex items-center gap-3 overflow-hidden transition-all duration-200 hover:-translate-y-1 ${
         compact ? 'px-3 py-2.5' : 'px-4 py-3.5'
       } ${dm ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-100'}`}
       style={{ boxShadow: cardShadow(dm) }}
@@ -149,8 +149,8 @@ export function KPICard({ label, value, compareValue, compareLabel, inverseGood 
         </span>
       ) : null}
       <div className="min-w-0 flex-1 pr-5">
-        <p className={`text-sm font-semibold leading-tight ${dm ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
-        <p className={`${compact ? 'text-xl' : 'text-3xl'} font-black tracking-tight tabular-nums mt-0.5 ${dm ? 'text-slate-50' : 'text-slate-900'}`}>
+        <p className={`text-sm font-semibold leading-tight break-words ${dm ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
+        <p className={`${compact ? 'text-xl' : 'text-3xl'} font-black tracking-tight tabular-nums mt-0.5 break-words leading-tight ${dm ? 'text-slate-50' : 'text-slate-900'}`}>
           {display}
           {unit ? (
             <span className={`ml-1 text-xs font-semibold ${dm ? 'text-slate-400' : 'text-slate-500'}`}>{unit}</span>

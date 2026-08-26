@@ -5,6 +5,7 @@ const CACHE_KEY = 'app_constants_cache';
 const DEFAULTS = {
   theoreticalYield: 64.4,
   powerTariffRate: 4.85,
+  brixThreshold: 18,
 };
 
 function readCache() {
@@ -52,6 +53,10 @@ export default function useAppConstants() {
             typeof data?.powerTariffRate === 'number' && data.powerTariffRate > 0
               ? data.powerTariffRate
               : DEFAULTS.powerTariffRate,
+          brixThreshold:
+            typeof data?.brixThreshold === 'number' && data.brixThreshold > 0
+              ? data.brixThreshold
+              : DEFAULTS.brixThreshold,
         };
         writeCache(resolved);
         setConstants(resolved);

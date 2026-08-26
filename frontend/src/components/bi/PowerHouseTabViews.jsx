@@ -255,9 +255,9 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
           </BandCard>
         </div>
 
-        <div className="lg:col-span-9 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(4, minmax(0, 1fr))' }}>
+        <div className="lg:col-span-9 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(4, minmax(min-content, 1fr))' }}>
           {trendRows.map((r) => (
-            <div key={r.key} className="min-h-0 grid grid-cols-[9rem_minmax(0,1fr)] gap-1.5">
+            <div key={r.key} className="min-h-0 grid grid-cols-[11.5rem_minmax(0,1fr)] gap-1.5">
               <KPICard compact label={r.label} value={r.value} dm={dm} color="blue" icon={Plug} />
               <BandCard title={`${r.label} — Day wise trend`} dm={dm}>
                 <ResponsiveContainer width="100%" height="100%" minHeight={48}>

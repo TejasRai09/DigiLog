@@ -208,6 +208,10 @@ INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
 VALUES ('power_tariff_rate', '4.85')
 ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
 
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('brix_threshold', '18')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
 -- Homepage big-card access (Forms Hub / BI Control Tower on `/`).
 CREATE TABLE IF NOT EXISTS `user_homepage_cards` (
   `user_id`    INT          NOT NULL,

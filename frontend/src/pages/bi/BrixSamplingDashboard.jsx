@@ -791,7 +791,7 @@ export default function BrixSamplingDashboard() {
                     formatValue={(v) => Math.round(v).toLocaleString()}
                   />
                   <BiKpiCard
-                    title="BOTTOM BRIX < 18%"
+                    title={`BOTTOM BRIX < ${fieldStats?.brixThreshold ?? 18}%`}
                     value={parseFloat(fieldStats?.pctBottomBrixLt18?.value ?? 17.0)}
                     pyValue={parseFloat(fieldStats?.pctBottomBrixLt18?.pyValue ?? 0)}
                     unit="%"
@@ -1047,7 +1047,7 @@ export default function BrixSamplingDashboard() {
                     formatValue={(v) => v.toFixed(2)}
                   />
                   <BiKpiCard
-                    title="MIDDLE BRIX > 18"
+                    title={`MIDDLE BRIX > ${yardStats?.brixThreshold ?? 18}`}
                     value={parseFloat(yardStats?.pctBrixGt18?.value ?? 0)}
                     pyValue={parseFloat(yardStats?.pctBrixGt18?.pyValue ?? 0)}
                     unit="%"
@@ -1112,8 +1112,8 @@ export default function BrixSamplingDashboard() {
                   </div>
                   <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/50 p-2.5 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Brix &gt; 18 Rate</p>
-                      <p className="text-[9px] text-emerald-600">COUNT(MiddleBrix &gt; 18) / Total</p>
+                      <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Brix &gt; {yardStats?.brixThreshold ?? 18} Rate</p>
+                      <p className="text-[9px] text-emerald-600">COUNT(MiddleBrix &gt; {yardStats?.brixThreshold ?? 18}) / Total</p>
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
@@ -1139,7 +1139,7 @@ export default function BrixSamplingDashboard() {
                     <div className="mb-1">
                       <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % Daily Trend</h3>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Bars = samples with Brix &gt; 18 · Line = avg Brix % (secondary axis, min 16)
+                        Bars = samples with Brix &gt; {yardStats?.brixThreshold ?? 18} · Line = avg Brix % (secondary axis, min 16)
                       </p>
                     </div>
                     <div className="flex-1 min-h-[120px] w-full">
@@ -1151,7 +1151,7 @@ export default function BrixSamplingDashboard() {
                           <YAxis yAxisId="right" orientation="right" domain={[16, 'auto']} tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
                           <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                           <Legend wrapperStyle={{ fontSize: '10px' }} />
-                          <Bar yAxisId="left" dataKey="countAbove18" name="Middle Brix > 18" fill="#ec4899" opacity={0.5} radius={[3, 3, 0, 0]} />
+                          <Bar yAxisId="left" dataKey="countAbove18" name={`Middle Brix > ${yardStats?.brixThreshold ?? 18}`} fill="#ec4899" opacity={0.5} radius={[3, 3, 0, 0]} />
                           <Line yAxisId="right" type="monotone" dataKey="avgBrix" name="Avg Middle Brix %" stroke={lineDark} strokeWidth={2.5} dot={{ r: 2.5 }} />
                         </ComposedChart>
                       </ResponsiveContainer>

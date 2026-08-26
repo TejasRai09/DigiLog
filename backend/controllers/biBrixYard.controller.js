@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { getBrixThreshold } = require('../utils/biConstants');
 
 // ─── Helper: build WHERE clause from date/deliveryPoint filters ──
 async function buildWhere(query, alias = '') {
@@ -53,7 +54,15 @@ function toYmd(v) {
   return String(v).slice(0, 10);
 }
 
-const STATS_SELECT = `
+/** Sanitize an admin-configured Brix threshold before splicing it into raw SQL (no bind params, numeric-only). */
+function sanitizeThreshold(threshold) {
+  const t = Number(threshold);
+  return Number.isFinite(t) && t > 0 ? t : 18;
+}
+
+function buildStatsSelect(threshold) {
+  const t = sanitizeThreshold(threshold);
+  return `
   COUNT(*)                                                          AS totalSamples,
   ROUND(AVG(\`MiddleBrix\`), 2)                                     AS avgBrix,
   SUM(\`MiddleBrix\`)                                               AS sumBrix,
@@ -71,11 +80,12 @@ const STATS_SELECT = `
     SUM(CASE WHEN \`DiseasedCane\` = 'Yes'
                OR \`StaleCane\`    = 'Yes' THEN 1 ELSE 0 END)
     / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctAffected,
-  SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)             AS countBrixGt18,
+  SUM(CASE WHEN \`MiddleBrix\` > ${t} THEN 1 ELSE 0 END)           AS countBrixGt18,
   ROUND(
-    SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)
+    SUM(CASE WHEN \`MiddleBrix\` > ${t} THEN 1 ELSE 0 END)
     / NULLIF(COUNT(*), 0) * 100, 1)                                AS pctBrixGt18
 `;
+}
 
 async function querySeasonMeta() {
   const [seasonsRes] = await pool.query(
@@ -146,7 +156,7 @@ async function finalizePrevWhere(prevPack) {
   return prevPack;
 }
 
-function mkStats(currRow, prevRow) {
+function mkStats(currRow, prevRow, brixThreshold) {
   const hasCompare = Boolean(prevRow) && (Number(prevRow.totalSamples) || 0) > 0;
   const calcChange = (curr, prev) => {
     const c = parseFloat(curr) || 0;
@@ -176,6 +186,7 @@ function mkStats(currRow, prevRow) {
       pctStale: mk(currRow.pctStale, prevRow?.pctStale, { lowerBetter: true }),
       pctAffected: mk(currRow.pctAffected, prevRow?.pctAffected, { lowerBetter: true }),
       pctBrixGt18: mk(currRow.pctBrixGt18, prevRow?.pctBrixGt18),
+      brixThreshold,
     },
   };
 }
@@ -185,13 +196,16 @@ async function loadYardStatsBundle(query, clause, params, effectiveFrom, effecti
   prevPack = await finalizePrevWhere(prevPack);
   const { prevConditions, prevParams, compareMode, pyFrom, pyTo, compSeason } = prevPack;
 
+  const brixThreshold = await getBrixThreshold();
+  const statsSelect = buildStatsSelect(brixThreshold);
+
   const currPromise = pool.query(
-    `SELECT ${STATS_SELECT} FROM \`brix_yard_sampling\` ${clause}`,
+    `SELECT ${statsSelect} FROM \`brix_yard_sampling\` ${clause}`,
     params,
   );
   const prevPromise = prevConditions.length
     ? pool.query(
-      `SELECT ${STATS_SELECT} FROM \`brix_yard_sampling\` WHERE ${prevConditions.join(' AND ')}`,
+      `SELECT ${statsSelect} FROM \`brix_yard_sampling\` WHERE ${prevConditions.join(' AND ')}`,
       prevParams,
     )
     : Promise.resolve([[null]]);
@@ -203,7 +217,7 @@ async function loadYardStatsBundle(query, clause, params, effectiveFrom, effecti
     metaPromise,
   ]);
 
-  const { hasCompare, stats } = mkStats(currRow, prevRow);
+  const { hasCompare, stats } = mkStats(currRow, prevRow, brixThreshold);
 
   return {
     stats,
@@ -224,11 +238,12 @@ async function loadYardStatsBundle(query, clause, params, effectiveFrom, effecti
 }
 
 async function queryYardTrend(clause, params) {
+  const threshold = sanitizeThreshold(await getBrixThreshold());
   const [rows] = await pool.query(
     `SELECT
       \`Date\`                                                           AS date,
       COUNT(*)                                                           AS totalSamples,
-      SUM(CASE WHEN \`MiddleBrix\` > 18 THEN 1 ELSE 0 END)             AS countAbove18,
+      SUM(CASE WHEN \`MiddleBrix\` > ${threshold} THEN 1 ELSE 0 END)     AS countAbove18,
       ROUND(AVG(\`MiddleBrix\`), 2)                                     AS avgBrix
     FROM \`brix_yard_sampling\`
     ${clause}

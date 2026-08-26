@@ -636,6 +636,10 @@ async function getMysqlCanePerformanceData(from, to, opts = {}) {
       overruns: prior.overruns || [],
       cntOverruns: prior.cntOverruns || [],
       procurementFlow: prior.procurementFlow || [],
+      // Already computed above (pyPacks includes gateYard/gateMill for the procurement tab) —
+      // forward them so the frontend can build real "vs last period" deltas for the summary KPI strip.
+      gateYard: prior.gateYard || [],
+      gateMill: prior.gateMill || [],
     };
   }
 

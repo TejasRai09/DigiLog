@@ -1,5 +1,6 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
+const { BRIX_THRESHOLD_KEY, BRIX_THRESHOLD_DEFAULT } = require('../utils/biConstants');
 
 const SETTING_KEY = 'bi_third_season_compare';
 const DASHBOARD_SEASONS_KEY = 'bi_dashboard_seasons';
@@ -38,8 +39,8 @@ function parseJsonArray(v) {
 const getBiSettings = async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?)',
-      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY],
+      'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?, ?)',
+      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY, BRIX_THRESHOLD_KEY],
     );
     const map = {};
     rows.forEach(r => { map[r.setting_key] = r.setting_value; });
@@ -75,6 +76,7 @@ const getBiSettings = async (_req, res) => {
       seasonMapping,
       theoreticalYield: parseFloat(map[THEORETICAL_YIELD_KEY] ?? THEORETICAL_YIELD_DEFAULT) || THEORETICAL_YIELD_DEFAULT,
       powerTariffRate: parseFloat(map[POWER_TARIFF_KEY] ?? POWER_TARIFF_DEFAULT) || POWER_TARIFF_DEFAULT,
+      brixThreshold: parseFloat(map[BRIX_THRESHOLD_KEY] ?? BRIX_THRESHOLD_DEFAULT) || BRIX_THRESHOLD_DEFAULT,
     });
   } catch (err) {
     sendServerError(res, 'getBiSettings', err, MSG.LOAD);
@@ -85,8 +87,8 @@ const getBiSettings = async (_req, res) => {
 const getAdminBiSettings = async (_req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT setting_key, setting_value, updated_at FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?)',
-      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY],
+      'SELECT setting_key, setting_value, updated_at FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?, ?)',
+      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY, BRIX_THRESHOLD_KEY],
     );
     const map = {};
     rows.forEach(r => { map[r.setting_key] = r.setting_value; });
@@ -106,6 +108,7 @@ const getAdminBiSettings = async (_req, res) => {
       dashboardSeasons,
       theoreticalYield: parseFloat(map[THEORETICAL_YIELD_KEY] ?? THEORETICAL_YIELD_DEFAULT) || THEORETICAL_YIELD_DEFAULT,
       powerTariffRate: parseFloat(map[POWER_TARIFF_KEY] ?? POWER_TARIFF_DEFAULT) || POWER_TARIFF_DEFAULT,
+      brixThreshold: parseFloat(map[BRIX_THRESHOLD_KEY] ?? BRIX_THRESHOLD_DEFAULT) || BRIX_THRESHOLD_DEFAULT,
       updatedAt: rows[0]?.updated_at ?? null,
     });
   } catch (err) {
@@ -113,13 +116,17 @@ const getAdminBiSettings = async (_req, res) => {
   }
 };
 
-/** PUT /api/admin/bi-settings body: { theoreticalYield?, powerTariffRate? } */
+/** PUT /api/admin/bi-settings body: { theoreticalYield?, powerTariffRate?, brixThreshold? } */
 const updateAdminBiSettings = async (req, res) => {
   try {
     const rawYield = parseFloat(req.body?.theoreticalYield);
     const theoreticalYield = Number.isFinite(rawYield) && rawYield > 0 ? rawYield : THEORETICAL_YIELD_DEFAULT;
     const rawTariff = parseFloat(req.body?.powerTariffRate);
     const powerTariffRate = Number.isFinite(rawTariff) && rawTariff > 0 ? rawTariff : POWER_TARIFF_DEFAULT;
+    const rawBrixThreshold = parseFloat(req.body?.brixThreshold);
+    const brixThreshold = Number.isFinite(rawBrixThreshold) && rawBrixThreshold > 0
+      ? rawBrixThreshold
+      : BRIX_THRESHOLD_DEFAULT;
 
     // Compare chips use season_mapping only — clear obsolete gates/filters.
     await pool.query(
@@ -150,11 +157,19 @@ const updateAdminBiSettings = async (req, res) => {
       [POWER_TARIFF_KEY, String(powerTariffRate)],
     );
 
+    await pool.query(
+      `INSERT INTO portal_settings (setting_key, setting_value)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+      [BRIX_THRESHOLD_KEY, String(brixThreshold)],
+    );
+
     res.json({
       message: 'BI dashboard settings saved.',
       thirdSeasonCompareEnabled: false,
       theoreticalYield,
       powerTariffRate,
+      brixThreshold,
     });
   } catch (err) {
     sendServerError(res, 'updateAdminBiSettings', err, MSG.SAVE);

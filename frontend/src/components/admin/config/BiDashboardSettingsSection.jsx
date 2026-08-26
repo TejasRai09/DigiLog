@@ -13,6 +13,7 @@ export default function BiDashboardSettingsSection() {
   const [loading, setLoading] = useState(true);
   const [theoreticalYield, setTheoreticalYield] = useState('64.4');
   const [powerTariffRate, setPowerTariffRate] = useState('4.85');
+  const [brixThreshold, setBrixThreshold] = useState('18');
   const [constantsError, setConstantsError] = useState({});
   const [savingConstants, setSavingConstants] = useState(false);
 
@@ -24,6 +25,7 @@ export default function BiDashboardSettingsSection() {
         if (cancelled || !data) return;
         if (typeof data.theoreticalYield === 'number') setTheoreticalYield(String(data.theoreticalYield));
         if (typeof data.powerTariffRate === 'number') setPowerTariffRate(String(data.powerTariffRate));
+        if (typeof data.brixThreshold === 'number') setBrixThreshold(String(data.brixThreshold));
       } catch {
         if (!cancelled) toast.error('Failed to load BI dashboard settings.');
       } finally {
@@ -38,9 +40,11 @@ export default function BiDashboardSettingsSection() {
   const saveConstants = async () => {
     const yVal = parseFloat(theoreticalYield);
     const tVal = parseFloat(powerTariffRate);
+    const bVal = parseFloat(brixThreshold);
     const errs = {};
     if (!Number.isFinite(yVal) || yVal <= 0) errs.yield = 'Must be a positive number (e.g. 64.4)';
     if (!Number.isFinite(tVal) || tVal <= 0) errs.tariff = 'Must be a positive number (e.g. 4.85)';
+    if (!Number.isFinite(bVal) || bVal <= 0) errs.brix = 'Must be a positive number (e.g. 18)';
     if (Object.keys(errs).length) {
       setConstantsError(errs);
       return;
@@ -50,9 +54,11 @@ export default function BiDashboardSettingsSection() {
       const { data } = await api.put('/admin/bi-settings', {
         theoreticalYield: yVal,
         powerTariffRate: tVal,
+        brixThreshold: bVal,
       });
       if (typeof data.theoreticalYield === 'number') setTheoreticalYield(String(data.theoreticalYield));
       if (typeof data.powerTariffRate === 'number') setPowerTariffRate(String(data.powerTariffRate));
+      if (typeof data.brixThreshold === 'number') setBrixThreshold(String(data.brixThreshold));
       try {
         sessionStorage.removeItem('app_constants_cache');
       } catch (_) { /* ignore */ }
@@ -68,7 +74,7 @@ export default function BiDashboardSettingsSection() {
   return (
     <ConfigSectionPanel
       title="BI Dashboards"
-      description="Calculation constants for Distillery and Power House. Compare seasons are managed under Season Mapping — every mapped season (except the current one) appears in Compare."
+      description="Calculation constants for Distillery, Power House, and Brix Sampling. Compare seasons are managed under Season Mapping — every mapped season (except the current one) appears in Compare."
       actions={
         loading ? (
           <Spinner size="sm" />
@@ -103,7 +109,7 @@ export default function BiDashboardSettingsSection() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label htmlFor="admin-theoretical-yield" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Theoretical Yield Factor
@@ -160,6 +166,36 @@ export default function BiDashboardSettingsSection() {
               )}
               <p className="text-[11px] text-slate-400 dark:text-slate-500">
                 Used in Power House for export ₹ revenue. Default: <strong>₹4.85</strong>.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="admin-brix-threshold" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Brix Ripeness Threshold
+              </label>
+              <input
+                id="admin-brix-threshold"
+                type="number"
+                step="0.1"
+                min="1"
+                value={brixThreshold}
+                disabled={loading || savingConstants}
+                onChange={(e) => {
+                  setBrixThreshold(e.target.value);
+                  setConstantsError((prev) => ({ ...prev, brix: '' }));
+                }}
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-mono ${
+                  constantsError.brix
+                    ? 'border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300'
+                    : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100'
+                } focus:outline-none focus:ring-2 focus:ring-amber-400/50`}
+              />
+              {constantsError.brix && (
+                <p className="text-[11px] text-red-600 dark:text-red-400">{constantsError.brix}</p>
+              )}
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                Used in Brix Sampling (Field &amp; Yard) for the "Brix &gt;/&lt; threshold" rate tiles and charts. Default:{' '}
+                <strong>18</strong>.
               </p>
             </div>
           </div>

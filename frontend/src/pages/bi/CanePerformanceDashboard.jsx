@@ -6,7 +6,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Activity, Truck, MapPin, Clock,
-  Database, BarChart2, GitMerge, ArrowRightLeft, Sun, Moon, Filter, Loader2,
+  BarChart2, GitMerge, ArrowRightLeft, Sun, Moon, Filter, Loader2,
   Sprout, DoorOpen, Warehouse, Scale, Factory, Cog, ArrowRight, Award,
   Search, Trophy, Building2, ShieldCheck, Eye, List, LayoutGrid,
   ChevronLeft, ChevronRight, Target, CheckCircle2, AlertCircle, Package,
@@ -194,30 +194,6 @@ const ChartCard=({title,children,darkMode,className="",info})=>(
     </div>
     {title&&<p className={`text-[10px] font-bold uppercase tracking-wider mb-3 pr-6 ${darkMode?"text-slate-400":"text-slate-500"}`}>{title}</p>}
     {children}
-  </div>
-);
-
-const DTable=({cols,rows,darkMode})=>(
-  <div className={`rounded-2xl border overflow-hidden ${darkMode?"border-slate-800 bg-slate-900":"border-slate-200/80 bg-white"}`}
-    style={{ boxShadow: cardShadow(darkMode) }}>
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs text-left">
-        <thead className={`${darkMode?"bg-slate-800/60 text-slate-400":"bg-slate-50 text-slate-500"} uppercase text-[10px]`}>
-          <tr>{cols.map(c=><th key={c.key} className="px-3 py-2.5 font-bold whitespace-nowrap">{c.label}</th>)}</tr>
-        </thead>
-        <tbody className={`divide-y ${darkMode?"divide-slate-800 text-slate-300":"divide-slate-100 text-slate-700"}`}>
-          {rows.map((row,i)=>(
-            <tr key={i} className={darkMode?"hover:bg-slate-800/40":"hover:bg-slate-50"}>
-              {cols.map(c=>(
-                <td key={c.key} className={`px-3 py-2 whitespace-nowrap ${c.bold?"font-semibold":""} ${c.cls||""}`}>
-                  {c.fmt?c.fmt(row[c.key]):row[c.key]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   </div>
 );
 
@@ -1419,6 +1395,8 @@ function normalizeLiveData(data) {
           overruns: arr(data.prior.overruns),
           cntOverruns: arr(data.prior.cntOverruns),
           procurementFlow: arr(data.prior.procurementFlow),
+          gateYard: arr(data.prior.gateYard),
+          gateMill: arr(data.prior.gateMill),
         }
       : null,
   };
@@ -1434,13 +1412,11 @@ const TABS=[
   {id:"vehicle-holding2",label:"Vehicle Holding 2",icon:Building2},
   {id:"truck-transit",label:"Truck Transit",icon:MapPin},
   {id:"truck-holding",label:"Truck Holding",icon:Warehouse},
-  {id:"database",label:"Database",icon:Database},
 ];
 
 export default function CanePerformanceDashboard(){
   const[tab,setTab]=useState("procurement");
   const[dm,setDm]=useState(false);
-  const[cf,setCf]=useState("All");
   const[liveData, setLiveData] = useState(null);
   const[loading, setLoading] = useState(true);
   
@@ -1457,7 +1433,7 @@ export default function CanePerformanceDashboard(){
   const[dbMaxDate, setDbMaxDate] = useState(null);
   const dateRangeSeeded = useRef(false);
 
-  const centerTabs = ["center-purchase","vehicle-handling","vehicle-holding","vehicle-holding2","truck-transit","database"];
+  const centerTabs = ["center-purchase","vehicle-handling","vehicle-holding","vehicle-holding2","truck-transit"];
 
   const toInputDate = (v) => {
     if (!v) return "";
@@ -1835,6 +1811,24 @@ export default function CanePerformanceDashboard(){
     };
   }, [liveData, proc]);
 
+  /** Prior-period counterparts of flowStats (for real "vs last period" deltas on the summary KPI strip). */
+  const priorFlowStats = React.useMemo(() => {
+    if (!prior) return null;
+    const gate = prior?.gateYard || [];
+    const centers = (prior?.procurementFlow || []).filter(x => n(x.isCenter) === 1);
+    const gateCane = gate.reduce((a, b) => a + n(b.cane), 0);
+    const centerVeh = centers.reduce((a, b) => a + n(b.trips), 0);
+    const centerCane = centers.reduce((a, b) => a + n(b.cane), 0);
+    const sumField = (rows, key) => (rows || []).reduce((a, b) => a + n(b[key]), 0);
+    return {
+      totalCane: gateCane + centerCane,
+      centerVeh,
+      avgYardWait: n(prior?.kpis?.yardWaiting),
+      yardDev: sumField(prior?.gateYard, 'devOver8H'),
+      millDev: sumField(prior?.gateMill, 'devOver05H'),
+    };
+  }, [prior]);
+
   const bg=dm?"bg-slate-950 text-slate-100":"bg-slate-50 text-slate-800";
   const hdr=dm?"bg-slate-900 border-slate-800":"bg-white border-slate-200/80";
 
@@ -2019,11 +2013,39 @@ export default function CanePerformanceDashboard(){
           const yardRows = proc?.yardGate || [];
           const millRows = proc?.mill || [];
           const summaryKpis = [
-            { title: "Total Cane (Q)", value: proc ? n(flowStats.totalCane).toLocaleString("en-IN", { maximumFractionDigits: 0 }) : "—", icon: Sprout, color: "#16a34a" },
-            { title: "Total Trips", value: proc ? n(flowStats.centerVeh || proc.centerTrips).toLocaleString("en-IN") : "—", icon: Truck, color: "#2563eb" },
-            { title: "Avg Waiting Time (Hrs)", value: proc ? fmt(proc.avgYardWait) : "—", icon: Clock, color: "#7c3aed" },
-            { title: "Yard Dev. (>8H)", value: proc && flowStats.yardDev != null ? n(flowStats.yardDev).toLocaleString("en-IN") : "—", icon: BarChart2, color: "#ea580c" },
-            { title: "Mill Dev. (>0.5H)", value: proc && flowStats.millDev != null ? n(flowStats.millDev).toLocaleString("en-IN") : "—", icon: Cog, color: "#6d28d9" },
+            {
+              title: "Total Cane (Q)",
+              value: proc ? n(flowStats.totalCane).toLocaleString("en-IN", { maximumFractionDigits: 0 }) : "—",
+              delta: priorFlowStats ? pctChange(flowStats.totalCane, priorFlowStats.totalCane) : null,
+              icon: Sprout, color: "#16a34a",
+            },
+            {
+              title: "Total Trips",
+              value: proc ? n(flowStats.centerVeh || proc.centerTrips).toLocaleString("en-IN") : "—",
+              delta: priorFlowStats ? pctChange(flowStats.centerVeh || proc.centerTrips, priorFlowStats.centerVeh) : null,
+              icon: Truck, color: "#2563eb",
+            },
+            {
+              title: "Avg Waiting Time (Hrs)",
+              value: proc ? fmt(proc.avgYardWait) : "—",
+              delta: priorFlowStats ? pctChange(proc.avgYardWait, priorFlowStats.avgYardWait) : null,
+              lowerBetter: true,
+              icon: Clock, color: "#7c3aed",
+            },
+            {
+              title: "Yard Dev. (>8H)",
+              value: proc && flowStats.yardDev != null ? n(flowStats.yardDev).toLocaleString("en-IN") : "—",
+              delta: (priorFlowStats && flowStats.yardDev != null) ? pctChange(flowStats.yardDev, priorFlowStats.yardDev) : null,
+              lowerBetter: true,
+              icon: BarChart2, color: "#ea580c",
+            },
+            {
+              title: "Mill Dev. (>0.5H)",
+              value: proc && flowStats.millDev != null ? n(flowStats.millDev).toLocaleString("en-IN") : "—",
+              delta: (priorFlowStats && flowStats.millDev != null) ? pctChange(flowStats.millDev, priorFlowStats.millDev) : null,
+              lowerBetter: true,
+              icon: Cog, color: "#6d28d9",
+            },
           ];
 
           return (
@@ -2900,33 +2922,6 @@ export default function CanePerformanceDashboard(){
               volume: Math.round(n(r.challanQty)),
             }))}
           />
-        )}
-
-        {tab==="database"&&(
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold ${dm?"bg-slate-900 border-slate-800 text-slate-300":"bg-white border-slate-200 text-slate-700"}`}>
-                <Filter className="w-3.5 h-3.5 text-slate-400"/>
-                <span>Center:</span>
-                <select value={cf} onChange={e=>setCf(e.target.value)} className="bg-transparent focus:outline-none font-bold text-blue-600 dark:text-blue-400">
-                  <option value="All">All Centers</option>
-                  {CENTERS.map(c=><option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </div>
-            <DTable darkMode={dm} cols={[
-              {key:"purchyNo",label:"Purchy No.",bold:true},
-              {key:"center",label:"Center"},
-              {key:"grower",label:"Grower"},
-              {key:"vehicle",label:"Vehicle"},
-              {key:"caneQty",label:"Cane (Qtls)",cls:"text-emerald-600 font-bold"},
-              {key:"challanNo",label:"Challan No."},
-              {key:"mode",label:"Mode"},
-              {key:"arrival",label:"Arrival"},
-              {key:"holding",label:"Holding (hrs)",fmt:v=>fmt(v)},
-              {key:"truckH",label:"Truck Hold (hrs)",fmt:v=>fmt(v)},
-            ]} rows={cf==="All"?(liveData?.dbRows || []):(liveData?.dbRows || []).filter(r=>r.center===cf)}/>
-          </div>
         )}
 
       </main>
