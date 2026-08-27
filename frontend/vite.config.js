@@ -12,4 +12,9 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Avoid sourcemap peak memory on small Lightsail instances
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+  },
 });
