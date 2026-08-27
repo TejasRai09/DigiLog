@@ -380,13 +380,17 @@ export function buildEhsNearMissReview(form) {
       { key: 'treatment_given', label: 'Treatment Details' },
       { key: 'treatment_by', label: 'By Whom' },
     ])),
-    section('Follow-up & HOD Sign-off', fieldsFromDefs(form, [
-      { key: 'hazard_identified', label: 'Significant Hazard Identified?' },
-      { key: 'hod_comments', label: 'HOD Comments' },
-      { key: 'hod_signed', label: 'Signed' },
-      { key: 'hod_position', label: 'Position' },
-      { key: 'hod_date', label: 'HOD Date', date: true },
-    ])),
+    section('Follow-up & HOD Sign-off', [
+      ...fieldsFromDefs(form, [
+        { key: 'hazard_identified', label: 'Significant Hazard Identified?' },
+      ]),
+      {
+        label: 'HOD Sign-off Document',
+        value: form.hod_signoff_file
+          ? (form.hod_signoff_file_name || 'File attached')
+          : EMPTY,
+      },
+    ]),
   ]);
 }
 

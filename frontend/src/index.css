@@ -37,6 +37,27 @@
     max-width: 100%;
   }
 
+  /*
+   * From/To date fields — wide enough for DD-MM-YYYY + native calendar icon
+   * (html root font-size is 80%, so rem-based widths need extra room).
+   * !important beats utility classes like min-w-0 on the same element.
+   */
+  input[type='date'].bi-date-input {
+    width: 10.5rem !important;
+    min-width: 10.5rem !important;
+    max-width: 10.5rem !important;
+    flex-shrink: 0 !important;
+    box-sizing: border-box;
+  }
+
+  @media (min-width: 640px) {
+    input[type='date'].bi-date-input {
+      width: 11rem !important;
+      min-width: 11rem !important;
+      max-width: 11rem !important;
+    }
+  }
+
   .btn-primary {
     @apply inline-flex min-h-[44px] touch-manipulation items-center justify-center gap-2 px-4 py-2
            bg-blue-600 text-white text-sm font-medium rounded-lg

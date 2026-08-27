@@ -828,7 +828,7 @@ export default function MillingOperationsDashboard() {
               <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
                 <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
                 <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
-                  {['MTD', 'STD', 'WTD'].map((preset) => (
+                  {['WTD', 'MTD', 'STD'].map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -868,7 +868,7 @@ export default function MillingOperationsDashboard() {
                     min={MILL_RANGE_MIN}
                     max={toDate || dataExtent.max || undefined}
                     onChange={handleFromChange}
-                    className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                     }`}
                   />
@@ -881,7 +881,7 @@ export default function MillingOperationsDashboard() {
                     min={fromDate || dataExtent.min || undefined}
                     max={dataExtent.max || undefined}
                     onChange={handleToChange}
-                    className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                    className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                       isDarkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                     }`}
                   />

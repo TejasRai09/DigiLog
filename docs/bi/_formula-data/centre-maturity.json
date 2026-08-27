@@ -1,0 +1,389 @@
+{
+  "dashboard": "Centre Maturity",
+  "route": "/bi/centre-maturity",
+  "apiEndpoints": [
+    "GET /bi/centre-maturity/data",
+    "GET /bi/settings"
+  ],
+  "tables": [
+    {
+      "table": "centre_indent_data",
+      "columns": [
+        "center_name",
+        "indent_date",
+        "indent_qty",
+        "code",
+        "no_of_purchy",
+        "category",
+        "unique_id",
+        "bonding_id",
+        "season_label"
+      ],
+      "purpose": "Centre-level indent quantities aggregated by center_name for the selected From/To window (filter on indent_date)."
+    },
+    {
+      "table": "centre_purchase_data",
+      "columns": [
+        "center_name",
+        "purchase_date",
+        "purchase_qty",
+        "indent_date",
+        "code",
+        "no_of_purchy",
+        "category",
+        "unique_id",
+        "season_label"
+      ],
+      "purpose": "Centre-level purchase quantities aggregated by center_name for the selected From/To window (filter on purchase_date)."
+    },
+    {
+      "table": "season_mapping",
+      "columns": [
+        "season_label",
+        "start_date",
+        "end_date"
+      ],
+      "purpose": "Defines crushing-season date windows for STD preset, compare-season chip labels, and aligned prior/season comparison ranges."
+    },
+    {
+      "table": "portal_settings",
+      "columns": [
+        "setting_key",
+        "setting_value"
+      ],
+      "purpose": "Optional legacy BI settings via GET /bi/settings; Centre Maturity compare chips use season_mapping only (thirdSeasonCompareEnabled forced off in admin save)."
+    }
+  ],
+  "rows": [
+    {
+      "section": "Header",
+      "subSection": "Key metric box",
+      "element": "KPI card",
+      "name": "Centers Evaluated",
+      "unit": "count",
+      "description": "Number of centres returned by the API for the current date window. One row per distinct center_name that has indent data in the period.",
+      "formula": "centers.length (frontend). Backend builds centers from indent GROUP BY rows only: combinedCenters.length.",
+      "source": "centre_indent_data.center_name, centre_indent_data.indent_qty, centre_indent_data.indent_date",
+      "comparison": "Not compared. Subtitle shows active range preset (MTD, STD, WTD, or Custom) only."
+    },
+    {
+      "section": "Header",
+      "subSection": "Dashboard subtitle",
+      "element": "Label",
+      "name": "Centers (subtitle)",
+      "unit": "count",
+      "description": "Same centre count as Centers Evaluated, shown in the dashboard subtitle next to the static SPE 26 label.",
+      "formula": "totalCentersCount = centers.length",
+      "source": "centre_indent_data.center_name",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Indent Qty (Qtl)",
+      "element": "KPI card",
+      "name": "Indent Qty (Qtl)",
+      "unit": "Qtl",
+      "description": "Total indent quantity across all centres for the selected From/To date range.",
+      "formula": "SQL: SELECT SUM(indent_qty) AS total FROM centre_indent_data WHERE indent_date >= from AND indent_date <= to. API: Math.round(currIndentVal).toLocaleString('en-IN'). Null/NaN total treated as 0 via parseFloat(...) || 0.",
+      "source": "centre_indent_data.indent_qty, centre_indent_data.indent_date",
+      "comparison": "Compared when hasCompare is true. Variance (absolute Qtl): currIndentVal - prevIndentVal, rounded to 2 decimals. Change %: ((currIndentVal - prevIndentVal) / prevIndentVal) * 100 when prevIndentVal > 0, else 0 (change chip hidden). Direction normal: isUp when change >= 0. Chip label: vs {compareLabel} from API or vs Prev. Month|Season|Week|Period from frontend. Hidden when hasCompare is false or prevIndentVal is 0; shows No prior data."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Indent Qty (Qtl)",
+      "element": "Derived",
+      "name": "Indent Qty variance chip",
+      "unit": "Qtl",
+      "description": "Absolute difference in total indent between current and comparison windows, prefixed with + or - in the KPI chip.",
+      "formula": "indentVariance = hasCompare ? currIndentVal - prevIndentVal : 0; API parseFloat(indentVariance.toFixed(2)). Display: formatVariance(v) adds sign and en-IN grouping with 0-2 fraction digits.",
+      "source": "centre_indent_data.indent_qty, centre_indent_data.indent_date",
+      "comparison": "Only shown inside change chip when hasCompare && seasonKpi.indentQty.change != null. prevIndentVal from SUM(indent_qty) WHERE indent_date BETWEEN pyFrom AND pyTo."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Indent Qty (Qtl)",
+      "element": "Derived",
+      "name": "Indent Qty change %",
+      "unit": "%",
+      "description": "Percent change in total indent versus the comparison window.",
+      "formula": "indentChangePct = prevIndentVal > 0 ? (indentVariance / prevIndentVal) * 100 : 0; displayed as Number(change).toFixed(2) inside parentheses in chip.",
+      "source": "centre_indent_data.indent_qty, centre_indent_data.indent_date",
+      "comparison": "Normal (higher is up/green). Shown only when hasCompare && prevIndentVal > 0."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Purchase Qty (Qtl)",
+      "element": "KPI card",
+      "name": "Purchase Qty (Qtl)",
+      "unit": "Qtl",
+      "description": "Total purchase quantity across all centres for the selected From/To date range.",
+      "formula": "SQL: SELECT SUM(purchase_qty) AS total FROM centre_purchase_data WHERE purchase_date >= from AND purchase_date <= to. API: Math.round(currPurchaseVal).toLocaleString('en-IN'). Null/NaN treated as 0.",
+      "source": "centre_purchase_data.purchase_qty, centre_purchase_data.purchase_date",
+      "comparison": "Compared when hasCompare is true. Variance: currPurchaseVal - prevPurchaseVal (2 dp). Change %: ((curr - prev) / prev) * 100 when prevPurchaseVal > 0. Normal direction. Same compare label pattern as Indent. Hidden when hasCompare false or prevPurchaseVal is 0."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Purchase Qty (Qtl)",
+      "element": "Derived",
+      "name": "Purchase Qty variance chip",
+      "unit": "Qtl",
+      "description": "Absolute difference in total purchase between current and comparison windows in the KPI chip.",
+      "formula": "purchaseVariance = hasCompare ? currPurchaseVal - prevPurchaseVal : 0; parseFloat(purchaseVariance.toFixed(2)); formatVariance for display.",
+      "source": "centre_purchase_data.purchase_qty, centre_purchase_data.purchase_date",
+      "comparison": "Shown when hasCompare && seasonKpi.purchaseQty.change != null."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Purchase Qty (Qtl)",
+      "element": "Derived",
+      "name": "Purchase Qty change %",
+      "unit": "%",
+      "description": "Percent change in total purchase versus the comparison window.",
+      "formula": "purchaseChangePct = prevPurchaseVal > 0 ? (purchaseVariance / prevPurchaseVal) * 100 : 0; Number(change).toFixed(2) in chip.",
+      "source": "centre_purchase_data.purchase_qty, centre_purchase_data.purchase_date",
+      "comparison": "Normal direction. Shown only when hasCompare && prevPurchaseVal > 0."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Maturity %",
+      "element": "KPI card",
+      "name": "Maturity %",
+      "unit": "%",
+      "description": "Portfolio-level maturity: total purchase divided by total indent for the date window, expressed as a percentage (purchase/indent ratio x 100).",
+      "formula": "API: baseMaturity = currIndentVal > 0 ? (currPurchaseVal / currIndentVal) * 100 : 0; parseFloat(baseMaturity.toFixed(2)). Frontend display: (seasonKpi.maturity.value != null ? seasonKpi.maturity.value : grandAvgMaturity * 100).toFixed(2) + '%'. grandAvgMaturity fallback = SUM(center.purchase) / SUM(center.indent) from API centers array when API value null.",
+      "source": "centre_indent_data.indent_qty, centre_indent_data.indent_date, centre_purchase_data.purchase_qty, centre_purchase_data.purchase_date",
+      "comparison": "Compared when hasCompare. compMaturity = prevIndentVal > 0 ? (prevPurchaseVal / prevIndentVal) * 100 : 0. Variance in percentage points: baseMaturity - compMaturity (2 dp). Change %: (maturityVariance / compMaturity) * 100 when compMaturity > 0. Normal direction (higher maturity is up/green). Hidden when hasCompare false or compMaturity is 0."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Maturity %",
+      "element": "Derived",
+      "name": "Maturity % variance chip",
+      "unit": "percentage points",
+      "description": "Absolute change in portfolio maturity versus comparison, shown as a signed number before the percent change in the chip (not a ratio).",
+      "formula": "maturityVariance = hasCompare ? baseMaturity - compMaturity : 0; parseFloat(maturityVariance.toFixed(2)); formatVariance for sign and locale.",
+      "source": "centre_indent_data.indent_qty, centre_purchase_data.purchase_qty",
+      "comparison": "Shown when hasCompare && seasonKpi.maturity.change != null."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Maturity %",
+      "element": "Derived",
+      "name": "Maturity % change %",
+      "unit": "%",
+      "description": "Relative percent change of portfolio maturity versus the comparison window maturity.",
+      "formula": "maturityChangePct = compMaturity > 0 ? (maturityVariance / compMaturity) * 100 : 0; Number(change).toFixed(2) in chip.",
+      "source": "centre_indent_data.indent_qty, centre_purchase_data.purchase_qty",
+      "comparison": "Normal direction. Shown only when hasCompare && compMaturity > 0."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Comparison gate",
+      "element": "Derived",
+      "name": "hasCompare",
+      "unit": "boolean",
+      "description": "Controls whether comparison chips appear on all three KPI cards. False shows No prior data on each card.",
+      "formula": "hasCompare = Boolean(pyFrom && pyTo) && (prevIndentVal > 0 || prevPurchaseVal > 0). First load without from/to returns hasCompare: false with zero placeholders.",
+      "source": "centre_indent_data.indent_qty, centre_purchase_data.purchase_qty",
+      "comparison": "pyFrom/pyTo from query params resolved by frontend resolveCockpitCompareRange."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Date presets",
+      "element": "Filter",
+      "name": "MTD From/To",
+      "unit": "date",
+      "description": "Month-to-date window: first day of the month containing the reference To date through the reference To date.",
+      "formula": "getCockpitPresetDateRange('MTD', ref): from = formatYMD(new Date(year, month, 1)), to = formatYMD(ref). ref = resolveDashboardToDate(null, dbMaxDateStr) clamped to data bounds.",
+      "source": "centre_indent_data.indent_date (dbMaxDateStr from MIN/MAX query on load)",
+      "comparison": "Default PP compare label: Prev. Month via computePriorPeriodRange (shift month -1 with end-of-month clamp)."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Date presets",
+      "element": "Filter",
+      "name": "STD From/To",
+      "unit": "date",
+      "description": "Season-to-date window: season_mapping start_date for the season containing To through To. Fallback Oct 1 of crushing year if no mapping.",
+      "formula": "label = findSeasonLabelForDate(to, seasonMapping); from = seasonMapping[label].startDate OR formatYMD(new Date(seasonStartYear, 9, 1)) where seasonStartYear = month>=9 ? year : year-1.",
+      "source": "season_mapping.start_date, season_mapping.end_date, centre_indent_data.indent_date",
+      "comparison": "Default PP compare: alignMappedSeasonByDayOffset(from, to, labels.season1, seasonMapping) with label Prev. Season when mapping exists."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Date presets",
+      "element": "Filter",
+      "name": "WTD From/To",
+      "unit": "date",
+      "description": "Week-to-date window: Monday of the week containing To through To (Monday-start week).",
+      "formula": "from = formatYMD(startOfWeekMonday(ref)), to = formatYMD(ref). startOfWeekMonday: offset = day===0 ? 6 : day-1; subtract offset days.",
+      "source": "N/A (calendar math; To clamped to centre_indent_data max date)",
+      "comparison": "Default PP compare label: Prev. Week (dates shifted -7 days)."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Date presets",
+      "element": "Filter",
+      "name": "Custom From/To",
+      "unit": "date",
+      "description": "User-selected inclusive date range, passed as from and to query params to the API.",
+      "formula": "Manual date inputs; clampToData(iso) enforces dbMinDateStr <= iso <= dbMaxDateStr.",
+      "source": "centre_indent_data.indent_date (bounds: MIN/MAX indent_date)",
+      "comparison": "Default PP compare: equal-length window ending day before current From via computePriorPeriodRange Custom branch."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Compare",
+      "element": "Filter",
+      "name": "Prev. Period (PP) compare window",
+      "unit": "date",
+      "description": "Prior-period comparison aligned to the active range preset. Sent as pyFrom/pyTo query params.",
+      "formula": "resolveCockpitCompareRange(..., 'PP'): if STD && seasonMapping non-empty then alignMappedSeasonByDayOffset(from, to, seasonLabels.season1, seasonMapping) else computePriorPeriodRange(from, to, rangePreset). Labels: MTD=Prev. Month, STD=Prev. Season, WTD=Prev. Week, Custom=Prev. Period.",
+      "source": "season_mapping.start_date, season_mapping.end_date",
+      "comparison": "Chip label from getCockpitPPLabel(rangePreset). KPI subtitle: vs {label}."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Compare",
+      "element": "Filter",
+      "name": "Season compare chips",
+      "unit": "date",
+      "description": "One button per season_mapping row except the season containing the reference To date, sorted newest start_date first. Selecting a chip compares against that season label.",
+      "formula": "buildCockpitComparisonOptions: listCompareSeasonsFromMapping(refIso, seasonMapping) filters out current season; id = 'SEASON:' + season_label; label = season_label. Fallback if no mapping: calendar labels getSeasonComparisonLabels (y-2/y-1, y-3/y-2, y-4/y-3).",
+      "source": "season_mapping.season_label, season_mapping.start_date, season_mapping.end_date",
+      "comparison": "resolveCockpitCompareRange for SEASON: label: STD uses alignMappedSeasonByDayOffset; MTD/WTD/Custom use alignMappedSeasonCompareRange (calendar month/day mapped into target season bounds, clamped to start_date/end_date). KPI subtitle: vs {season_label}."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Compare",
+      "element": "Label",
+      "name": "KPI comparison subtitle",
+      "unit": "text",
+      "description": "Text beside the change chip on each KPI card identifying the comparison baseline.",
+      "formula": "seasonKpi.compareLabel ? 'vs ' + seasonKpi.compareLabel : compareBadgeLabel where compareBadgeLabel = cmp.label ? 'vs ' + cmp.label : 'vs Prev. Period'. API compareLabel = query compareLabel OR pyFrom + ' - ' + pyTo.",
+      "source": "N/A",
+      "comparison": "Reflects active PP or season chip selection."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table header",
+      "element": "Label",
+      "name": "Section number",
+      "unit": "index",
+      "description": "Static section index for each of the four side-by-side table columns (1 through 4).",
+      "formula": "tableIndex + 1 where tables = centers split into 4 chunks of ceil(length/4) rows each.",
+      "source": "N/A",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table header",
+      "element": "Derived",
+      "name": "Centers count (per section)",
+      "unit": "count",
+      "description": "Number of centre rows shown in that table section after search filter.",
+      "formula": "filtered.length where filtered = data.filter(center name contains searchQuery case-insensitive). data is one quarter slice of sorted centers array.",
+      "source": "centre_indent_data.center_name",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table body",
+      "element": "Table column",
+      "name": "Indent",
+      "unit": "Qtl",
+      "description": "Per-centre indent quantity for the selected date window. Centres appear only if they have indent rows in the period.",
+      "formula": "SQL per center: SUM(indent_qty) GROUP BY center_name WHERE indent_date >= from AND indent_date <= to. API: Math.round(parseFloat(indent_qty) || 0). Display: row.indent.toLocaleString('en-IN').",
+      "source": "centre_indent_data.center_name, centre_indent_data.indent_qty, centre_indent_data.indent_date",
+      "comparison": "Not compared at row level."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table body",
+      "element": "Table column",
+      "name": "Maturity",
+      "unit": "%",
+      "description": "Per-centre maturity: purchase quantity divided by indent quantity for that centre in the window.",
+      "formula": "API: maturity = indentQty > 0 ? purchaseQty / indentQty : 0 (ratio 0-1, stored parseFloat(toFixed(4))). purchaseQty from SUM(purchase_qty) GROUP BY center_name WHERE purchase_date in range; 0 if centre missing from purchase map. Display: (row.maturity * 100).toFixed(1) + '%'.",
+      "source": "centre_indent_data.indent_qty, centre_indent_data.indent_date, centre_purchase_data.purchase_qty, centre_purchase_data.purchase_date, centre_indent_data.center_name, centre_purchase_data.center_name",
+      "comparison": "Not compared at row level. Row sort order: maturity DESC, then center ASC (determines table placement and top-10 rank)."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table body",
+      "element": "Derived",
+      "name": "Top 10 rank badge",
+      "unit": "rank",
+      "description": "Award badge showing global rank 1-10 by maturity among visible centres (search-filtered). Shown only for ranks 1 through 10.",
+      "formula": "globalTopRankMap: sort centers (or search-filtered subset) by (b.maturity || 0) - (a.maturity || 0), take first 10, assign rank idx+1. TopTenBadge renders only if rank && rank <= 10.",
+      "source": "centre_indent_data, centre_purchase_data (via API centers[].maturity)",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table footer",
+      "element": "Table column",
+      "name": "Total Indent",
+      "unit": "Qtl",
+      "description": "Sum of indent values for all centres in that table section after search filter.",
+      "formula": "totalIndent = filtered.reduce((s, r) => s + (r.indent || 0), 0); toLocaleString('en-IN').",
+      "source": "centre_indent_data.indent_qty",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Table footer",
+      "element": "Table column",
+      "name": "Avg Maturity",
+      "unit": "%",
+      "description": "Section-level weighted average maturity: sum of purchase over sum of indent for centres in that section (not an arithmetic mean of row percentages).",
+      "formula": "totalPurchase = filtered.reduce((s, r) => s + (r.purchase || 0), 0); avgMaturity = totalIndent === 0 ? 0 : totalPurchase / totalIndent; display (avgMaturity * 100).toFixed(1) + '%'. Note: purchase is API field, not shown as its own column.",
+      "source": "centre_indent_data.indent_qty, centre_purchase_data.purchase_qty",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Data ordering",
+      "element": "Derived",
+      "name": "Centre row order",
+      "unit": "rank",
+      "description": "Determines which centres appear in which section and their vertical order within each table.",
+      "formula": "combinedCenters.sort((a,b) => b.maturity - a.maturity || a.center.localeCompare(b.center)); split into 4 arrays of ceil(n/4) elements.",
+      "source": "centre_indent_data, centre_purchase_data",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "Centre Maturity Table",
+      "subSection": "Search filter",
+      "element": "Filter",
+      "name": "Center name search",
+      "unit": "text",
+      "description": "Client-side filter on centre name; affects visible rows, per-section counts, footer totals, and top-10 rank map.",
+      "formula": "r.center.toLowerCase().includes(searchQuery.toLowerCase())",
+      "source": "centre_indent_data.center_name",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "API metadata",
+      "subSection": "Date bounds",
+      "element": "Derived",
+      "name": "Data min/max dates",
+      "unit": "date",
+      "description": "Not rendered as a visible number on the dashboard; used to clamp date pickers and seed STD range on first load.",
+      "formula": "SQL: SELECT MIN(indent_date) AS minDate, MAX(indent_date) AS maxDate FROM centre_indent_data. Returned in dateRange object.",
+      "source": "centre_indent_data.indent_date",
+      "comparison": "Not compared."
+    },
+    {
+      "section": "API metadata",
+      "subSection": "Season mapping",
+      "element": "Derived",
+      "name": "availableSeasons",
+      "unit": "list",
+      "description": "Season labels from season_mapping returned in API meta; drives compare chips when merged with GET /bi/settings seasonMapping.",
+      "formula": "seasonsRes.map(s => s.season_label) ordered by start_date DESC in SQL.",
+      "source": "season_mapping.season_label, season_mapping.start_date",
+      "comparison": "Used to build compare chip options, not displayed as a numeric value."
+    }
+  ]
+}

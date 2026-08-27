@@ -829,12 +829,10 @@ model ehs_near_miss {
   treatment_given   String?   @db.Text
   treatment_by      String?   @db.VarChar(255)
   description       String?   @db.Text
-  hazard_identified String?   @db.VarChar(5)
-  hod_comments      String?   @db.Text
-  hod_signed        String?   @db.VarChar(255)
-  hod_position      String?   @db.VarChar(255)
-  hod_date          DateTime? @db.Date
-  timestamp         DateTime  @default(now()) @db.Timestamp(0)
+  hazard_identified     String?   @db.VarChar(5)
+  hod_signoff_file      String?   @db.MediumText
+  hod_signoff_file_name String?   @db.VarChar(255)
+  timestamp             DateTime  @default(now()) @db.Timestamp(0)
 }
 
 model ehs_water_cpu {

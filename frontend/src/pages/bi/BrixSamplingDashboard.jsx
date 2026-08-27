@@ -631,7 +631,7 @@ export default function BrixSamplingDashboard() {
           <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
           <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            {['MTD', 'STD', 'WTD'].map(type => (
+            {['WTD', 'MTD', 'STD'].map(type => (
               <button key={type} onClick={() => handleQuickDate(type)}
                 className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                   rangePreset === type
@@ -652,28 +652,6 @@ export default function BrixSamplingDashboard() {
           </div>
 
           <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
-            <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-              <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                Compare
-              </span>
-              <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
-                {comparisonOptions.map((comp) => (
-                  <button
-                    key={comp.id}
-                    type="button"
-                    onClick={() => onCompareSelect(comp.id)}
-                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
-                      comparisonType === comp.id
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                        : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
-                    }`}
-                  >
-                    {comp.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {activeTab === 'field' && (
               <div className="flex shrink-0 flex-col gap-0.5">
                 <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Operation</span>
@@ -708,7 +686,7 @@ export default function BrixSamplingDashboard() {
                 min={dbMinDateStr || undefined}
                 max={(dateTo && dbMaxDateStr ? (dateTo < dbMaxDateStr ? dateTo : dbMaxDateStr) : (dateTo || dbMaxDateStr)) || undefined}
                 onChange={e => { setDateFrom(clampToDb(e.target.value)); setRangePreset('Custom'); }}
-                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                   darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
                 }`} />
             </div>
@@ -718,9 +696,31 @@ export default function BrixSamplingDashboard() {
                 min={(dateFrom && dbMinDateStr ? (dateFrom > dbMinDateStr ? dateFrom : dbMinDateStr) : (dateFrom || dbMinDateStr)) || undefined}
                 max={dbMaxDateStr || undefined}
                 onChange={e => { setDateTo(clampToDb(e.target.value)); setRangePreset('Custom'); }}
-                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                   darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
                 }`} />
+            </div>
+          </div>
+
+          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              Compare
+            </span>
+            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+              {comparisonOptions.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  onClick={() => onCompareSelect(comp.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    comparisonType === comp.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {comp.label}
+                </button>
+              ))}
             </div>
           </div>
         </BiFilterBarLayout>

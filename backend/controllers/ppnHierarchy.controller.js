@@ -283,9 +283,132 @@ const deleteNode = async (req, res) => {
   }
 };
 
+const CARD_SOURCES = [
+  {
+    table: 'ppn_specs',
+    key: 'specs',
+    extraWhere: "AND lbl NOT IN ('__subsections__', '__subgroup_meta__')",
+  },
+  { table: 'ppn_oem_schedule', key: 'schedule', extraWhere: '' },
+  { table: 'ppn_history', key: 'history', extraWhere: '' },
+];
+
+function equipTagKey(value) {
+  return String(value || '').replace(/\s+/g, '').toLowerCase();
+}
+
+function equipNameKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+/**
+ * Child equipment cards (sub_section) per hierarchy node and discipline.
+ * One bulk payload so the mind map can render the whole plant without a
+ * request per equipment.
+ */
+const getCards = async (req, res) => {
+  try {
+    const [nodes] = await pool.execute(
+      `SELECT id, name, lookup_name, equip_no, ppn_equip_id
+       FROM ppn_hierarchy_node
+       WHERE is_active = 1 AND node_type = 'equipment'`,
+    );
+
+    const [equipment] = await pool.execute(
+      'SELECT id, equip_no, tag_name, name FROM ppn_equipment',
+    );
+
+    const byTag = new Map();
+    const byName = new Map();
+    for (const row of equipment) {
+      for (const tag of [row.equip_no, row.tag_name]) {
+        const key = equipTagKey(tag);
+        if (key && !byTag.has(key)) byTag.set(key, row.id);
+      }
+      const nameKey = equipNameKey(row.name);
+      if (nameKey && !byName.has(nameKey)) byName.set(nameKey, row.id);
+    }
+
+    // equipId -> section -> cardName -> counts
+    const cardsByEquip = new Map();
+    for (const source of CARD_SOURCES) {
+      const [rows] = await pool.query(
+        `SELECT equip_id, section, sub_section, COUNT(*) AS total
+         FROM \`${source.table}\`
+         WHERE sub_section IS NOT NULL AND TRIM(sub_section) <> '' ${source.extraWhere}
+         GROUP BY equip_id, section, sub_section`,
+      );
+      for (const row of rows) {
+        const section = String(row.section || '').trim().toLowerCase();
+        const name = String(row.sub_section || '').trim();
+        if (!row.equip_id || !section || !name) continue;
+
+        if (!cardsByEquip.has(row.equip_id)) cardsByEquip.set(row.equip_id, new Map());
+        const bySection = cardsByEquip.get(row.equip_id);
+        if (!bySection.has(section)) bySection.set(section, new Map());
+        const byCard = bySection.get(section);
+        if (!byCard.has(name)) byCard.set(name, { name, specs: 0, schedule: 0, history: 0 });
+        byCard.get(name)[source.key] += Number(row.total) || 0;
+      }
+    }
+
+    // Attach tag / equip no from subgroup meta onto child cards when present.
+    const [metaRows] = await pool.query(
+      `SELECT equip_id, val FROM ppn_specs WHERE lbl = '__subgroup_meta__'`,
+    );
+    for (const row of metaRows) {
+      let parsed;
+      try {
+        parsed = JSON.parse(row.val || '{}');
+      } catch {
+        continue;
+      }
+      const bySection = cardsByEquip.get(row.equip_id);
+      if (!bySection || !parsed || typeof parsed !== 'object') continue;
+      for (const [section, groups] of Object.entries(parsed)) {
+        const byCard = bySection.get(String(section).trim().toLowerCase());
+        if (!byCard || !groups || typeof groups !== 'object') continue;
+        for (const [subName, meta] of Object.entries(groups)) {
+          const card = byCard.get(subName);
+          if (!card) continue;
+          const tag = String(meta?.tagNo || meta?.tag_no || '').trim()
+            || String(meta?.equipNo || meta?.equip_no || '').trim();
+          if (tag) card.tagNo = tag;
+        }
+      }
+    }
+
+    const byNodeId = {};
+    let nodesWithCards = 0;
+    for (const node of nodes) {
+      const equipId =
+        node.ppn_equip_id ||
+        byTag.get(equipTagKey(node.equip_no)) ||
+        byName.get(equipNameKey(node.lookup_name || node.name)) ||
+        null;
+      if (!equipId) continue;
+
+      const bySection = cardsByEquip.get(equipId);
+      if (!bySection?.size) continue;
+
+      const payload = {};
+      for (const [section, byCard] of bySection) {
+        payload[section] = [...byCard.values()].sort((a, b) => a.name.localeCompare(b.name));
+      }
+      byNodeId[String(node.id)] = payload;
+      nodesWithCards += 1;
+    }
+
+    res.json({ byNodeId, nodeCount: nodes.length, nodesWithCards });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.getCards:', err, MSG.LOAD);
+  }
+};
+
 module.exports = {
   getTree,
   getPath,
+  getCards,
   createNode,
   updateNode,
   deleteNode,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MdAccountTree,
@@ -12,6 +12,7 @@ import {
   MdExpandLess,
   MdExpandMore,
   MdFolder,
+  MdHub,
   MdSearch,
   MdSettings,
 } from 'react-icons/md';
@@ -39,6 +40,10 @@ import { isZilEquipNo } from '../../config/powerEquipmentFields';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
+const VIEW_MAP = 'map';
+
+// markmap pulls in its own renderer; only load it when the map view is opened.
+const HierarchyMarkmapView = lazy(() => import('./HierarchyMarkmapView'));
 
 function matchesNodeSearch(n, query) {
   if (!query) return true;
@@ -316,6 +321,19 @@ function ViewToggle({ view, onChange }) {
       >
         <MdAccountTree className="h-4 w-4" />
         Tree
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(VIEW_MAP)}
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          view === VIEW_MAP
+            ? 'bg-white text-amber-800 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+        aria-pressed={view === VIEW_MAP}
+      >
+        <MdHub className="h-4 w-4" />
+        Mind map
       </button>
     </div>
   );
@@ -619,7 +637,7 @@ export default function PowerPlantHierarchyExplorer({
                 )}
               </>
             )
-          ) : (
+          ) : view === VIEW_TREE ? (
             <div className="max-h-[min(70vh,720px)] overflow-y-auto pr-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 px-1">
                 Interactive tree structure
@@ -632,6 +650,20 @@ export default function PowerPlantHierarchyExplorer({
                 searchTerm={searchTerm}
               />
             </div>
+          ) : (
+            <Suspense
+              fallback={
+                <div className="py-16 flex justify-center">
+                  <Spinner />
+                </div>
+              }
+            >
+              <HierarchyMarkmapView
+                tree={tree}
+                apiBase={apiBase}
+                title={tree?.name || 'Equipment hierarchy'}
+              />
+            </Suspense>
           )}
         </div>
       </div>
