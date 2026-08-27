@@ -19,9 +19,7 @@ import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import {
   formatDMYShort,
-  getPresetDateRange,
   resolveDashboardToDate,
-  computePriorPeriodRange,
   getSeasonComparisonLabels,
   isSeasonComparisonType,
   alignSeasonCompareRange,
@@ -32,8 +30,21 @@ import {
   buildCockpitComparisonOptions,
   ensureCompareSelectionValid,
   resolveCockpitCompareRange,
+  resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
 } from '../../utils/biCockpitDateFilters';
+import {
+  YEAR_TYPE_OPTIONS,
+  DEFAULT_YEAR_TYPE,
+  DEFAULT_CHILD_PRESET,
+  defaultChildPresetForYearType,
+  childPresetsForYearType,
+  getPresetDateRangeForYearType,
+  getDistilleryPPLabel,
+  resolveActiveYearMapping,
+  cockpitRangePresetForCompare,
+  isValidChildPreset,
+} from '../../utils/biYearTypes';
 import {
   aggregateKpisFromRows,
   averageNonBlank,
@@ -486,10 +497,10 @@ function rowDateIso(row) {
 }
 
 export default function DistilleryAnalyticsDashboard() {
-  const initialRange = () => getPresetDateRange('MTD');
-  const [rangePreset, setRangePreset] = useState('MTD');
-  const [fromDate, setFromDate] = useState(() => initialRange().from);
-  const [toDate, setToDate] = useState(() => initialRange().to);
+  const [yearType, setYearType] = useState(DEFAULT_YEAR_TYPE);
+  const [rangePreset, setRangePreset] = useState(DEFAULT_CHILD_PRESET);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [comparisonType, setComparisonType] = useState('PP');
   const [seasonMapping, setSeasonMapping] = useState({});
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -552,16 +563,26 @@ export default function DistilleryAnalyticsDashboard() {
     return new Date(`${rangeToIso}T12:00:00`);
   }, [rangeToIso]);
 
-  // Default MTD (and other presets) with To = today-if-in-data else latest data day.
+  // Default STD (and other presets) with To = today-if-in-data else latest data day.
   useEffect(() => {
     if (!rangeToIso) return;
     if (rangePreset === 'Custom') return;
-    const { from, to } = getPresetDateRange(rangePreset, presetRefDate);
+    if (!isValidChildPreset(yearType, rangePreset)) {
+      setRangePreset(defaultChildPresetForYearType(yearType));
+      return;
+    }
+    const { from, to } = getPresetDateRangeForYearType(
+      yearType,
+      rangePreset,
+      presetRefDate,
+      seasonMapping,
+    );
     setFromDate(from);
     setToDate(to);
-  }, [rangeToIso, rangePreset, presetRefDate]);
+  }, [rangeToIso, rangePreset, presetRefDate, yearType, seasonMapping]);
 
   const filteredData = useMemo(() => {
+    if (!fromDate || !toDate) return [];
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
 
@@ -581,8 +602,30 @@ export default function DistilleryAnalyticsDashboard() {
   }, [rawData, fromDate, toDate, selectedModes]);
 
   const applyRangePreset = (preset) => {
-    const { from, to } = getPresetDateRange(preset, presetRefDate);
+    const { from, to } = getPresetDateRangeForYearType(
+      yearType,
+      preset,
+      presetRefDate,
+      seasonMapping,
+    );
     setRangePreset(preset);
+    setFromDate(from);
+    setToDate(to);
+  };
+
+  const applyYearType = (nextType) => {
+    setYearType(nextType);
+    setComparisonType('PP');
+    const nextPreset = isValidChildPreset(nextType, rangePreset)
+      ? rangePreset
+      : defaultChildPresetForYearType(nextType);
+    setRangePreset(nextPreset);
+    const { from, to } = getPresetDateRangeForYearType(
+      nextType,
+      nextPreset,
+      presetRefDate,
+      seasonMapping,
+    );
     setFromDate(from);
     setToDate(to);
   };
@@ -596,7 +639,7 @@ export default function DistilleryAnalyticsDashboard() {
     setFromDate(v);
     if (nextTo !== toDate) setToDate(nextTo);
     if (rangePreset !== 'Custom') {
-      const c = getPresetDateRange(rangePreset, presetRefDate);
+      const c = getPresetDateRangeForYearType(yearType, rangePreset, presetRefDate, seasonMapping);
       if (v !== c.from || nextTo !== c.to) setRangePreset('Custom');
     }
   };
@@ -608,37 +651,45 @@ export default function DistilleryAnalyticsDashboard() {
     setToDate(v);
     if (nextFrom !== fromDate) setFromDate(nextFrom);
     if (rangePreset !== 'Custom') {
-      const c = getPresetDateRange(rangePreset, presetRefDate);
+      const c = getPresetDateRangeForYearType(yearType, rangePreset, presetRefDate, seasonMapping);
       if (nextFrom !== c.from || v !== c.to) setRangePreset('Custom');
     }
   };
+
+  const childPresets = useMemo(() => childPresetsForYearType(yearType), [yearType]);
 
   const timeFilterLabel =
     rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} – ${formatDMYShort(toDate)}` : rangePreset;
   const periodLabel = rangePreset === 'Custom' ? 'Custom' : rangePreset;
 
-  const dynamicPPLabel = useMemo(() => {
-    if (rangePreset === 'MTD') return 'Prev. Month';
-    if (rangePreset === 'QTD') return 'Prev. Quarter';
-    if (rangePreset === 'YTD') return 'Prev. Year';
-    return 'Prev. Period';
-  }, [rangePreset]);
+  const dynamicPPLabel = useMemo(() => getDistilleryPPLabel(rangePreset), [rangePreset]);
 
-  const seasonLabels = useMemo(() => {
-    if (Object.keys(seasonMapping).length > 0) {
-      return getSeasonComparisonLabels(presetRefDate); // kept for legacy S1/S2 resolve only
-    }
-    return getSeasonComparisonLabels(presetRefDate);
-  }, [presetRefDate, seasonMapping]);
+  const activeYearMapping = useMemo(
+    () => resolveActiveYearMapping(yearType, seasonMapping),
+    [yearType, seasonMapping],
+  );
+
+  const seasonLabels = useMemo(
+    () => getSeasonComparisonLabels(presetRefDate),
+    [presetRefDate],
+  );
+
+  const compareRangePreset = useMemo(
+    () => cockpitRangePresetForCompare(yearType, rangePreset),
+    [yearType, rangePreset],
+  );
 
   const comparisonOptions = useMemo(() => {
-    const cockpitPreset = rangePreset === 'QTD' || rangePreset === 'YTD' ? 'Custom' : rangePreset;
-    const opts = buildCockpitComparisonOptions(cockpitPreset, seasonMapping, toDate || rangeToIso);
+    const opts = buildCockpitComparisonOptions(
+      compareRangePreset,
+      activeYearMapping,
+      toDate || rangeToIso,
+    );
     if (opts[0]?.id === 'PP') {
       return [{ id: 'PP', label: dynamicPPLabel }, ...opts.slice(1)];
     }
     return opts;
-  }, [dynamicPPLabel, seasonMapping, toDate, rangeToIso, rangePreset]);
+  }, [dynamicPPLabel, activeYearMapping, toDate, rangeToIso, compareRangePreset]);
 
   useEffect(() => {
     ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
@@ -649,18 +700,18 @@ export default function DistilleryAnalyticsDashboard() {
       nextId,
       fromDate,
       toDate,
-      rangePreset: rangePreset === 'QTD' || rangePreset === 'YTD' ? 'Custom' : rangePreset,
-      seasonMapping,
+      rangePreset: compareRangePreset,
+      seasonMapping: activeYearMapping,
       seasonLabels,
       dataMin: dataBounds.min,
       dataMax: dataBounds.max,
       setComparisonType,
     });
-  }, [fromDate, toDate, rangePreset, seasonMapping, seasonLabels, dataBounds.min, dataBounds.max]);
+  }, [fromDate, toDate, compareRangePreset, activeYearMapping, seasonLabels, dataBounds.min, dataBounds.max]);
 
   const priorPeriodRange = useMemo(
-    () => computePriorPeriodRange(fromDate, toDate, rangePreset),
-    [fromDate, toDate, rangePreset],
+    () => resolveCockpitPriorRange(fromDate, toDate, rangePreset, activeYearMapping),
+    [fromDate, toDate, rangePreset, activeYearMapping],
   );
 
   const comparisonLabel = useMemo(() => {
@@ -677,17 +728,32 @@ export default function DistilleryAnalyticsDashboard() {
     if (!isSeasonComparisonType(comparisonType)) return '';
 
     const seasonLabel =
-      resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping)
+      resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, activeYearMapping)
       || seasonLabelForComparisonType(comparisonType, seasonLabels);
     if (!seasonLabel) return '';
 
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
-    const resolved = Object.keys(seasonMapping).length
-      ? resolveCockpitCompareRange(from, to, comparisonType, seasonLabels, seasonMapping, 'Custom')
+    const resolved = Object.keys(activeYearMapping).length
+      ? resolveCockpitCompareRange(
+        from,
+        to,
+        comparisonType,
+        seasonLabels,
+        activeYearMapping,
+        compareRangePreset,
+      )
       : alignSeasonCompareRange(from, to, seasonLabel);
     return `${seasonLabel} (${formatDateFriendly(resolved.start)} - ${formatDateFriendly(resolved.end)})`;
-  }, [fromDate, toDate, comparisonType, rangePreset, priorPeriodRange, seasonLabels, seasonMapping]);
+  }, [
+    fromDate,
+    toDate,
+    comparisonType,
+    priorPeriodRange,
+    seasonLabels,
+    activeYearMapping,
+    compareRangePreset,
+  ]);
 
   const priorDataSlice = useMemo(() => {
     let slice = rawData.filter((row) => {
@@ -701,23 +767,23 @@ export default function DistilleryAnalyticsDashboard() {
   }, [rawData, priorPeriodRange, selectedModes]);
 
   const activeSeasonLabel = useMemo(
-    () => resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping)
+    () => resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, activeYearMapping)
       || (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
-    [comparisonType, seasonLabels, seasonMapping],
+    [comparisonType, seasonLabels, activeYearMapping],
   );
 
   const seasonCompareSlice = useMemo(() => {
     if (!activeSeasonLabel) return [];
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
-    if (Object.keys(seasonMapping).length > 0) {
+    if (Object.keys(activeYearMapping).length > 0) {
       const resolved = resolveCockpitCompareRange(
         from,
         to,
         comparisonType,
         seasonLabels,
-        seasonMapping,
-        'Custom',
+        activeYearMapping,
+        compareRangePreset,
       );
       if (!resolved.start || !resolved.end) return [];
       return rawData.filter((row) => {
@@ -728,7 +794,17 @@ export default function DistilleryAnalyticsDashboard() {
       });
     }
     return filterSeasonCompareRowsBySeason(rawData, from, to, activeSeasonLabel, rowDateIso, selectedModes);
-  }, [rawData, fromDate, toDate, activeSeasonLabel, selectedModes, seasonMapping, comparisonType, seasonLabels]);
+  }, [
+    rawData,
+    fromDate,
+    toDate,
+    activeSeasonLabel,
+    selectedModes,
+    activeYearMapping,
+    comparisonType,
+    seasonLabels,
+    compareRangePreset,
+  ]);
 
   /** Prior-period rows for comparisons — same slices as KPI cards (no day overlay). */
   const comparisonDataSlice = useMemo(() => {
@@ -880,9 +956,29 @@ export default function DistilleryAnalyticsDashboard() {
             </div>
 
             <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
+              <div className="flex flex-wrap gap-0.5 sm:gap-1">
+                {YEAR_TYPE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    title={opt.title}
+                    onClick={() => applyYearType(opt.id)}
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                      yearType === opt.id
+                        ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                        : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
               <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
               <div className="flex flex-wrap gap-0.5 sm:gap-1">
-                {['MTD', 'QTD', 'YTD'].map((preset) => (
+                {childPresets.map((preset) => (
                   <button
                     key={preset}
                     type="button"
@@ -919,7 +1015,7 @@ export default function DistilleryAnalyticsDashboard() {
                   min={dataBounds.min || undefined}
                   max={toDate}
                   onChange={handleFromDateChange}
-                  className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
@@ -934,7 +1030,7 @@ export default function DistilleryAnalyticsDashboard() {
                   min={fromDate}
                   max={dataBounds.max || undefined}
                   onChange={handleToDateChange}
-                  className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'

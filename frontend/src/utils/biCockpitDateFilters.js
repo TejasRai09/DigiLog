@@ -56,6 +56,8 @@ export function getCockpitPPLabel(rangePreset) {
   if (rangePreset === 'MTD') return 'Prev. Month';
   if (rangePreset === 'STD') return 'Prev. Season';
   if (rangePreset === 'WTD') return 'Prev. Week';
+  if (rangePreset === 'QTD') return 'Prev. Quarter';
+  if (rangePreset === 'YTD') return 'Prev. Year';
   return 'Prev. Period';
 }
 

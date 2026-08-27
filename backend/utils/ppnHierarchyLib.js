@@ -2,6 +2,16 @@ const { pool } = require('../config/mysql');
 
 const NODE_SELECT = `id, parent_id, node_type, name, equip_no, lookup_name, ppn_equip_id, sort_order, is_active`;
 
+/** Prefer hierarchy tag; fall back to linked equipment tag / equip no (markmap display). */
+function resolveEquipNo(row) {
+  const fromNode = String(row.equip_no || '').trim();
+  if (fromNode) return fromNode;
+  const fromEquip = String(row.equip_equip_no || '').trim();
+  if (fromEquip) return fromEquip;
+  const fromTag = String(row.equip_tag_name || '').trim();
+  return fromTag || null;
+}
+
 function rowToPayload(row) {
   return {
     id: String(row.id),
@@ -9,8 +19,9 @@ function rowToPayload(row) {
     parentId: row.parent_id != null ? String(row.parent_id) : null,
     nodeType: row.node_type,
     name: row.name,
-    equipNo: row.equip_no || null,
+    equipNo: resolveEquipNo(row),
     lookupName: row.lookup_name || null,
+    location: String(row.equip_location || '').trim() || null,
     ppnEquipId: row.ppn_equip_id || null,
     sortOrder: row.sort_order ?? 0,
     isActive: Boolean(row.is_active),
@@ -19,7 +30,14 @@ function rowToPayload(row) {
 
 async function fetchAllActiveNodes(conn = pool) {
   const [rows] = await conn.execute(
-    `SELECT ${NODE_SELECT} FROM ppn_hierarchy_node WHERE is_active = 1 ORDER BY sort_order ASC, id ASC`,
+    `SELECT n.id, n.parent_id, n.node_type, n.name, n.equip_no, n.lookup_name,
+            n.ppn_equip_id, n.sort_order, n.is_active,
+            e.equip_no AS equip_equip_no, e.tag_name AS equip_tag_name,
+            e.location AS equip_location
+     FROM ppn_hierarchy_node n
+     LEFT JOIN ppn_equipment e ON e.id = n.ppn_equip_id
+     WHERE n.is_active = 1
+     ORDER BY n.sort_order ASC, n.id ASC`,
   );
   return rows.map(rowToPayload);
 }
@@ -125,7 +143,13 @@ async function getHierarchyTree() {
 
 async function getNodeById(dbId) {
   const [[row]] = await pool.execute(
-    `SELECT ${NODE_SELECT} FROM ppn_hierarchy_node WHERE id = ? AND is_active = 1`,
+    `SELECT n.id, n.parent_id, n.node_type, n.name, n.equip_no, n.lookup_name,
+            n.ppn_equip_id, n.sort_order, n.is_active,
+            e.equip_no AS equip_equip_no, e.tag_name AS equip_tag_name,
+            e.location AS equip_location
+     FROM ppn_hierarchy_node n
+     LEFT JOIN ppn_equipment e ON e.id = n.ppn_equip_id
+     WHERE n.id = ? AND n.is_active = 1`,
     [dbId],
   );
   return row ? rowToPayload(row) : null;

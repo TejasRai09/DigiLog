@@ -1,0 +1,724 @@
+{
+  "dashboard": "Brix Sampling",
+  "route": "/bi/brix-sampling",
+  "apiEndpoints": [
+    "GET /api/bi/settings",
+    "GET /api/bi/brix-yard/dashboard",
+    "GET /api/bi/brix-yard/stats",
+    "GET /api/bi/brix-yard/brix-trend",
+    "GET /api/bi/brix-yard/by-vehicle",
+    "GET /api/bi/brix-yard/condition-distribution",
+    "GET /api/bi/brix-yard/center-wise",
+    "GET /api/bi/brix-yard/delivery-points",
+    "GET /api/bi/brix-yard/table-data",
+    "GET /api/bi/brix-field/dashboard",
+    "GET /api/bi/brix-field/stats",
+    "GET /api/bi/brix-field/brix-trend",
+    "GET /api/bi/brix-field/field-condition-trend",
+    "GET /api/bi/brix-field/crop-condition",
+    "GET /api/bi/brix-field/by-soil-type",
+    "GET /api/bi/brix-field/by-land-type",
+    "GET /api/bi/brix-field/by-variety",
+    "GET /api/bi/brix-field/test-types",
+    "GET /api/bi/brix-field/table-data"
+  ],
+  "tables": [
+    {
+      "table": "brix_yard_sampling",
+      "columns": [
+        "Date",
+        "Name",
+        "DeliveryPoint",
+        "VillageOrCenterCode",
+        "GrowerCode",
+        "TruckNumber",
+        "VehicleType",
+        "VarietyOfCane",
+        "CropType",
+        "MiddleBrix",
+        "DiseasedCane",
+        "StaleCane",
+        "ConsignmentConditions",
+        "timestamp"
+      ],
+      "purpose": "Yard intake Brix samples, consignment quality, and center-wise condition aggregates"
+    },
+    {
+      "table": "brix_field_sampling",
+      "columns": [
+        "Date",
+        "Name",
+        "TestType",
+        "GrowerName",
+        "VillageName",
+        "Variety",
+        "LandType",
+        "SoilType",
+        "CropType",
+        "FieldCondition",
+        "CropCondition",
+        "SamplingPoint",
+        "BottomBrix",
+        "MiddleBrix",
+        "TopBrix",
+        "timestamp"
+      ],
+      "purpose": "Field Brix samples, maturity, crop/land/soil breakdowns, and hydration trend"
+    },
+    {
+      "table": "portal_settings",
+      "columns": [
+        "setting_key",
+        "setting_value"
+      ],
+      "purpose": "Configurable brix_threshold (setting_key = brix_threshold, default 18) used in yard and field threshold metrics"
+    },
+    {
+      "table": "season_mapping",
+      "columns": [
+        "season_label",
+        "start_date",
+        "end_date"
+      ],
+      "purpose": "STD date preset bounds and season-compare chip windows (pyFrom/pyTo)"
+    },
+    {
+      "table": "purchy_grower_summary",
+      "columns": [
+        "centre_code",
+        "centre_name",
+        "village_code",
+        "village_name"
+      ],
+      "purpose": "Resolve VillageOrCenterCode to display labels in center-wise table"
+    },
+    {
+      "table": "purchy_supply",
+      "columns": [
+        "purchsecentre",
+        "purchsecentrename",
+        "villagecode",
+        "villagename"
+      ],
+      "purpose": "Fallback centre/village name resolution for center-wise table"
+    }
+  ],
+  "rows": [
+    {
+      "section": "Global",
+      "subSection": "Header key metric",
+      "element": "KPI card",
+      "name": "Field Samples / Yard Samples",
+      "unit": "count",
+      "description": "Header pill showing total sample count for the active tab (Field or Yard). Subtitle shows the active date preset (MTD, STD, WTD, or Custom).",
+      "formula": "Field tab: stats.totalSamples.value = COUNT(*) on brix_field_sampling with Date/TestType filters. Yard tab: stats.totalSamples.value = COUNT(*) on brix_yard_sampling with Date/DeliveryPoint filters. Display: Number(value).toLocaleString('en-IN').",
+      "source": "brix_field_sampling.Date, brix_field_sampling.TestType, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "No comparison chip on header metric. Subtitle is rangePreset state (not a calculated value)."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "From",
+      "unit": "date",
+      "description": "Start of the dashboard date window. Clamped to min/max sampling dates for the active tab.",
+      "formula": "Sent as query param from=YYYY-MM-DD. Backend: brix_yard_sampling.Date >= ? or brix_field_sampling.Date >= ?. First load defaults STD preset anchored to latest data via getCockpitPresetDateRange('STD', ref, seasonMapping).",
+      "source": "brix_yard_sampling.Date, brix_field_sampling.Date, season_mapping.start_date",
+      "comparison": "Defines current-period window; compare window is derived separately (pyFrom/pyTo)."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "To",
+      "unit": "date",
+      "description": "End of the dashboard date window. Clamped to min/max sampling dates for the active tab.",
+      "formula": "Sent as query param to=YYYY-MM-DD. Backend: Date <= ?. resolveDashboardToDate(null, maxDate) anchors presets to latest available sample date.",
+      "source": "brix_yard_sampling.Date, brix_field_sampling.Date",
+      "comparison": "Reference date for season chip labels (getCockpitSeasonLabels) and compare range resolution."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "MTD preset",
+      "unit": "date range",
+      "description": "Month-to-date quick filter: first day of current calendar month through To date.",
+      "formula": "getCockpitPresetDateRange('MTD', ref): from = formatYMD(new Date(year, month, 1)), to = formatYMD(ref).",
+      "source": "Frontend date math; data filtered on brix_yard_sampling.Date or brix_field_sampling.Date",
+      "comparison": "PP compare chip label: Prev. Month. Prior window: same calendar day range shifted back one month (computePriorPeriodRange)."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "STD preset",
+      "unit": "date range",
+      "description": "Season-to-date quick filter: season start from season_mapping for To date through To date; fallback Oct 1 of inferred season year.",
+      "formula": "getCockpitPresetDateRange('STD', ref, seasonMapping): from = season_mapping.start_date for season containing to, else formatYMD(new Date(seasonStartYear, 9, 1)).",
+      "source": "season_mapping.season_label, season_mapping.start_date, season_mapping.end_date, brix_yard_sampling.Date, brix_field_sampling.Date",
+      "comparison": "PP compare chip label: Prev. Season. STD PP uses alignMappedSeasonByDayOffset to prior season day 1 through day N when mapping exists."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "WTD preset",
+      "unit": "date range",
+      "description": "Week-to-date quick filter: Monday of the week containing To date through To date.",
+      "formula": "getCockpitPresetDateRange('WTD', ref): from = formatYMD(startOfWeekMonday(ref)), to = formatYMD(ref). Monday week start.",
+      "source": "Frontend date math",
+      "comparison": "PP compare chip label: Prev. Week. Prior window: start and end dates minus 7 calendar days."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "Custom preset",
+      "unit": "date range",
+      "description": "User-selected From/To dates; activated when date inputs change or Custom button clicked.",
+      "formula": "rangePreset = 'Custom'; from/to from date inputs after clampToDb.",
+      "source": "brix_yard_sampling.Date, brix_field_sampling.Date",
+      "comparison": "PP compare chip label: Prev. Period. Prior window: equal-length window ending the day before current From (computePriorPeriodRange Custom branch)."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Label",
+      "name": "Compare PP chip",
+      "unit": "label",
+      "description": "Prior-period compare option. Label text depends on active date preset.",
+      "formula": "buildCockpitComparisonOptions: { id: 'PP', label: getCockpitPPLabel(rangePreset) } -> MTD: Prev. Month, STD: Prev. Season, WTD: Prev. Week, Custom: Prev. Period.",
+      "source": "Frontend biCockpitDateFilters.js",
+      "comparison": "Selecting PP sets comparisonType='PP'. Backend receives pyFrom/pyTo from resolveCockpitCompareRange PP branch."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Label",
+      "name": "Compare season chip",
+      "unit": "label",
+      "description": "Each season_mapping row except the season containing To date, newest first. Chip label is the season_label.",
+      "formula": "listCompareSeasonsFromMapping(refIso, seasonMapping) filters out current season; id = 'SEASON:' + season_label.",
+      "source": "season_mapping.season_label, season_mapping.start_date, season_mapping.end_date",
+      "comparison": "Selecting season chip resolves compare window via alignMappedSeasonByDayOffset (STD) or alignMappedSeasonCompareRange (other presets). Badge label is season_label."
+    },
+    {
+      "section": "Global",
+      "subSection": "Filter bar",
+      "element": "Label",
+      "name": "Compare badge label",
+      "unit": "label",
+      "description": "Text shown next to KPI comparison chips and ChangeBadge on yard summary cards.",
+      "formula": "compareBadgeLabel = activeCompareRange.label ? 'vs ' + activeCompareRange.label : undefined. Fallback comparisonLabel on BiKpiCard: 'Prev. Period'. BiKpiCard renders 'vs {comparisonLabel}'. ChangeBadge appends label prop after variance and percent.",
+      "source": "resolveCockpitCompareRange output label",
+      "comparison": "PP STD label: Prev. Season. PP MTD: Prev. Month. PP WTD: Prev. Week. PP Custom: Prev. Period. Season chips: season_label string."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "Operation (TestType)",
+      "unit": "category",
+      "description": "Filters field data to a single TestType or All. Options loaded from distinct TestType values in data.",
+      "formula": "Query param testType when not All. Backend: TestType = ? on brix_field_sampling. Prev-period query also applies same testType filter.",
+      "source": "brix_field_sampling.TestType",
+      "comparison": "Same testType filter applied to pyFrom/pyTo comparison query when prev conditions exist."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "AVG MID BRIX %",
+      "unit": "%",
+      "description": "Average middle-stalk Brix across all field samples in the selected period and operation filter.",
+      "formula": "ROUND(AVG(MiddleBrix), 2). Display: value.toFixed(2). Sparkline plots fieldTrend.midBrix by date.",
+      "source": "brix_field_sampling.MiddleBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "BiKpiCard chip: delta = ((value - pyValue) / abs(pyValue)) * 100 when pyValue != 0 else 0%; API does not return pyValue (defaults 0 so chip shows 0.0%). Backend also computes change = ROUND(((curr-prev)/prev)*100, 2) and variance = ROUND(curr-prev, 2) with normal coloring (higher is better). Hidden on chip when pyValue=0. Label: vs {compareBadgeLabel or Prev. Period}."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "AVERAGE MATURITY",
+      "unit": "ratio",
+      "description": "Average cane maturity ratio (top Brix divided by bottom Brix) across samples where bottom Brix is positive.",
+      "formula": "ROUND(AVG(CASE WHEN BottomBrix > 0 THEN TopBrix / BottomBrix ELSE NULL END), 2). Display: value.toFixed(2). Sparkline uses midBrix series (not maturity).",
+      "source": "brix_field_sampling.TopBrix, brix_field_sampling.BottomBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "BiKpiCard delta from pyValue (not in API; typically 0%). Backend change/variance with normal coloring. Label: vs compare window."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "TOTAL SAMPLES",
+      "unit": "samples",
+      "description": "Count of field Brix sample records in the filtered period.",
+      "formula": "COUNT(*). Display: Math.round(v).toLocaleString(). Sparkline uses midBrix trend (sample count not sparked).",
+      "source": "brix_field_sampling (all rows matching Date and TestType filters)",
+      "comparison": "BiKpiCard delta from pyValue (not in API). Backend change/variance normal coloring. hasCompare requires prior totalSamples > 0."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "BOTTOM BRIX < {threshold}%",
+      "unit": "%",
+      "description": "Share of samples whose bottom-stalk Brix is below the configurable threshold. Title embeds live threshold (default 18).",
+      "formula": "THRESHOLD = portal_settings.brix_threshold (default 18, sanitized > 0). pctBottomBrixLt18 = ROUND(SUM(CASE WHEN BottomBrix < THRESHOLD THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1). Display: value.toFixed(1). inverseColor (lower is better). Sparkline: bottomBrix daily avg.",
+      "source": "brix_field_sampling.BottomBrix, portal_settings.setting_value (brix_threshold), brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "BiKpiCard inverseColor: green when delta <= 0. Backend mk(..., { lowerBetter: true }): isUp when variance <= 0. change = ROUND(((curr-prev)/prev)*100, 2). THRESHOLD DYNAMIC from portal_settings.brix_threshold, default 18."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Brix Trend Across Plant Sections",
+      "element": "Chart series",
+      "name": "Bottom Brix",
+      "unit": "%",
+      "description": "Daily average bottom-stalk Brix over the selected period.",
+      "formula": "Per date group: ROUND(AVG(BottomBrix), 2) aliased bottomBrix in trend query (field brix-trend endpoint groups by Date).",
+      "source": "brix_field_sampling.BottomBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No per-series comparison on chart. Tooltip shows value.toFixed(2) for non-integers."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Brix Trend Across Plant Sections",
+      "element": "Chart series",
+      "name": "Mid Brix",
+      "unit": "%",
+      "description": "Daily average middle-stalk Brix over the selected period.",
+      "formula": "Per date: ROUND(AVG(MiddleBrix), 2) as midBrix.",
+      "source": "brix_field_sampling.MiddleBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison. Y-axis domain fixed [0, 35]."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Brix Trend Across Plant Sections",
+      "element": "Chart series",
+      "name": "Top Brix",
+      "unit": "%",
+      "description": "Daily average top-stalk Brix over the selected period.",
+      "formula": "Per date: ROUND(AVG(TopBrix), 2) as topBrix.",
+      "source": "brix_field_sampling.TopBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Crop Standing",
+      "element": "Chart series",
+      "name": "Crop condition slice count",
+      "unit": "count",
+      "description": "Each pie slice is sample count for a CropCondition value. Null CropCondition coalesced to Good in SQL.",
+      "formula": "SELECT COALESCE(CropCondition, 'Good') AS condition, COUNT(*) AS count GROUP BY condition ORDER BY count DESC. Frontend maps to pie value = count, name = condition.",
+      "source": "brix_field_sampling.CropCondition, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No comparison on pie slices."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Crop Standing",
+      "element": "Derived",
+      "name": "Pie center Good %",
+      "unit": "%",
+      "description": "Center overlay text '99.8%' and 'Good' label inside the Crop Standing donut. Static JSX placeholder, not computed from live API data.",
+      "formula": "Hardcoded in BrixSamplingDashboard.jsx: span text '99.8%' and 'Good'. Does not update when fieldCropCond loads.",
+      "source": "Static frontend placeholder (not API)",
+      "comparison": "None"
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Crop Standing",
+      "element": "Derived",
+      "name": "Footer Good summary",
+      "unit": "count and %",
+      "description": "Footer row 'Good: 2.64K (99.8%)'. Static placeholder text, not computed from live crop condition data.",
+      "formula": "Hardcoded JSX strings '2.64K (99.8%)' and '4 (0.2%)' for Diseased.",
+      "source": "Static frontend placeholder (not API)",
+      "comparison": "None"
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Crop Standing",
+      "element": "Derived",
+      "name": "Footer Diseased summary",
+      "unit": "count and %",
+      "description": "Footer row 'Diseased: 4 (0.2%)'. Static placeholder, not from API.",
+      "formula": "Hardcoded JSX.",
+      "source": "Static frontend placeholder (not API)",
+      "comparison": "None"
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Land Topography",
+      "element": "Chart series",
+      "name": "Land type slice samples",
+      "unit": "count",
+      "description": "Each pie slice size is sample count per LandType. Excludes null/empty LandType at query level for landType endpoint.",
+      "formula": "SELECT LandType AS name, COUNT(*) AS samples ... WHERE LandType IS NOT NULL AND LandType != '' GROUP BY LandType. Pie dataKey value = samples.",
+      "source": "brix_field_sampling.LandType, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No comparison on pie."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Land Topography",
+      "element": "Derived",
+      "name": "Footer Upland summary",
+      "unit": "% and count",
+      "description": "Footer 'Upland: 80% (2.12K)'. Static placeholder, not computed from live landType data.",
+      "formula": "Hardcoded JSX '80% (2.12K)'.",
+      "source": "Static frontend placeholder (not API)",
+      "comparison": "None"
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Land Topography",
+      "element": "Derived",
+      "name": "Footer Lowland summary",
+      "unit": "% and count",
+      "description": "Footer 'Lowland: 20% (526)'. Static placeholder, not from API.",
+      "formula": "Hardcoded JSX '20% (526)'.",
+      "source": "Static frontend placeholder (not API)",
+      "comparison": "None"
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Brix Trend - Hydration and Field Condition",
+      "element": "Chart series",
+      "name": "No Water",
+      "unit": "%",
+      "description": "Daily average middle Brix for samples where FieldCondition = 'No Water'.",
+      "formula": "Per date: ROUND(AVG(CASE WHEN FieldCondition = 'No Water' THEN MiddleBrix ELSE NULL END), 2) AS noWater. Rows filtered FieldCondition IS NOT NULL AND != ''. connectNulls=true on line.",
+      "source": "brix_field_sampling.FieldCondition, brix_field_sampling.MiddleBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison. Y-axis domain [0, 25]."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Brix Trend - Hydration and Field Condition",
+      "element": "Chart series",
+      "name": "Avg (overall)",
+      "unit": "%",
+      "description": "Daily average middle Brix across all samples regardless of field condition (dashed grey line).",
+      "formula": "Per date: ROUND(AVG(MiddleBrix), 2) AS overallAvg.",
+      "source": "brix_field_sampling.MiddleBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Brix Trend - Hydration and Field Condition",
+      "element": "Chart series",
+      "name": "Waterlogged",
+      "unit": "%",
+      "description": "Daily average middle Brix for samples where FieldCondition = 'Waterlogged'.",
+      "formula": "Per date: ROUND(AVG(CASE WHEN FieldCondition = 'Waterlogged' THEN MiddleBrix ELSE NULL END), 2) AS waterlogged.",
+      "source": "brix_field_sampling.FieldCondition, brix_field_sampling.MiddleBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Maturity by Soil Type",
+      "element": "Chart series",
+      "name": "Samples",
+      "unit": "count",
+      "description": "Bar count of samples per soil type.",
+      "formula": "COUNT(*) AS samples per SoilType WHERE SoilType IS NOT NULL AND SoilType != ''.",
+      "source": "brix_field_sampling.SoilType, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Maturity by Soil Type",
+      "element": "Chart series",
+      "name": "Maturity",
+      "unit": "ratio",
+      "description": "Average maturity ratio per soil type on secondary axis (domain 0.8 to 1.2).",
+      "formula": "ROUND(AVG(CASE WHEN BottomBrix > 0 THEN TopBrix / BottomBrix ELSE NULL END), 3) AS maturity per SoilType.",
+      "source": "brix_field_sampling.SoilType, brix_field_sampling.TopBrix, brix_field_sampling.BottomBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Maturity by Crop Variety",
+      "element": "Chart series",
+      "name": "Samples",
+      "unit": "count",
+      "description": "Bar count of samples per cane variety.",
+      "formula": "COUNT(*) AS samples per Variety WHERE Variety IS NOT NULL AND Variety != ''.",
+      "source": "brix_field_sampling.Variety, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Field Sampling",
+      "subSection": "Maturity by Crop Variety",
+      "element": "Chart series",
+      "name": "Maturity",
+      "unit": "ratio",
+      "description": "Average maturity ratio per variety on secondary axis (domain 0.8 to 1.2).",
+      "formula": "ROUND(AVG(CASE WHEN BottomBrix > 0 THEN TopBrix / BottomBrix ELSE NULL END), 2) AS maturity per Variety.",
+      "source": "brix_field_sampling.Variety, brix_field_sampling.TopBrix, brix_field_sampling.BottomBrix, brix_field_sampling.Date, brix_field_sampling.TestType",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Filter bar",
+      "element": "Filter",
+      "name": "Point (DeliveryPoint)",
+      "unit": "category",
+      "description": "Filters yard data to one delivery point or All. Options from distinct DeliveryPoint values.",
+      "formula": "Query param deliveryPoint when not All. Backend: DeliveryPoint = ?. Applied to current and prev-period queries.",
+      "source": "brix_yard_sampling.DeliveryPoint",
+      "comparison": "Same deliveryPoint filter on pyFrom/pyTo comparison query."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Section header",
+      "element": "Label",
+      "name": "Yard Samples count",
+      "unit": "count",
+      "description": "Inline header count next to 'Yard Intake and Consignment Quality'.",
+      "formula": "Number(yardStats.totalSamples.value ?? 0).toLocaleString() prefixed in template '{n} Yard Samples'.",
+      "source": "brix_yard_sampling (COUNT(*) with Date and DeliveryPoint filters)",
+      "comparison": "No comparison on header count."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "TOTAL SAMPLES",
+      "unit": "Lots",
+      "description": "Count of yard sample records (lots) in the filtered period.",
+      "formula": "COUNT(*) as totalSamples. Display: Math.round(v).toLocaleString(). Sparkline: yardTrend.avgBrix by date.",
+      "source": "brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "BiKpiCard delta from pyValue (not in API). Backend change/variance normal coloring."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "AVG MIDDLE BRIX %",
+      "unit": "%",
+      "description": "Average middle-stalk Brix across yard samples.",
+      "formula": "ROUND(AVG(MiddleBrix), 2) AS avgBrix. Display: value.toFixed(2).",
+      "source": "brix_yard_sampling.MiddleBrix, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "BiKpiCard delta from pyValue. Backend change/variance normal coloring."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "MIDDLE BRIX > {threshold}",
+      "unit": "%",
+      "description": "Share of samples with middle Brix strictly above the configurable threshold. Title embeds threshold value (default 18).",
+      "formula": "THRESHOLD = portal_settings.brix_threshold (default 18). pctBrixGt18 = ROUND(SUM(CASE WHEN MiddleBrix > THRESHOLD THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1). Display: value.toFixed(1). THRESHOLD DYNAMIC.",
+      "source": "brix_yard_sampling.MiddleBrix, portal_settings.setting_value (brix_threshold), brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "BiKpiCard normal coloring. Backend change normal (higher is better)."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "DISEASED CANE",
+      "unit": "%",
+      "description": "Share of samples where DiseasedCane = 'Yes'.",
+      "formula": "pctDiseased = ROUND(SUM(CASE WHEN DiseasedCane = 'Yes' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1). Display: value.toFixed(1). inverseColor.",
+      "source": "brix_yard_sampling.DiseasedCane, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "BiKpiCard inverseColor. Backend lowerBetter: isUp when variance <= 0."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "KPI row",
+      "element": "KPI card",
+      "name": "STALE CANE",
+      "unit": "%",
+      "description": "Share of samples where StaleCane = 'Yes'.",
+      "formula": "pctStale = ROUND(SUM(CASE WHEN StaleCane = 'Yes' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1). Display: value.toFixed(1). inverseColor.",
+      "source": "brix_yard_sampling.StaleCane, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "BiKpiCard inverseColor. Backend lowerBetter."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Summary cards",
+      "element": "KPI card",
+      "name": "Total Affected Cane",
+      "unit": "%",
+      "description": "Share of samples with diseased or stale cane (either flag Yes). Subtitle: Diseased OR Stale = Yes.",
+      "formula": "pctAffected = ROUND(SUM(CASE WHEN DiseasedCane = 'Yes' OR StaleCane = 'Yes' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1). Display: '{value}%'.",
+      "source": "brix_yard_sampling.DiseasedCane, brix_yard_sampling.StaleCane, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "ChangeBadge: change = ROUND(((curr-prev)/prev)*100, 2); prev=0 and curr>0 -> 100; prev=0 -> null shows 'No prior data'. variance = ROUND(curr-prev, 2). isUp when variance <= 0 (lower better). Label = compareBadgeLabel. Hidden when hasCompare false (prior totalSamples = 0 or no pyFrom/pyTo)."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Summary cards",
+      "element": "KPI card",
+      "name": "Brix > {threshold} Rate",
+      "unit": "%",
+      "description": "Duplicate display of middle Brix above-threshold rate with formula hint in subtitle. Threshold dynamic (default 18).",
+      "formula": "Same as pctBrixGt18: ROUND(SUM(CASE WHEN MiddleBrix > THRESHOLD THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1). Subtitle text: COUNT(MiddleBrix > THRESHOLD) / Total. THRESHOLD DYNAMIC from portal_settings.brix_threshold.",
+      "source": "brix_yard_sampling.MiddleBrix, portal_settings.setting_value (brix_threshold), brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "ChangeBadge normal coloring (higher is better). Same backend change/variance as pctBrixGt18 KPI."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Middle Brix % Daily Trend",
+      "element": "Chart series",
+      "name": "Middle Brix > {threshold}",
+      "unit": "count",
+      "description": "Daily bar count of samples with middle Brix strictly above threshold. Legend name embeds threshold.",
+      "formula": "Per date: SUM(CASE WHEN MiddleBrix > THRESHOLD THEN 1 ELSE 0 END) AS countAbove18. THRESHOLD = sanitizeThreshold(getBrixThreshold()). THRESHOLD DYNAMIC.",
+      "source": "brix_yard_sampling.MiddleBrix, brix_yard_sampling.Date, portal_settings.setting_value (brix_threshold), brix_yard_sampling.DeliveryPoint",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Middle Brix % Daily Trend",
+      "element": "Chart series",
+      "name": "Avg Middle Brix %",
+      "unit": "%",
+      "description": "Daily average middle Brix line on secondary axis (minimum domain 16).",
+      "formula": "Per date: ROUND(AVG(MiddleBrix), 2) AS avgBrix. YAxis right domain [16, 'auto'].",
+      "source": "brix_yard_sampling.MiddleBrix, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "No chart comparison."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Middle Brix % by Carrier",
+      "element": "Chart series",
+      "name": "Avg Brix by VehicleType",
+      "unit": "%",
+      "description": "Average middle Brix per vehicle/carrier type, sorted descending by avgBrix.",
+      "formula": "GROUP BY VehicleType: ROUND(AVG(MiddleBrix), 2) AS avgBrix. Display: '{avgBrix}%'.",
+      "source": "brix_yard_sampling.VehicleType, brix_yard_sampling.MiddleBrix, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "No comparison per carrier row."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Middle Brix % by Carrier",
+      "element": "Label",
+      "name": "Samples by VehicleType",
+      "unit": "count",
+      "description": "Sample count shown under each carrier bar.",
+      "formula": "COUNT(*) AS samples per VehicleType. Display: '{samples} samples'.",
+      "source": "brix_yard_sampling.VehicleType, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Middle Brix % by Carrier",
+      "element": "Derived",
+      "name": "Carrier bar fill width",
+      "unit": "% of bar",
+      "description": "Horizontal bar width proportional to avg Brix, capped at 25% Brix = full width.",
+      "formula": "width = Math.min((avgBrix / 25) * 100, 100) percent CSS width.",
+      "source": "Derived from brix_yard_sampling.MiddleBrix aggregate avgBrix",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Consignment Condition",
+      "element": "Chart series",
+      "name": "Condition slice count",
+      "unit": "count",
+      "description": "Pie slice count per ConsignmentConditions value. Excludes affected cane (DiseasedCane=Yes OR StaleCane=Yes).",
+      "formula": "WHERE (existing date/dp filters) AND DiseasedCane = 'No' AND StaleCane = 'No'. GROUP BY ConsignmentConditions, COUNT(*) AS count.",
+      "source": "brix_yard_sampling.ConsignmentConditions, brix_yard_sampling.DiseasedCane, brix_yard_sampling.StaleCane, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "No comparison on slices."
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Consignment Condition",
+      "element": "Derived",
+      "name": "Condition legend %",
+      "unit": "%",
+      "description": "Percentage shown beside each condition name in the legend list.",
+      "formula": "For each condition c: total = SUM(count); display = total > 0 ? Math.round(c.count / total * 100) : 0, shown as '{pct}%'.",
+      "source": "Derived from brix_yard_sampling.ConsignmentConditions counts in condition distribution query",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Center-wise Condition",
+      "element": "Table column",
+      "name": "Center",
+      "unit": "label",
+      "description": "Display name for VillageOrCenterCode. Code '0' or empty shows GATE; numeric codes may resolve via purchy tables or show Center #N.",
+      "formula": "formatCenterLabel(code, nameMap): if code null/0 -> GATE; else nameMap[code] or Center #{code} or raw string. nameMap from purchy_grower_summary and purchy_supply.",
+      "source": "brix_yard_sampling.VillageOrCenterCode, purchy_grower_summary.centre_code, purchy_grower_summary.centre_name, purchy_grower_summary.village_code, purchy_grower_summary.village_name, purchy_supply.purchsecentre, purchy_supply.purchsecentrename, purchy_supply.villagecode, purchy_supply.villagename",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Center-wise Condition",
+      "element": "Table column",
+      "name": "Clean",
+      "unit": "count",
+      "description": "Count of samples with ConsignmentConditions = 'Clean' for each center.",
+      "formula": "SUM(CASE WHEN ConsignmentConditions = 'Clean' THEN 1 ELSE 0 END) AS Clean per VillageOrCenterCode.",
+      "source": "brix_yard_sampling.VillageOrCenterCode, brix_yard_sampling.ConsignmentConditions, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Center-wise Condition",
+      "element": "Table column",
+      "name": "Dry Leaves",
+      "unit": "count",
+      "description": "Count of samples with ConsignmentConditions = 'Dry Leaves' for each center.",
+      "formula": "SUM(CASE WHEN ConsignmentConditions = 'Dry Leaves' THEN 1 ELSE 0 END) AS DryLeaves.",
+      "source": "brix_yard_sampling.VillageOrCenterCode, brix_yard_sampling.ConsignmentConditions, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Center-wise Condition",
+      "element": "Table column",
+      "name": "Muddy",
+      "unit": "count",
+      "description": "Count of samples with ConsignmentConditions = 'Muddy' for each center.",
+      "formula": "SUM(CASE WHEN ConsignmentConditions = 'Muddy' THEN 1 ELSE 0 END) AS Muddy.",
+      "source": "brix_yard_sampling.VillageOrCenterCode, brix_yard_sampling.ConsignmentConditions, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Center-wise Condition",
+      "element": "Table column",
+      "name": "Roots",
+      "unit": "count",
+      "description": "Count of samples with ConsignmentConditions = 'Roots' for each center.",
+      "formula": "SUM(CASE WHEN ConsignmentConditions = 'Roots' THEN 1 ELSE 0 END) AS Roots.",
+      "source": "brix_yard_sampling.VillageOrCenterCode, brix_yard_sampling.ConsignmentConditions, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "None"
+    },
+    {
+      "section": "Yard Sampling",
+      "subSection": "Center-wise Condition",
+      "element": "Table column",
+      "name": "Total",
+      "unit": "count",
+      "description": "Total sample count per center across all consignment conditions.",
+      "formula": "COUNT(*) AS Total per VillageOrCenterCode. Rows ordered by Total DESC.",
+      "source": "brix_yard_sampling.VillageOrCenterCode, brix_yard_sampling.Date, brix_yard_sampling.DeliveryPoint",
+      "comparison": "None"
+    },
+    {
+      "section": "Global",
+      "subSection": "Comparison engine",
+      "element": "Derived",
+      "name": "Backend comparison change %",
+      "unit": "%",
+      "description": "Percent change used by ChangeBadge and returned in stats objects (value, change, variance, isUp). Prior window filtered by pyFrom/pyTo query params.",
+      "formula": "hasCompare = prevRow exists AND Number(prevRow.totalSamples) > 0. change = ROUND(((parseFloat(curr)||0 - parseFloat(prev)||0) / parseFloat(prev)) * 100, 2); if prev=0 and curr>0 then 100; if prev=0 then null. variance = ROUND(curr - prev, 2). isUp = lowerBetter ? variance <= 0 : change >= 0.",
+      "source": "brix_yard_sampling or brix_field_sampling aggregated in current vs pyFrom/pyTo windows",
+      "comparison": "Sent as pyFrom and pyTo from resolveCockpitCompareRange. Frontend never sends compSeason param; compareMode is priorYear when pyFrom/pyTo set. Hidden when hasCompare false."
+    },
+    {
+      "section": "Global",
+      "subSection": "Settings",
+      "element": "Derived",
+      "name": "Brix threshold configuration",
+      "unit": "%",
+      "description": "Admin-configurable threshold driving yard (> threshold) and field (< threshold) bucket metrics. Exposed in stats.brixThreshold and GET /api/bi/settings brixThreshold.",
+      "formula": "getBrixThreshold(): SELECT setting_value FROM portal_settings WHERE setting_key = 'brix_threshold'. parseFloat; if not finite or <= 0 use 18. sanitizeThreshold splices numeric value into raw SQL for CASE WHEN clauses.",
+      "source": "portal_settings.setting_key, portal_settings.setting_value",
+      "comparison": "Threshold applied identically to current and comparison period queries (read live per request)."
+    }
+  ]
+}

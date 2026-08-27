@@ -20,10 +20,8 @@ CREATE TABLE IF NOT EXISTS `ehs_near_miss` (
   `treatment_by`     VARCHAR(255)     DEFAULT NULL,
   `description`      TEXT             DEFAULT NULL,
   `hazard_identified` VARCHAR(5)      DEFAULT NULL,
-  `hod_comments`     TEXT             DEFAULT NULL,
-  `hod_signed`       VARCHAR(255)     DEFAULT NULL,
-  `hod_position`     VARCHAR(255)     DEFAULT NULL,
-  `hod_date`         DATE             DEFAULT NULL,
+  `hod_signoff_file`      MEDIUMTEXT      DEFAULT NULL,
+  `hod_signoff_file_name` VARCHAR(255)    DEFAULT NULL,
   `timestamp`        TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

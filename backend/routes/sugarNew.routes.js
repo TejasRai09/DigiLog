@@ -5,6 +5,7 @@ const hier = require('../controllers/shnHierarchy.controller');
 
 router.get('/lookup',               authenticate, ctrl.lookupEquipment);
 router.get('/hierarchy',            authenticate, hier.getTree);
+router.get('/hierarchy/cards',      authenticate, hier.getCards);
 router.get('/hierarchy/path/:nodeId', authenticate, hier.getPath);
 router.post('/hierarchy',           authenticate, hier.createNode);
 router.put('/hierarchy/:nodeId',    authenticate, hier.updateNode);

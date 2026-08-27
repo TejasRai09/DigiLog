@@ -1873,7 +1873,7 @@ export default function CanePerformanceDashboard(){
           <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
           <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            {['MTD', 'STD', 'WTD'].map(type => (
+            {['WTD', 'MTD', 'STD'].map(type => (
               <button
                 key={type}
                 type="button"
@@ -1900,28 +1900,6 @@ export default function CanePerformanceDashboard(){
             >
               Custom
             </button>
-          </div>
-
-          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
-              Compare
-            </span>
-            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
-              {comparisonOptions.map((comp) => (
-                <button
-                  key={comp.id}
-                  type="button"
-                  onClick={() => onCompareSelect(comp.id)}
-                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
-                    comparisonType === comp.id
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
-                  }`}
-                >
-                  {comp.label}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
@@ -1971,7 +1949,7 @@ export default function CanePerformanceDashboard(){
                   setRangePreset("Custom");
                   setFromDate(clampToDb(e.target.value));
                 }}
-                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
@@ -1987,10 +1965,32 @@ export default function CanePerformanceDashboard(){
                   setRangePreset("Custom");
                   setToDate(clampToDb(e.target.value));
                 }}
-                className={`w-[6.75rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
+            </div>
+          </div>
+
+          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
+              Compare
+            </span>
+            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+              {comparisonOptions.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  onClick={() => onCompareSelect(comp.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    comparisonType === comp.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {comp.label}
+                </button>
+              ))}
             </div>
           </div>
         </BiFilterBarLayout>

@@ -39,6 +39,10 @@ export const DISTILLERY_CALCULATED_DB_KEYS = new Set([
 export function formatRecordCellForDisplay(dbKey, value, formKey = null) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string' && value.startsWith('data:image/')) return 'Photo attached';
+  if (typeof value === 'string' && value.startsWith('data:')) {
+    if (dbKey === 'hod_signoff_file') return 'File attached';
+    if (value.startsWith('data:application/')) return 'File attached';
+  }
   if (
     formKey === 'distillery_ops' &&
     DISTILLERY_CALCULATED_DB_KEYS.has(dbKey) &&
@@ -551,12 +555,10 @@ function schemaEhsNearMiss() {
   push(a, 'treatment_given',  'Treatment',              'What was given');
   push(a, 'treatment_by',     'Treatment',              'By Whom');
   push(a, 'description',      'Incident Details',       'Description / Cause');
-  push(a, 'hazard_identified','Follow-up',              'Significant Hazard Identified');
-  push(a, 'hod_comments',     'HOD Sign-off',           'Comments');
-  push(a, 'hod_signed',       'HOD Sign-off',           'Signed');
-  push(a, 'hod_position',     'HOD Sign-off',           'Position');
-  push(a, 'hod_date',         'HOD Sign-off',           'Date');
-  push(a, 'timestamp',        'System',                 'Recorded at');
+  push(a, 'hazard_identified',      'Follow-up',     'Significant Hazard Identified');
+  push(a, 'hod_signoff_file_name',  'HOD Sign-off',  'Document name');
+  push(a, 'hod_signoff_file',       'HOD Sign-off',  'Document');
+  push(a, 'timestamp',              'System',        'Recorded at');
   return a;
 }
 

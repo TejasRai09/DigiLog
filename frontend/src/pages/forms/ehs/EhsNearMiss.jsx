@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
 import FormReviewModal from '../../../components/FormReviewModal';
+import FormFileUploadRow from '../../../components/FormFileUploadRow';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -21,7 +22,8 @@ const INITIAL = {
   severity: '', treatment: '', treatment_given: '', treatment_by: '',
   description: '',
   hazard_identified: '',
-  hod_comments: '', hod_signed: '', hod_position: '', hod_date: '',
+  hod_signoff_file: '',
+  hod_signoff_file_name: '',
 };
 
 const EhsNearMiss = () => {
@@ -142,21 +144,23 @@ const EhsNearMiss = () => {
           </div>
         </div>
 
-        {/* Section 6 – HOD Sign-off */}
-        <div className="form-section space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">HOD Sign-off</h2>
-          <div>
-            <label className="label">HOD Comments</label>
-            <textarea name="hod_comments" value={form.hod_comments} onChange={handle} rows={3} className="input resize-none" />
-          </div>
-          <div className="form-row flex-wrap gap-4">
-            {S('hod_signed', 'Signed')}
-            {S('hod_position', 'Position')}
-          </div>
-          <div>
-            <label className="label">HOD Date</label>
-            <input type="date" name="hod_date" value={form.hod_date} onChange={handle} className="input" />
-          </div>
+        {/* Section 6 – HOD Sign-off (signed document upload) */}
+        <div className="form-section">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">HOD Sign-off</h2>
+          <FormFileUploadRow
+            label="HOD Sign-off Document"
+            hint="Upload the signed HOD document (JPG, JPEG, PDF, or Word). Max 6 MB."
+            value={form.hod_signoff_file}
+            fileName={form.hod_signoff_file_name}
+            onChange={({ dataUrl, fileName }) =>
+              setForm((p) => ({
+                ...p,
+                hod_signoff_file: dataUrl || '',
+                hod_signoff_file_name: fileName || '',
+              }))
+            }
+            optional
+          />
         </div>
 
         <div className="flex justify-end gap-3 pt-2">

@@ -28,9 +28,9 @@ import {
 } from '../../utils/biCockpitDateFilters';
 
 const PRESETS = [
+  { id: 'WTD', label: 'WTD' },
   { id: 'MTD', label: 'MTD' },
   { id: 'STD', label: 'STD' },
-  { id: 'WTD', label: 'WTD' },
   { id: 'Custom', label: 'Custom' },
 ];
 
@@ -380,7 +380,7 @@ export default function ManagementDashboard() {
                   setPreset('Custom');
                   setFrom(e.target.value);
                 }}
-                className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
+                className={`bi-date-input rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
@@ -395,7 +395,7 @@ export default function ManagementDashboard() {
                 setPreset('Custom');
                 setTo(e.target.value);
               }}
-              className={`rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
+              className={`bi-date-input rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${
                 dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
               }`}
             />

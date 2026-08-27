@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -10,6 +10,10 @@ import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHi
 import EquipmentSpecificationHub from '../../components/equipment/EquipmentSpecificationHub';
 import OemMaintenanceScheduleHub from '../../components/equipment/OemMaintenanceScheduleHub';
 import EquipmentMaintenanceHistoryHub from '../../components/equipment/EquipmentMaintenanceHistoryHub';
+import { MdPictureAsPdf } from 'react-icons/md';
+
+// Only load the export modal (and, on confirm, jsPDF) when the user opens it.
+const EquipmentPdfExportModal = lazy(() => import('../../components/equipment/EquipmentPdfExportModal'));
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
@@ -19,6 +23,7 @@ import { findDiscipline } from '../../config/engineeringDisciplines';
 import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
 import useSugarHouseHierarchy from '../../hooks/useSugarHouseHierarchy';
 import { hierarchyBreadcrumbLabels } from '../../utils/hierarchyTreeUtils';
+import { withoutGsmaLabel } from '../../utils/displayLabels';
 import {
   powerNewDetailPath,
   sugarNewDetailPath,
@@ -68,6 +73,8 @@ const PowerEquipmentDetail = () => {
   const [histTotal, setHistTotal] = useState(0);
   const [loading,   setLoading]   = useState(true);
   const [saving,    setSaving]    = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   const equipIdRef = useRef(id);
   const createPromiseRef = useRef(null);
@@ -454,12 +461,59 @@ const PowerEquipmentDetail = () => {
 
   const historyTotalForView = histTotal;
 
+  const handleExportPdf = async (selectedKeys) => {
+    if (!selectedKeys?.length) {
+      toast.error('Select at least one section to download.');
+      return;
+    }
+
+    setPdfGenerating(true);
+    try {
+      const { exportEquipmentDataToPdf } = await import('../../utils/exportEquipmentDataPdf');
+      const baseName = (eq?.name || eq?.tag_name || eq?.equip_no || 'Equipment')
+        .replace(/[^\w\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '_');
+      const breadcrumbText = breadcrumbItems
+        .map((item) => withoutGsmaLabel(item.label))
+        .filter(Boolean)
+        .join('  >  ');
+      await exportEquipmentDataToPdf({
+        selectedKeys,
+        fileName: `${baseName}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        docTitle: eq?.name || eq?.tag_name || 'Equipment Details',
+        breadcrumbText,
+        specs: { rows: specs, equipmentDefaults, specSection: disciplineSpecFocus ? specSection : null },
+        schedule: { rows: scheduleForView, equipmentOptions: scheduleEquipmentOptions },
+        history: { rows: isNewHub ? historyForView : history, equipmentOptions: isNewHub ? equipmentOptions : [] },
+      });
+      setPdfModalOpen(false);
+    } catch (err) {
+      toast.error(err?.message || 'Could not generate PDF.');
+    } finally {
+      setPdfGenerating(false);
+    }
+  };
+
   if (loading) return <div className="flex justify-center py-32"><Spinner size="lg" /></div>;
   if (!eq)     return <p className="text-center py-20 text-gray-400">Equipment not found.</p>;
 
   return (
     <main className="app-main">
-      <AppBreadcrumb items={breadcrumbItems} />
+      <AppBreadcrumb items={breadcrumbItems} className="mb-3" />
+
+      {isNewHub && (
+        <div className="mb-4 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setPdfModalOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-100"
+          >
+            <MdPictureAsPdf className="h-4 w-4" />
+            Download PDF
+          </button>
+        </div>
+      )}
 
       {!isNewHub && (
         <EquipmentLifeHistoryCard
@@ -526,6 +580,17 @@ const PowerEquipmentDetail = () => {
         historyApiBase={apiBase}
         equipId={eq?.id || id}
       />
+
+      {isNewHub && pdfModalOpen && (
+        <Suspense fallback={null}>
+          <EquipmentPdfExportModal
+            open={pdfModalOpen}
+            onClose={() => !pdfGenerating && setPdfModalOpen(false)}
+            onConfirm={handleExportPdf}
+            generating={pdfGenerating}
+          />
+        </Suspense>
+      )}
     </main>
   );
 };
