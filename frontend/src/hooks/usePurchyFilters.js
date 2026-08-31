@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import api from '../api/axios';
+import { useCallback, useMemo, useState } from 'react';
 import { PURCHY_STATIC_FILTER_OPTIONS } from '../data/purchyStaticData';
 import { resolveFilterOptions } from '../utils/purchyStaticFilters';
+import { usePurchyCachedGet } from './purchyQueryCache';
 
 const EMPTY_FILTERS = {
   societyName: [],
@@ -24,39 +24,17 @@ export function purchyFiltersToParams(filters) {
 }
 
 export default function usePurchyFilters({ enabled = true } = {}) {
-  const [options, setOptions] = useState(null);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [loading, setLoading] = useState(enabled);
-  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    if (!enabled) {
-      setOptions(PURCHY_STATIC_FILTER_OPTIONS);
-      setLoading(false);
-      setError(null);
-      return undefined;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data } = await api.get('/bi/purchy/filters');
-        if (!cancelled) {
-          setOptions(resolveFilterOptions(data));
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err?.response?.data?.message || 'Failed to load filter options.');
-          setOptions(PURCHY_STATIC_FILTER_OPTIONS);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [enabled]);
+  const { data, loading, error } = usePurchyCachedGet(
+    '/bi/purchy/filters',
+    {},
+    {
+      enabled,
+      mapResponse: (res) => resolveFilterOptions(res),
+      errorMessage: 'Failed to load filter options.',
+    },
+  );
 
   const setFilter = useCallback((key, values) => {
     setFilters((prev) => ({ ...prev, [key]: values }));
@@ -68,13 +46,15 @@ export default function usePurchyFilters({ enabled = true } = {}) {
 
   const queryParams = useMemo(() => purchyFiltersToParams(filters), [filters]);
 
+  const options = data || (error || !enabled ? PURCHY_STATIC_FILTER_OPTIONS : null);
+
   return {
-    options: options || (enabled ? null : PURCHY_STATIC_FILTER_OPTIONS),
+    options,
     filters,
     setFilter,
     clearFilters,
     queryParams,
-    loading,
+    loading: enabled && loading,
     error: enabled ? error : null,
   };
 }

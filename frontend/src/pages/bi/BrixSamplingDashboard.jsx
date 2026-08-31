@@ -727,7 +727,7 @@ export default function BrixSamplingDashboard() {
       </div>
 
       {/* ── Main Dashboard Body ── */}
-      <main className="flex-1 max-w-[1700px] w-full mx-auto px-3 sm:px-4 py-2 flex flex-col justify-between overflow-hidden gap-2 relative">
+      <main className="flex-1 w-full px-3 sm:px-4 py-2 flex flex-col justify-between overflow-hidden gap-2 relative">
 
         {/* ── Loading Overlay ── */}
         {((activeTab === 'field' && fieldLoading) || (activeTab === 'yard' && yardLoading)) && (

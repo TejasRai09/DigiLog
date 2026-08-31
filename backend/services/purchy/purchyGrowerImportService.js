@@ -220,6 +220,13 @@ async function runPurchyGrowerImport(opts = {}) {
     });
     emit('complete', { totals });
 
+    try {
+      const { clearPurchyCache } = require('./purchyResponseCache');
+      clearPurchyCache();
+    } catch (cacheErr) {
+      console.warn('Purchy cache clear after import failed:', cacheErr.message);
+    }
+
     return {
       totals: {
         summary: totals.summary || 0,

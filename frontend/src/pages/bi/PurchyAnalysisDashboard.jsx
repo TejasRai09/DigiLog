@@ -66,11 +66,19 @@ const DISHONOUR_DETAIL_COLUMNS = [
 export default function PurchyAnalysisDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('grower');
+  const [visitedTabs, setVisitedTabs] = useState({ grower: true });
+
+  useEffect(() => {
+    setVisitedTabs((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
+  }, [activeTab]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => window.dispatchEvent(new Event('resize')), 60);
+    return () => window.clearTimeout(id);
+  }, [activeTab]);
 
   const needsGrowerData = activeTab === 'grower';
   const needsDishonourData = activeTab === 'dishonour';
-  const needsDrilldownData = ['dishonour-drill', 'hierarchy-drill', 'failure-date'].includes(activeTab);
-  const needsFilterData = needsGrowerData || needsDishonourData || needsDrilldownData;
 
   const {
     options,
@@ -80,7 +88,7 @@ export default function PurchyAnalysisDashboard() {
     queryParams,
     loading: filtersLoading,
     error: filtersError,
-  } = usePurchyFilters({ enabled: needsFilterData });
+  } = usePurchyFilters({ enabled: true });
 
   const [debouncedParams, setDebouncedParams] = useState(queryParams);
   useEffect(() => {
@@ -106,8 +114,6 @@ export default function PurchyAnalysisDashboard() {
   const dishonourDetail = dishonour.detail;
 
   const pageBg = isDarkMode ? 'bg-slate-900' : 'bg-slate-100';
-  const headerText = isDarkMode ? 'text-slate-100' : 'text-slate-900';
-  const activeSlicers = activeTab === 'grower' ? GROWER_SLICERS : DISHONOUR_SLICERS;
 
   const loadError = filtersError || grower.error || dishonour.error;
 
@@ -158,7 +164,7 @@ export default function PurchyAnalysisDashboard() {
         </BiFilterBarLayout>
       </div>
 
-      <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden px-3 py-2 sm:px-4">
+      <main className="flex min-h-0 w-full flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden px-3 py-2 sm:px-4">
 
         {loadError && (
           <div className="shrink-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
@@ -167,11 +173,11 @@ export default function PurchyAnalysisDashboard() {
         )}
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
-        {activeTab === 'grower' && (
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
+        {visitedTabs.grower && (
+          <div className={activeTab === 'grower' ? 'flex min-h-0 flex-1 flex-col gap-2' : 'hidden'}>
             <PurchyFilterBar
               compact
-              slicers={activeSlicers}
+              slicers={GROWER_SLICERS}
               options={filterOptions}
               filters={filters}
               onFilterChange={setFilter}
@@ -199,12 +205,12 @@ export default function PurchyAnalysisDashboard() {
           </div>
         )}
 
-        {activeTab === 'dishonour' && (
-          <div className="flex min-h-0 flex-1 flex-col gap-2">
+        {visitedTabs.dishonour && (
+          <div className={activeTab === 'dishonour' ? 'flex min-h-0 flex-1 flex-col gap-2' : 'hidden'}>
             <PurchyKpiGrid compact kpis={dishonourKpis} loading={kpiLoading} isDarkMode={isDarkMode} />
             <PurchyFilterBar
               compact
-              slicers={activeSlicers}
+              slicers={DISHONOUR_SLICERS}
               options={filterOptions}
               filters={filters}
               onFilterChange={setFilter}
@@ -235,10 +241,11 @@ export default function PurchyAnalysisDashboard() {
           </div>
         )}
 
-        {activeTab === 'dishonour-drill' && (
-          <div className="flex min-h-0 flex-1 flex-col">
+        {visitedTabs['dishonour-drill'] && (
+          <div className={activeTab === 'dishonour-drill' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
             <PurchyDishonourDrilldownTab
               isDarkMode={isDarkMode}
+              isActive={activeTab === 'dishonour-drill'}
               useLiveData={true}
               globalQueryParams={debouncedParams}
               filterOptions={filterOptions}
@@ -246,18 +253,19 @@ export default function PurchyAnalysisDashboard() {
           </div>
         )}
 
-        {activeTab === 'hierarchy-drill' && (
-          <div className="flex min-h-0 flex-1 flex-col">
+        {visitedTabs['hierarchy-drill'] && (
+          <div className={activeTab === 'hierarchy-drill' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
             <PurchyHierarchyDrilldownTab
               isDarkMode={isDarkMode}
+              isActive={activeTab === 'hierarchy-drill'}
               useLiveData={true}
               globalQueryParams={debouncedParams}
             />
           </div>
         )}
 
-        {activeTab === 'failure-date' && (
-          <div className="flex min-h-0 flex-1 flex-col">
+        {visitedTabs['failure-date'] && (
+          <div className={activeTab === 'failure-date' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}>
             <PurchyFailureDateDrilldownTab
               isDarkMode={isDarkMode}
               useLiveData={true}

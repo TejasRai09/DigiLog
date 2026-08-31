@@ -34,6 +34,7 @@ function toTreeNode(item) {
 
 export default function PurchyDishonourDrilldownTab({
   isDarkMode,
+  isActive = true,
   useLiveData = false,
   globalQueryParams = {},
   filterOptions = {},
@@ -44,6 +45,7 @@ export default function PurchyDishonourDrilldownTab({
   const [selGrower, setSelGrower] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [allowAutoSelect, setAllowAutoSelect] = useState(true);
 
   const mergedParams = useMemo(
     () => ({ ...globalQueryParams, ...purchyFiltersToParams(filters) }),
@@ -57,6 +59,7 @@ export default function PurchyDishonourDrilldownTab({
       selectedSociety: selSociety,
       selectedVillage: selVillage,
       selectedGrower: selGrower,
+      autoSelect: useLiveData && allowAutoSelect && !selSociety,
       page,
       pageSize,
     },
@@ -75,14 +78,27 @@ export default function PurchyDishonourDrilldownTab({
     : (activeVillage?.growers || []);
 
   useEffect(() => {
-    if (!useLiveData || !societies.length) return;
-    if (!selSociety || !societies.some((s) => s.id === selSociety)) {
-      setSelSociety(societies[0].id);
+    if (!useLiveData || !liveData) return;
+    if (!allowAutoSelect) return;
+    if (liveData.selectedSociety) {
+      setSelSociety(liveData.selectedSociety);
+      if (liveData.selectedVillage) setSelVillage(liveData.selectedVillage);
+      setAllowAutoSelect(false);
     }
-  }, [useLiveData, societies, selSociety]);
+  }, [useLiveData, liveData, allowAutoSelect]);
 
   useEffect(() => {
-    if (!useLiveData) return;
+    if (!useLiveData || allowAutoSelect) return;
+    if (!societies.length) return;
+    if (selSociety && !societies.some((s) => s.id === selSociety)) {
+      setSelSociety(societies[0].id);
+      setSelVillage(null);
+      setSelGrower(null);
+    }
+  }, [useLiveData, societies, selSociety, allowAutoSelect]);
+
+  useEffect(() => {
+    if (!useLiveData || allowAutoSelect) return;
     if (!villages.length) {
       setSelVillage(null);
       return;
@@ -90,7 +106,7 @@ export default function PurchyDishonourDrilldownTab({
     if (!selVillage || !villages.some((v) => v.id === selVillage)) {
       setSelVillage(villages[0].id);
     }
-  }, [useLiveData, villages, selVillage]);
+  }, [useLiveData, villages, selVillage, allowAutoSelect]);
 
   useEffect(() => {
     setPage(1);
@@ -240,7 +256,7 @@ export default function PurchyDishonourDrilldownTab({
         rootValue={pctToDisplay(data.rootPct)}
         rootSubtext={`${(data.kpis.growers / 1000).toFixed(1)}K Growers`}
         columns={treeColumns}
-        coordDeps={[selSociety, selVillage, selGrower]}
+        coordDeps={[selSociety, selVillage, selGrower, isActive]}
       />
 
       <PurchyDetailTable

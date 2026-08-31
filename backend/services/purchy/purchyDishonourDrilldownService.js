@@ -34,8 +34,9 @@ async function getDishonourDrilldown(query) {
   const pageSize = Math.min(500, Math.max(1, parseInt(query.pageSize, 10) || 25));
   const offset = (page - 1) * pageSize;
 
-  const selectedSociety = query.selectedSociety || null;
-  const selectedVillage = query.selectedVillage || null;
+  const autoSelect = query.autoSelect === '1' || query.autoSelect === true;
+  let selectedSociety = query.selectedSociety || null;
+  let selectedVillage = query.selectedVillage || null;
   const selectedGrower = query.selectedGrower || null;
 
   const [tx, totalsRow] = await Promise.all([
@@ -55,9 +56,17 @@ async function getDishonourDrilldown(query) {
 
   const societies = await getTreeLevel(ctx, 'gs.society_name', null, []);
 
+  if (autoSelect && !selectedSociety && societies.length) {
+    selectedSociety = societies[0].id;
+  }
+
   let villages = [];
   if (selectedSociety) {
     villages = await getTreeLevel(ctx, 'gs.village_name_key', 'gs.society_name = ?', [selectedSociety]);
+  }
+
+  if (autoSelect && selectedSociety && !selectedVillage && !selectedGrower && villages.length) {
+    selectedVillage = villages[0].id;
   }
 
   let growers = [];
@@ -124,6 +133,8 @@ async function getDishonourDrilldown(query) {
     },
     villages,
     growers,
+    selectedSociety,
+    selectedVillage,
     detailRows: detailRows.map((r) => ({
       growerNameKey: r.growerNameKey,
       indentQty: Number(r.indentQty) || 0,

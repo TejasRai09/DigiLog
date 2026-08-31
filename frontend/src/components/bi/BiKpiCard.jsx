@@ -147,6 +147,7 @@ const BiKpiCard = ({
   chartColor = '#3b82f6',
   formatValue,
   displayValue,
+  hideComparison = false,
 }) => {
   const safeVal = Number.isFinite(Number(value)) ? Number(value) : 0;
   const safePy = Number.isFinite(Number(pyValue)) ? Number(pyValue) : 0;
@@ -191,35 +192,37 @@ const BiKpiCard = ({
             {unit && <span className={`text-[10px] font-bold ${textClasses.unit}`}>{unit}</span>}
           </div>
 
-          <div className="mt-1.5 flex items-center gap-2">
-            <div
-              className={`inline-flex min-w-[76px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-bold tabular-nums ${
-                isNeutral
-                  ? isDarkMode
-                    ? 'bg-slate-700 text-slate-300'
-                    : 'bg-slate-100 text-slate-600'
-                  : isGood
+          {!hideComparison && (
+            <div className="mt-1.5 flex items-center gap-2">
+              <div
+                className={`inline-flex min-w-[76px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-bold tabular-nums ${
+                  isNeutral
                     ? isDarkMode
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-emerald-100 text-emerald-700'
-                    : isDarkMode
-                      ? 'bg-rose-500/20 text-rose-400'
-                      : 'bg-rose-100 text-rose-700'
-              }`}
-            >
-              {isNeutral ? (
-                <MdRemove className="h-3 w-3" />
-              ) : isPositive ? (
-                <MdTrendingUp className="h-3 w-3" />
-              ) : (
-                <MdTrendingDown className="h-3 w-3" />
-              )}
-              {Math.abs(delta).toFixed(1)}%
+                      ? 'bg-slate-700 text-slate-300'
+                      : 'bg-slate-100 text-slate-600'
+                    : isGood
+                      ? isDarkMode
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-emerald-100 text-emerald-700'
+                      : isDarkMode
+                        ? 'bg-rose-500/20 text-rose-400'
+                        : 'bg-rose-100 text-rose-700'
+                }`}
+              >
+                {isNeutral ? (
+                  <MdRemove className="h-3 w-3" />
+                ) : isPositive ? (
+                  <MdTrendingUp className="h-3 w-3" />
+                ) : (
+                  <MdTrendingDown className="h-3 w-3" />
+                )}
+                {Math.abs(delta).toFixed(1)}%
+              </div>
+              <span className={`text-[10px] font-bold sm:whitespace-nowrap ${textClasses.vs}`}>
+                vs {comparisonLabel} {timeFilter}
+              </span>
             </div>
-            <span className={`text-[10px] font-bold sm:whitespace-nowrap ${textClasses.vs}`}>
-              vs {comparisonLabel} {timeFilter}
-            </span>
-          </div>
+          )}
         </div>
 
         {hasChart && (

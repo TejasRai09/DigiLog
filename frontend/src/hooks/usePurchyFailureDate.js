@@ -1,48 +1,26 @@
-import { useEffect, useMemo, useState } from 'react';
-import api from '../api/axios';
+import { useMemo } from 'react';
 import { FAILURE_DATE_DRILLDOWN } from '../data/purchyDrilldownStaticData';
+import { usePurchyCachedGet } from './purchyQueryCache';
 
 export default function usePurchyFailureDate(queryParams, {
   enabled = true,
   dateFrom,
   dateTo,
 } = {}) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(enabled);
-  const [error, setError] = useState(null);
-
   const requestParams = useMemo(() => ({
     ...queryParams,
     ...(dateFrom ? { dateFrom } : {}),
     ...(dateTo ? { dateTo } : {}),
   }), [queryParams, dateFrom, dateTo]);
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return undefined;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data: res } = await api.get('/bi/purchy/failure-by-date', { params: requestParams });
-        if (!cancelled) {
-          setData(res);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err?.response?.data?.message || 'Failed to load failure by date.');
-          setData(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [requestParams, enabled]);
+  const { data, loading, error } = usePurchyCachedGet(
+    '/bi/purchy/failure-by-date',
+    requestParams,
+    {
+      enabled,
+      errorMessage: 'Failed to load failure by date.',
+    },
+  );
 
   return {
     data: enabled && data ? data : (enabled ? null : FAILURE_DATE_DRILLDOWN),

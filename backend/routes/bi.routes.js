@@ -17,6 +17,7 @@ const {
   getPurchyDishonourDrilldown,
   getPurchyStaffDrilldown,
   getPurchyFailureDateDrilldown,
+  getPurchyStaffVarietyType,
 } = require('../controllers/biPurchy.controller');
 const {
   getYardStats,
@@ -50,6 +51,7 @@ router.get('/purchy/dishonour/kpis', authenticate, getPurchyDishonourKpis);
 router.get('/purchy/dishonour/detail', authenticate, getPurchyDishonourDetail);
 router.get('/purchy/dishonour-drilldown', authenticate, getPurchyDishonourDrilldown);
 router.get('/purchy/staff-drilldown', authenticate, getPurchyStaffDrilldown);
+router.get('/purchy/staff-variety-type', authenticate, getPurchyStaffVarietyType);
 router.get('/purchy/failure-by-date', authenticate, getPurchyFailureDateDrilldown);
 router.get('/distillery-operations', authenticate, getDistilleryOperationsBi);
 router.get('/milling-operations', authenticate, getMillingStoppagesBi);

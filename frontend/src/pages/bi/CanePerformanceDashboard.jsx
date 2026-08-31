@@ -1996,7 +1996,7 @@ export default function CanePerformanceDashboard(){
         </BiFilterBarLayout>
       </div>
 
-      <main className={`relative min-h-[60vh] ${tab === "procurement" ? "w-full max-w-none px-2 sm:px-3 py-3" : "max-w-[1600px] mx-auto px-4 py-5"}`}>
+      <main className="relative min-h-[60vh] w-full px-2 py-3 sm:px-3">
         {loading && (
           <div className="absolute inset-0 z-30 flex items-center justify-center bg-white/60 dark:bg-slate-950/60 backdrop-blur-sm rounded-2xl">
             <div className="flex flex-col items-center gap-3">
