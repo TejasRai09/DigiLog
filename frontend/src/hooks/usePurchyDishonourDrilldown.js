@@ -1,54 +1,42 @@
-import { useEffect, useMemo, useState } from 'react';
-import api from '../api/axios';
+import { useMemo } from 'react';
 import { DISHONOUR_DRILLDOWN } from '../data/purchyDrilldownStaticData';
+import { usePurchyCachedGet } from './purchyQueryCache';
 
 export default function usePurchyDishonourDrilldown(queryParams, {
   enabled = true,
   selectedSociety = null,
   selectedVillage = null,
   selectedGrower = null,
+  autoSelect = false,
   page = 1,
   pageSize = 25,
 } = {}) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(enabled);
-  const [error, setError] = useState(null);
-
   const requestParams = useMemo(() => ({
     ...queryParams,
     selectedSociety: selectedSociety || undefined,
     selectedVillage: selectedVillage || undefined,
     selectedGrower: selectedGrower || undefined,
+    autoSelect: autoSelect ? '1' : undefined,
     page,
     pageSize,
-  }), [queryParams, selectedSociety, selectedVillage, selectedGrower, page, pageSize]);
+  }), [queryParams, selectedSociety, selectedVillage, selectedGrower, autoSelect, page, pageSize]);
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return undefined;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const { data: res } = await api.get('/bi/purchy/dishonour-drilldown', { params: requestParams });
-        if (!cancelled) {
-          setData(res);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err?.response?.data?.message || 'Failed to load dishonour drilldown.');
-          setData(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [requestParams, enabled]);
+  const { data, loading, error } = usePurchyCachedGet(
+    '/bi/purchy/dishonour-drilldown',
+    requestParams,
+    {
+      enabled,
+      errorMessage: 'Failed to load dishonour drilldown.',
+      aliasKeys: (res, params) => {
+        if (!res?.selectedSociety) return [];
+        const next = { ...(params || {}) };
+        delete next.autoSelect;
+        next.selectedSociety = res.selectedSociety;
+        next.selectedVillage = res.selectedVillage || undefined;
+        return [next];
+      },
+    },
+  );
 
   const staticFallback = DISHONOUR_DRILLDOWN;
 

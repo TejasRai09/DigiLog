@@ -1,9 +1,7 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
-const { slugId, pctRatio, LOYALTY_COLORS, VARIETY_COLORS } = require('./purchyDrilldownUtils');
-const {
-  gsFromIndent,
-} = require('./purchyPbiFacts');
+const { slugId, pctRatio, LOYALTY_COLORS, VARIETY_HEX } = require('./purchyDrilldownUtils');
+const { query2025FactsGrouped } = require('./purchyPbiFacts');
 
 const HIERARCHY_COLS = [
   { key: 'zone', col: 'zone_head', title: 'ZONE HEAD' },
@@ -92,8 +90,9 @@ async function loadStaffByVillage() {
   `);
   const map = new Map();
   for (const r of rows) {
-    if (r.village_code == null || map.has(r.village_code)) continue;
-    map.set(r.village_code, r);
+    const code = Number(r.village_code);
+    if (!Number.isFinite(code) || map.has(code)) continue;
+    map.set(code, r);
   }
   return map;
 }
@@ -102,64 +101,35 @@ async function getStaffDrilldown(query) {
   const ctx = buildFilterContext(query);
   const factCtx = ctx.needsStaff ? ensureStaffJoin(ctx) : ctx;
 
-  const unfiltered = !factCtx.whereSql && !factCtx.joins;
-
-  const indentSql = unfiltered
-    ? `SELECT gs.village_code AS village_code,
-        SUM(gs.no_of_purchy_indent) AS indent_cnt,
-        COUNT(DISTINCT gs.grower_code) AS grower_count
-       FROM purchy_grower_summary gs
-       GROUP BY gs.village_code`
-    : `SELECT
-        gs.village_code,
-        MAX(gs.village_name_key) AS village_name_key,
-        SUM(gs.no_of_purchy_indent) AS indent_cnt,
-        COUNT(DISTINCT gs.grower_code) AS grower_count
-      FROM purchy_grower_summary_v gs
-      ${factCtx.joins}
-      ${factCtx.whereSql}
-      GROUP BY gs.village_code`;
-
-  const dishonourSql = unfiltered
-    ? `SELECT gs.village_code AS village_code, SUM(gs.no_of_indent_failer_purchy) AS dishonour_cnt
-       FROM purchy_grower_summary gs
-       GROUP BY gs.village_code`
-    : `SELECT
-        gs.village_code,
-        SUM(gs.no_of_indent_failer_purchy) AS dishonour_cnt
-      FROM purchy_grower_summary_v gs
-      ${factCtx.joins}
-      ${factCtx.whereSql}
-      GROUP BY gs.village_code`;
-
-  const [indentRows, dishonourRows, staffByVillage] = await Promise.all([
-    pool.query(indentSql, factCtx.params).then(([rows]) => rows),
-    pool.query(dishonourSql, factCtx.params).then(([rows]) => rows),
+  /**
+   * Tree uses PBI measures from _Measures.tmdl:
+   *   2025_Indent Count     = COUNTROWS(Indent RELATED to Grower_Summary_Sheet)
+   *   2025_Dishonour Count  = COUNTROWS(Dishonour RELATED to Indent AND Summary)
+   *   2025_Dishonour % (Count) = DIVIDE(dishonour, indent)
+   * Visual-level filter on the PBI tree: Zone Head is not blank.
+   */
+  const [villageFacts, staffByVillage] = await Promise.all([
+    query2025FactsGrouped(factCtx, 'gs.village_code'),
     loadStaffByVillage(),
   ]);
 
-  const dhByVillage = new Map();
-  for (const r of dishonourRows) {
-    dhByVillage.set(Number(r.village_code), Number(r.dishonour_cnt) || 0);
-  }
-
-  const flatRows = indentRows.map((r) => {
-    const villageCode = Number(r.village_code);
-    const staff = staffByVillage.get(villageCode);
+  const flatRows = villageFacts.map((r) => {
+    const villageCode = Number(r.grp);
+    const staff = Number.isFinite(villageCode) ? staffByVillage.get(villageCode) : undefined;
     const villageNameKey = staff
-      ? `${staff.village_code}-${staff.village_name || ''}`.replace(/-$/, '') || r.village_name_key
-      : r.village_name_key;
+      ? `${staff.village_code}-${staff.village_name || ''}`.replace(/-$/, '')
+      : null;
     return {
       zone_head: staffLabel(staff?.zone_head),
       zonal_manager: staffLabel(staff?.zonal_manager),
       zonal_incharge: staffLabel(staff?.zonal_incharge),
       village_staff: staffLabel(staff?.village_staff),
       village_name_key: villageNameKey || 'Unassigned',
-      grower_count: Number(r.grower_count) || 0,
-      indent_cnt: Number(r.indent_cnt) || 0,
-      dishonour_cnt: dhByVillage.get(villageCode) || 0,
+      grower_count: 0,
+      indent_cnt: r.indentCount,
+      dishonour_cnt: r.dishonourCount,
     };
-  });
+  }).filter((r) => r.zone_head !== 'Unassigned');
 
   const nestedTree = nestHierarchyRows(flatRows);
 
@@ -176,23 +146,30 @@ async function getStaffDrilldown(query) {
       chartCtx.params,
     ).then(([rows]) => rows),
     pool.query(
-      unfiltered
-        ? `SELECT COALESCE(NULLIF(TRIM(varietyname), ''), 'Unknown') AS name, COUNT(*) AS cnt
-           FROM purchy_supply
-           GROUP BY name
-           ORDER BY cnt DESC
-           LIMIT 5`
-        : `SELECT
+      /**
+       * PBI treemap: CountNonNull(Grower_Purchywise_Supply[SocietyPurchyNo]) by varietyname.
+       * Relationship is Indent (text purchy no) → Supply (text). Summary is applied only
+       * when slicers are on, matching filter flow Summary → Indent → Supply.
+       */
+      chartCtx.whereSql || chartCtx.joins
+        ? `SELECT
             COALESCE(NULLIF(TRIM(s.varietyname), ''), 'Unknown') AS name,
-            COUNT(*) AS cnt
+            COUNT(s.societypurchy_no) AS cnt
           FROM purchy_supply s
+          INNER JOIN purchy_indent i ON s.societypurchy_no = i.societypurchy_no
           INNER JOIN purchy_grower_summary_v gs
-            ON s.villagecode = gs.village_code AND s.growercode = gs.grower_code
+            ON i.villagecode = gs.village_code AND i.growercode = gs.grower_code
           ${chartCtx.joins}
           ${chartCtx.whereSql}
           GROUP BY name
-          ORDER BY cnt DESC
-          LIMIT 5`,
+          ORDER BY cnt DESC`
+        : `SELECT
+            COALESCE(NULLIF(TRIM(s.varietyname), ''), 'Unknown') AS name,
+            COUNT(s.societypurchy_no) AS cnt
+          FROM purchy_supply s
+          INNER JOIN purchy_indent i ON s.societypurchy_no = i.societypurchy_no
+          GROUP BY name
+          ORDER BY cnt DESC`,
       chartCtx.params,
     ).then(([rows]) => rows),
     pool.query(
@@ -222,12 +199,16 @@ async function getStaffDrilldown(query) {
   });
 
   const varietyTotal = varietyRows.reduce((s, r) => s + Number(r.cnt), 0) || 1;
-  const varietyTreemap = varietyRows.map((r, idx) => ({
-    name: r.name,
-    share: Math.round((Number(r.cnt) / varietyTotal) * 100),
-    color: VARIETY_COLORS[idx % VARIETY_COLORS.length],
-    count: `${(Number(r.cnt) / 1000).toFixed(1)}K`,
-  }));
+  const varietyTreemap = varietyRows.map((r, idx) => {
+    const cnt = Number(r.cnt) || 0;
+    return {
+      name: r.name,
+      share: Number(((cnt / varietyTotal) * 100).toFixed(2)),
+      color: VARIETY_HEX[idx % VARIETY_HEX.length],
+      count: cnt >= 1000 ? `${(cnt / 1000).toFixed(1)}K` : String(cnt),
+      cnt,
+    };
+  });
 
   return {
     rootPct: pctRatio(nestedTree.dishonourCnt, nestedTree.indentCnt),
@@ -242,16 +223,67 @@ async function getStaffDrilldown(query) {
       societyName: societyOpts.map((r) => r.value).filter(Boolean),
       loyaltySlicer: loyaltyRows.map((r) => r.label),
     },
-    hasStaffData: flatRows.some((r) => (
-      r.zone_head !== 'Unassigned'
-      || r.zonal_manager !== 'Unassigned'
-      || r.zonal_incharge !== 'Unassigned'
-      || r.village_staff !== 'Unassigned'
-    )),
+    hasStaffData: flatRows.length > 0,
   };
+}
+
+/**
+ * PBI table above the variety treemap:
+ * Varietytype + 2025_Indent / Supply / Dishonour Count / % / Qty.
+ * Clicking a varietyname tile filters Supply → Indent (same as this extraSql).
+ */
+async function getVarietyTypeBreakdown(query) {
+  const ctx = buildFilterContext(query);
+  const factCtx = ctx.needsStaff ? ensureStaffJoin(ctx) : ctx;
+  const varietyName = String(query.varietyName || '').trim();
+  const hasVariety = varietyName && varietyName !== 'All';
+
+  const groupedCtx = hasVariety
+    ? { ...factCtx, params: [...(factCtx.params || []), varietyName] }
+    : factCtx;
+  const extraSql = hasVariety
+    ? `EXISTS (
+         SELECT 1 FROM purchy_supply sv
+         WHERE sv.societypurchy_no = i.societypurchy_no
+           AND TRIM(sv.varietyname) = ?
+       )`
+    : '';
+
+  const rows = await query2025FactsGrouped(
+    groupedCtx,
+    `COALESCE(NULLIF(TRIM(i.varietytype), ''), 'Unknown')`,
+    extraSql,
+  );
+
+  const mapped = rows
+    .filter((r) => r.indentCount > 0 || r.supplyCount > 0 || r.dishonourCount > 0)
+    .sort((a, b) => b.indentCount - a.indentCount)
+    .map((r) => ({
+      varietyType: r.grp,
+      indentCount: r.indentCount,
+      supplyCount: r.supplyCount,
+      dishonourCount: r.dishonourCount,
+      dishonourPctCount: r.dishonourPctCount,
+      dishonourQty: r.dishonourQty,
+    }));
+
+  const totals = mapped.reduce(
+    (acc, r) => {
+      acc.indentCount += r.indentCount;
+      acc.supplyCount += r.supplyCount;
+      acc.dishonourCount += r.dishonourCount;
+      acc.dishonourQty += r.dishonourQty;
+      return acc;
+    },
+    { indentCount: 0, supplyCount: 0, dishonourCount: 0, dishonourQty: 0 },
+  );
+  totals.dishonourPctCount = totals.indentCount ? totals.dishonourCount / totals.indentCount : 0;
+
+  return { varietyName: hasVariety ? varietyName : null, rows: mapped, totals };
 }
 
 module.exports = {
   getStaffDrilldown,
+  getVarietyTypeBreakdown,
   HIERARCHY_COLS,
 };

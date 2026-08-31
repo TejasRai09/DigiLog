@@ -594,7 +594,7 @@ export default function CentreMaturityDashboard() {
         </BiFilterBarLayout>
       </div>
 
-      <main className="max-w-[1600px] mx-auto px-4 py-4 space-y-4">
+      <main className="w-full px-3 py-4 sm:px-4 space-y-4">
 
         {/* ─── Top KPI Cards (Indent & Purchase Qty) ─────────────────── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

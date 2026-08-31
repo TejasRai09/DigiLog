@@ -21,7 +21,7 @@ function formatValue(val, format) {
 }
 
 export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = false }) {
-  if (loading) {
+  if (loading && !kpis) {
     const card = isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white';
     return (
       <div className={`flex shrink-0 items-center justify-center rounded-xl border shadow-sm ${card} ${compact ? 'h-16' : 'h-24'}`}>
@@ -39,6 +39,7 @@ export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = fal
           displayValue={formatValue(kpis?.[key], format)}
           value={100}
           pyValue={0}
+          hideComparison={true}
           isDarkMode={isDarkMode}
         />
       ))}

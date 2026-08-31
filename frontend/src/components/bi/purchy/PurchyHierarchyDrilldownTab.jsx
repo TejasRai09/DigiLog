@@ -5,7 +5,11 @@ import {
   MdExpandMore, MdHelpOutline, MdRefresh, MdTune,
 } from 'react-icons/md';
 import PurchyCurvedHierarchyTree from './PurchyCurvedHierarchyTree';
+import PurchyVarietyTreemap from './PurchyVarietyTreemap';
+import PurchyVarietyTypeTable from './PurchyVarietyTypeTable';
 import usePurchyStaffDrilldown from '../../../hooks/usePurchyStaffDrilldown';
+import usePurchyVarietyType from '../../../hooks/usePurchyVarietyType';
+import { purchyCacheKey } from '../../../hooks/purchyQueryCache';
 import Spinner from '../../Spinner';
 
 const DEFAULT_ZONE = 'region-2';
@@ -81,6 +85,7 @@ function FilterSelect({
 
 export default function PurchyHierarchyDrilldownTab({
   isDarkMode,
+  isActive = true,
   useLiveData = false,
   globalQueryParams = {},
 }) {
@@ -110,6 +115,18 @@ export default function PurchyHierarchyDrilldownTab({
   const [selectedIncharge, setSelectedIncharge] = useState(useLiveData ? null : DEFAULT_INCHARGE);
   const [selectedStaff, setSelectedStaff] = useState(useLiveData ? null : DEFAULT_STAFF);
   const [selectedVillage, setSelectedVillage] = useState(null);
+  const [selectedVariety, setSelectedVariety] = useState(null);
+
+  const varietyTypeParams = useMemo(
+    () => ({ ...queryParams, varietyName: selectedVariety }),
+    [queryParams, selectedVariety],
+  );
+  const {
+    data: varietyTypeData,
+    loading: varietyTypeLoading,
+  } = usePurchyVarietyType(varietyTypeParams, {
+    enabled: useLiveData && Boolean(selectedVariety),
+  });
 
   const treeKeyRef = useRef('');
   useEffect(() => {
@@ -161,10 +178,16 @@ export default function PurchyHierarchyDrilldownTab({
     setSelectedVillage((prev) => (prev === vId ? null : vId));
   };
 
+  const slicerKey = purchyCacheKey(queryParams);
+  useEffect(() => {
+    setSelectedVariety(null);
+  }, [slicerKey]);
+
   const handleResetTree = () => {
     setFilterVillage('All');
     setFilterSociety('All');
     setFilterLoyalty('All');
+    setSelectedVariety(null);
     if (treeRoot?.children?.length) {
       applySelection(useLiveData ? firstSelectableId(treeRoot.children) : DEFAULT_ZONE, treeRoot, {
         setSelectedZone, setSelectedManager, setSelectedIncharge, setSelectedStaff, setSelectedVillage,
@@ -272,13 +295,13 @@ export default function PurchyHierarchyDrilldownTab({
           rootValue={data?.rootValue || 0}
           rootSubtext={`${(totalGrowers / 1000).toFixed(1)}K Growers`}
           columns={treeColumns}
-          coordDeps={[selectedZone, selectedManager, selectedIncharge, selectedStaff, selectedVillage]}
+          coordDeps={[selectedZone, selectedManager, selectedIncharge, selectedStaff, selectedVillage, isActive]}
         />
       )}
 
-      <div className="grid shrink-0 grid-cols-1 gap-2 lg:grid-cols-12">
-        <div className={`lg:col-span-5 rounded-xl border p-4 shadow-sm ${card}`}>
-          <div className="mb-3 flex items-start justify-between">
+      <div className="grid shrink-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-12">
+        <div className={`flex min-h-[22rem] flex-col rounded-xl border p-4 shadow-sm lg:col-span-5 ${card}`}>
+          <div className="mb-3 flex shrink-0 items-start justify-between">
             <div>
               <h3 className={`text-sm font-extrabold ${titleText}`}>
                 Grower_Key by Loyalty_Slicer
@@ -287,42 +310,46 @@ export default function PurchyHierarchyDrilldownTab({
             </div>
             <MdHelpOutline className={`h-4 w-4 cursor-pointer ${muted} hover:text-violet-600`} />
           </div>
-          <div className="flex min-h-[160px] items-center justify-center gap-6 py-1">
+          <div className="grid min-h-0 flex-1 grid-cols-1 items-stretch gap-4 sm:grid-cols-[minmax(13rem,1fr)_minmax(12rem,1.15fr)]">
             {sectionLoading ? (
-              <Spinner size="lg" />
+              <div className="flex items-center justify-center sm:col-span-2">
+                <Spinner size="lg" />
+              </div>
             ) : (
               <>
-            <div className="relative h-40 w-40 shrink-0">
-              <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="36" fill="transparent" stroke={isDarkMode ? '#1e293b' : '#f1f5f9'} strokeWidth="14" />
-                {donutSegments.map((seg) => (
-                  <circle
-                    key={seg.label}
-                    cx="50"
-                    cy="50"
-                    r="36"
-                    fill="transparent"
-                    stroke={seg.color}
-                    strokeWidth="14"
-                    strokeDasharray={seg.dasharray}
-                    strokeDashoffset={seg.dashoffset}
-                    className="transition-all hover:stroke-[16]"
-                  />
-                ))}
-              </svg>
-              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-xl font-black ${titleText}`}>{(totalGrowers / 1000).toFixed(1)}K</span>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Growers</span>
+            <div className="flex items-center justify-center">
+              <div className="relative aspect-square w-full max-w-[20rem]">
+                <svg className="h-full w-full -rotate-90 transform" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="36" fill="transparent" stroke={isDarkMode ? '#1e293b' : '#f1f5f9'} strokeWidth="14" />
+                  {donutSegments.map((seg) => (
+                    <circle
+                      key={seg.label}
+                      cx="50"
+                      cy="50"
+                      r="36"
+                      fill="transparent"
+                      stroke={seg.color}
+                      strokeWidth="14"
+                      strokeDasharray={seg.dasharray}
+                      strokeDashoffset={seg.dashoffset}
+                      className="transition-all hover:stroke-[16]"
+                    />
+                  ))}
+                </svg>
+                <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span className={`text-3xl font-black sm:text-4xl ${titleText}`}>{(totalGrowers / 1000).toFixed(1)}K</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Growers</span>
+                </div>
               </div>
             </div>
-            <div className={`flex flex-1 flex-col gap-1.5 text-xs font-bold ${muted}`}>
+            <div className={`flex flex-col justify-evenly py-1 text-sm font-bold ${muted}`}>
               {(data?.loyaltyDonut || []).map((l) => (
-                <div key={l.label} className={`flex items-center justify-between rounded px-1 py-0.5 ${isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}>
-                  <div className="flex items-center gap-2">
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${l.tailwind}`} />
-                    <span>{l.label}</span>
+                <div key={l.label} className={`flex items-center justify-between rounded-md px-1.5 py-1.5 ${isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}>
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${l.tailwind}`} />
+                    <span className="truncate">{l.label}</span>
                   </div>
-                  <span className={`ml-2 tabular-nums ${titleText}`}>{(l.count / 1000).toFixed(1)}K</span>
+                  <span className={`ml-3 shrink-0 tabular-nums ${titleText}`}>{(l.count / 1000).toFixed(1)}K</span>
                 </div>
               ))}
             </div>
@@ -331,38 +358,35 @@ export default function PurchyHierarchyDrilldownTab({
           </div>
         </div>
 
-        <div className={`lg:col-span-7 rounded-xl border p-4 shadow-sm ${card}`}>
+        <div className={`flex min-h-[22rem] flex-col rounded-xl border p-4 shadow-sm lg:col-span-7 ${card}`}>
           <div className="mb-3 flex items-start justify-between">
             <div>
               <h3 className={`text-sm font-extrabold ${titleText}`}># Purchy by varietyname</h3>
-              <p className={`mt-0.5 text-[10px] ${muted}`}>Top production distribution</p>
+              <p className={`mt-0.5 text-[10px] ${muted}`}>Ranked by supply purchy count</p>
             </div>
-            <span className="cursor-pointer text-xs font-black text-violet-600 hover:underline dark:text-violet-400">Drilldown</span>
+            <span className={`text-[10px] font-bold ${muted}`}>{data?.varietyTreemap?.length || 0} varieties</span>
           </div>
-          <div className="grid h-40 grid-cols-10 gap-2">
-            {sectionLoading ? (
-              <div className="col-span-10 flex items-center justify-center">
-                <Spinner size="lg" />
-              </div>
-            ) : (
-              (data?.varietyTreemap || []).map((v, idx) => {
-              const colSpan = idx === 0 ? 3 : idx === 4 ? 1 : 2;
-              return (
-                <div
-                  key={v.name}
-                  className={`${v.color} flex cursor-pointer flex-col justify-between rounded-lg p-2.5 text-white transition-transform hover:scale-[1.01]`}
-                  style={{ gridColumn: `span ${colSpan}` }}
-                >
-                  <span className="text-xs font-black">{v.name}</span>
-                  <span className="text-[9px] opacity-80">
-                    {v.share}
-                    % Share
-                  </span>
-                </div>
-              );
-              })
-            )}
-          </div>
+          {sectionLoading ? (
+            <div className="flex h-44 items-center justify-center">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <PurchyVarietyTypeTable
+                rows={selectedVariety ? (varietyTypeData?.rows || []) : []}
+                totals={selectedVariety ? varietyTypeData?.totals : null}
+                loading={Boolean(selectedVariety) && varietyTypeLoading}
+                varietyName={selectedVariety}
+                isDarkMode={isDarkMode}
+              />
+              <PurchyVarietyTreemap
+                items={data?.varietyTreemap || []}
+                isDarkMode={isDarkMode}
+                selectedName={selectedVariety}
+                onSelect={setSelectedVariety}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -10,6 +10,7 @@ import ManagementDashboardUploadSection from '../components/ManagementDashboardU
 import ManagementDashboardImportProgressModal from '../components/ManagementDashboardImportProgressModal';
 import MillingDashboardUploadSection from '../components/MillingDashboardUploadSection';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
+import { clearPurchyQueryCache } from '../hooks/purchyQueryCache';
 
 const PURCHY_CATEGORIES = new Set([
   'Purchy Analysis — Grower Details',
@@ -115,6 +116,7 @@ export default function DataIngestionCenter() {
           importType={purchyImport.type}
           onClose={() => setPurchyImport(null)}
           onComplete={() => {
+            clearPurchyQueryCache();
             toast.success('Purchy data imported. Open Purchy Analysis in Live mode.');
             fetchFiles();
             setPurchyRefresh((n) => n + 1);

@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
-import api from '../api/axios';
+import { usePurchyCachedGet } from './purchyQueryCache';
 
 export default function usePurchyDishonour(queryParams, { enabled = true } = {}) {
-  const [kpis, setKpis] = useState(null);
-  const [detail, setDetail] = useState({ rows: [], total: 0, page: 1, pageSize: 100 });
-  const [loadingKpis, setLoadingKpis] = useState(enabled);
-  const [loadingDetail, setLoadingDetail] = useState(enabled);
-  const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
@@ -14,66 +9,31 @@ export default function usePurchyDishonour(queryParams, { enabled = true } = {})
     setPage(1);
   }, [queryParams, pageSize]);
 
-  useEffect(() => {
-    if (!enabled) {
-      setLoadingKpis(false);
-      return undefined;
-    }
+  const kpiQ = usePurchyCachedGet(
+    '/bi/purchy/dishonour/kpis',
+    queryParams,
+    {
+      enabled,
+      errorMessage: 'Failed to load KPIs.',
+    },
+  );
 
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoadingKpis(true);
-        const { data } = await api.get('/bi/purchy/dishonour/kpis', { params: queryParams });
-        if (!cancelled) {
-          setKpis(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err?.response?.data?.message || 'Failed to load KPIs.');
-        }
-      } finally {
-        if (!cancelled) setLoadingKpis(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [queryParams, enabled]);
-
-  useEffect(() => {
-    if (!enabled) {
-      setLoadingDetail(false);
-      return undefined;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoadingDetail(true);
-        const { data } = await api.get('/bi/purchy/dishonour/detail', {
-          params: { ...queryParams, page, pageSize },
-        });
-        if (!cancelled) {
-          setDetail(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err?.response?.data?.message || 'Failed to load detail.');
-        }
-      } finally {
-        if (!cancelled) setLoadingDetail(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [queryParams, page, pageSize, enabled]);
+  const detailQ = usePurchyCachedGet(
+    '/bi/purchy/dishonour/detail',
+    { ...queryParams, page, pageSize },
+    {
+      enabled,
+      initialData: { rows: [], total: 0, page: 1, pageSize: 100 },
+      errorMessage: 'Failed to load detail.',
+    },
+  );
 
   return {
-    kpis,
-    detail,
-    loadingKpis,
-    loadingDetail,
-    error,
+    kpis: kpiQ.data,
+    detail: detailQ.data || { rows: [], total: 0, page: 1, pageSize: 100 },
+    loadingKpis: kpiQ.loading,
+    loadingDetail: detailQ.loading,
+    error: kpiQ.error || detailQ.error,
     page,
     setPage,
     pageSize,
