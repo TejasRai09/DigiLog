@@ -4,7 +4,7 @@ import { MdClose, MdPhotoCamera } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
-import { mediaUrl } from '../utils/mediaUrl';
+import AuthenticatedImage from './AuthenticatedImage';
 import { getCroppedImgBlob } from '../utils/cropImage';
 
 const MAX_FILE_BYTES = 450 * 1024;
@@ -110,11 +110,11 @@ const ProfileModal = ({ user, onClose, onAvatarSaved }) => {
     }
   };
 
-  const avatarSrc = mediaUrl(user?.avatar);
+  const avatarSrc = user?.avatar;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-4">
-      <div className="card w-full max-w-md shadow-xl relative">
+    <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="card relative w-full max-w-md rounded-t-2xl shadow-xl sm:rounded-xl">
         <button
           type="button"
           onClick={handleOverlayClose}
@@ -175,7 +175,7 @@ const ProfileModal = ({ user, onClose, onAvatarSaved }) => {
           <div className="px-8 pt-10 pb-6 text-center">
             <div className="mx-auto mb-5 h-28 w-28 rounded-full overflow-hidden bg-gray-100 ring-4 ring-white shadow-md">
               {avatarSrc ? (
-                <img src={avatarSrc} alt="" className="h-full w-full object-cover object-center" />
+                <AuthenticatedImage src={avatarSrc} alt="" className="h-full w-full object-cover object-center" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-blue-600 text-3xl font-bold uppercase text-white">
                   {user?.name?.[0] ?? '?'}

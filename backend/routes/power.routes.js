@@ -2,7 +2,9 @@ const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
 const ctrl = require('../controllers/power.controller');
 
+router.get('/lookup',               authenticate, ctrl.lookupEquipment);
 router.get('/',                     authenticate, ctrl.listEquipment);
+router.post('/',                    authenticate, ctrl.createEquipment);
 router.get('/:id',                  authenticate, ctrl.getEquipment);
 router.put('/:id',                  authenticate, ctrl.updateEquipment);
 router.put('/:id/image/:type',      authenticate, ctrl.uploadImage);

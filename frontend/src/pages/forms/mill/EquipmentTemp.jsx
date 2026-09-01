@@ -1,19 +1,24 @@
 import { useMemo, useState } from 'react';
-import { MdSave } from 'react-icons/md';
-import FormPageHeader from '../../../components/FormPageHeader';
+import { MdThermostat } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import {
+  MillDateShiftCard,
+  PowerCategoryRow,
+  PowerFormCard,
+  PowerFormPage,
+  PowerMetricField,
+  usePowerCollapseAll,
+} from '../../../components/power/PowerLogbookFormUI';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
-import Spinner from '../../../components/Spinner';
-import LegacyNumField from '../../../components/LegacyNumField';
-import ReportDateFields from '../../../components/ReportDateFields';
 import { buildEquipmentTempReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
-const SHIFTS = ['A', 'B', 'C', 'G'];
+const SHIFTS = ['A', 'B', 'C'];
 
-/** Row labels / placeholders — milling_logbook1.html */
+const EQUIP_TONES = ['green', 'orange', 'purple', 'amber', 'blue', 'indigo', 'pink', 'teal', 'cyan', 'rose', 'slate', 'green', 'orange'];
+
 const equipList = [
   { key: 'CaneKeig', label: 'Cane Kicker' },
   { key: 'CardDrum1', label: 'Cardian Drum 1' },
@@ -31,15 +36,15 @@ const equipList = [
 ];
 
 const TEMP_FIELDS = [
-  { suffix: 'MtrTemp', placeholder: 'Motor Temp' },
-  { suffix: 'GearTempDE', placeholder: 'Gear Temp (DE)' },
-  { suffix: 'GearTempNDE', placeholder: 'Gear Temp (NDE)' },
-  { suffix: 'BearTempDE', placeholder: 'Bearing Temp (DE)' },
-  { suffix: 'BearTempNDE', placeholder: 'Bearing Temp (NDE)' },
+  { suffix: 'MtrTemp', label: 'Motor Temp (DE)' },
+  { suffix: 'GearTempDE', label: 'Gear Box BRG Temp (DE)' },
+  { suffix: 'GearTempNDE', label: 'Gear Box BRG Temp (NDE)' },
+  { suffix: 'BearTempDE', label: 'PB BRG Temp (DE)' },
+  { suffix: 'BearTempNDE', label: 'PB BRG Temp (NDE)' },
 ];
 
 const buildInitial = () => {
-  const init = { date: '', shift: '', time: '' };
+  const init = { date: '', shift: '' };
   equipList.forEach(({ key }) => {
     TEMP_FIELDS.forEach(({ suffix }) => {
       init[`${key}_${suffix}`] = '';
@@ -49,9 +54,11 @@ const buildInitial = () => {
 };
 
 const INITIAL = buildInitial();
+const F = PowerMetricField;
 
 const EquipmentTemp = () => {
   const [form, setForm] = useState(INITIAL);
+  const { collapseAll, toggleCollapseAll } = usePowerCollapseAll();
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
@@ -78,57 +85,52 @@ const EquipmentTemp = () => {
   );
 
   return (
-    <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
-      <FormPageHeader formKey="mill_logbook1" fallbackTitle="Equipment Temperature" />
+    <>
+      <PowerFormPage
+        formKey="mill_logbook1"
+        fallbackTitle="Equipment Temperature"
+        title="Equipment Temperature"
+        onClear={() => setForm(INITIAL)}
+        submitting={submitting}
+        formId="mill-logbook-form"
+      >
+        <form id="mill-logbook-form" onSubmit={openReview} className="space-y-0">
+          <MillDateShiftCard
+            dateValue={form.date}
+            shiftValue={form.shift}
+            onChange={handleChange}
+            shifts={SHIFTS}
+          />
 
-      <form onSubmit={openReview} className="space-y-4">
-        <div className="form-section">
-          <div className="form-row flex-wrap gap-6 items-end">
-            <ReportDateFields
-              dateValue={form.date}
-              timeValue={form.time}
-              onChange={handleChange}
-              dateRequired
-            />
-            <div>
-              <label className="label">Shift:<span className="text-red-500 ml-0.5">*</span></label>
-              <select name="shift" value={form.shift} onChange={handleChange} required className="input">
-                <option value="">— Select —</option>
-                {SHIFTS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <h3 className="section-title">Equipments </h3>
-          {equipList.map(({ key, label }) => (
-            <div key={key} className="mb-5 last:mb-0">
-              <p className="text-sm font-semibold text-gray-800 mb-2">{`${label}:`}</p>
-              <div className="form-row">
-                {TEMP_FIELDS.map(({ suffix, placeholder }) => (
-                  <LegacyNumField
+          <PowerFormCard
+            icon={MdThermostat}
+            title="Equipments:"
+            collapseAll={collapseAll}
+            onToggleCollapseAll={toggleCollapseAll}
+          >
+            {equipList.map(({ key, label }, idx) => (
+              <PowerCategoryRow
+                key={key}
+                icon={MdThermostat}
+                tone={EQUIP_TONES[idx % EQUIP_TONES.length]}
+                title={`${label}:`}
+                columns="sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+              >
+                {TEMP_FIELDS.map(({ suffix, label: fieldLabel }) => (
+                  <F
                     key={`${key}_${suffix}`}
-                    label=""
+                    label={fieldLabel}
                     name={`${key}_${suffix}`}
                     value={form[`${key}_${suffix}`]}
                     onChange={handleChange}
-                    placeholder={placeholder}
+                    placeholder={fieldLabel}
                   />
                 ))}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={() => setForm(INITIAL)} className="btn-secondary">Reset</button>
-          <button type="submit" disabled={submitting} className="btn-primary px-8">
-            {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            {submitting ? 'Submitting…' : 'Submit'}
-          </button>
-        </div>
-      </form>
+              </PowerCategoryRow>
+            ))}
+          </PowerFormCard>
+        </form>
+      </PowerFormPage>
 
       {reviewConfig ? (
         <FormReviewModal
@@ -139,7 +141,7 @@ const EquipmentTemp = () => {
           {...reviewConfig}
         />
       ) : null}
-    </main>
+    </>
   );
 };
 

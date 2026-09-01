@@ -2,15 +2,42 @@ const fs = require('fs');
 const path = require('path');
 
 const UPLOADS_ROOT = path.join(__dirname, '..', 'uploads');
+const AVATAR_DIR = path.join(UPLOADS_ROOT, 'avatars');
+
+/** @param {string|null|undefined} stored */
+function resolveAvatarAbsPath(stored) {
+  if (!stored || typeof stored !== 'string') return null;
+  if (stored.startsWith('data:')) return null;
+
+  let rel = stored.replace(/\\/g, '/');
+  if (rel.startsWith('/uploads/')) rel = rel.slice('/uploads/'.length);
+  if (rel.startsWith('uploads/')) rel = rel.slice('uploads/'.length);
+  if (!rel.startsWith('avatars/')) {
+    if (!rel.includes('/')) rel = `avatars/${rel}`;
+    else return null;
+  }
+
+  const abs = path.normalize(path.join(UPLOADS_ROOT, rel));
+  const avatarsRoot = path.normalize(AVATAR_DIR + path.sep);
+  if (!abs.startsWith(avatarsRoot)) return null;
+  return abs;
+}
 
 /** @param {string|null|undefined} stored */
 function unlinkStoredAvatar(stored) {
-  if (!stored || typeof stored !== 'string') return;
-  if (!stored.startsWith('/uploads/')) return;
-  const rel = stored.replace(/^\/uploads\//, '');
-  const abs = path.join(UPLOADS_ROOT, rel);
-  if (!abs.startsWith(UPLOADS_ROOT)) return;
+  const abs = resolveAvatarAbsPath(stored);
+  if (!abs) return;
   fs.unlink(abs, () => {});
 }
 
-module.exports = { unlinkStoredAvatar, UPLOADS_ROOT };
+function avatarStorageKey(filename) {
+  return `avatars/${path.basename(filename)}`;
+}
+
+module.exports = {
+  unlinkStoredAvatar,
+  resolveAvatarAbsPath,
+  avatarStorageKey,
+  UPLOADS_ROOT,
+  AVATAR_DIR,
+};

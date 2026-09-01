@@ -38,6 +38,11 @@ export const DISTILLERY_CALCULATED_DB_KEYS = new Set([
 
 export function formatRecordCellForDisplay(dbKey, value, formKey = null) {
   if (value === null || value === undefined) return '';
+  if (typeof value === 'string' && value.startsWith('data:image/')) return 'Photo attached';
+  if (typeof value === 'string' && value.startsWith('data:')) {
+    if (dbKey === 'hod_signoff_file') return 'File attached';
+    if (value.startsWith('data:application/')) return 'File attached';
+  }
   if (
     formKey === 'distillery_ops' &&
     DISTILLERY_CALCULATED_DB_KEYS.has(dbKey) &&
@@ -75,11 +80,11 @@ const M1_EQUIP = [
   { key: 'Mill4', label: 'Mill 4' },
 ];
 const M1_TEMPS = [
-  ['MtrTemp', 'Motor Temp'],
-  ['GearTempDE', 'Gear Temp (DE)'],
-  ['GearTempNDE', 'Gear Temp (NDE)'],
-  ['BearTempDE', 'Bearing Temp (DE)'],
-  ['BearTempNDE', 'Bearing Temp (NDE)'],
+  ['MtrTemp', 'Motor Temp (DE)'],
+  ['GearTempDE', 'Gear Box BRG Temp (DE)'],
+  ['GearTempNDE', 'Gear Box BRG Temp (NDE)'],
+  ['BearTempDE', 'PB BRG Temp (DE)'],
+  ['BearTempNDE', 'PB BRG Temp (NDE)'],
 ];
 
 function schemaMillLogbook1() {
@@ -103,30 +108,30 @@ function schemaMillLogbook2() {
   push(a, 'Shift', 'GSMA Mill Logbook', 'Shift');
   push(a, 'Time', 'GSMA Mill Logbook', 'Time');
   const sr = [
-    ['shredR_MtrTemp', 'Motor Temp'],
-    ['shredR_BearTempSite', 'Bearing Temp (Site)'],
-    ['shredR_BearTempDCS', 'Bearing Temp (DCS)'],
-    ['shredR_VibH', 'Vibrations-H'],
-    ['shredR_VibV', 'Vibrations-V'],
-    ['shredR_VibA', 'Vibrations-A'],
+    ['shredR_MtrTemp', 'Motor BRG Temp [RHS]'],
+    ['shredR_BearTempSite', 'Bearing Temp (DCS) [RHS]'],
+    ['shredR_BearTempDCS', 'Bearing Temp (Site) [RHS]'],
+    ['shredR_VibH', 'Vibrations-H [RHS]'],
+    ['shredR_VibV', 'Vibrations-V [RHS]'],
+    ['shredR_VibA', 'Vibrations-A [RHS]'],
   ];
   const sl = [
-    ['shredL_MtrTemp', 'Motor Temp'],
-    ['shredL_BearTempSite', 'Bearing Temp (Site)'],
-    ['shredL_BearTempDCS', 'Bearing Temp (DCS)'],
-    ['shredL_VibH', 'Vibrations-H'],
-    ['shredL_VibV', 'Vibrations-V'],
-    ['shredL_VibA', 'Vibrations-A'],
+    ['shredL_MtrTemp', 'Motor BRG Temp [LHS]'],
+    ['shredL_BearTempSite', 'Bearing Temp (DCS) [LHS]'],
+    ['shredL_BearTempDCS', 'Bearing Temp (Site) [LHS]'],
+    ['shredL_VibH', 'Vibrations-H [LHS]'],
+    ['shredL_VibV', 'Vibrations-V [LHS]'],
+    ['shredL_VibA', 'Vibrations-A [LHS]'],
   ];
   for (const [k, s] of sr) push(a, k, 'Shredder RHS', s);
   for (const [k, s] of sl) push(a, k, 'Shredder LHS', s);
   const rollers = [
-    ['InpT', 'Input-T'],
-    ['InpM', 'Input-M'],
-    ['IntT', 'Intermediate-T'],
-    ['IntM', 'Intermediate-M'],
-    ['OutT', 'Output-T'],
-    ['OutM', 'Output-M'],
+    ['InpM', 'Input - Mill Side'],
+    ['InpT', 'Input - Turbine Side'],
+    ['IntM', 'Intermediate - Mill Side'],
+    ['IntT', 'Intermediate - Turbine Side'],
+    ['OutM', 'Output - Mill Side'],
+    ['OutT', 'Output - Turbine Side'],
   ];
   for (let n = 1; n <= 4; n++) {
     for (const [suf, sub] of rollers) {
@@ -211,6 +216,7 @@ function schemaDSLogbook() {
   push(a, 'Bag_Pol', 'Bagasse', 'Pol');
   push(a, 'Bag_Moisture', 'Bagasse', 'Moisture');
   push(a, 'FCake_Pol', 'Filter Cake', 'Filter Cake Pol');
+  push(a, 'DecanterMud_Pol', 'Decanter Mud Pol', 'Decanter Mud Pol');
   push(a, 'MillDrain_Pol', 'Drains', 'Mill Drain Pol');
   push(a, 'BoilHouseDrain_Pol', 'Drains', 'Boil House Drain Pol');
   push(a, 'timestamp', 'System', 'Recorded at');
@@ -419,13 +425,14 @@ function schemaPhPower() {
   push(a, 'PowerCon70TPH', 'Power to Sugar (Breakup)', 'Power Consumption 70TPH');
   push(a, 'PowerConETP', 'Power to Sugar (Breakup)', 'Power Consp. ETP');
   push(a, 'PowerConColony', 'Power to Sugar (Breakup)', 'Power Consp. Colony');
+  push(a, 'PowerConSugarCPU', 'Power to Sugar (Breakup)', 'Sugar CPU');
   push(a, 'PowerConOthers', 'Power to Sugar (Breakup)', 'Power Consp. Others');
   push(a, 'ExportCogen30', 'Power to Cogen (Aux Consp)', '30.85MW STG');
   push(a, 'ExportCogen3Old', 'Power to Cogen (Aux Consp)', '3MW STG (O)');
   push(a, 'ExportCogen3New', 'Power to Cogen (Aux Consp)', '3MW STG (N)');
   push(a, 'ExportCogen4', 'Power to Cogen (Aux Consp)', '4MW STG');
   push(a, 'ExportDist30', 'Power to Distillery from 30MW', '30.85MW STG');
-  push(a, 'remark', 'Remark', 'Remark');
+  push(a, 'remark', 'Remark', 'General remarks');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
 }
@@ -476,6 +483,8 @@ function schemaPhSteam() {
   push(a, 'StmMillTurbine110_45ATAPRDS', '150 TPH — Stage 2', 'Steam to Mill Turbine through 110/45 ATA PRDS');
   push(a, 'StmtoDistil110_45ATAPRDS_o', '150 TPH — Stage 2', 'Steam to Distillery Process through 110/45 ATA PRDS');
   push(a, 'Stm4MWTG110_45ATAPRDS', '150 TPH — Stage 2', 'Steam to 4MW TG through 110/45 ATA PRDS');
+  push(a, 'DSHWater110_3ATA', '150 TPH — Stage 2', 'DSH Water to 110/3 ATA Steam');
+  push(a, 'DSHWater110_45ATA', '150 TPH — Stage 2', 'DSH Water to 110/45 ATA Steam');
   push(a, 'ExtractionStm30MW', '150 TPH — Stage 3', 'Extraction Steam from 30MW TG');
   push(a, 'Bleed2HPH1Stm', '150 TPH — Stage 3', 'Bleed 2 to HP H1 Steam');
   push(a, 'Bleed1HPH2Stm', '150 TPH — Stage 3', 'Bleed 1 to HP H2 Steam');
@@ -488,6 +497,7 @@ function schemaPhSteam() {
   push(a, 'StmCons3New35', '70 TPH — Stage 2', 'Steam Consp. 3 MW TG New');
   push(a, 'StmDist70', '70 TPH — Stage 2', 'Steam to Distillery Process from 70 TPH');
   push(a, 'Stmto4_70TPH', '70 TPH — Stage 2', 'Steam to 4 MW Turbine from 70 TPH');
+  push(a, 'DSHWater2ATA', '70 TPH — Stage 2', 'DSH Water to 2 ATA Steam');
   push(a, 'TotalStmtoSug70', '70 TPH — Stage 3', 'Total Steam to Sugar');
   push(a, 'Firewood70', '70 TPH — Fuel Consumption', 'Firewood (MT)');
   push(a, 'Baggase70', '70 TPH — Fuel Consumption', 'Baggase (MT)');
@@ -495,6 +505,7 @@ function schemaPhSteam() {
   push(a, 'StmCons4', '35 TPH — Stage 2', 'Steam Consumption 4 MW Turbine');
   push(a, 'StmCons45_55ATAPRDS', '35 TPH — Stage 2', 'Steam through 45/5.5 ATA Process PRDS');
   push(a, 'Stm45_55ATADeareatorEjectorPRDS', '35 TPH — Stage 2', 'Steam through 45/5.5 ATA Deareator & Ejector PRDS');
+  push(a, 'DSHWater5_5ATA', '35 TPH — Stage 2', 'DSH Water to 5.5 ATA Steam');
   push(a, 'Extractionstm4', '35 TPH — Stage 3', 'Extraction steam from 4MW TG');
   push(a, 'TotalStmdistil', '35 TPH — Stage 4', 'Total Steam to distillery process');
   push(a, 'StmtoEjector', '35 TPH — Stage 4', 'Steam to Ejector');
@@ -514,10 +525,15 @@ function schemaPhStoppage() {
   push(a, 'start_time', 'GSMA Power — Stoppages', 'From');
   push(a, 'end_Time', 'GSMA Power — Stoppages', 'To');
   push(a, 'section', 'GSMA Power — Stoppages', 'Section');
+  push(a, 'section_specify', 'GSMA Power — Stoppages', 'Please specify Section');
   push(a, 'sub_section', 'GSMA Power — Stoppages', 'Sub-Section');
+  push(a, 'sub_section_specify', 'GSMA Power — Stoppages', 'Please specify Sub-Section');
   push(a, 'machinery', 'GSMA Power — Stoppages', 'Machinery');
+  push(a, 'machinery_specify', 'GSMA Power — Stoppages', 'Please specify Machinery');
   push(a, 'category', 'GSMA Power — Stoppages', 'Category');
-  push(a, 'remarks', 'GSMA Power — Stoppages', 'Remark');
+  push(a, 'category_specify', 'GSMA Power — Stoppages', 'Please specify Category');
+  push(a, 'remarks', 'GSMA Power — Stoppages', 'General remarks');
+  push(a, 'stoppage_photos', 'GSMA Power — Stoppages', 'Photos');
   push(a, 'created_at', 'System', 'Created at');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
@@ -539,12 +555,10 @@ function schemaEhsNearMiss() {
   push(a, 'treatment_given',  'Treatment',              'What was given');
   push(a, 'treatment_by',     'Treatment',              'By Whom');
   push(a, 'description',      'Incident Details',       'Description / Cause');
-  push(a, 'hazard_identified','Follow-up',              'Significant Hazard Identified');
-  push(a, 'hod_comments',     'HOD Sign-off',           'Comments');
-  push(a, 'hod_signed',       'HOD Sign-off',           'Signed');
-  push(a, 'hod_position',     'HOD Sign-off',           'Position');
-  push(a, 'hod_date',         'HOD Sign-off',           'Date');
-  push(a, 'timestamp',        'System',                 'Recorded at');
+  push(a, 'hazard_identified',      'Follow-up',     'Significant Hazard Identified');
+  push(a, 'hod_signoff_file_name',  'HOD Sign-off',  'Document name');
+  push(a, 'hod_signoff_file',       'HOD Sign-off',  'Document');
+  push(a, 'timestamp',              'System',        'Recorded at');
   return a;
 }
 
@@ -620,6 +634,23 @@ function schemaEhsWaterCpu() {
   push(a, 'transmittance',           'Outlet Quality',     'Transmittance >85');
   push(a, 'remarks',                 'Remarks',            'Remarks');
   push(a, 'timestamp',               'System',             'Recorded at');
+  return a;
+}
+
+// ─── ehs_toolbox_talk ───────────────────────────────────────────
+function schemaEhsToolboxTalk() {
+  const a = [];
+  push(a, 'Date',                   'Toolbox Talk', 'Date');
+  push(a, 'Shift',                  'Toolbox Talk', 'Shift');
+  push(a, 'start_time',             'Toolbox Talk', 'Time From');
+  push(a, 'end_time',               'Toolbox Talk', 'Time To');
+  push(a, 'report_prepared_by',     'Report',       'Prepared By');
+  push(a, 'topic_discussed',        'Report',       'Topic Discussed');
+  push(a, 'no_of_attendees',        'Report',       'No. of Attendees');
+  push(a, 'attendance_sheet_photo','Photos',       'Attendance Sheet');
+  push(a, 'session_photo',          'Photos',       'Session Photo 1');
+  push(a, 'session_photo_2',        'Photos',       'Session Photo 2');
+  push(a, 'timestamp',              'System',       'Recorded at');
   return a;
 }
 
@@ -748,6 +779,42 @@ function schemaProdClarification() {
   return a;
 }
 
+// ─── brix_yard_sampling ─────────────────────────────────────────
+const schemaBrixYardSampling = () => [
+  { dbKey: 'Date', heading: 'Record Info', subheading: 'Sampling Date' },
+  { dbKey: 'Name', heading: 'Record Info', subheading: 'Submitted By' },
+  { dbKey: 'DeliveryPoint', heading: 'Origin', subheading: 'Delivery Point' },
+  { dbKey: 'VillageOrCenterCode', heading: 'Origin', subheading: 'Village/Center Code' },
+  { dbKey: 'GrowerCode', heading: 'Origin', subheading: 'Grower Code' },
+  { dbKey: 'TruckNumber', heading: 'Transport', subheading: 'Truck Number' },
+  { dbKey: 'VehicleType', heading: 'Transport', subheading: 'Vehicle Type' },
+  { dbKey: 'VarietyOfCane', heading: 'Cane Details', subheading: 'Variety' },
+  { dbKey: 'CropType', heading: 'Cane Details', subheading: 'Crop Type' },
+  { dbKey: 'MiddleBrix', heading: 'Quality', subheading: 'Middle Brix %' },
+  { dbKey: 'DiseasedCane', heading: 'Quality', subheading: 'Diseased Cane' },
+  { dbKey: 'StaleCane', heading: 'Quality', subheading: 'Stale Cane' },
+  { dbKey: 'ConsignmentConditions', heading: 'Quality', subheading: 'Conditions' },
+];
+
+// ─── brix_field_sampling ─────────────────────────────────────────
+const schemaBrixFieldSampling = () => [
+  { dbKey: 'Date', heading: 'Record Info', subheading: 'Sampling Date' },
+  { dbKey: 'Name', heading: 'Record Info', subheading: 'Submitted By' },
+  { dbKey: 'TestType', heading: 'Record Info', subheading: 'Test Type' },
+  { dbKey: 'GrowerName', heading: 'Origin', subheading: 'Grower Name' },
+  { dbKey: 'VillageName', heading: 'Origin', subheading: 'Village Name' },
+  { dbKey: 'Variety', heading: 'Cane Details', subheading: 'Variety' },
+  { dbKey: 'LandType', heading: 'Field Details', subheading: 'Land Type' },
+  { dbKey: 'SoilType', heading: 'Field Details', subheading: 'Soil Type' },
+  { dbKey: 'CropType', heading: 'Cane Details', subheading: 'Crop Type' },
+  { dbKey: 'FieldCondition', heading: 'Field Details', subheading: 'Field Condition' },
+  { dbKey: 'CropCondition', heading: 'Field Details', subheading: 'Crop Condition' },
+  { dbKey: 'SamplingPoint', heading: 'Quality', subheading: 'Sampling Point' },
+  { dbKey: 'BottomBrix', heading: 'Quality', subheading: 'Bottom Brix %' },
+  { dbKey: 'MiddleBrix', heading: 'Quality', subheading: 'Middle Brix %' },
+  { dbKey: 'TopBrix', heading: 'Quality', subheading: 'Top Brix %' },
+];
+
 const BUILDERS = {
   mill_logbook1: schemaMillLogbook1,
   mill_logbook2: schemaMillLogbook2,
@@ -767,11 +834,14 @@ const BUILDERS = {
   ehs_water_gwa:   schemaEhsWaterGwa,
   ehs_water_etp:   schemaEhsWaterEtp,
   ehs_water_cpu:   schemaEhsWaterCpu,
+  ehs_toolbox_talk: schemaEhsToolboxTalk,
   prod_shift_chemist:  schemaProdShiftChemist,
   prod_centrifugal:    schemaProdCentrifugal,
   prod_pan_logbook:    schemaProdPanLogbook,
   prod_decanter:       schemaProdDecanter,
   prod_clarification:  schemaProdClarification,
+  brix_yard_sampling:  schemaBrixYardSampling,
+  brix_field_sampling: schemaBrixFieldSampling,
 };
 
 export function getColumnDescriptors(formKey) {

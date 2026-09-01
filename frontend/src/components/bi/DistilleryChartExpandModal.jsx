@@ -82,7 +82,7 @@ export default function DistilleryChartExpandModal({
       />
 
       <div
-        className={`relative flex max-h-[min(92vh,900px)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border shadow-2xl ${panel} ${border}`}
+        className={`relative flex max-h-[min(92vh,900px)] w-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-t-2xl border shadow-2xl sm:max-w-6xl sm:rounded-2xl ${panel} ${border}`}
       >
         <div className={`flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 ${border}`}>
           <div className="min-w-0 flex-1">

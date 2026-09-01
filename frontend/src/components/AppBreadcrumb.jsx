@@ -3,29 +3,38 @@ import { MdChevronRight, MdHome } from 'react-icons/md';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 
 /**
- * Horizontal breadcrumb trail. Last item is the current page (not linked).
- * @param {{ label: string, to?: string }[]} items
+ * Horizontal breadcrumb trail. Last item is the current page (not linked) unless `linkWhenLast`.
+ * @param {{ label: string, to?: string, state?: object, linkWhenLast?: boolean }[]} items
  */
 const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
   if (!items?.length) return null;
 
   return (
     <nav aria-label="Breadcrumb" className={className}>
-      <ol className="flex flex-wrap items-center gap-0.5 text-sm text-gray-500">
+      <ol className="flex flex-wrap items-center gap-1 text-sm text-gray-600">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           const label = withoutGsmaLabel(item.label) || '…';
-          const showLink = Boolean(item.to) && !isLast;
+          const showLink = Boolean(item.to) && (!isLast || item.linkWhenLast);
 
           return (
-            <li key={`${label}-${index}`} className="flex items-center gap-0.5 min-w-0">
+            <li key={`${label}-${index}`} className="flex items-center gap-1 min-w-0">
               {index > 0 && (
-                <MdChevronRight className="h-4 w-4 shrink-0 text-gray-300" aria-hidden />
+                <MdChevronRight
+                  className="h-5 w-5 shrink-0 text-gray-800"
+                  aria-hidden
+                />
               )}
               {showLink ? (
                 <Link
                   to={item.to}
-                  className="hover:text-gray-900 transition-colors truncate max-w-[10rem] sm:max-w-xs md:max-w-none"
+                  state={item.state}
+                  className={`hover:text-gray-900 transition-colors truncate max-w-[10rem] sm:max-w-xs md:max-w-none ${
+                    isLast
+                      ? 'text-base font-semibold text-gray-900'
+                      : 'text-sm font-medium text-gray-600'
+                  }`}
+                  aria-current={isLast ? 'page' : undefined}
                 >
                   {index === 0 ? (
                     <span className="inline-flex items-center gap-1">
@@ -39,7 +48,9 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
               ) : (
                 <span
                   className={`truncate max-w-[12rem] sm:max-w-xs md:max-w-none ${
-                    isLast ? 'font-medium text-gray-900' : ''
+                    isLast
+                      ? 'text-base font-semibold text-gray-900'
+                      : 'text-sm font-medium text-gray-600'
                   }`}
                   aria-current={isLast ? 'page' : undefined}
                 >

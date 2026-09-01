@@ -1,0 +1,84 @@
+{
+  "from": "2024-10-27",
+  "to": "2025-03-29",
+  "date": "27-10-2024",
+  "endDate": "29-03-2025",
+  "dma": 7,
+  "_note": "Full static payload with series and formulas is built by managementDashboardStaticData.js (PBI snapshot values).",
+  "rows": [
+    {
+      "id": "cane",
+      "title": "Cane",
+      "color": "bg-[#cce0ff]",
+      "icon": "cane",
+      "kpis": [
+        { "id": "cane_indent", "title": "Cane Indent (Q)", "value": "21.39K", "chart": "line", "chartColor": "#3b82f6", "unit": "Q" },
+        { "id": "cane_purchase", "title": "Cane Purchase (Q)", "value": "71.13K", "chart": "bar", "chartColor": "#3b82f6", "unit": "Q" },
+        { "id": "yard_bal", "title": "Yard Bal. (8AM)", "value": "21775.86", "subValues": [{"label": "Overrun Gate", "value": "67.4%", "valColor": "text-gray-800"}, {"label": "Overrun Center", "value": "79.1%", "valColor": "text-red-500", "rightVal": "4.19K"}] },
+        { "id": "pol_in_cane", "title": "Pol in Cane %", "value": "15.16", "chart": "line", "chartColor": "#3b82f6", "unit": "%" },
+        { "id": "brix_yard", "title": "Middle Brix % Yard", "value": "19.73", "chart": "bar", "chartColor": "#3b82f6", "unit": "%" },
+        { "id": "brix_field", "title": "Middle Brix % Field", "value": "19.41", "chart": "area", "chartColor": "#3b82f6", "unit": "%" }
+      ]
+    },
+    {
+      "id": "milling",
+      "title": "Milling",
+      "color": "bg-[#f5cbb3]",
+      "icon": "milling",
+      "kpis": [
+        { "id": "cane_crush", "title": "Cane Crush (Q)", "value": "73.07K", "chart": "line", "chartColor": "#ea580c", "unit": "Q" },
+        { "id": "maceration", "title": "Masceration %", "value": "54.21", "chart": "line", "chartColor": "#ea580c", "unit": "%" },
+        { "id": "mixed_juice", "title": "Mixed Juice (Q)", "value": "88.03K", "chart": "line", "chartColor": "#ea580c", "unit": "Q" },
+        { "id": "dmf", "title": "DMF %", "value": "66.51", "chart": "line", "chartColor": "#ea580c", "unit": "%" },
+        { "id": "bag_pol_cane", "title": "Bag Pol % Cane", "value": "0.49", "rightVal": "0.57", "subValues": [{"label": "Pol % Bagasse", "value": "1.76", "rightVal": "1.73"}, {"label": "Bagasse Moisture", "value": "49.67", "rightVal": "49.66"}] },
+        { "id": "power_per_cane", "title": "Power/Cane (Unit/Q)", "value": "1.36", "chart": "line", "chartColor": "#ea580c", "unit": "KWH/Q" },
+        { "id": "steam_per_cane", "title": "Steam/Cane (T/Q)", "value": "5.96", "chart": "line", "chartColor": "#ea580c", "unit": "KG/Q" }
+      ]
+    },
+    {
+      "id": "sugar",
+      "title": "Sugar",
+      "color": "bg-[#fef0b3]",
+      "icon": "sugar",
+      "kpis": [
+        { "id": "cane_ds", "title": "Cane DS (Q)", "value": "48.24K", "chart": "line", "chartColor": "#eab308", "unit": "Q" },
+        { "id": "cane_rs", "title": "Cane RS (Q)", "value": "24.83K", "chart": "line", "chartColor": "#eab308", "unit": "Q" },
+        { "id": "sugar_total", "title": "Sugar Total (Q)", "value": "8.33K", "chart": "bar", "chartColor": "#ca8a04", "unit": "Q" },
+        { "id": "sugar_recovery", "title": "Sugar Recovery %", "value": "11.40", "chart": "line", "chartColor": "#eab308", "unit": "%" },
+        { "id": "pol_f_cake", "title": "Pol In F Cake", "value": "0.08", "rightVal": "0.08", "subValues": [{"label": "Mol Pol % Cane", "value": "2.28", "rightVal": "3.08"}, {"label": "F Mol Purity (DS)", "value": "43.37", "rightVal": "50.09"}, {"label": "F Mol Purity (RS)", "value": "41.29", "rightVal": "48.82"}] },
+        { "id": "power_per_sugar", "title": "Power/Sugar (Units/Q)", "value": "10.81", "chart": "line", "chartColor": "#eab308", "unit": "KWH/Q" },
+        { "id": "steam_per_sugar", "title": "Steam/Sugar (T/Q)", "value": "429.94", "chart": "line", "chartColor": "#eab308", "unit": "KG/Q" }
+      ]
+    },
+    {
+      "id": "power",
+      "title": "Power",
+      "color": "bg-[#ccffcc]",
+      "icon": "power",
+      "kpis": [
+        { "id": "power_gen", "title": "Power Gen (Units)", "value": "909.73K", "chart": "line", "chartColor": "#22c55e", "unit": "KWH" },
+        { "id": "power_export", "title": "Export (Units)", "value": "534.33K", "chart": "line", "chartColor": "#22c55e", "unit": "KWH" },
+        { "id": "inhouse_consp", "title": "Inhouse Consp (Units)", "value": "375.40K", "chart": "line", "chartColor": "#22c55e", "unit": "KWH" },
+        { "id": "steam_gen", "title": "Total Steam Gen (T)", "value": "5.74K", "chart": "line", "chartColor": "#22c55e", "unit": "MT" },
+        { "id": "steam_to_sugar", "title": "Total Steam to Sugar (T)", "value": "3.60K", "chart": "line", "chartColor": "#22c55e", "unit": "MT" },
+        { "id": "steam_bag", "title": "Steam/Bag 150 TPH", "value": "2.52", "rightVal": "2.57", "subValues": [{"label": "Steam/Bag 70 TPH", "value": "2.19", "rightVal": "2.23"}, {"label": "Steam/Bag 35 TPH", "value": "2.01", "rightVal": "1.82"}] },
+        { "id": "spec_steam", "title": "Sp. Steam 30MW", "value": "5.12", "rightVal": "5.14", "subValues": [{"label": "Sp. Steam 3(O+N)", "value": "8.83", "rightVal": "8.96"}, {"label": "Sp. Steam 4MW", "value": "8.96", "rightVal": "9.26"}] }
+      ]
+    },
+    {
+      "id": "distillery",
+      "title": "Distillery",
+      "color": "bg-[#f5c2d6]",
+      "icon": "distillery",
+      "kpis": [
+        { "id": "syrup_mol", "title": "Syrup+Mol Used (Q)", "value": "3.90K", "chart": "area", "chartColor": "#9f1239", "unit": "Q" },
+        { "id": "ethanol_prod", "title": "Ethanol Prod. (BL)", "value": "125.20K", "chart": "line", "chartColor": "#9f1239", "unit": "BL" },
+        { "id": "recovery_bl", "title": "Recovery BL", "value": "32.10", "chart": "line", "chartColor": "#9f1239", "unit": "BL/Q" },
+        { "id": "ethanol_store", "title": "Ethanol Stored (BL)", "value": "250.28K", "chart": "line", "chartColor": "#9f1239", "unit": "BL" },
+        { "id": "b_mol_store", "title": "B Mol in Store (Q)", "value": "77630", "rightVal": "233.0K", "subValues": [{"label": "C Mol in Store (Q)", "value": "0.00", "rightVal": "0.00"}] },
+        { "id": "dist_eff", "title": "Distillation Eff.", "value": "98.80%", "rightVal": "98.80%", "subValues": [{"label": "Fermentation Eff.", "value": "92.71%", "rightVal": "92.79%"}] },
+        { "id": "trs_fs", "title": "TRS & FS %", "value": "55.45", "rightVal": "54.26", "chart": "line", "chartColor": "#9f1239", "unit": "%" }
+      ]
+    }
+  ]
+}

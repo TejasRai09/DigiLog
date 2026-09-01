@@ -1,0 +1,2642 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "ID Fan -1",
+      "hierarchy_card": "ID Fan -01",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > ID Fan -01",
+      "image_name": "ID Fan -1",
+      "name": "ID Fan -1",
+      "equip_no": "ZIL/GSM/PP/10",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "500KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "96.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Dual Module",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "1250A(Semi.Cond)",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 5RX3CX240 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "400",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "993 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "602A x 2no",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "N8/64680315",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "848A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6326C3 / NDE- 6326 M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Model No.",
+          "val": "ACS 800-04M-0400 -3+H356+H360",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "H",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E - 8nos",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-1600 Amp.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "SDU",
+          "val": "1600 Amp. , Make - ABB , Model No.- OT1600E03P",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "ID Fan-2",
+      "hierarchy_card": "ID Fan -02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > ID Fan -02",
+      "image_name": "ID Fan-2",
+      "name": "ID Fan-2",
+      "equip_no": "ZIL/GSM/PP/11",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "500KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "96.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Dual Module",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "1250A(Semi.Cond)",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 5RX3CX240 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "400",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "993 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "602A x 2no",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "N8/64681620",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "848A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6326C3 / NDE- 6326 M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Model No.",
+          "val": "ACS 880-04-650A-3+B051+E208",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "H",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E - 8nos",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-1600 Amp.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "SDU",
+          "val": "1600 Amp. , Make - ABB , Model No.- OT1600E03P",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "FD Fan-1",
+      "hierarchy_card": "FD Fan -01",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > FD Fan -01",
+      "image_name": "FD Fan-1",
+      "name": "FD Fan-1",
+      "equip_no": "ZIL/GSM/PP/12",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "110KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "95.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "500A(Semi.Cond.)",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 240 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "315S",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1487 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "225A",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable  4CX1.5 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "Load",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "191 A",
+          "val": "Bearing DE / NDE",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Model no",
+          "val": "ACS850-04-225A-5",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-315 Amp.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "SDU",
+          "val": "315 Amp. , Make - ABB , Model No.- OT315E03P",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "FD Fan-2",
+      "hierarchy_card": "FD Fan -02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > FD Fan -02",
+      "image_name": "FD Fan-2",
+      "name": "FD Fan-2",
+      "equip_no": "ZIL/GSM/PP/13",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "110KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "95.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "500A(Semi.Cond.)",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 240 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "315S",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1487 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "225A",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable  4CX1.5 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "N8/64696995",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "191 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6319C3 / NDE-6319 Ins",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Model no",
+          "val": "ACS850-04-225A-5",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-315 Amp.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "SDU",
+          "val": "315 Amp. , Make - ABB , Model No.- OT315E03P",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "SA Fan -1",
+      "hierarchy_card": "SA Fan -01",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > SA Fan -01",
+      "image_name": "SA Fan -1",
+      "name": "SA Fan -1",
+      "equip_no": "ZIL/GSM/PP/14",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "132KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "95.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "500A(Semi.Cond.)",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 240 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "315M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1487 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "260A",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable  4CX1.5 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "N8/64696243",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "223 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6319C3 / NDE-6319 Ins",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Model no",
+          "val": "ACS850-04-260A-5",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-400 Amp.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "SDU",
+          "val": "315 Amp. , Make - ABB , Model No.- OT400E03P",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "SA Fan -2",
+      "hierarchy_card": "SA Fan -02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > SA Fan -02",
+      "image_name": "SA Fan -2",
+      "name": "SA Fan -2",
+      "equip_no": "",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "132KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "95.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "500A(Semi.Cond.)",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 240 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "315M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1487 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "260A",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable  4CX1.5 mm2",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "N8/64696244",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "223 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6319C3 / NDE-6319 Ins",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Model no",
+          "val": "ACS850-04-260A-5",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Copper Wire (35Sqmm) & VFD Earthing 16 Sqmm Copper Wire",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating-400 Amp.",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        },
+        {
+          "lbl": "SDU",
+          "val": "315 Amp. , Make - ABB , Model No.- OT400E03P",
+          "section": "electrical",
+          "sub_section": "VFD and Other Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "HP Heater -1",
+      "hierarchy_card": "HP-01",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > HP-01",
+      "image_name": "HP Heater No.-1",
+      "name": "HP Heater -1",
+      "equip_no": "ZIL/GSM/PP/04",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "HP Heater -2",
+      "hierarchy_card": "HP-02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Auxiliary Equipment > HP-02",
+      "image_name": "HP Heater No.- 2",
+      "name": "HP Heater -2",
+      "equip_no": "ZIL/GSM/PP/05",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-1",
+      "hierarchy_card": "Belt Conveyor -01",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -01",
+      "image_name": "BC-1",
+      "name": "BC-1",
+      "equip_no": "ZIL/GSM/PP/15",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "30KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "95.5 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 70mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "D200L",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1465 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "45-63A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "100730120",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "51 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6311C3 / NDE-6311c3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A95-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Setting",
+          "val": "60A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-2",
+      "hierarchy_card": "Belt Conveyor -02",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -02",
+      "image_name": "BC-2",
+      "name": "BC-2",
+      "equip_no": "ZIL/GSM/PP/16",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "18.5KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "92.2 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX35mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "TCI180M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1470 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "28-40A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "131026001",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "34.25 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6311C3 / NDE-6311c3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A75-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "28A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-3",
+      "hierarchy_card": "Belt Conveyor -03",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -03",
+      "image_name": "BC-3",
+      "name": "BC-3",
+      "equip_no": "ZIL/GSM/PP/17",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "11KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "92.2 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX25mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "HXI160M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1455 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "20-25A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "137542",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "22 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6309ZZC3 / NDE-6308ZZC3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A50-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "21A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-4",
+      "hierarchy_card": "Belt Conveyor -04",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -04",
+      "image_name": "BC-4",
+      "name": "BC-4",
+      "equip_no": "ZIL/GSM/PP/18",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "15KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "92 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX70mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "T3C160L",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1445 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "25-32A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "131031186",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "24.63 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6309ZZC3 / NDE-6308ZZC3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A63-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "29A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-5",
+      "hierarchy_card": "Belt Conveyor -05",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -05",
+      "image_name": "BC-5",
+      "name": "BC-5",
+      "equip_no": "ZIL/GSM/PP/19",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "18.5KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "92.2 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX70mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "T3CI180M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1445 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "28-40A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "130904088",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "32.32 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6309ZZC3 / NDE-6308ZZC3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A63-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "28A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-6",
+      "hierarchy_card": "Belt Conveyor -06",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -06",
+      "image_name": "BC-6",
+      "name": "BC-6",
+      "equip_no": "ZIL/GSM/PP/20",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "18.5KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "92 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX35mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "HX180M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1460 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "28-40A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "838668",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "28.50 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6311ZZC3 / NDE-6311ZZC3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A63-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "28A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-7",
+      "hierarchy_card": "Belt Conveyor -07",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -07",
+      "image_name": "BC-7",
+      "name": "BC-7",
+      "equip_no": "ZIL/GSM/PP/21",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "11KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "89 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX70mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "T3CI160M",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1460 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "28-40A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "101026016",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "18.90 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6309ZZC3 / NDE-6309ZZC3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A63-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "28A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "BC-8",
+      "hierarchy_card": "Belt Conveyor -08",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Belt Conveyor -08",
+      "image_name": "BC-8",
+      "name": "BC-8",
+      "equip_no": "ZIL/GSM/PP/22",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Bharat Bijlee",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "15KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "90.2 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "DOL Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB  Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX35mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "160L",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1450 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB Rating",
+          "val": "25-32A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "K586595",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "27.6 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6309ZZC3 / NDE-6309ZZC3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A50-30",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPCB setting",
+          "val": "26A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "Slat Chain",
+      "hierarchy_card": "Slat Chain Carrier",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Slat Chain Carrier",
+      "image_name": "Slat Chain",
+      "name": "Slat Chain",
+      "equip_no": "ZIL/GSM/PP/24",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "37KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "90.2 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Y-D Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MCCB Rating",
+          "val": "125A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 2RX3CX35mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "D225MDM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1470 RPM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPR Rating",
+          "val": "2 - 5.5A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "C0701110109",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "76 A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6313C3 / NDE-6312C3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A75-30 -2Nos   A50-10 - 1nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPR Setting",
+          "val": "2.5A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    },
+    {
+      "hierarchy_name": "Bagasse Elevator",
+      "hierarchy_card": "Bagasse Elevator",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Fuel Handling System (Phase-1) > Bagasse Elevator",
+      "image_name": "Bagasse Elevator",
+      "name": "Bagasse Elevator",
+      "equip_no": "ZIL/GSM/PP/23",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Fuel Handling System (Phase-1)",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "history_section": "electrical",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Baldor Reliance",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Rating",
+          "val": "37KW",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "90.2 %",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Type",
+          "val": "Y-D Starter",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MCCB Rating",
+          "val": "125A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 2RX3CX70mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Frame",
+          "val": "D225MDM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1470PM",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Contactor Make",
+          "val": "ABB",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPR Rating",
+          "val": "2 - 5.5A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Cu Cable  4CX1.5mm2",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "C0701110103",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Load",
+          "val": "76A",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "DE- 6313C3 / NDE-6312C3",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Power Contactor Rating",
+          "val": "A75-30 -2Nos   A50-10 - 1nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "MPR Setting",
+          "val": "2.5A",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "Copper Wire ( 4.0Sqmm)",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "25X6mm GI",
+          "section": "electrical",
+          "sub_section": "Motor Details"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "NX22E-2Nos.",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Control MCB",
+          "val": "2P 6A - 1 Nos   1P 6A- 1Nos",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415 AC",
+          "section": "electrical",
+          "sub_section": "Motor Starter Details"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

@@ -7,12 +7,18 @@ import {
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
+import useAuth from '../hooks/useAuth';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
-import { isHubFormKey, hubFormPath, hubNavState } from '../config/hubFormRoutes';
-import { isBiDashboardFormKey, biDashboardPath } from '../config/biDashboardRoutes';
-import { isPowerDeptFormKey, powerDeptPath } from '../config/powerDeptRoutes';
-import { ehsHubForFormKey } from '../config/breadcrumbHubs';
+import {
+  RecordActionsButton,
+  RecordRowActionMenu,
+  RecordViewModal,
+  RecordEditModal,
+  DeleteRecordConfirmModal,
+} from './FormRecordAdminModals';
 import { withoutGsmaLabel } from '../utils/displayLabels';
+import { isSimpleOpenForm, openFormTarget } from '../utils/formTableNav';
+import FormCardList from './FormCardList';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -43,10 +49,18 @@ const downloadCSV = (filename, rows, columns, formKey = null) => {
 
 // ─── View Data Modal ──────────────────────────────────────────
 const ViewDataModal = ({ form, onClose }) => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [page, setPage]       = useState(1);
-  const [data, setData]       = useState(null);   // { total, records }
+  const [data, setData]       = useState(null);   // { total, records, tsCol }
   const [loading, setLoading] = useState(false);
+  const [rowMenu, setRowMenu] = useState(null);
+  const [viewRow, setViewRow] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+  const [deleteRow, setDeleteRow] = useState(null);
   const LIMIT = 20;
+  const tsCol = data?.tsCol || 'timestamp';
 
   const fetchPage = async (p) => {
     setLoading(true);
@@ -66,18 +80,61 @@ const ViewDataModal = ({ form, onClose }) => {
   // Load first page on mount
   useEffect(() => { fetchPage(1); }, []);
 
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
   const totalPages = data ? Math.ceil(data.total / LIMIT) : 0;
   const sample      = data?.records?.[0] ?? null;
   const columns     = getDisplayColumns(form.formKey, sample);
 
+  const openRowMenu = (e, row) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const menuH = 140;
+    let top = r.bottom + 4;
+    if (top + menuH > window.innerHeight - 8) {
+      top = Math.max(8, r.top - menuH - 4);
+    }
+    const useLeft = window.innerWidth < 640;
+    setRowMenu({
+      row,
+      top,
+      left: useLeft ? Math.max(8, Math.min(r.left, window.innerWidth - 200)) : undefined,
+      right: useLeft ? undefined : window.innerWidth - r.right,
+    });
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-xl shadow-xl flex flex-col w-full max-w-6xl max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-3 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="view-data-modal-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]"
+        aria-label="Close records"
+        onClick={onClose}
+      />
+
+      <div className="relative my-auto flex w-full max-w-6xl max-h-[min(calc(100dvh-1.5rem),90vh)] min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-          <div>
-            <h2 className="text-base font-semibold text-gray-900">{withoutGsmaLabel(form.name)} — Records</h2>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
+          <div className="min-w-0">
+            <h2 id="view-data-modal-title" className="text-base font-semibold leading-snug text-gray-900 sm:text-lg">
+              {withoutGsmaLabel(form.name)} — Records
+            </h2>
             {data && (
               <p className="text-xs text-gray-400 mt-0.5">{data.total} total row{data.total !== 1 ? 's' : ''}</p>
             )}
@@ -102,20 +159,25 @@ const ViewDataModal = ({ form, onClose }) => {
               <MdDownload className="h-3.5 w-3.5" />
               Download CSV
             </button>
-            <button onClick={onClose} className="p-1.5 rounded hover:bg-gray-100 text-gray-400">
+            <button
+              type="button"
+              onClick={onClose}
+              className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label="Close"
+            >
               <MdClose className="h-5 w-5" />
             </button>
           </div>
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto">
+        <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
           {loading ? (
             <div className="flex justify-center py-20"><Spinner size="lg" /></div>
           ) : !data?.records?.length ? (
             <div className="text-center py-20 text-gray-400 text-sm">No records found.</div>
           ) : (
-            <table className="min-w-full text-xs">
+            <table className="w-max min-w-full text-xs">
               <thead className="sticky top-0 bg-gray-50 z-10">
                 <tr className="border-b border-gray-200">
                   {headingRuns(columns).map((run) => (
@@ -127,6 +189,14 @@ const ViewDataModal = ({ form, onClose }) => {
                       {run.heading}
                     </th>
                   ))}
+                  {isAdmin && (
+                    <th
+                      rowSpan={2}
+                      className="sticky right-0 z-20 border-b border-l border-gray-200 bg-gray-50 px-3 py-2 text-center font-semibold text-gray-600"
+                    >
+                      Actions
+                    </th>
+                  )}
                 </tr>
                 <tr className="border-b border-gray-200">
                   {columns.map((col) => (
@@ -154,16 +224,59 @@ const ViewDataModal = ({ form, onClose }) => {
                         )}
                       </td>
                     ))}
+                    {isAdmin && (
+                      <td className="sticky right-0 z-10 border-l border-gray-100 bg-white px-2 py-2 text-center">
+                        <RecordActionsButton onOpenMenu={(e) => openRowMenu(e, row)} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+        )}
+      </div>
 
-        {/* Pagination */}
+      {isAdmin && (
+        <>
+          <RecordRowActionMenu
+            rowMenu={rowMenu}
+            onClose={() => setRowMenu(null)}
+            onView={setViewRow}
+            onEdit={setEditRow}
+            onDelete={setDeleteRow}
+          />
+          {viewRow && (
+            <RecordViewModal
+              form={form}
+              row={viewRow}
+              tsCol={tsCol}
+              onClose={() => setViewRow(null)}
+            />
+          )}
+          {editRow && (
+            <RecordEditModal
+              form={form}
+              row={editRow}
+              tsCol={tsCol}
+              onClose={() => setEditRow(null)}
+              onSaved={() => fetchPage(page)}
+            />
+          )}
+          {deleteRow && (
+            <DeleteRecordConfirmModal
+              form={form}
+              row={deleteRow}
+              tsCol={tsCol}
+              onClose={() => setDeleteRow(null)}
+              onDeleted={() => fetchPage(page)}
+            />
+          )}
+        </>
+      )}
+
+      {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-3 border-t border-gray-100 flex-shrink-0">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-4 py-3 sm:px-6">
             <p className="text-xs text-gray-400">
               Page {page} of {totalPages}
             </p>
@@ -230,7 +343,17 @@ const FormTable = ({
 
   return (
     <>
-      <div className="table-wrapper">
+      <div className="md:hidden">
+        <FormCardList
+          forms={forms}
+          navigate={navigate}
+          appId={appId}
+          returnTo={returnTo}
+          onViewData={setViewing}
+        />
+      </div>
+
+      <div className="table-wrapper hidden md:block">
         <table className="min-w-full divide-y divide-gray-200">
           <thead>
             <tr>
@@ -251,63 +374,14 @@ const FormTable = ({
 
                     {/* Open form or hub module (equipment / EHS) */}
                     <button
-                      onClick={() => {
-                        const baseState = {};
-                        if (appId != null && appId !== '') baseState.appId = String(appId);
-                        if (returnTo) baseState.returnTo = returnTo;
-                        else if (appId != null && appId !== '') baseState.returnTo = `/apps/${appId}`;
-
-                        if (isPowerDeptFormKey(form.formKey)) {
-                          const path = powerDeptPath(form.formKey);
-                          if (path) {
-                            const navState = { ...baseState, returnTo: returnTo || '/power' };
-                            navigate(path, {
-                              state: Object.keys(navState).length ? navState : undefined,
-                            });
-                          }
-                          return;
-                        }
-                        if (isBiDashboardFormKey(form.formKey)) {
-                          const path = biDashboardPath(form.formKey);
-                          if (path) {
-                            navigate(path, {
-                              state: Object.keys(baseState).length ? baseState : undefined,
-                            });
-                          }
-                          return;
-                        }
-                        if (isHubFormKey(form.formKey)) {
-                          const path = hubFormPath(form.formKey);
-                          const hubState = hubNavState(form.formKey, { appId, returnTo });
-                          navigate(path, {
-                            state: { ...baseState, ...hubState },
-                          });
-                          return;
-                        }
-                        const ehsHub = ehsHubForFormKey(form.formKey);
-                        const navState = { ...baseState };
-                        if (ehsHub) {
-                          navState.hubPath = ehsHub.path;
-                          navState.hubLabel = ehsHub.label;
-                          if (!navState.returnTo) navState.returnTo = ehsHub.path;
-                        }
-                        navigate(`/forms/${form.formKey}`, {
-                          state: Object.keys(navState).length ? navState : undefined,
-                        });
-                      }}
+                      onClick={() => openFormTarget(navigate, form, { appId, returnTo })}
                       className="btn-primary py-1.5 text-xs"
                     >
                       <MdOpenInNew className="h-3.5 w-3.5" />
-                      {isHubFormKey(form.formKey) ||
-                      isBiDashboardFormKey(form.formKey) ||
-                      isPowerDeptFormKey(form.formKey)
-                        ? 'Open'
-                        : 'Open Form'}
+                      {isSimpleOpenForm(form) ? 'Open' : 'Open Form'}
                     </button>
 
-                    {!isHubFormKey(form.formKey) &&
-                      !isBiDashboardFormKey(form.formKey) &&
-                      !isPowerDeptFormKey(form.formKey) && (
+                    {!isSimpleOpenForm(form) && (
                       <>
                         <button
                           onClick={() => setViewing(form)}

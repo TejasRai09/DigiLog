@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildEhsWaterCpuReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const INITIAL = {
   date: '',
@@ -32,25 +36,28 @@ const Txt = ({ label, name, value, onChange }) => (
 );
 
 const EhsWaterCpu = () => {
-  const [form, setForm]     = useState(INITIAL);
-  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handle = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
-      await api.post('/forms/ehs_water_cpu', form);
-      toast.success('CPU report submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ehs_water_cpu', form),
+        'CPU report submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildEhsWaterCpuReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
@@ -60,7 +67,7 @@ const EhsWaterCpu = () => {
         fallbackDescription="CPU inlet/outlet daily report with quality parameters"
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
 
         <div className="form-section space-y-4">
           <div>
@@ -132,6 +139,16 @@ const EhsWaterCpu = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

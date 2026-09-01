@@ -9,8 +9,8 @@ const EHS_FORMS = [
   {
     _id:         'ehs_near_miss',
     formKey:     'ehs_near_miss',
-    name:        'Near Miss / Incident / Accident Report',
-    description: 'Log workplace near misses, incidents and accidents for investigation',
+    name:        'Accident Report',
+    description: 'Log workplace accidents for investigation',
   },
   {
     _id:         'ehs_water_gwa',
@@ -30,6 +30,12 @@ const EHS_FORMS = [
     name:        'Water Dashboard — CPU Water Recycle',
     description: 'CPU inlet/outlet daily report with quality parameters',
   },
+  {
+    _id:         'ehs_toolbox_talk',
+    formKey:     'ehs_toolbox_talk',
+    name:        'Daily Safety Toolbox Talk',
+    description: 'Record daily toolbox talk session with attendance and session photos',
+  },
 ];
 
 const EhsLanding = () => {
@@ -37,7 +43,7 @@ const EhsLanding = () => {
   const appId = location.state?.appId;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildEhsHubTrail()} />
 
       <AppFormsHeader

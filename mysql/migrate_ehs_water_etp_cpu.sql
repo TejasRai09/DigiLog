@@ -1,4 +1,5 @@
 -- EHS Water Dashboard — ETP Working & CPU Water Recycle tables
+USE `__MYSQL_DATABASE__`;
 
 CREATE TABLE IF NOT EXISTS `ehs_water_etp` (
   `id`                INT           NOT NULL AUTO_INCREMENT,

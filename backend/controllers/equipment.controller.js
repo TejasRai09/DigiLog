@@ -1,4 +1,6 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
+const { validHistoryImageField } = require('../utils/historyImages');
 
 const getEq = async (id) => {
   const [[eq]] = await pool.execute('SELECT * FROM mh_equipment WHERE id = ?', [id]);
@@ -27,8 +29,7 @@ const listEquipment = async (req, res) => {
     );
     res.json({ total, page, limit, equipment: rows });
   } catch (err) {
-    console.error('listEquipment:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'listEquipment:', err, MSG.LOAD);
   }
 };
 
@@ -56,8 +57,7 @@ const getEquipment = async (req, res) => {
 
     res.json({ equipment: eq, specs, schedule, history, histTotal: total });
   } catch (err) {
-    console.error('getEquipment:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'getEquipment:', err, MSG.LOAD);
   }
 };
 
@@ -75,8 +75,7 @@ const updateEquipment = async (req, res) => {
     );
     res.json({ message: 'Equipment updated.' });
   } catch (err) {
-    console.error('updateEquipment:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'updateEquipment:', err, MSG.SAVE);
   }
 };
 
@@ -92,8 +91,7 @@ const uploadImage = async (req, res) => {
     await pool.execute(`UPDATE mh_equipment SET \`${type}\` = ? WHERE id = ?`, [data, id]);
     res.json({ message: `${type} updated.` });
   } catch (err) {
-    console.error('uploadImage:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'uploadImage:', err, MSG.UPLOAD);
   }
 };
 
@@ -106,8 +104,7 @@ const deleteImage = async (req, res) => {
     await pool.execute(`UPDATE mh_equipment SET \`${type}\` = NULL WHERE id = ?`, [id]);
     res.json({ message: `${type} removed.` });
   } catch (err) {
-    console.error('deleteImage:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'deleteImage:', err, MSG.DELETE);
   }
 };
 
@@ -131,8 +128,7 @@ const updateSpecs = async (req, res) => {
     res.json({ message: 'Specs updated.' });
   } catch (err) {
     await conn.rollback();
-    console.error('updateSpecs:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'updateSpecs:', err, MSG.SAVE);
   } finally {
     conn.release();
   }
@@ -160,8 +156,7 @@ const updateSchedule = async (req, res) => {
     res.json({ message: 'Schedule updated.' });
   } catch (err) {
     await conn.rollback();
-    console.error('updateSchedule:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'updateSchedule:', err, MSG.SAVE);
   } finally {
     conn.release();
   }
@@ -185,8 +180,7 @@ const getHistory = async (req, res) => {
     );
     res.json({ total, page, limit, records });
   } catch (err) {
-    console.error('getHistory:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'getHistory:', err, MSG.LOAD);
   }
 };
 
@@ -197,23 +191,21 @@ const addHistory = async (req, res) => {
     const eq = await getEq(id);
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
-    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
-    const validImg = (d) => (d && String(d).startsWith('data:image') ? d : null);
+    const { season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after } = req.body;
     const [result] = await pool.execute(
       `INSERT INTO mh_history
-         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [id,
        season || null, year || null,
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
-       svc || null, provider || null, resp || null, rem || null,
-       validImg(img_before), validImg(img_after)]
+       svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
+       validHistoryImageField(img_before), validHistoryImageField(img_after)]
     );
     res.status(201).json({ message: 'Record added.', id: result.insertId });
   } catch (err) {
-    console.error('addHistory:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'addHistory:', err, MSG.LOAD);
   }
 };
 
@@ -221,27 +213,25 @@ const addHistory = async (req, res) => {
 const updateHistory = async (req, res) => {
   try {
     const { id, hid } = req.params;
-    const { season, year, date_start, date_finish, obs, act, cost, svc, provider, resp, rem, img_before, img_after } = req.body;
-    const validImg = (d) => (d && String(d).startsWith('data:image') ? d : null);
+    const { season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after } = req.body;
     const [result] = await pool.execute(
       `UPDATE mh_history
        SET season=?, year=?, date_start=?, date_finish=?,
-           obs=?, act=?, cost=?, svc=?, provider=?, resp=?, rem=?,
+           obs=?, act=?, cost=?, svc=?, maintenance_type=?, provider=?, resp=?, rem=?,
            img_before=?, img_after=?
        WHERE id=? AND equip_id=?`,
       [season || null, year || null,
        date_start || null, date_finish || null,
        obs || null, act || null, cost || null,
-       svc || null, provider || null, resp || null, rem || null,
-       validImg(img_before), validImg(img_after),
+       svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
+       validHistoryImageField(img_before), validHistoryImageField(img_after),
        hid, id]
     );
     if (result.affectedRows === 0)
       return res.status(404).json({ message: 'Record not found.' });
     res.json({ message: 'Record updated.' });
   } catch (err) {
-    console.error('updateHistory:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'updateHistory:', err, MSG.LOAD);
   }
 };
 
@@ -256,8 +246,7 @@ const deleteHistory = async (req, res) => {
       return res.status(404).json({ message: 'Record not found.' });
     res.json({ message: 'Record deleted.' });
   } catch (err) {
-    console.error('deleteHistory:', err.message);
-    res.status(500).json({ message: 'Database error: ' + err.message });
+    sendServerError(res, 'deleteHistory:', err, MSG.DELETE);
   }
 };
 

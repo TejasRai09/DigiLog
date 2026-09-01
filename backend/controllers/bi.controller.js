@@ -1,10 +1,72 @@
 const { pool } = require('../config/mysql');
+const { sendServerError, MSG } = require('../utils/httpError');
 const { canAccessForm } = require('./form.controller');
+
+/**
+ * Default lookback window (days) applied when no valid `from`/`to` is supplied,
+ * so a fresh dashboard load never scans the whole table.
+ */
+const DEFAULT_LOOKBACK_DAYS = 365;
+
+/** Hard safety cap on rows returned by any BI time-series query. */
+const BI_ROW_LIMIT = 200000;
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Build a parameterized `Date` bound to append after `WHERE \`Date\` IS NOT NULL`.
+ * Accepts optional `from`/`to` (ISO `YYYY-MM-DD`) from the request query.
+ *  - Both valid & from <= to → bound between them.
+ *  - Only one valid → bound on that side (upper-only keeps the default lower window).
+ *  - Neither / invalid / from > to → fall back to the default lookback window
+ *    (unless `options.allowUnbounded` is true — then no date filter).
+ * Returns `{ clause, params }`; `clause` starts with a leading space (or '' if unbounded).
+ */
+function buildDateBound(query, options = {}) {
+  const allowUnbounded = Boolean(options.allowUnbounded);
+  const q = query || {};
+  let from = typeof q.from === 'string' && ISO_DATE_RE.test(q.from) ? q.from : null;
+  let to = typeof q.to === 'string' && ISO_DATE_RE.test(q.to) ? q.to : null;
+
+  // Invalid ordering → ignore both and fall back to the default window.
+  if (from && to && from > to) {
+    from = null;
+    to = null;
+  }
+
+  if (from && to) {
+    return { clause: ' AND `Date` >= ? AND `Date` <= ?', params: [from, to] };
+  }
+  if (from) {
+    return { clause: ' AND `Date` >= ?', params: [from] };
+  }
+  if (to) {
+    if (allowUnbounded) {
+      return { clause: ' AND `Date` <= ?', params: [to] };
+    }
+    return {
+      clause: ' AND `Date` <= ? AND `Date` >= DATE_SUB(?, INTERVAL ? DAY)',
+      params: [to, to, DEFAULT_LOOKBACK_DAYS],
+    };
+  }
+  if (allowUnbounded) {
+    return { clause: '', params: [] };
+  }
+  return {
+    clause: ' AND `Date` >= DATE_SUB(CURDATE(), INTERVAL ? DAY)',
+    params: [DEFAULT_LOOKBACK_DAYS],
+  };
+}
 
 function dateKey(d) {
   if (!d) return null;
   if (typeof d === 'string') return d.slice(0, 10);
-  if (d instanceof Date) return d.toISOString().slice(0, 10);
+  if (d instanceof Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
   return String(d).slice(0, 10);
 }
 
@@ -52,12 +114,23 @@ function fsPctRatioFromRow(r) {
   return f / t;
 }
 
-/** Same as init.sql generated total_mol_in_store_qtls: COALESCE(BH) + COALESCE(CH); 0 when both inputs null. */
+/**
+ * BH + CH molasses in store. Null when both inputs blank so BI averages can
+ * match Power BI AVERAGE (skip blanks) instead of treating missing as 0.
+ * When either side is present, missing side counts as 0 (COALESCE style).
+ */
 function molInStoreFromRow(r) {
   const bh = r.total_bh_molasses_qtls;
   const ch = r.total_ch_molasses_qtls;
-  if (bh == null && ch == null) return 0;
+  if ((bh == null || bh === '') && (ch == null || ch === '')) return null;
   return num(bh) + num(ch);
+}
+
+/** Numeric or null — blank stays null (do not coerce to 0 for stock averages). */
+function nullableNum(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -78,25 +151,38 @@ function mapRowToBiPoint(r) {
   if (mode === 'None' || mode === '') mode = 'Mixed';
 
   const etoh = num(r.actual_ethanol_bl);
+  // Mode allocation matches Power BI: full day ethanol on the operating mode only.
+  // Mixed / unknown is its own series (no artificial 50/50 B Heavy + Syrup split).
   let bHeavyProd = 0;
   let cHeavyProd = 0;
   let syrupProd = 0;
+  let mixedProd = 0;
   if (mode === 'B Heavy') bHeavyProd = etoh;
   else if (mode === 'C Heavy') cHeavyProd = etoh;
   else if (mode === 'Syrup') syrupProd = etoh;
-  else {
-    bHeavyProd = etoh * 0.5;
-    syrupProd = etoh * 0.5;
-  }
+  else mixedProd = etoh;
 
-  let recovery = num(r.al_bl_ratio_pct);
-  if (recovery === 0 && r.rec_bl != null) {
-    const rb = num(r.rec_bl);
-    recovery = rb <= 1 && rb >= 0 ? rb * 100 : rb;
-  }
+  // PBI "REC BL" = actual ethanol (BL) / syrup-molasses (Q). Not AL/BL %.
+  const recBl = num(r.rec_bl);
+  const syrupQ = num(r.syrup_molasses_qtls);
+  const recovery = recBl !== 0
+    ? recBl
+    : (syrupQ > 0 ? etoh / syrupQ : 0);
 
   const fsPctRatio = fsPctRatioFromRow(r);
+  // PBI "FS %" = FS/TRS (ratio); DigiLog chart shows it as percent points.
   const fermSugar = fsPctRatio !== 0 ? fsPctRatio * 100 : num(r.fs);
+
+  const fermEff = effPercent(r.fe);
+  const distEff = effPercent(r.de);
+  // PBI OE = FE × DE (ratios). Expose as percent when FE/DE are percent.
+  let overallEff = 0;
+  if (r.oe != null && r.oe !== '') {
+    overallEff = effPercent(r.oe);
+  } else if (fermEff && distEff) {
+    // fe/de already converted to % → product of ratios
+    overallEff = (fermEff / 100) * (distEff / 100) * 100;
+  }
 
   return {
     date: dateLabel,
@@ -107,16 +193,18 @@ function mapRowToBiPoint(r) {
     bHeavyProd,
     cHeavyProd,
     syrupProd,
+    mixedProd,
     totalProd: etoh,
     totalWash: num(r.wash_distilled),
     syrupMolConsumed: num(r.syrup_molasses_qtls),
     recovery,
-    fermEff: effPercent(r.fe),
-    distEff: effPercent(r.de),
+    fermEff,
+    distEff,
+    overallEff,
     fermSugar,
     alcohol: num(r.alcohol_pct),
     molInStore: molInStoreFromRow(r),
-    ethInStore: num(r.ethanol_storage_bl),
+    ethInStore: nullableNum(r.ethanol_storage_bl),
     trs: num(r.trs),
     ufs: num(r.ufs),
     alBlRatioPct: num(r.al_bl_ratio_pct),
@@ -125,7 +213,8 @@ function mapRowToBiPoint(r) {
     fs: num(r.fs),
     feRaw: num(r.fe),
     deRaw: num(r.de),
-    recBl: num(r.rec_bl),
+    oeRaw: num(r.oe),
+    recBl: recovery,
     recordedAt: (() => {
       const t = r.timestamp;
       if (t == null || t === '') return '';
@@ -143,6 +232,9 @@ async function getDistilleryOperationsBi(req, res) {
       return res.status(403).json({ message: 'Access denied to distillery analytics.' });
     }
 
+    // Distillery dashboard filters client-side (MTD/QTD/YTD + season PoP). Do not
+    // silently truncate to a 365-day lookback or older seasons disappear.
+    const bound = buildDateBound(req.query, { allowUnbounded: true });
     const [rows] = await pool.query(
       `SELECT
         \`Date\`,
@@ -160,11 +252,14 @@ async function getDistilleryOperationsBi(req, res) {
         fs,
         fe,
         de,
+        oe,
         rec_bl,
         \`timestamp\`
       FROM distillery_operations
-      WHERE \`Date\` IS NOT NULL
-      ORDER BY \`Date\` ASC, \`timestamp\` DESC`,
+      WHERE \`Date\` IS NOT NULL${bound.clause}
+      ORDER BY \`Date\` ASC, \`timestamp\` DESC
+      LIMIT ${BI_ROW_LIMIT}`,
+      bound.params,
     );
 
     const deduped = dedupeLatestPerDate(rows);
@@ -176,8 +271,7 @@ async function getDistilleryOperationsBi(req, res) {
       records,
     });
   } catch (err) {
-    console.error('BI distillery error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI distillery error:', err, MSG.LOAD);
   }
 }
 
@@ -241,6 +335,7 @@ async function getMillingStoppagesBi(req, res) {
       return res.status(403).json({ message: 'Access denied to milling analytics.' });
     }
 
+    const bound = buildDateBound(req.query);
     const [rows] = await pool.query(
       `SELECT
         \`Date\`,
@@ -251,8 +346,10 @@ async function getMillingStoppagesBi(req, res) {
         \`remarks\`,
         \`timestamp\`
       FROM mill_stoppages
-      WHERE \`Date\` IS NOT NULL
-      ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC`,
+      WHERE \`Date\` IS NOT NULL${bound.clause}
+      ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC
+      LIMIT ${BI_ROW_LIMIT}`,
+      bound.params,
     );
 
     const records = rows.map(mapMillStoppageRow);
@@ -263,8 +360,7 @@ async function getMillingStoppagesBi(req, res) {
       records,
     });
   } catch (err) {
-    console.error('BI milling error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI milling error:', err, MSG.LOAD);
   }
 }
 
@@ -320,11 +416,14 @@ async function getMillingEquipmentTempBi(req, res) {
     let series = [];
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const bound = buildDateBound(req.query);
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook1
-         WHERE \`Date\` IS NOT NULL
-         ORDER BY \`Date\` ASC, \`Time\` ASC`,
+         WHERE \`Date\` IS NOT NULL${bound.clause}
+         ORDER BY \`Date\` ASC, \`Time\` ASC
+         LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
       );
 
       series = rows.map((r) => {
@@ -357,8 +456,195 @@ async function getMillingEquipmentTempBi(req, res) {
       seriesCount: series.length,
     });
   } catch (err) {
-    console.error('BI milling equipment-temp error:', err.message);
-    return res.status(500).json({ message: 'Database error: ' + err.message });
+    return sendServerError(res, 'BI milling equipment-temp error:', err, MSG.LOAD);
+  }
+}
+
+/**
+ * GET /api/bi/milling-shredder
+ * Returns the DataShredder_Names variable→machinery mapping plus the time-series
+ * readings from `mill_logbook2` (Shredder Right/Left + OTG M1–M4 juice temps).
+ */
+async function getMillingShredderBi(req, res) {
+  try {
+    const allowed = await canAccessForm(req.user, 'bi_milling_operations');
+    if (!allowed) {
+      return res.status(403).json({ message: 'Access denied to milling analytics.' });
+    }
+
+    const [mappingRows] = await pool.query(
+      `SELECT
+         \`variable\`,
+         \`machinery\`,
+         \`variable_name\`,
+         \`sort_order\`
+       FROM data_shredder_mapping
+       ORDER BY \`sort_order\` ASC, \`machinery\` ASC`,
+    );
+
+    const mapping = mappingRows.map((r) => ({
+      variable: String(r.variable || '').trim(),
+      machinery: String(r.machinery || '').trim(),
+      variableName: String(r.variable_name || '').trim(),
+      sortOrder: Number(r.sort_order) || 0,
+    }));
+
+    // Intersect with actual mill_logbook2 columns to guard against schema drift.
+    const [columnRows] = await pool.query(
+      `SELECT COLUMN_NAME AS name
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'mill_logbook2'`,
+    );
+    const tableColumns = new Set(columnRows.map((r) => r.name));
+
+    const variableSet = new Set();
+    for (const m of mapping) {
+      if (m.variable && tableColumns.has(m.variable)) variableSet.add(m.variable);
+    }
+
+    // Also always include any logbook2 column that matches hard-coded prefixes so
+    // the OTG mill data is available even if the mapping xlsx was never uploaded.
+    for (const col of tableColumns) {
+      if (
+        col.startsWith('shredR_') ||
+        col.startsWith('shredL_') ||
+        /^M[0-9]+_/.test(col)
+      ) {
+        variableSet.add(col);
+      }
+    }
+
+    const variableColumns = Array.from(variableSet);
+
+    let series = [];
+    if (variableColumns.length > 0) {
+      const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const bound = buildDateBound(req.query);
+      const [rows] = await pool.query(
+        `SELECT ${selectCols}
+         FROM mill_logbook2
+         WHERE \`Date\` IS NOT NULL${bound.clause}
+         ORDER BY \`Date\` ASC, \`Time\` ASC
+         LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
+      );
+
+      series = rows.map((r) => {
+        const dateIso = dateKey(r.Date);
+        const time = r.Time;
+        let timeIso = '';
+        if (time != null && time !== '') {
+          const t = time instanceof Date ? time : new Date(time);
+          if (!Number.isNaN(t.getTime())) timeIso = t.toISOString();
+        }
+        const values = {};
+        for (const col of variableColumns) {
+          const v = r[col];
+          values[col] = v == null || v === '' ? null : Number(v);
+        }
+        return { dateIso, shift: (r.Shift || '').toString().trim(), timeIso, values };
+      });
+    }
+
+    return res.json({
+      source: 'mill_logbook2+data_shredder_mapping',
+      mapping,
+      series,
+      mappingCount: mapping.length,
+      seriesCount: series.length,
+    });
+  } catch (err) {
+    return sendServerError(res, 'BI milling shredder error:', err, MSG.LOAD);
+  }
+}
+
+/**
+ * GET /api/bi/milling-lube-roller
+ * Returns data_lube_mapping reference + time-series readings from mill_logbook3
+ * (Lube Pressures for ACC/MCC/Shred/M0  +  Roller Temps gs/ps for M0–M4).
+ */
+async function getMillingLubeRollerBi(req, res) {
+  try {
+    const allowed = await canAccessForm(req.user, 'bi_milling_operations');
+    if (!allowed) {
+      return res.status(403).json({ message: 'Access denied to milling analytics.' });
+    }
+
+    const [mappingRows] = await pool.query(
+      `SELECT \`variable\`, \`machinery\`, \`variable_name\`, \`sort_order\`
+       FROM data_lube_mapping
+       ORDER BY \`sort_order\` ASC, \`machinery\` ASC`,
+    );
+
+    const mapping = mappingRows.map((r) => ({
+      variable: String(r.variable || '').trim(),
+      machinery: String(r.machinery || '').trim(),
+      variableName: String(r.variable_name || '').trim(),
+      sortOrder: Number(r.sort_order) || 0,
+    }));
+
+    const [columnRows] = await pool.query(
+      `SELECT COLUMN_NAME AS name
+       FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME = 'mill_logbook3'`,
+    );
+    const tableColumns = new Set(columnRows.map((r) => r.name));
+
+    const variableSet = new Set();
+    // Include mapping variables
+    for (const m of mapping) {
+      if (m.variable && tableColumns.has(m.variable)) variableSet.add(m.variable);
+    }
+    // Always include all known lube/roller columns even if mapping xlsx not uploaded
+    for (const col of tableColumns) {
+      if (col.startsWith('LubePressure_') || /^M[0-9]+_(gs|ps)/.test(col)) {
+        variableSet.add(col);
+      }
+    }
+
+    const variableColumns = Array.from(variableSet);
+    let series = [];
+
+    if (variableColumns.length > 0) {
+      const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
+      const bound = buildDateBound(req.query);
+      const [rows] = await pool.query(
+        `SELECT ${selectCols}
+         FROM mill_logbook3
+         WHERE \`Date\` IS NOT NULL${bound.clause}
+         ORDER BY \`Date\` ASC, \`Time\` ASC
+         LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
+      );
+
+      series = rows.map((r) => {
+        const dateIso = dateKey(r.Date);
+        const time = r.Time;
+        let timeIso = '';
+        if (time != null && time !== '') {
+          const t = time instanceof Date ? time : new Date(time);
+          if (!Number.isNaN(t.getTime())) timeIso = t.toISOString();
+        }
+        const values = {};
+        for (const col of variableColumns) {
+          const v = r[col];
+          values[col] = v == null || v === '' ? null : Number(v);
+        }
+        return { dateIso, shift: (r.Shift || '').toString().trim(), timeIso, values };
+      });
+    }
+
+    return res.json({
+      source: 'mill_logbook3+data_lube_mapping',
+      mapping,
+      series,
+      mappingCount: mapping.length,
+      seriesCount: series.length,
+    });
+  } catch (err) {
+    return sendServerError(res, 'BI milling lube-roller error:', err, MSG.LOAD);
   }
 }
 
@@ -366,4 +652,6 @@ module.exports = {
   getDistilleryOperationsBi,
   getMillingStoppagesBi,
   getMillingEquipmentTempBi,
+  getMillingShredderBi,
+  getMillingLubeRollerBi,
 };

@@ -7,6 +7,7 @@ import { Toaster } from 'react-hot-toast';
 
 import { msalInstance } from './msalConfig';
 import { AuthProvider } from './context/AuthContext';
+import ActivityTracker from './components/ActivityTracker';
 import App from './App';
 import './index.css';
 
@@ -16,6 +17,7 @@ const app = (
   <React.StrictMode>
     <BrowserRouter future={{ v7_relativeSplatPath: true }}>
       <AuthProvider>
+        <ActivityTracker />
         <App />
         <Toaster
           position="top-right"

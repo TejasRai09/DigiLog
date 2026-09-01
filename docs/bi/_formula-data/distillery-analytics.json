@@ -1,0 +1,669 @@
+{
+  "dashboard": "Distillery Analytics",
+  "route": "/bi/distillery-operations",
+  "apiEndpoints": [
+    "GET /api/bi/distillery-operations",
+    "GET /api/bi/settings"
+  ],
+  "tables": [
+    {
+      "table": "distillery_operations",
+      "columns": [
+        "Date",
+        "operation_mode",
+        "syrup_molasses_qtls",
+        "wash_distilled",
+        "trs",
+        "ufs",
+        "alcohol_pct",
+        "actual_ethanol_bl",
+        "al_bl_ratio_pct",
+        "total_bh_molasses_qtls",
+        "total_ch_molasses_qtls",
+        "ethanol_storage_bl",
+        "fs",
+        "fe",
+        "de",
+        "oe",
+        "rec_bl",
+        "timestamp"
+      ],
+      "purpose": "Primary daily distillery operations facts; one row per calendar Date (latest timestamp wins). BI maps rows to dashboard series points."
+    },
+    {
+      "table": "portal_settings",
+      "columns": [
+        "setting_key",
+        "setting_value"
+      ],
+      "purpose": "Stores distillery_theoretical_yield (default 64.4) used at form-save time to compute fe, oe, and theoretical_yield columns; not read by distillery BI endpoint but affects stored efficiency values."
+    },
+    {
+      "table": "season_mapping",
+      "columns": [
+        "season_label",
+        "start_date",
+        "end_date"
+      ],
+      "purpose": "Defines season compare windows loaded via GET /api/bi/settings as seasonMapping for Compare chip date alignment."
+    }
+  ],
+  "rows": [
+    {
+      "section": "Header",
+      "subSection": "Key metric",
+      "element": "KPI card",
+      "name": "Operating Days",
+      "unit": "days",
+      "description": "Count of filtered daily records where ethanol production is greater than zero. Matches Power BI operating-day logic (not every logged date).",
+      "formula": "filteredData.filter((row) => Number(row.totalProd) > 0).length where filteredData = rawData filtered by date range [fromDate, toDate] and selected operation modes.",
+      "source": "distillery_operations.actual_ethanol_bl (mapped to totalProd), distillery_operations.Date, distillery_operations.operation_mode",
+      "comparison": "No comparison chip. Subtitle shows range preset (MTD, QTD, YTD) or custom date span."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Operation mode",
+      "element": "Filter",
+      "name": "Op Mode selection count",
+      "unit": "count",
+      "description": "Number of operation modes currently included in all dashboard metrics. Button shows All when all four modes are selected, otherwise the selected count.",
+      "formula": "selectedModes.length; availableModes = ['B Heavy','C Heavy','Syrup','Mixed']. If selectedModes.length === 0 then filteredData = [] (all metrics zero/empty).",
+      "source": "distillery_operations.operation_mode (client filter only)",
+      "comparison": "Not applicable."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Total Ethanol Produced",
+      "element": "KPI card",
+      "name": "Total Ethanol Produced",
+      "unit": "BL",
+      "description": "Sum of actual ethanol production (bulk liters) across all days and selected operation modes in the filtered date range.",
+      "formula": "aggregateKpisFromRows(filteredData).ethanolProd = SUM(row.totalProd). Display: value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }). Backend: totalProd = num(actual_ethanol_bl).",
+      "source": "distillery_operations.actual_ethanol_bl",
+      "comparison": "Comparison baseline pyKPIs.ethanolProd from comparisonDataSlice (prior period or aligned season window, same mode filter). Percent change: pyValue !== 0 ? ((value - pyValue) / pyValue) * 100 : 0. Shown as Math.abs(delta).toFixed(1)% with trend icon. Label: vs {comparisonLabel} {periodLabel}. Normal coloring (higher is better)."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Total Ethanol Produced",
+      "element": "Derived",
+      "name": "Total Ethanol Produced comparison %",
+      "unit": "%",
+      "description": "Period-over-period or season percent change for total ethanol production versus the selected comparison window.",
+      "formula": "delta = pyValue !== 0 ? ((currentKPIs.ethanolProd - pyKPIs.ethanolProd) / pyKPIs.ethanolProd) * 100 : 0; display Math.abs(delta).toFixed(1).",
+      "source": "distillery_operations.actual_ethanol_bl",
+      "comparison": "Hidden only when pyValue is 0 (shows 0.0% neutral). comparisonLabel pattern: PP -> '{priorPeriodRange.label} ({start} - {end})'; season -> '{seasonLabel} ({start} - {end})' with en-US short dates."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Total Ethanol Produced",
+      "element": "Chart series",
+      "name": "Total Ethanol Produced sparkline",
+      "unit": "BL",
+      "description": "Daily actual ethanol production over the filtered period shown as a KPI sparkline area chart.",
+      "formula": "Per day: totalProd = num(actual_ethanol_bl). Tooltip: v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' BL'.",
+      "source": "distillery_operations.actual_ethanol_bl, distillery_operations.Date",
+      "comparison": "Sparkline shows current period only; no overlay of comparison period."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Syrup/Molasses Consumed",
+      "element": "KPI card",
+      "name": "Syrup/Molasses Consumed",
+      "unit": "Q",
+      "description": "Sum of syrup and molasses feed consumed (quintals) across the filtered date range and selected modes.",
+      "formula": "aggregateKpisFromRows(filteredData).syrupMol = SUM(row.syrupMolConsumed). Backend: syrupMolConsumed = num(syrup_molasses_qtls).",
+      "source": "distillery_operations.syrup_molasses_qtls",
+      "comparison": "Percent change vs pyKPIs.syrupMol with inverseColor=true (lower increase is green). Formula same as ethanol KPI."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Syrup/Molasses Consumed",
+      "element": "Derived",
+      "name": "Syrup/Molasses Consumed comparison %",
+      "unit": "%",
+      "description": "Percent change in total syrup/molasses consumption versus comparison window.",
+      "formula": "delta = pyValue !== 0 ? ((currentKPIs.syrupMol - pyKPIs.syrupMol) / pyKPIs.syrupMol) * 100 : 0.",
+      "source": "distillery_operations.syrup_molasses_qtls",
+      "comparison": "Inverse coloring: isGood = !isPositive. Label vs {comparisonLabel} {periodLabel}."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Syrup/Molasses Consumed",
+      "element": "Chart series",
+      "name": "Syrup/Molasses Consumed sparkline",
+      "unit": "Q",
+      "description": "Daily syrup/molasses consumption sparkline.",
+      "formula": "Per day: syrupMolConsumed = num(syrup_molasses_qtls).",
+      "source": "distillery_operations.syrup_molasses_qtls, distillery_operations.Date",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Fermentation Efficiency",
+      "element": "KPI card",
+      "name": "Fermentation Efficiency",
+      "unit": "%",
+      "description": "Average fermentation efficiency (FE) across days in range, skipping blank and zero values. FE measures alcohol produced in fermentation versus theoretical yield from fermentable sugar.",
+      "formula": "aggregateKpisFromRows: fermEff = averageNonBlank(rows, (item) => item.fermEff, { skipZero: true }). Backend per row: fermEff = effPercent(fe) where effPercent(x) = x if |x|>1 else x*100 (ratio 0-1 converted to percent). Stored fe at form save: fe = alcohol_prod_fermentation / theoretical_yield; theoretical_yield = fs_quantity * theoreticalYieldFactor. [USES portal_settings.distillery_theoretical_yield at form-save time, default 64.4]",
+      "source": "distillery_operations.fe, distillery_operations.alcohol_pct, distillery_operations.wash_distilled, distillery_operations.trs, distillery_operations.ufs, distillery_operations.syrup_molasses_qtls, portal_settings.distillery_theoretical_yield (indirect via stored fe)",
+      "comparison": "Percent change vs pyKPIs.fermEff. Normal coloring (higher is better)."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Fermentation Efficiency",
+      "element": "Derived",
+      "name": "Fermentation Efficiency comparison %",
+      "unit": "%",
+      "description": "Percent change in average FE versus comparison window.",
+      "formula": "delta = pyValue !== 0 ? ((currentKPIs.fermEff - pyKPIs.fermEff) / pyKPIs.fermEff) * 100 : 0.",
+      "source": "distillery_operations.fe",
+      "comparison": "Depends on portal_settings.distillery_theoretical_yield used when each row's fe was saved. Label vs {comparisonLabel} {periodLabel}."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Fermentation Efficiency",
+      "element": "Chart series",
+      "name": "Fermentation Efficiency sparkline",
+      "unit": "%",
+      "description": "Daily FE trend in KPI card sparkline.",
+      "formula": "Per day: fermEff = effPercent(distillery_operations.fe). Tooltip suffix %.",
+      "source": "distillery_operations.fe",
+      "comparison": "Current period only. [Indirect dependency on portal_settings.distillery_theoretical_yield via stored fe]"
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Distillation Efficiency",
+      "element": "KPI card",
+      "name": "Distillation Efficiency",
+      "unit": "%",
+      "description": "Average distillation efficiency (DE) across days, skipping blank and zero values. DE is recovery of alcohol in distillation relative to fermentation alcohol.",
+      "formula": "aggregateKpisFromRows: distEff = averageNonBlank(rows, (item) => item.distEff, { skipZero: true }). Backend: distEff = effPercent(de). Stored de at form save: de = actual_prod_al / alcohol_prod_fermentation where actual_prod_al = (al_bl_ratio_pct/100)*actual_ethanol_bl and alcohol_prod_fermentation = (alcohol_pct/100)*wash_distilled.",
+      "source": "distillery_operations.de, distillery_operations.al_bl_ratio_pct, distillery_operations.actual_ethanol_bl, distillery_operations.alcohol_pct, distillery_operations.wash_distilled",
+      "comparison": "Percent change vs pyKPIs.distEff. Normal coloring."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Distillation Efficiency",
+      "element": "Derived",
+      "name": "Distillation Efficiency comparison %",
+      "unit": "%",
+      "description": "Percent change in average DE versus comparison window.",
+      "formula": "delta = pyValue !== 0 ? ((currentKPIs.distEff - pyKPIs.distEff) / pyKPIs.distEff) * 100 : 0.",
+      "source": "distillery_operations.de",
+      "comparison": "Label vs {comparisonLabel} {periodLabel}."
+    },
+    {
+      "section": "KPI Cards",
+      "subSection": "Distillation Efficiency",
+      "element": "Chart series",
+      "name": "Distillation Efficiency sparkline",
+      "unit": "%",
+      "description": "Daily DE trend in KPI card sparkline.",
+      "formula": "Per day: distEff = effPercent(distillery_operations.de).",
+      "source": "distillery_operations.de",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Derived",
+      "name": "Ethanol Vol chart title comparison %",
+      "unit": "%",
+      "description": "Percent change between the mean daily total ethanol in the current period and the mean daily total in the comparison period.",
+      "formula": "currentAvg = SUM(item.totalProd for filteredData) / filteredData.length; pyAvg = SUM(item.totalProd for comparisonData) / comparisonData.length (or 0 if empty); delta = pyAvg !== 0 ? ((currentAvg - pyAvg) / pyAvg) * 100 : 0; display Math.abs(delta).toFixed(1). Badge text: ({periodLabel}) . {comparisonLabel}.",
+      "source": "distillery_operations.actual_ethanol_bl",
+      "comparison": "higherIsBetter=true (default). Shown in chart title row only when filteredData.length > 0."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Derived",
+      "name": "Total Vol",
+      "unit": "BL",
+      "description": "Sum of daily ethanol production across the filtered period shown above the Ethanol Vol chart.",
+      "formula": "getChartMetric('totalProd', true) = SUM(Number(item.totalProd) || 0) over filteredData. formatMetric: >=1e6 -> (n/1e6).toFixed(2)+M; >=1e3 -> (n/1e3).toFixed(2)+K; else n.toFixed(2).",
+      "source": "distillery_operations.actual_ethanol_bl",
+      "comparison": "Sub-line shows comparison period aggregate via getChartMetric('totalProd', true, comparisonData), not percent change."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Label",
+      "name": "Total Vol vs comparison value",
+      "unit": "BL",
+      "description": "Formatted comparison-window total ethanol shown as '| vs {comparisonLabel}: {value}'.",
+      "formula": "formatMetric(getChartMetric('totalProd', true, comparisonData), { asPercent: false }).",
+      "source": "distillery_operations.actual_ethanol_bl",
+      "comparison": "Displays comparison period absolute value, not delta percent."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Derived",
+      "name": "Avg REC BL",
+      "unit": "BL per Q",
+      "description": "Average daily recovery in bulk liters per quintal of feed (REC BL) across the period, skipping blank and zero days.",
+      "formula": "getChartMetric('recovery', false) = averageNonBlank(filteredData, (item) => item.recovery, { skipZero: true }). Per row: recovery = rec_bl if rec_bl != 0 else (syrup_molasses_qtls > 0 ? actual_ethanol_bl / syrup_molasses_qtls : 0).",
+      "source": "distillery_operations.rec_bl, distillery_operations.actual_ethanol_bl, distillery_operations.syrup_molasses_qtls",
+      "comparison": "Sub-line: formatMetric(getChartMetric('recovery', false, comparisonData), { asPercent: false })."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Label",
+      "name": "Avg REC BL vs comparison value",
+      "unit": "BL per Q",
+      "description": "Comparison-window average REC BL formatted alongside Total Vol.",
+      "formula": "formatMetric(getChartMetric('recovery', false, comparisonData), { asPercent: false }).",
+      "source": "distillery_operations.rec_bl, distillery_operations.actual_ethanol_bl, distillery_operations.syrup_molasses_qtls",
+      "comparison": "Absolute comparison value, not percent change."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Chart series",
+      "name": "B Heavy (BL)",
+      "unit": "BL",
+      "description": "Daily ethanol attributed to B Heavy operation mode as a stacked bar segment.",
+      "formula": "bHeavyProd = actual_ethanol_bl when trim(operation_mode) = 'B Heavy', else 0. Y-axis left tickFormatter: v/1000 + 'k'.",
+      "source": "distillery_operations.actual_ethanol_bl, distillery_operations.operation_mode",
+      "comparison": "Current period daily values only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Chart series",
+      "name": "C Heavy (BL)",
+      "unit": "BL",
+      "description": "Daily ethanol attributed to C Heavy operation mode.",
+      "formula": "cHeavyProd = actual_ethanol_bl when operation_mode = 'C Heavy', else 0.",
+      "source": "distillery_operations.actual_ethanol_bl, distillery_operations.operation_mode",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Chart series",
+      "name": "Syrup (BL)",
+      "unit": "BL",
+      "description": "Daily ethanol attributed to Syrup operation mode.",
+      "formula": "syrupProd = actual_ethanol_bl when operation_mode = 'Syrup', else 0.",
+      "source": "distillery_operations.actual_ethanol_bl, distillery_operations.operation_mode",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Chart series",
+      "name": "Mixed (BL)",
+      "unit": "BL",
+      "description": "Daily ethanol for Mixed/unknown modes. operation_mode 'None' or blank is mapped to Mixed.",
+      "formula": "mixedProd = actual_ethanol_bl when mode not in ('B Heavy','C Heavy','Syrup'); mode = Mixed when operation_mode is None or empty.",
+      "source": "distillery_operations.actual_ethanol_bl, distillery_operations.operation_mode",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Vol",
+      "element": "Chart series",
+      "name": "REC BL",
+      "unit": "BL per Q",
+      "description": "Daily recovery line (ethanol BL per quintal feed) on right Y-axis.",
+      "formula": "recovery per mapRowToBiPoint (see Avg REC BL). Right Y-axis tickFormatter: Number(v).toFixed(0). Tooltip: no % suffix for REC BL.",
+      "source": "distillery_operations.rec_bl, distillery_operations.actual_ethanol_bl, distillery_operations.syrup_molasses_qtls",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Derived",
+      "name": "Ferm. Sugar chart title comparison %",
+      "unit": "%",
+      "description": "Percent change in mean daily fermentable sugar percent (FS/TRS) between current and comparison periods.",
+      "formula": "ChartTitle dataKey='fermSugar': currentAvg = AVG(item.fermSugar); delta vs pyAvg on comparisonData.",
+      "source": "distillery_operations.fs, distillery_operations.trs",
+      "comparison": "higherIsBetter=true."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Derived",
+      "name": "Avg Ferm. Sugar",
+      "unit": "%",
+      "description": "Average daily fermentable sugar as percent of TRS (FS/TRS x 100), skipping blank and zero days.",
+      "formula": "getChartMetric('fermSugar', false) = averageNonBlank(..., { skipZero: true }). Per row: fsPctRatio = fs/trs when trs valid else 0; fermSugar = fsPctRatio !== 0 ? fsPctRatio * 100 : num(fs) [fallback when ratio is 0].",
+      "source": "distillery_operations.fs, distillery_operations.trs",
+      "comparison": "formatMetric displays as X.X%. Sub-line shows comparison period average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Label",
+      "name": "Avg Ferm. Sugar vs comparison value",
+      "unit": "%",
+      "description": "Comparison-window average fermentable sugar percent.",
+      "formula": "formatMetric(getChartMetric('fermSugar', false, comparisonData), { asPercent: true }).",
+      "source": "distillery_operations.fs, distillery_operations.trs",
+      "comparison": "Absolute comparison average, not percent change."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Derived",
+      "name": "Avg Alcohol",
+      "unit": "%",
+      "description": "Average daily wash alcohol percent across the period, skipping blank and zero days.",
+      "formula": "getChartMetric('alcohol', false) = averageNonBlank(filteredData, (item) => item.alcohol, { skipZero: true }). Per row: alcohol = num(alcohol_pct).",
+      "source": "distillery_operations.alcohol_pct",
+      "comparison": "Sub-line shows comparison period average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Label",
+      "name": "Avg Alcohol vs comparison value",
+      "unit": "%",
+      "description": "Comparison-window average alcohol percent.",
+      "formula": "formatMetric(getChartMetric('alcohol', false, comparisonData), { asPercent: true }).",
+      "source": "distillery_operations.alcohol_pct",
+      "comparison": "Absolute comparison average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Chart series",
+      "name": "Ferm. Sugar %",
+      "unit": "%",
+      "description": "Daily fermentable sugar percent line (FS/TRS).",
+      "formula": "fermSugar per mapRowToBiPoint. Y-axis tickFormatter: v.toFixed(2) + '%'.",
+      "source": "distillery_operations.fs, distillery_operations.trs",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ferm. Sugar",
+      "element": "Chart series",
+      "name": "Alcohol %",
+      "unit": "%",
+      "description": "Daily wash alcohol percent line.",
+      "formula": "alcohol = num(alcohol_pct).",
+      "source": "distillery_operations.alcohol_pct",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Derived",
+      "name": "Overall Efficiency chart title comparison %",
+      "unit": "%",
+      "description": "Percent change in mean daily fermentation efficiency between periods (chart title uses dataKey fermEff).",
+      "formula": "ChartTitle dataKey='fermEff': AVG(fermEff) current vs comparison.",
+      "source": "distillery_operations.fe",
+      "comparison": "higherIsBetter=true. [Indirect dependency on portal_settings.distillery_theoretical_yield via fe]"
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Derived",
+      "name": "Avg FE",
+      "unit": "%",
+      "description": "Average fermentation efficiency for the chart header metrics row.",
+      "formula": "getChartMetric('fermEff', false) with skipZero average.",
+      "source": "distillery_operations.fe",
+      "comparison": "Sub-line: comparison period Avg FE. [USES portal_settings.distillery_theoretical_yield at form-save via stored fe]"
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Label",
+      "name": "Avg FE vs comparison value",
+      "unit": "%",
+      "description": "Comparison-window average FE.",
+      "formula": "formatMetric(getChartMetric('fermEff', false, comparisonData)).",
+      "source": "distillery_operations.fe",
+      "comparison": "Absolute comparison average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Derived",
+      "name": "Avg DE",
+      "unit": "%",
+      "description": "Average distillation efficiency for the chart header metrics row.",
+      "formula": "getChartMetric('distEff', false) with skipZero average.",
+      "source": "distillery_operations.de",
+      "comparison": "Sub-line: comparison period Avg DE."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Label",
+      "name": "Avg DE vs comparison value",
+      "unit": "%",
+      "description": "Comparison-window average DE.",
+      "formula": "formatMetric(getChartMetric('distEff', false, comparisonData)).",
+      "source": "distillery_operations.de",
+      "comparison": "Absolute comparison average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Derived",
+      "name": "Avg OE",
+      "unit": "%",
+      "description": "Average overall efficiency (OE = FE x DE) across days, skipping blank and zero values.",
+      "formula": "getChartMetric('overallEff', false). Per row: overallEff = effPercent(oe) if oe present, else (fermEff/100)*(distEff/100)*100. Stored oe at form save: oe = fe * de. [USES portal_settings.distillery_theoretical_yield at form-save via fe and oe]",
+      "source": "distillery_operations.oe, distillery_operations.fe, distillery_operations.de",
+      "comparison": "Sub-line: comparison period Avg OE."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Label",
+      "name": "Avg OE vs comparison value",
+      "unit": "%",
+      "description": "Comparison-window average overall efficiency.",
+      "formula": "formatMetric(getChartMetric('overallEff', false, comparisonData)).",
+      "source": "distillery_operations.oe, distillery_operations.fe, distillery_operations.de",
+      "comparison": "Absolute comparison average. [Indirect dependency on portal_settings.distillery_theoretical_yield]"
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Chart series",
+      "name": "Ferm. Efficiency",
+      "unit": "%",
+      "description": "Daily fermentation efficiency line.",
+      "formula": "fermEff = effPercent(fe). Y-axis domain ['dataMin - 2', 100].",
+      "source": "distillery_operations.fe",
+      "comparison": "Current period only. [USES portal_settings.distillery_theoretical_yield at form-save via stored fe]"
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Chart series",
+      "name": "Dist. Efficiency",
+      "unit": "%",
+      "description": "Daily distillation efficiency line.",
+      "formula": "distEff = effPercent(de).",
+      "source": "distillery_operations.de",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Overall Efficiency",
+      "element": "Chart series",
+      "name": "Overall Eff (OE)",
+      "unit": "%",
+      "description": "Daily overall efficiency line (OE).",
+      "formula": "overallEff from mapRowToBiPoint (oe column or FE*DE fallback).",
+      "source": "distillery_operations.oe, distillery_operations.fe, distillery_operations.de",
+      "comparison": "Current period only. [USES portal_settings.distillery_theoretical_yield at form-save via fe/oe]"
+    },
+    {
+      "section": "Charts",
+      "subSection": "Wash Distilled",
+      "element": "Derived",
+      "name": "Wash Distilled chart title comparison %",
+      "unit": "%",
+      "description": "Percent change in mean daily wash distilled volume.",
+      "formula": "ChartTitle dataKey='totalWash': AVG(totalWash) current vs comparison.",
+      "source": "distillery_operations.wash_distilled",
+      "comparison": "higherIsBetter=true."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Wash Distilled",
+      "element": "Derived",
+      "name": "Total Wash",
+      "unit": "volume units",
+      "description": "Sum of wash distilled across the filtered period.",
+      "formula": "getChartMetric('totalWash', true) = SUM(num(wash_distilled)). formatMetric without percent.",
+      "source": "distillery_operations.wash_distilled",
+      "comparison": "Sub-line: comparison period total wash."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Wash Distilled",
+      "element": "Label",
+      "name": "Total Wash vs comparison value",
+      "unit": "volume units",
+      "description": "Comparison-window total wash distilled.",
+      "formula": "formatMetric(getChartMetric('totalWash', true, comparisonData), { asPercent: false }).",
+      "source": "distillery_operations.wash_distilled",
+      "comparison": "Absolute comparison value."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Wash Distilled",
+      "element": "Chart series",
+      "name": "Wash Volume",
+      "unit": "volume units",
+      "description": "Daily wash distilled area series.",
+      "formula": "totalWash = num(wash_distilled). Y-axis tickFormatter: (v/1000000).toFixed(1) + 'M'.",
+      "source": "distillery_operations.wash_distilled",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Molasses Stock",
+      "element": "Derived",
+      "name": "Molasses Stock chart title comparison %",
+      "unit": "%",
+      "description": "Percent change in mean daily molasses inventory between periods.",
+      "formula": "ChartTitle dataKey='molInStore', higherIsBetter=false: lower average stock is green in title chip.",
+      "source": "distillery_operations.total_bh_molasses_qtls, distillery_operations.total_ch_molasses_qtls",
+      "comparison": "Inverse title chip coloring (higherIsBetter=false)."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Molasses Stock",
+      "element": "Derived",
+      "name": "Avg Stock",
+      "unit": "Q",
+      "description": "Average daily BH+CH molasses in store, skipping null blanks but including real zeros.",
+      "formula": "getChartMetric('molInStore', false) = averageNonBlank(..., { skipZero: false }). Per row: molInStore = null when both total_bh_molasses_qtls and total_ch_molasses_qtls blank; else COALESCE(bh,0)+COALESCE(ch,0).",
+      "source": "distillery_operations.total_bh_molasses_qtls, distillery_operations.total_ch_molasses_qtls",
+      "comparison": "Sub-line: comparison period average stock."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Molasses Stock",
+      "element": "Label",
+      "name": "Molasses Avg Stock vs comparison value",
+      "unit": "Q",
+      "description": "Comparison-window average molasses stock.",
+      "formula": "formatMetric(getChartMetric('molInStore', false, comparisonData), { asPercent: false }).",
+      "source": "distillery_operations.total_bh_molasses_qtls, distillery_operations.total_ch_molasses_qtls",
+      "comparison": "Absolute comparison average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Molasses Stock",
+      "element": "Chart series",
+      "name": "Molasses Stock",
+      "unit": "Q",
+      "description": "Daily molasses inventory area series.",
+      "formula": "molInStore per molInStoreFromRow. Y-axis: (v/1000).toFixed(0) + 'k'.",
+      "source": "distillery_operations.total_bh_molasses_qtls, distillery_operations.total_ch_molasses_qtls",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Stock",
+      "element": "Derived",
+      "name": "Ethanol Stock chart title comparison %",
+      "unit": "%",
+      "description": "Percent change in mean daily finished ethanol inventory.",
+      "formula": "ChartTitle dataKey='ethInStore', higherIsBetter=false.",
+      "source": "distillery_operations.ethanol_storage_bl",
+      "comparison": "Inverse title chip coloring."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Stock",
+      "element": "Derived",
+      "name": "Avg Stock",
+      "unit": "BL",
+      "description": "Average daily ethanol in storage, skipping null blanks but including real zeros.",
+      "formula": "getChartMetric('ethInStore', false) = averageNonBlank(..., { skipZero: false }). Per row: ethInStore = nullableNum(ethanol_storage_bl).",
+      "source": "distillery_operations.ethanol_storage_bl",
+      "comparison": "Sub-line: comparison period average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Stock",
+      "element": "Label",
+      "name": "Ethanol Avg Stock vs comparison value",
+      "unit": "BL",
+      "description": "Comparison-window average ethanol stock.",
+      "formula": "formatMetric(getChartMetric('ethInStore', false, comparisonData), { asPercent: false }).",
+      "source": "distillery_operations.ethanol_storage_bl",
+      "comparison": "Absolute comparison average."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Ethanol Stock",
+      "element": "Chart series",
+      "name": "Ethanol Stock",
+      "unit": "BL",
+      "description": "Daily finished ethanol inventory area series.",
+      "formula": "ethInStore = nullableNum(ethanol_storage_bl). Y-axis: (v/1000).toFixed(0) + 'k'.",
+      "source": "distillery_operations.ethanol_storage_bl",
+      "comparison": "Current period only."
+    },
+    {
+      "section": "Charts",
+      "subSection": "Expand modal",
+      "element": "Label",
+      "name": "Operating Days period badge",
+      "unit": "days",
+      "description": "Badge shown when a chart is expanded: count of operating days and period label.",
+      "formula": "{operatingDays} Operating Days ({periodLabel}) where operatingDays = filteredData.filter(row => Number(row.totalProd) > 0).length.",
+      "source": "distillery_operations.actual_ethanol_bl, distillery_operations.Date",
+      "comparison": "Not applicable."
+    },
+    {
+      "section": "Filters",
+      "subSection": "Compare",
+      "element": "Label",
+      "name": "Comparison window label",
+      "unit": "text",
+      "description": "Human-readable comparison range appended to KPI and chart comparison chips.",
+      "formula": "PP: '{priorPeriodRange.label} ({formatDateFriendly(start)} - {formatDateFriendly(end)})' where priorPeriodRange = computePriorPeriodRange(fromDate, toDate, rangePreset). MTD->Prev. Month (shift -1 month); QTD->Prev. Quarter (-3 months); YTD->Prev. Year (-1 year); Custom->equal-length window ending day before fromDate. Season: '{seasonLabel} ({start} - {end})' from resolveCockpitCompareRange or alignSeasonCompareRange.",
+      "source": "season_mapping.start_date, season_mapping.end_date, distillery_operations.Date (for bounds)",
+      "comparison": "Empty string when comparisonType is not PP and not a season type."
+    },
+    {
+      "section": "Derived",
+      "subSection": "Backend mapping",
+      "element": "Derived",
+      "name": "Theoretical yield (form-save only, not displayed)",
+      "unit": "internal",
+      "description": "Not shown on dashboard but drives stored FE/OE values. Computed when distillery_ops form is saved.",
+      "formula": "theoretical_yield = fs_quantity * theoreticalYieldFactor where fs_quantity = (fs/100)*syrup_molasses_qtls, fs = trs - ufs, theoreticalYieldFactor = parseFloat(portal_settings.distillery_theoretical_yield) default 64.4. fe = alcohol_prod_fermentation / theoretical_yield. oe = fe * de. [USES portal_settings.distillery_theoretical_yield]",
+      "source": "portal_settings.distillery_theoretical_yield, distillery_operations.trs, distillery_operations.ufs, distillery_operations.syrup_molasses_qtls, distillery_operations.alcohol_pct, distillery_operations.wash_distilled, distillery_operations.al_bl_ratio_pct, distillery_operations.actual_ethanol_bl",
+      "comparison": "Not displayed on dashboard. Historical rows retain yield factor active at save time."
+    }
+  ]
+}

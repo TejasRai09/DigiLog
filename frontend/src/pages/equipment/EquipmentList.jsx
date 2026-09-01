@@ -47,7 +47,7 @@ const EquipmentList = () => {
   const totalPages = Math.ceil(total / LIMIT);
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildEquipmentListTrail({ appId, appName })} />
       <div className="mb-6">
         <p className="text-sm text-gray-500">{total} equipment records</p>

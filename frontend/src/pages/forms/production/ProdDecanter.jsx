@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildProdDecanterReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const SHIFTS = [
   { key: 'shift8_4',  label: 'Shift 8–4 (Morning)',  range: [0, 8] },
@@ -47,45 +51,54 @@ const calcTotals = (hours, range) => {
   };
 };
 
+const buildDecanterRows = (form) =>
+  form.hours
+    .filter((r) => Object.entries(r).some(([k, v]) => k !== 'time_slot' && v !== ''))
+    .map((r) => ({
+      date: form.date, season: form.season, crop_day: form.crop_day,
+      time_slot: r.time_slot,
+      st1_mud: safef(r.st1_mud), st1_centrate: safef(r.st1_centrate),
+      st1_floc: safef(r.st1_floc), st1_water: safef(r.st1_water),
+      st1_load: safef(r.st1_load), st1_torque: safef(r.st1_torque),
+      st1_vib: safef(r.st1_vib), st1_diff_speed: safef(r.st1_diff_speed),
+      st2_mud: safef(r.st2_mud), st2_centrate: safef(r.st2_centrate),
+      st2_floc: safef(r.st2_floc), st2_water: safef(r.st2_water),
+      st2_load: safef(r.st2_load), st2_torque: safef(r.st2_torque),
+      st2_vib: safef(r.st2_vib), st2_diff_speed: safef(r.st2_diff_speed),
+    }));
+
 const ProdDecanter = () => {
   const navigate = useNavigate();
-  const [form, setForm]        = useState(INITIAL);
+  const [form, setForm] = useState(INITIAL);
   const [activeShift, setShift] = useState('shift8_4');
-  const [submitting, setSub]   = useState(false);
 
   const handleMeta = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   const handleHour = (idx, field, val) =>
     setForm((p) => { const h=[...p.hours]; h[idx]={...h[idx],[field]:val}; return {...p,hours:h}; });
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
-      const rows = form.hours
-        .filter((r) => Object.entries(r).some(([k,v]) => k!=='time_slot' && v!==''))
-        .map((r) => ({
-          date: form.date, season: form.season, crop_day: form.crop_day,
-          time_slot: r.time_slot,
-          st1_mud:        safef(r.st1_mud),        st1_centrate:   safef(r.st1_centrate),
-          st1_floc:       safef(r.st1_floc),        st1_water:      safef(r.st1_water),
-          st1_load:       safef(r.st1_load),        st1_torque:     safef(r.st1_torque),
-          st1_vib:        safef(r.st1_vib),         st1_diff_speed: safef(r.st1_diff_speed),
-          st2_mud:        safef(r.st2_mud),         st2_centrate:   safef(r.st2_centrate),
-          st2_floc:       safef(r.st2_floc),        st2_water:      safef(r.st2_water),
-          st2_load:       safef(r.st2_load),        st2_torque:     safef(r.st2_torque),
-          st2_vib:        safef(r.st2_vib),         st2_diff_speed: safef(r.st2_diff_speed),
-        }));
-      if (rows.length === 0) { toast.error('Fill at least one hourly row.'); setSub(false); return; }
-      await api.post('/forms/prod_decanter/batch', { rows });
-      toast.success('Decanter Log submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      if (buildDecanterRows(form).length === 0) {
+        toast.error('Fill at least one hourly row.');
+        return false;
+      }
+      return true;
+    },
+    submit: async () => {
+      const rows = buildDecanterRows(form);
+      await gsmaSubmitRequest(
+        () => api.post('/forms/prod_decanter/batch', { rows }),
+        'Decanter Log submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildProdDecanterReview(form) : null),
+    [reviewOpen, form],
+  );
 
   const shiftObj = SHIFTS.find((s) => s.key === activeShift);
   const totals   = calcTotals(form.hours, shiftObj.range);
@@ -105,7 +118,7 @@ const ProdDecanter = () => {
       <h1 className="page-title mb-1">Decanter Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill</p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-3 gap-4">
           <div><label className="label">Operation Date <span className="text-red-500">*</span></label><input type="date" name="date" value={form.date} onChange={handleMeta} required className="input" /></div>
           <div><label className="label">Season</label><input type="text" name="season" value={form.season} onChange={handleMeta} className="input" /></div>
@@ -125,8 +138,8 @@ const ProdDecanter = () => {
         </div>
 
         <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs min-w-[1100px]">
+          <div className="table-wrapper">
+            <table className="w-full min-w-[1100px] border-collapse text-left text-xs">
               <thead>
                 <tr className="bg-gray-100 border-b text-center font-bold uppercase text-[10px] text-gray-600">
                   <th className="py-2 px-3 border-r text-left w-28" rowSpan={2}>Time</th>
@@ -179,6 +192,16 @@ const ProdDecanter = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

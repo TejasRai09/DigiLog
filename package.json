@@ -1,0 +1,11 @@
+{
+  "name": "digilog",
+  "private": true,
+  "scripts": {
+    "docs:audit": "node scripts/generate-audit-doc.js",
+    "docs:audit-ba": "node scripts/generate-audit-ba-overview.js"
+  },
+  "devDependencies": {
+    "docx": "^8.5.0"
+  }
+}

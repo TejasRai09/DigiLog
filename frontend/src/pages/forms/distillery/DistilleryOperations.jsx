@@ -9,6 +9,7 @@ import LegacyNumField from '../../../components/LegacyNumField';
 import { buildDistilleryReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { computeDistilleryDerived, formatDistilleryDerivedNumber } from '../../../utils/distilleryCalculations';
+import useAppConstants from '../../../hooks/useAppConstants';
 
 const OPERATION_MODES = ['Syrup', 'B Heavy', 'C Heavy', 'None'];
 
@@ -47,7 +48,12 @@ const INITIAL = {
 const DistilleryOperations = () => {
   const [form, setForm] = useState(INITIAL);
 
-  const derived = useMemo(() => computeDistilleryDerived(form), [form]);
+  const { theoreticalYield } = useAppConstants();
+
+  const derived = useMemo(
+    () => computeDistilleryDerived(form, { theoreticalYieldFactor: theoreticalYield }),
+    [form, theoreticalYield],
+  );
 
   const handleChange = (e) => {
     const { name, value } = e.target;

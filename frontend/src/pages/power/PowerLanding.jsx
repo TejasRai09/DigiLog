@@ -14,11 +14,11 @@ const PowerLanding = () => {
   const n = POWER_DEPT_FORMS.length;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildPowerLandingTrail({ appId, appName })} />
 
       <AppFormsHeader
-        name={appName || 'Power Plant Equipment History'}
+        name={appName || 'Power Plant Equipment History (old)'}
         description="Select a department to view equipment history cards"
         icon={MdFlashOn}
         color="#D97706"

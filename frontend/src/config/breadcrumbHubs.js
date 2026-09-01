@@ -3,6 +3,8 @@ export const HUB_MODULE_LABELS = {
   '/ehs': 'EHS',
   '/equipment': 'Mill House Equipment',
   '/power': 'Power Plant',
+  '/power-plant-equipment-new': 'Power Plant Equipment',
+  '/sugar-house-equipment-new': 'Sugar House Equipment',
   '/production': 'Production',
 };
 
@@ -12,6 +14,7 @@ export const EHS_FORM_KEYS = new Set([
   'ehs_water_gwa',
   'ehs_water_etp',
   'ehs_water_cpu',
+  'ehs_toolbox_talk',
   'ehs_accident',
 ]);
 

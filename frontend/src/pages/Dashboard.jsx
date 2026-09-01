@@ -36,7 +36,7 @@ const Dashboard = () => {
   const onlyBiAssigned = apps.length > 0 && formsHubApps.length === 0;
 
   return (
-    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+    <main className="app-main">
       <AppBreadcrumb items={buildFormsHubTrail()} />
 
       <div className="flex items-center justify-between mb-8">

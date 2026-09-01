@@ -10,10 +10,11 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
-      '/uploads': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
     },
+  },
+  build: {
+    // Avoid sourcemap peak memory on small Lightsail instances
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
   },
 });

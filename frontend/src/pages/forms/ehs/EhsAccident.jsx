@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildEhsAccidentReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const ACCIDENT_TYPES = ['', 'Minor', 'Major', 'Fatal'];
 
@@ -14,33 +18,36 @@ const INITIAL = {
 };
 
 const EhsAccident = () => {
-  const [form, setForm]     = useState(INITIAL);
-  const [submitting, setSub] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handle = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date)            { toast.error('Date is required.');            return; }
-    if (!form.injured_person)  { toast.error('Injured person is required.');  return; }
-    if (!form.type_of_accident){ toast.error('Accident type is required.');   return; }
-    setSub(true);
-    try {
-      await api.post('/forms/ehs_accident', form);
-      toast.success('Accident record submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      if (!form.injured_person) { toast.error('Injured person is required.'); return false; }
+      if (!form.type_of_accident) { toast.error('Accident type is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ehs_accident', form),
+        'Accident record submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildEhsAccidentReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
       <FormPageHeader formKey="ehs_accident" fallbackTitle="Accident Data Register" />
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={openReview} className="space-y-4">
         <div className="form-section space-y-4">
 
           <div className="form-row flex-wrap gap-4">
@@ -91,6 +98,16 @@ const EhsAccident = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

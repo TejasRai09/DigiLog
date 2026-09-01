@@ -13,11 +13,11 @@ const {
   upsertMapping,
   deleteMapping,
   getAllAppsWithForms,
+  getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 } = require('../controllers/admin.controller');
-const {
-  getAdminHomepageCards,
-  upsertUserHomepageCards,
-} = require('../controllers/homepageCards.controller');
 const {
   getAdminBiSettings,
   updateAdminBiSettings,
@@ -44,13 +44,38 @@ router.delete('/mappings/:id', deleteMapping);
 
 router.get('/apps-all',      getAllAppsWithForms);
 
-router.get('/homepage-cards',  getAdminHomepageCards);
-router.put('/homepage-cards',  upsertUserHomepageCards);
-
 router.get('/bi-settings',  getAdminBiSettings);
 router.put('/bi-settings',  updateAdminBiSettings);
 
 router.get('/data-upload-access',  getAdminDataUploadAccess);
 router.put('/data-upload-access',  upsertAdminDataUploadAccess);
+
+const {
+  getAllSeasons,
+  createSeason,
+  updateSeason,
+  deleteSeason,
+} = require('../controllers/seasonMapping.controller');
+const { listAuditLogs } = require('../controllers/auditLog.controller');
+const {
+  listActivityLogs,
+  listSessions,
+  listAuditFilterOptions,
+} = require('../controllers/activityAdmin.controller');
+
+router.get('/categories',           getCategories);
+router.post('/categories',          createCategory);
+router.put('/categories/:id',       updateCategory);
+router.delete('/categories/:id',    deleteCategory);
+
+router.get('/season-mapping',           getAllSeasons);
+router.post('/season-mapping',          createSeason);
+router.put('/season-mapping/:id',       updateSeason);
+router.delete('/season-mapping/:id',    deleteSeason);
+
+router.get('/audit-logs', listAuditLogs);
+router.get('/activity-logs', listActivityLogs);
+router.get('/sessions', listSessions);
+router.get('/audit-filter-options', listAuditFilterOptions);
 
 module.exports = router;

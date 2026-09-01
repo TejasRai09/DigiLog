@@ -1,7 +1,7 @@
 -- Optional: same data as prisma/migrations/20260515120000_digilog_hub_apps/migration.sql
--- Run if you use init.sql only: mysql -u ... gsmadb < mysql/migrate_add_digilog_hub_apps.sql
+-- Apply: cd backend && node scripts/apply-sql-file.js ../mysql/migrate_add_digilog_hub_apps.sql
 
-USE gsmadb;
+USE `__MYSQL_DATABASE__`;
 
 INSERT INTO `apps` (`name`, `description`, `icon`, `color`, `sort_order`, `is_active`)
 VALUES

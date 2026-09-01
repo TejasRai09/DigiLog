@@ -1,6 +1,8 @@
 -- ═══════════════════════════════════════════════════════════
---  GSMA Portal – MySQL schema (gsmadb)
---  Run once: Get-Content mysql\init.sql | mysql -u root -p
+--  GSMA Portal – MySQL schema
+--  Database name: __MYSQL_DATABASE__ (from MYSQL_DATABASE or DATABASE_URL in backend/.env)
+--  Apply via: cd backend && npm run db:schema
+--  (Do not pipe this file raw to mysql — the placeholder must be substituted.)
 --
 --  Forward schema changes for form/logbook tables (Mill, Lab, Power,
 --  Distillery) are managed with Prisma Migrate from DigiLog/backend:
@@ -15,8 +17,8 @@
 --    cd backend && npm run db:migrate:resolve-baseline
 -- ═══════════════════════════════════════════════════════════
 
-CREATE DATABASE IF NOT EXISTS gsmadb CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
-USE gsmadb; 
+CREATE DATABASE IF NOT EXISTS `__MYSQL_DATABASE__` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE `__MYSQL_DATABASE__`;
 
 -- ── System tables (users, apps, forms, mappings) ──────────
 
@@ -36,6 +38,110 @@ CREATE TABLE IF NOT EXISTS `users` (
   `manager_id`    INT          DEFAULT NULL,
   `created_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Application audit trail (mutating API calls from the SPA).
+CREATE TABLE IF NOT EXISTS `audit_logs` (
+  `id`             BIGINT       NOT NULL AUTO_INCREMENT,
+  `created_at`     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `user_id`        INT          NULL DEFAULT NULL,
+  `user_name`      VARCHAR(200) NULL DEFAULT NULL,
+  `user_email`     VARCHAR(200) NULL DEFAULT NULL,
+  `user_role`      VARCHAR(20)  NULL DEFAULT NULL,
+  `user_department` VARCHAR(255) NULL DEFAULT NULL,
+  `method`         VARCHAR(10)  NOT NULL,
+  `path`           VARCHAR(500) NOT NULL,
+  `status_code`    INT          NULL DEFAULT NULL,
+  `success`        TINYINT(1)   NULL DEFAULT NULL,
+  `action_type`    VARCHAR(20)  NULL DEFAULT NULL,
+  `action_summary` VARCHAR(255) NULL DEFAULT NULL,
+  `module`         VARCHAR(100) NULL DEFAULT NULL,
+  `module_key`     VARCHAR(64)  NULL DEFAULT NULL,
+  `resource_type`  VARCHAR(64)  NULL DEFAULT NULL,
+  `resource_id`    VARCHAR(64)  NULL DEFAULT NULL,
+  `resource_name`  VARCHAR(255) NULL DEFAULT NULL,
+  `display_path`   VARCHAR(500) NULL DEFAULT NULL,
+  `screen`         VARCHAR(100) NULL DEFAULT NULL,
+  `duration_ms`    INT          NULL DEFAULT NULL,
+  `request_body`   MEDIUMTEXT   NULL DEFAULT NULL,
+  `ip`             VARCHAR(64)  NULL DEFAULT NULL,
+  `user_agent`     VARCHAR(500) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `audit_logs_created_at_idx` (`created_at`),
+  KEY `audit_logs_user_id_idx` (`user_id`),
+  KEY `audit_logs_method_idx` (`method`),
+  KEY `audit_logs_action_type_idx` (`action_type`),
+  KEY `audit_logs_module_key_idx` (`module_key`),
+  KEY `audit_logs_status_code_idx` (`status_code`),
+  KEY `audit_logs_success_idx` (`success`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Login sessions (duration / online status).
+CREATE TABLE IF NOT EXISTS `user_sessions` (
+  `id`                 BIGINT       NOT NULL AUTO_INCREMENT,
+  `session_id`         VARCHAR(64)  NOT NULL,
+  `user_id`            INT          NOT NULL,
+  `user_name`          VARCHAR(200) NULL DEFAULT NULL,
+  `user_email`         VARCHAR(200) NULL DEFAULT NULL,
+  `user_role`          VARCHAR(20)  NULL DEFAULT NULL,
+  `user_department`    VARCHAR(255) NULL DEFAULT NULL,
+  `login_at`           TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `logout_at`          TIMESTAMP    NULL DEFAULT NULL,
+  `duration_minutes`   INT          NULL DEFAULT NULL,
+  `is_active`          TINYINT(1)   NOT NULL DEFAULT 1,
+  `last_heartbeat`     TIMESTAMP    NULL DEFAULT NULL,
+  `ip`                 VARCHAR(64)  NULL DEFAULT NULL,
+  `user_agent`         VARCHAR(500) NULL DEFAULT NULL,
+  `pages_visited`      INT          NOT NULL DEFAULT 0,
+  `actions_performed`  INT          NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `user_sessions_session_id_uq` (`session_id`),
+  KEY `user_sessions_user_id_idx` (`user_id`),
+  KEY `user_sessions_is_active_idx` (`is_active`),
+  KEY `user_sessions_login_at_idx` (`login_at`),
+  KEY `user_sessions_last_heartbeat_idx` (`last_heartbeat`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Page / navigation activity (usage insight).
+CREATE TABLE IF NOT EXISTS `user_activity_logs` (
+  `id`                 BIGINT       NOT NULL AUTO_INCREMENT,
+  `session_id`         VARCHAR(64)  NOT NULL,
+  `user_id`            INT          NOT NULL,
+  `user_name`          VARCHAR(200) NULL DEFAULT NULL,
+  `user_email`         VARCHAR(200) NULL DEFAULT NULL,
+  `user_role`          VARCHAR(20)  NULL DEFAULT NULL,
+  `user_department`    VARCHAR(255) NULL DEFAULT NULL,
+  `event_type`         VARCHAR(30)  NOT NULL,
+  `section`            VARCHAR(100) NULL DEFAULT NULL,
+  `card`               VARCHAR(200) NULL DEFAULT NULL,
+  `form_or_dashboard`  VARCHAR(200) NULL DEFAULT NULL,
+  `page_path`          VARCHAR(500) NULL DEFAULT NULL,
+  `display_path`       VARCHAR(500) NULL DEFAULT NULL,
+  `element_id`         VARCHAR(200) NULL DEFAULT NULL,
+  `element_label`      VARCHAR(200) NULL DEFAULT NULL,
+  `metadata`           TEXT         NULL DEFAULT NULL,
+  `entered_at`         TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `exited_at`          TIMESTAMP    NULL DEFAULT NULL,
+  `dwell_seconds`      INT          NULL DEFAULT NULL,
+  `ip`                 VARCHAR(64)  NULL DEFAULT NULL,
+  `user_agent`         VARCHAR(500) NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_activity_session_idx` (`session_id`),
+  KEY `user_activity_user_id_idx` (`user_id`),
+  KEY `user_activity_entered_at_idx` (`entered_at`),
+  KEY `user_activity_section_idx` (`section`),
+  KEY `user_activity_card_idx` (`card`),
+  KEY `user_activity_form_idx` (`form_or_dashboard`),
+  KEY `user_activity_event_type_idx` (`event_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `employee_category` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `name`        VARCHAR(255) NOT NULL,
+  `is_active`   TINYINT(1)   NOT NULL DEFAULT 1,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `employee_category_name_unique` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- manager_id FK is added idempotently by apply-init-sql.js (ensureManagerColumn),
@@ -94,6 +200,18 @@ INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
 VALUES ('bi_third_season_compare', '0')
 ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
 
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('distillery_theoretical_yield', '64.4')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('power_tariff_rate', '4.85')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
+INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
+VALUES ('brix_threshold', '18')
+ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
 -- Homepage big-card access (Forms Hub / BI Control Tower on `/`).
 CREATE TABLE IF NOT EXISTS `user_homepage_cards` (
   `user_id`    INT          NOT NULL,
@@ -104,26 +222,30 @@ CREATE TABLE IF NOT EXISTS `user_homepage_cards` (
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Backfill: give forms_hub to everyone with a non-BI mapping,
---           give bi_control_tower to everyone mapped to the BI app.
+-- Backfill: forms_hub when at least one non-BI form is mapped;
+--           bi_control_tower when at least one BI dashboard is mapped.
 INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
   SELECT DISTINCT m.user_id, 'forms_hub'
-  FROM `mappings` m
+  FROM `mapping_forms` mf
+  JOIN `mappings` m ON m.id = mf.mapping_id
   JOIN `apps` a ON a.id = m.app_id
   WHERE a.name <> 'BI Control Tower';
 
 INSERT IGNORE INTO `user_homepage_cards` (`user_id`, `card_key`)
   SELECT DISTINCT m.user_id, 'bi_control_tower'
-  FROM `mappings` m
+  FROM `mapping_forms` mf
+  JOIN `mappings` m ON m.id = mf.mapping_id
   JOIN `apps` a ON a.id = m.app_id
   WHERE a.name = 'BI Control Tower';
 
--- Data Upload tab access (admin grants per employee).
+-- Data Upload tab access (admin grants per employee + section).
+-- section_key: purchy | management | milling
 CREATE TABLE IF NOT EXISTS `user_data_upload_access` (
   `user_id`     INT NOT NULL,
+  `section_key` VARCHAR(32) NOT NULL,
   `granted_by`  INT DEFAULT NULL,
   `created_at`  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`user_id`),
+  PRIMARY KEY (`user_id`, `section_key`),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`granted_by`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -352,6 +474,7 @@ CREATE TABLE IF NOT EXISTS `ds_logbook` (
   `Bag_Pol` DOUBLE NULL DEFAULT NULL,
   `Bag_Moisture` DOUBLE NULL DEFAULT NULL,
   `FCake_Pol` DOUBLE NULL DEFAULT NULL,
+  `DecanterMud_Pol` DOUBLE NULL DEFAULT NULL,
   `op_mode` VARCHAR(10) NULL DEFAULT NULL,
   `A1_Mol_Pol` DOUBLE NULL DEFAULT NULL,
   `A1_Mol_Brix` DOUBLE NULL DEFAULT NULL,
@@ -576,6 +699,7 @@ CREATE TABLE IF NOT EXISTS `ph_power` (
   `PowerCon70TPH` DOUBLE NULL DEFAULT NULL,
   `PowerConETP` DOUBLE NULL DEFAULT NULL,
   `PowerConColony` DOUBLE NULL DEFAULT NULL,
+  `PowerConSugarCPU` DOUBLE NULL DEFAULT NULL,
   `PowerConOthers` DOUBLE NULL DEFAULT NULL,
   `remark` VARCHAR(600) NULL DEFAULT NULL,
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
@@ -627,10 +751,15 @@ CREATE TABLE IF NOT EXISTS `ph_stoppage` (
   `start_time` DATETIME NULL DEFAULT NULL,
   `end_Time` DATETIME NULL DEFAULT NULL,
   `section` VARCHAR(100) NULL DEFAULT NULL,
+  `section_specify` VARCHAR(100) NULL DEFAULT NULL,
   `sub_section` VARCHAR(100) NULL DEFAULT NULL,
+  `sub_section_specify` VARCHAR(100) NULL DEFAULT NULL,
   `machinery` VARCHAR(100) NULL DEFAULT NULL,
+  `machinery_specify` VARCHAR(100) NULL DEFAULT NULL,
   `category` VARCHAR(100) NULL DEFAULT NULL,
-  `remarks` VARCHAR(300) NULL DEFAULT NULL,
+  `category_specify` VARCHAR(100) NULL DEFAULT NULL,
+  `remarks` VARCHAR(150) NULL DEFAULT NULL,
+  `stoppage_photos` MEDIUMTEXT NULL DEFAULT NULL,
   `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
@@ -640,7 +769,10 @@ CREATE TABLE IF NOT EXISTS `ph_stoppage` (
 CREATE TABLE IF NOT EXISTS `pp_equipment` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `dept`        VARCHAR(20)  NOT NULL DEFAULT 'electrical',
+  `category`    VARCHAR(100) DEFAULT NULL,
+  `subcategory` VARCHAR(100) DEFAULT NULL,
   `equip_no`    VARCHAR(100) DEFAULT NULL,
+  `tag_name`    VARCHAR(100) DEFAULT NULL,
   `name`        VARCHAR(300) NOT NULL,
   `location`    VARCHAR(200) DEFAULT NULL,
   `commissioned` VARCHAR(100) DEFAULT NULL,
@@ -657,6 +789,8 @@ CREATE TABLE IF NOT EXISTS `pp_equipment` (
 CREATE TABLE IF NOT EXISTS `pp_specs` (
   `id`          INT AUTO_INCREMENT PRIMARY KEY,
   `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
   `lbl`         VARCHAR(300) NOT NULL,
   `val`         TEXT         DEFAULT NULL,
   `sort_order`  INT          NOT NULL DEFAULT 0,
@@ -690,6 +824,7 @@ CREATE TABLE IF NOT EXISTS `pp_history` (
   `act`         TEXT         DEFAULT NULL,
   `cost`        VARCHAR(50)  DEFAULT NULL,
   `svc`         VARCHAR(20)  DEFAULT NULL,
+  `maintenance_type` VARCHAR(20) DEFAULT NULL,
   `provider`    VARCHAR(300) DEFAULT NULL,
   `resp`        VARCHAR(300) DEFAULT NULL,
   `rem`         TEXT         DEFAULT NULL,
@@ -698,6 +833,203 @@ CREATE TABLE IF NOT EXISTS `pp_history` (
   `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`equip_id`) REFERENCES `pp_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- Power Plant Equipment History (new hub) — separate from pp_* (/api/power-new)
+CREATE TABLE IF NOT EXISTS `ppn_equipment` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `dept`        VARCHAR(20)  NOT NULL DEFAULT 'plant',
+  `category`    VARCHAR(100) DEFAULT NULL,
+  `subcategory` VARCHAR(100) DEFAULT NULL,
+  `equip_no`    VARCHAR(100) DEFAULT NULL,
+  `tag_name`    VARCHAR(100) DEFAULT NULL,
+  `name`        VARCHAR(300) NOT NULL,
+  `location`    VARCHAR(200) DEFAULT NULL,
+  `commissioned` VARCHAR(100) DEFAULT NULL,
+  `drive`       VARCHAR(200) DEFAULT NULL,
+  `photo`       MEDIUMTEXT   DEFAULT NULL,
+  `plate`       MEDIUMTEXT   DEFAULT NULL,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_ppn_dept (dept),
+  INDEX idx_ppn_category (category, subcategory),
+  INDEX idx_ppn_sort (dept, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_specs` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `lbl`         VARCHAR(300) NOT NULL,
+  `val`         MEDIUMTEXT   DEFAULT NULL,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_oem_schedule` (
+  `id`       INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id` INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `equipment_refs` JSON        DEFAULT NULL,
+  `no`       INT          NOT NULL DEFAULT 0,
+  `comp`     VARCHAR(300) DEFAULT NULL,
+  `act`      TEXT         DEFAULT NULL,
+  `iv_W`     CHAR(1)      DEFAULT NULL,
+  `iv_M`     CHAR(1)      DEFAULT NULL,
+  `iv_Q`     CHAR(1)      DEFAULT NULL,
+  `iv_H`     CHAR(1)      DEFAULT NULL,
+  `iv_Y`     CHAR(1)      DEFAULT NULL,
+  `iv_T`     CHAR(1)      DEFAULT NULL,
+  `iv_3Y`    CHAR(1)      DEFAULT NULL,
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_history` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `equipment_refs` JSON        DEFAULT NULL,
+  `season`      VARCHAR(20)  DEFAULT NULL,
+  `year`        VARCHAR(50)  DEFAULT NULL,
+  `date_start`  DATE         DEFAULT NULL,
+  `date_finish` DATE         DEFAULT NULL,
+  `obs`         TEXT         DEFAULT NULL,
+  `act`         TEXT         DEFAULT NULL,
+  `cost`        VARCHAR(50)  DEFAULT NULL,
+  `svc`         VARCHAR(20)  DEFAULT NULL,
+  `maintenance_type` VARCHAR(20) DEFAULT NULL,
+  `provider`    VARCHAR(300) DEFAULT NULL,
+  `resp`        VARCHAR(300) DEFAULT NULL,
+  `rem`         TEXT         DEFAULT NULL,
+  `img_before`  MEDIUMTEXT   DEFAULT NULL,
+  `img_after`   MEDIUMTEXT   DEFAULT NULL,
+  `documents`   JSON         DEFAULT NULL,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE CASCADE,
+  INDEX idx_ppn_history_sub_group (equip_id, section, sub_section)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `ppn_hierarchy_node` (
+  `id`            INT AUTO_INCREMENT PRIMARY KEY,
+  `parent_id`     INT          DEFAULT NULL,
+  `node_type`     ENUM('group','equipment') NOT NULL DEFAULT 'group',
+  `name`          VARCHAR(200) NOT NULL,
+  `equip_no`      VARCHAR(100) DEFAULT NULL,
+  `lookup_name`   VARCHAR(300) DEFAULT NULL,
+  `ppn_equip_id`  INT          DEFAULT NULL,
+  `sort_order`    INT          NOT NULL DEFAULT 0,
+  `is_active`     TINYINT(1)   NOT NULL DEFAULT 1,
+  `created_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_ppn_hier_parent (parent_id, sort_order, id),
+  CONSTRAINT fk_ppn_hier_parent
+    FOREIGN KEY (`parent_id`) REFERENCES `ppn_hierarchy_node`(`id`) ON DELETE RESTRICT,
+  CONSTRAINT fk_ppn_hier_equip
+    FOREIGN KEY (`ppn_equip_id`) REFERENCES `ppn_equipment`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `shn_equipment` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `dept`        VARCHAR(20)  NOT NULL DEFAULT 'sugar_house',
+  `category`    VARCHAR(100) DEFAULT NULL,
+  `subcategory` VARCHAR(100) DEFAULT NULL,
+  `equip_no`    VARCHAR(100) DEFAULT NULL,
+  `tag_name`    VARCHAR(100) DEFAULT NULL,
+  `name`        VARCHAR(300) NOT NULL,
+  `location`    VARCHAR(200) DEFAULT NULL,
+  `commissioned` VARCHAR(100) DEFAULT NULL,
+  `drive`       VARCHAR(200) DEFAULT NULL,
+  `photo`       MEDIUMTEXT   DEFAULT NULL,
+  `plate`       MEDIUMTEXT   DEFAULT NULL,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_shn_dept (dept),
+  INDEX idx_shn_category (category, subcategory),
+  INDEX idx_shn_sort (dept, sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `shn_specs` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `lbl`         VARCHAR(300) NOT NULL,
+  `val`         MEDIUMTEXT   DEFAULT NULL,
+  `sort_order`  INT          NOT NULL DEFAULT 0,
+  FOREIGN KEY (`equip_id`) REFERENCES `shn_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `shn_oem_schedule` (
+  `id`       INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id` INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `equipment_refs` JSON        DEFAULT NULL,
+  `no`       INT          NOT NULL DEFAULT 0,
+  `comp`     VARCHAR(300) DEFAULT NULL,
+  `act`      TEXT         DEFAULT NULL,
+  `iv_W`     CHAR(1)      DEFAULT NULL,
+  `iv_M`     CHAR(1)      DEFAULT NULL,
+  `iv_Q`     CHAR(1)      DEFAULT NULL,
+  `iv_H`     CHAR(1)      DEFAULT NULL,
+  `iv_Y`     CHAR(1)      DEFAULT NULL,
+  `iv_T`     CHAR(1)      DEFAULT NULL,
+  `iv_3Y`    CHAR(1)      DEFAULT NULL,
+  FOREIGN KEY (`equip_id`) REFERENCES `shn_equipment`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `shn_history` (
+  `id`          INT AUTO_INCREMENT PRIMARY KEY,
+  `equip_id`    INT          NOT NULL,
+  `section`     VARCHAR(32)  DEFAULT NULL,
+  `sub_section` VARCHAR(200) DEFAULT NULL,
+  `equipment_refs` JSON        DEFAULT NULL,
+  `season`      VARCHAR(20)  DEFAULT NULL,
+  `year`        VARCHAR(50)  DEFAULT NULL,
+  `date_start`  DATE         DEFAULT NULL,
+  `date_finish` DATE         DEFAULT NULL,
+  `obs`         TEXT         DEFAULT NULL,
+  `act`         TEXT         DEFAULT NULL,
+  `cost`        VARCHAR(50)  DEFAULT NULL,
+  `svc`         VARCHAR(20)  DEFAULT NULL,
+  `maintenance_type` VARCHAR(20) DEFAULT NULL,
+  `provider`    VARCHAR(300) DEFAULT NULL,
+  `resp`        VARCHAR(300) DEFAULT NULL,
+  `rem`         TEXT         DEFAULT NULL,
+  `img_before`  MEDIUMTEXT   DEFAULT NULL,
+  `img_after`   MEDIUMTEXT   DEFAULT NULL,
+  `documents`   JSON         DEFAULT NULL,
+  `created_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (`equip_id`) REFERENCES `shn_equipment`(`id`) ON DELETE CASCADE,
+  INDEX idx_shn_history_sub_group (equip_id, section, sub_section)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE IF NOT EXISTS `shn_hierarchy_node` (
+  `id`            INT AUTO_INCREMENT PRIMARY KEY,
+  `parent_id`     INT          DEFAULT NULL,
+  `node_type`     ENUM('group','equipment') NOT NULL DEFAULT 'group',
+  `name`          VARCHAR(200) NOT NULL,
+  `equip_no`      VARCHAR(100) DEFAULT NULL,
+  `lookup_name`   VARCHAR(300) DEFAULT NULL,
+  `hist_location` VARCHAR(300) DEFAULT NULL,
+  `shn_equip_id`  INT          DEFAULT NULL,
+  `sort_order`    INT          NOT NULL DEFAULT 0,
+  `is_active`     TINYINT(1)   NOT NULL DEFAULT 1,
+  `is_imported`   TINYINT(1)   NOT NULL DEFAULT 0,
+  `created_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_shn_hier_parent (parent_id, sort_order, id),
+  CONSTRAINT fk_shn_hier_parent
+    FOREIGN KEY (`parent_id`) REFERENCES `shn_hierarchy_node`(`id`) ON DELETE RESTRICT,
+  CONSTRAINT fk_shn_hier_equip
+    FOREIGN KEY (`shn_equip_id`) REFERENCES `shn_equipment`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `distillery_operations` (
@@ -784,6 +1116,7 @@ CREATE TABLE IF NOT EXISTS `mh_history` (
   `act`         TEXT         DEFAULT NULL,
   `cost`        VARCHAR(50)  DEFAULT NULL,
   `svc`         VARCHAR(20)  DEFAULT NULL,
+  `maintenance_type` VARCHAR(20) DEFAULT NULL,
   `provider`    VARCHAR(300) DEFAULT NULL,
   `resp`        VARCHAR(300) DEFAULT NULL,
   `rem`         TEXT         DEFAULT NULL,

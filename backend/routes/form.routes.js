@@ -1,7 +1,18 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const { submitForm, submitBatch, getRecords, getFormMeta } = require('../controllers/form.controller');
+const {
+  submitForm,
+  submitBatch,
+  getRecords,
+  getFormMeta,
+  getRecord,
+  updateRecord,
+  deleteRecord,
+} = require('../controllers/form.controller');
 
+router.get('/:formKey/records/:recordKey', authenticate, getRecord);
+router.put('/:formKey/records/:recordKey', authenticate, updateRecord);
+router.delete('/:formKey/records/:recordKey', authenticate, deleteRecord);
 router.get('/:formKey/records',           authenticate, getRecords);
 router.get('/:formKey',                   authenticate, getFormMeta);
 router.post('/:formKey/batch',            authenticate, submitBatch);

@@ -1,10 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
   MdInfoOutline,
   MdCalendarMonth,
-  MdDashboard,
-  MdTableChart,
   MdTrendingUp,
   MdTrendingDown,
   MdRemove,
@@ -13,89 +12,238 @@ import {
   MdFilterList,
   MdExpandMore,
   MdArrowBack,
+  MdScience,
 } from 'react-icons/md';
-import { ResponsiveContainer, LineChart, AreaChart, Line, Area, YAxis } from 'recharts';
+import { ResponsiveContainer, LineChart, AreaChart, Line, Area, YAxis, Tooltip } from 'recharts';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import {
   formatDMYShort,
-  getPresetDateRange,
-  computePriorPeriodRange,
+  resolveDashboardToDate,
   getSeasonComparisonLabels,
   isSeasonComparisonType,
   alignSeasonCompareRange,
   seasonLabelForComparisonType,
 } from '../../utils/distilleryBiDateRange';
 import {
+  applyCockpitCompareSelection,
+  buildCockpitComparisonOptions,
+  ensureCompareSelectionValid,
+  resolveCockpitCompareRange,
+  resolveCockpitPriorRange,
+  resolveSeasonLabelFromCompareId,
+} from '../../utils/biCockpitDateFilters';
+import {
+  YEAR_TYPE_OPTIONS,
+  DEFAULT_YEAR_TYPE,
+  DEFAULT_CHILD_PRESET,
+  defaultChildPresetForYearType,
+  childPresetsForYearType,
+  getPresetDateRangeForYearType,
+  getDistilleryPPLabel,
+  resolveActiveYearMapping,
+  cockpitRangePresetForCompare,
+  isValidChildPreset,
+} from '../../utils/biYearTypes';
+import {
   aggregateKpisFromRows,
-  buildSeasonHistoricalByDay,
+  averageNonBlank,
   filterSeasonCompareRowsBySeason,
-  overlayPriorMetrics,
 } from '../../utils/distilleryBiComparison';
 import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
+import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
+import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 
-/** Raw table columns — aligned with `mapRowToBiPoint` / `distillery_operations` (BI API). */
-const DISTILLERY_BI_RAW_COLUMNS = [
-  { key: 'dateFull', label: 'Date', kind: 'date' },
-  { key: 'operationModeRaw', label: 'Operation mode', kind: 'text' },
-  { key: 'mode', label: 'Mode class', kind: 'modeBadge' },
-  { key: 'syrupMolConsumed', label: 'Syrup / molasses (Q)', kind: 'num' },
-  { key: 'totalWash', label: 'Wash distilled', kind: 'num' },
-  { key: 'trs', label: 'TRS', kind: 'num' },
-  { key: 'ufs', label: 'UFS', kind: 'num' },
-  { key: 'alcohol', label: 'Alcohol %', kind: 'num' },
-  { key: 'totalProd', label: 'Actual ethanol (BL)', kind: 'num' },
-  { key: 'alBlRatioPct', label: 'Al / BL ratio %', kind: 'num' },
-  { key: 'recovery', label: 'Recovery %', kind: 'num' },
-  { key: 'totalBhMolassesQtls', label: 'Total BH molasses (Q)', kind: 'num' },
-  { key: 'totalChMolassesQtls', label: 'Total CH molasses (Q)', kind: 'num' },
-  { key: 'molInStore', label: 'Mol in store (Q)', kind: 'num' },
-  { key: 'ethInStore', label: 'Ethanol storage (BL)', kind: 'num' },
-  { key: 'fs', label: 'FS', kind: 'num' },
-  { key: 'fermSugar', label: 'Ferm. sugar (calc.)', kind: 'num' },
-  { key: 'feRaw', label: 'FE (stored)', kind: 'num' },
-  { key: 'deRaw', label: 'DE (stored)', kind: 'num' },
-  { key: 'fermEff', label: 'Ferm. eff %', kind: 'num' },
-  { key: 'distEff', label: 'Dist. eff %', kind: 'num' },
-  { key: 'recBl', label: 'Rec (BL)', kind: 'num' },
-  { key: 'bHeavyProd', label: 'B Heavy (BL, alloc.)', kind: 'num' },
-  { key: 'cHeavyProd', label: 'C Heavy (BL, alloc.)', kind: 'num' },
-  { key: 'syrupProd', label: 'Syrup (BL, alloc.)', kind: 'num' },
-  { key: 'recordedAt', label: 'Timestamp', kind: 'ts' },
-];
+const FLOATING_LAYER_Z = 9999;
+const FLOATING_BACKDROP_Z = 9998;
 
-function formatDistilleryRawScalar(kind, row, key) {
-  const v = row[key];
-  switch (kind) {
-    case 'date':
-      return row.dateFull ?? row.date ?? '';
-    case 'text':
-      return v !== undefined && v !== null && String(v) !== '' ? String(v) : '';
-    case 'num': {
-      if (v === undefined || v === null || Number.isNaN(Number(v))) return null;
-      return Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** Track anchor position for portaled overlays (escapes parent z-index / overflow). */
+function useAnchorPosition(anchorRef, active) {
+  const [position, setPosition] = useState(null);
+
+  const update = useCallback(() => {
+    const el = anchorRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setPosition({
+      top: rect.top,
+      bottom: rect.bottom,
+      left: rect.left,
+      right: rect.right,
+      centerX: rect.left + rect.width / 2,
+      width: rect.width,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!active) {
+      setPosition(null);
+      return;
     }
-    case 'ts':
-      if (!v) return '';
-      try {
-        return new Date(v).toLocaleString();
-      } catch {
-        return String(v);
-      }
-    default:
-      return '';
-  }
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
+  }, [active, update]);
+
+  return position;
 }
 
-const InfoTooltip = ({ definition }) => (
-  <div className="group relative z-10 ml-2 inline-flex cursor-help items-center">
-    <MdInfoOutline className="h-3.5 w-3.5 text-slate-400 transition-colors hover:text-blue-500" />
-    <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 w-64 -translate-x-1/2 rounded-lg bg-slate-800 p-3 text-center text-[11px] font-normal leading-relaxed text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100 dark:bg-slate-700">
-      {definition}
-      <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-slate-800 dark:border-t-slate-700" />
+const InfoTooltip = ({ definition, isDarkMode, placement = 'top' }) => {
+  const anchorRef = useRef(null);
+  const [active, setActive] = useState(false);
+  const pos = useAnchorPosition(anchorRef, active);
+
+  const tooltip =
+    active &&
+    pos &&
+    createPortal(
+      <div
+        role="tooltip"
+        className={`pointer-events-none fixed w-64 rounded-lg p-3 text-center text-[11px] font-normal leading-relaxed text-white shadow-xl ${
+          isDarkMode ? 'bg-slate-700' : 'bg-slate-800'
+        }`}
+        style={{
+          zIndex: FLOATING_LAYER_Z,
+          ...(placement === 'bottom'
+            ? { top: pos.bottom + 8, left: pos.centerX, transform: 'translateX(-50%)' }
+            : { top: pos.top - 8, left: pos.centerX, transform: 'translate(-50%, -100%)' }),
+        }}
+      >
+        {definition}
+      </div>,
+      document.body,
+    );
+
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        className="ml-2 inline-flex shrink-0 cursor-help items-center rounded p-0.5 text-slate-400 transition-colors hover:text-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        aria-label="More information"
+        onMouseEnter={() => setActive(true)}
+        onMouseLeave={() => setActive(false)}
+        onFocus={() => setActive(true)}
+        onBlur={() => setActive(false)}
+      >
+        <MdInfoOutline className="h-3.5 w-3.5" />
+      </button>
+      {tooltip}
+    </>
+  );
+};
+
+function OpModeFilter({
+  isOpen,
+  onToggle,
+  onClose,
+  availableModes,
+  selectedModes,
+  toggleMode,
+  isDarkMode,
+  cardClasses,
+  textClasses,
+  modeLabelHover,
+}) {
+  const btnRef = useRef(null);
+  const pos = useAnchorPosition(btnRef, isOpen);
+  const panelWidth = 192;
+
+  const panel =
+    isOpen &&
+    pos &&
+    createPortal(
+      <>
+        <button
+          type="button"
+          aria-label="Close operation mode menu"
+          className="fixed inset-0 cursor-default bg-transparent"
+          style={{ zIndex: FLOATING_BACKDROP_Z }}
+          onClick={onClose}
+        />
+        <div
+          className={`fixed w-48 rounded-xl border p-2 shadow-xl ${
+            isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'
+          }`}
+          style={{
+            zIndex: FLOATING_LAYER_Z,
+            top: pos.bottom + 8,
+            left: Math.max(8, Math.min(pos.right - panelWidth, window.innerWidth - panelWidth - 8)),
+          }}
+        >
+          <div
+            className={`mb-2 border-b px-2 pb-2 text-[10px] font-bold uppercase tracking-wider ${
+              isDarkMode ? 'border-slate-700 text-slate-500' : 'border-slate-100 text-slate-400'
+            }`}
+          >
+            Filter by Mode
+          </div>
+          {availableModes.map((m) => (
+            <label
+              key={m}
+              className={`flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors ${modeLabelHover}`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedModes.includes(m)}
+                onChange={() => toggleMode(m)}
+                className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${
+                  isDarkMode ? 'border-slate-600 bg-slate-900' : ''
+                }`}
+              />
+              <span className={`text-sm font-semibold ${textClasses.title}`}>{m}</span>
+            </label>
+          ))}
+        </div>
+      </>,
+      document.body,
+    );
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={onToggle}
+        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border p-1.5 px-2 text-[10px] font-bold transition-colors sm:gap-2 sm:px-3 sm:text-xs ${cardClasses} ${textClasses.muted} ${
+          isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
+        }`}
+      >
+        <MdFilterList className="h-3.5 w-3.5" />
+        Op Mode ({selectedModes.length === availableModes.length ? 'All' : selectedModes.length})
+        <MdExpandMore className={`h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {panel}
+    </>
+  );
+};
+
+const KpiSparklineTooltip = ({ active, payload, isDarkMode, unit }) => {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const v = Number(payload[0].value);
+  if (!Number.isFinite(v)) return null;
+  const dateLabel = row.dateFull || row.date || '';
+  const valueLabel =
+    unit === '%'
+      ? `${v.toFixed(2)}%`
+      : `${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${unit}`;
+
+  return (
+    <div
+      className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-bold shadow-lg ${
+        isDarkMode ? 'border-slate-600 bg-slate-800 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
+      }`}
+    >
+      <div className={`mb-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{dateLabel}</div>
+      <div className="tabular-nums">{valueLabel}</div>
     </div>
-  </div>
-);
+  );
+};
 
 const MetricCard = ({
   title,
@@ -127,17 +275,17 @@ const MetricCard = ({
 
   return (
     <div
-      className={`flex flex-col justify-between rounded-2xl border p-4 transition-shadow hover:shadow-md ${cardClasses}`}
+      className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-4 transition-shadow hover:shadow-md sm:overflow-visible ${cardClasses}`}
     >
-      <div className="mb-2 flex items-start justify-between">
-        <div className={`flex items-center text-xs font-bold ${textClasses.title}`}>
+      <div className="mb-2 flex min-w-0 items-start justify-between overflow-visible">
+        <div className={`flex min-w-0 items-center text-xs font-bold ${textClasses.title}`}>
           {title}
-          <InfoTooltip definition={definition} />
+          <InfoTooltip definition={definition} isDarkMode={isDarkMode} placement="top" />
         </div>
       </div>
 
-      <div className="flex w-full items-end justify-between">
-        <div className="z-10 shrink-0">
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div className="z-10 min-w-0 shrink-0">
           <div className="flex items-baseline gap-1">
             <span className={`text-2xl font-black ${textClasses.value}`}>
               {value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -170,14 +318,14 @@ const MetricCard = ({
               )}
               {Math.abs(delta).toFixed(1)}%
             </div>
-            <span className={`whitespace-nowrap text-[10px] font-bold ${textClasses.vs}`}>
+            <span className={`text-[10px] font-bold sm:whitespace-nowrap ${textClasses.vs}`}>
               vs {comparisonLabel} {timeFilter}
             </span>
           </div>
         </div>
 
         {chartData && chartData.length > 0 && (
-          <div className="relative -mb-2 -mr-1 ml-4 h-16 min-w-[120px] max-w-[55%] flex-1 opacity-90">
+          <div className="relative h-14 w-full min-w-0 opacity-90 sm:-mb-2 sm:-mr-1 sm:ml-4 sm:h-16 sm:max-w-[55%] sm:flex-1 sm:min-w-[100px]">
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'area' ? (
                 <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
@@ -188,6 +336,11 @@ const MetricCard = ({
                     </linearGradient>
                   </defs>
                   <YAxis domain={['dataMin', 'dataMax']} hide />
+                  <Tooltip
+                    content={<KpiSparklineTooltip isDarkMode={isDarkMode} unit={unit} />}
+                    cursor={{ stroke: chartColor, strokeWidth: 1, strokeDasharray: '4 4' }}
+                    wrapperStyle={{ zIndex: 100, outline: 'none' }}
+                  />
                   <Area
                     type="monotone"
                     dataKey={dataKey}
@@ -195,17 +348,25 @@ const MetricCard = ({
                     strokeWidth={2.5}
                     fill={`url(#gradient-${dataKey})`}
                     isAnimationActive={false}
+                    dot={{ r: 2.5, fill: chartColor, strokeWidth: 0 }}
+                    activeDot={{ r: 4, fill: chartColor, stroke: '#fff', strokeWidth: 1 }}
                   />
                 </AreaChart>
               ) : (
                 <LineChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
-                  <YAxis domain={['dataMin', 'dataMax']} hide />
+                  <YAxis domain={['dataMin - 1', 'dataMax + 1']} hide />
+                  <Tooltip
+                    content={<KpiSparklineTooltip isDarkMode={isDarkMode} unit={unit} />}
+                    cursor={{ stroke: chartColor, strokeWidth: 1, strokeDasharray: '4 4' }}
+                    wrapperStyle={{ zIndex: 100, outline: 'none' }}
+                  />
                   <Line
                     type="monotone"
                     dataKey={dataKey}
                     stroke={chartColor}
                     strokeWidth={2.5}
-                    dot={false}
+                    dot={{ r: 2.5, fill: chartColor, strokeWidth: 0 }}
+                    activeDot={{ r: 4, fill: chartColor, stroke: '#fff', strokeWidth: 1 }}
                     isAnimationActive={false}
                   />
                 </LineChart>
@@ -268,7 +429,8 @@ const ChartTitle = ({
   if (!data || data.length === 0) return null;
 
   const currentAvg = data.reduce((sum, item) => sum + item[dataKey], 0) / data.length;
-  const pyAvg = pyData.reduce((sum, item) => sum + item[dataKey], 0) / pyData.length;
+  const pyAvg =
+    pyData?.length > 0 ? pyData.reduce((sum, item) => sum + item[dataKey], 0) / pyData.length : 0;
 
   const delta = pyAvg !== 0 ? ((currentAvg - pyAvg) / pyAvg) * 100 : 0;
   const isPositive = delta > 0;
@@ -283,7 +445,7 @@ const ChartTitle = ({
     <div className="mb-1 flex flex-wrap items-center gap-3">
       <div className="flex items-center">
         <h3 className={`text-sm font-black ${textClasses.title}`}>{title}</h3>
-        <InfoTooltip definition={definition} />
+        <InfoTooltip definition={definition} isDarkMode={isDarkMode} placement="top" />
       </div>
 
       <div
@@ -335,13 +497,12 @@ function rowDateIso(row) {
 }
 
 export default function DistilleryAnalyticsDashboard() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const initialRange = () => getPresetDateRange('MTD');
-  const [rangePreset, setRangePreset] = useState('MTD');
-  const [fromDate, setFromDate] = useState(() => initialRange().from);
-  const [toDate, setToDate] = useState(() => initialRange().to);
+  const [yearType, setYearType] = useState(DEFAULT_YEAR_TYPE);
+  const [rangePreset, setRangePreset] = useState(DEFAULT_CHILD_PRESET);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [comparisonType, setComparisonType] = useState('PP');
-  const [thirdSeasonEnabled, setThirdSeasonEnabled] = useState(false);
+  const [seasonMapping, setSeasonMapping] = useState({});
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   const availableModes = ['B Heavy', 'C Heavy', 'Syrup', 'Mixed'];
@@ -364,11 +525,13 @@ export default function DistilleryAnalyticsDashboard() {
         setLoading(true);
         const [opsRes, settingsRes] = await Promise.all([
           api.get('/bi/distillery-operations'),
-          api.get('/bi/settings').catch(() => ({ data: { thirdSeasonCompareEnabled: false } })),
+          api.get('/bi/settings').catch(() => ({ data: {} })),
         ]);
         if (!cancelled) {
           setRawData(Array.isArray(opsRes.data?.records) ? opsRes.data.records : []);
-          setThirdSeasonEnabled(Boolean(settingsRes.data?.thirdSeasonCompareEnabled));
+          if (settingsRes.data?.seasonMapping && typeof settingsRes.data.seasonMapping === 'object') {
+            setSeasonMapping(settingsRes.data.seasonMapping);
+          }
         }
       } catch (e) {
         if (!cancelled) {
@@ -384,28 +547,42 @@ export default function DistilleryAnalyticsDashboard() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!thirdSeasonEnabled && comparisonType === 'S3') {
-      setComparisonType('PP');
-    }
-  }, [thirdSeasonEnabled, comparisonType]);
-
   const dataBounds = useMemo(() => {
     const isos = rawData.map(rowDateIso).filter(Boolean).sort();
-    return { min: isos[0] || null, max: isos[isos.length - 1] || null };
+    return { min: isos[0] || null, max: isos[isos.length - 1] || null, isos };
   }, [rawData]);
 
+  /** To-date for presets: today if present in data, else latest data day. */
+  const rangeToIso = useMemo(() => {
+    if (!dataBounds.max) return null;
+    return resolveDashboardToDate(dataBounds.isos, dataBounds.max);
+  }, [dataBounds.isos, dataBounds.max]);
+
+  const presetRefDate = useMemo(() => {
+    if (!rangeToIso) return new Date();
+    return new Date(`${rangeToIso}T12:00:00`);
+  }, [rangeToIso]);
+
+  // Default STD (and other presets) with To = today-if-in-data else latest data day.
   useEffect(() => {
-    if (!dataBounds.max) return;
-    const ref = new Date(`${dataBounds.max}T12:00:00`);
-    if (rangePreset !== 'Custom') {
-      const { from, to } = getPresetDateRange(rangePreset, ref);
-      setFromDate(from);
-      setToDate(to);
+    if (!rangeToIso) return;
+    if (rangePreset === 'Custom') return;
+    if (!isValidChildPreset(yearType, rangePreset)) {
+      setRangePreset(defaultChildPresetForYearType(yearType));
+      return;
     }
-  }, [dataBounds.max, rangePreset]);
+    const { from, to } = getPresetDateRangeForYearType(
+      yearType,
+      rangePreset,
+      presetRefDate,
+      seasonMapping,
+    );
+    setFromDate(from);
+    setToDate(to);
+  }, [rangeToIso, rangePreset, presetRefDate, yearType, seasonMapping]);
 
   const filteredData = useMemo(() => {
+    if (!fromDate || !toDate) return [];
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
 
@@ -425,9 +602,30 @@ export default function DistilleryAnalyticsDashboard() {
   }, [rawData, fromDate, toDate, selectedModes]);
 
   const applyRangePreset = (preset) => {
-    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-    const { from, to } = getPresetDateRange(preset, ref);
+    const { from, to } = getPresetDateRangeForYearType(
+      yearType,
+      preset,
+      presetRefDate,
+      seasonMapping,
+    );
     setRangePreset(preset);
+    setFromDate(from);
+    setToDate(to);
+  };
+
+  const applyYearType = (nextType) => {
+    setYearType(nextType);
+    setComparisonType('PP');
+    const nextPreset = isValidChildPreset(nextType, rangePreset)
+      ? rangePreset
+      : defaultChildPresetForYearType(nextType);
+    setRangePreset(nextPreset);
+    const { from, to } = getPresetDateRangeForYearType(
+      nextType,
+      nextPreset,
+      presetRefDate,
+      seasonMapping,
+    );
     setFromDate(from);
     setToDate(to);
   };
@@ -441,8 +639,7 @@ export default function DistilleryAnalyticsDashboard() {
     setFromDate(v);
     if (nextTo !== toDate) setToDate(nextTo);
     if (rangePreset !== 'Custom') {
-      const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-      const c = getPresetDateRange(rangePreset, ref);
+      const c = getPresetDateRangeForYearType(yearType, rangePreset, presetRefDate, seasonMapping);
       if (v !== c.from || nextTo !== c.to) setRangePreset('Custom');
     }
   };
@@ -454,43 +651,67 @@ export default function DistilleryAnalyticsDashboard() {
     setToDate(v);
     if (nextFrom !== fromDate) setFromDate(nextFrom);
     if (rangePreset !== 'Custom') {
-      const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-      const c = getPresetDateRange(rangePreset, ref);
+      const c = getPresetDateRangeForYearType(yearType, rangePreset, presetRefDate, seasonMapping);
       if (nextFrom !== c.from || v !== c.to) setRangePreset('Custom');
     }
   };
+
+  const childPresets = useMemo(() => childPresetsForYearType(yearType), [yearType]);
 
   const timeFilterLabel =
     rangePreset === 'Custom' ? `${formatDMYShort(fromDate)} – ${formatDMYShort(toDate)}` : rangePreset;
   const periodLabel = rangePreset === 'Custom' ? 'Custom' : rangePreset;
 
-  const dynamicPPLabel = useMemo(() => {
-    if (rangePreset === 'MTD') return 'Prev. Month';
-    if (rangePreset === 'QTD') return 'Prev. Quarter';
-    if (rangePreset === 'YTD') return 'Prev. Year';
-    return 'Prev. Period';
-  }, [rangePreset]);
+  const dynamicPPLabel = useMemo(() => getDistilleryPPLabel(rangePreset), [rangePreset]);
 
-  const seasonLabels = useMemo(() => {
-    const ref = dataBounds.max ? new Date(`${dataBounds.max}T12:00:00`) : new Date();
-    return getSeasonComparisonLabels(ref);
-  }, [dataBounds.max]);
+  const activeYearMapping = useMemo(
+    () => resolveActiveYearMapping(yearType, seasonMapping),
+    [yearType, seasonMapping],
+  );
+
+  const seasonLabels = useMemo(
+    () => getSeasonComparisonLabels(presetRefDate),
+    [presetRefDate],
+  );
+
+  const compareRangePreset = useMemo(
+    () => cockpitRangePresetForCompare(yearType, rangePreset),
+    [yearType, rangePreset],
+  );
 
   const comparisonOptions = useMemo(() => {
-    const opts = [
-      { id: 'PP', label: dynamicPPLabel },
-      { id: 'S1', label: seasonLabels.season1 },
-      { id: 'S2', label: seasonLabels.season2 },
-    ];
-    if (thirdSeasonEnabled) {
-      opts.push({ id: 'S3', label: seasonLabels.season3 });
+    const opts = buildCockpitComparisonOptions(
+      compareRangePreset,
+      activeYearMapping,
+      toDate || rangeToIso,
+    );
+    if (opts[0]?.id === 'PP') {
+      return [{ id: 'PP', label: dynamicPPLabel }, ...opts.slice(1)];
     }
     return opts;
-  }, [dynamicPPLabel, seasonLabels, thirdSeasonEnabled]);
+  }, [dynamicPPLabel, activeYearMapping, toDate, rangeToIso, compareRangePreset]);
+
+  useEffect(() => {
+    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
+  }, [comparisonType, comparisonOptions]);
+
+  const onCompareSelect = useCallback((nextId) => {
+    applyCockpitCompareSelection({
+      nextId,
+      fromDate,
+      toDate,
+      rangePreset: compareRangePreset,
+      seasonMapping: activeYearMapping,
+      seasonLabels,
+      dataMin: dataBounds.min,
+      dataMax: dataBounds.max,
+      setComparisonType,
+    });
+  }, [fromDate, toDate, compareRangePreset, activeYearMapping, seasonLabels, dataBounds.min, dataBounds.max]);
 
   const priorPeriodRange = useMemo(
-    () => computePriorPeriodRange(fromDate, toDate, rangePreset),
-    [fromDate, toDate, rangePreset],
+    () => resolveCockpitPriorRange(fromDate, toDate, rangePreset, activeYearMapping),
+    [fromDate, toDate, rangePreset, activeYearMapping],
   );
 
   const comparisonLabel = useMemo(() => {
@@ -506,14 +727,33 @@ export default function DistilleryAnalyticsDashboard() {
 
     if (!isSeasonComparisonType(comparisonType)) return '';
 
-    const seasonLabel = seasonLabelForComparisonType(comparisonType, seasonLabels);
+    const seasonLabel =
+      resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, activeYearMapping)
+      || seasonLabelForComparisonType(comparisonType, seasonLabels);
     if (!seasonLabel) return '';
 
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
-    const { start, end } = alignSeasonCompareRange(from, to, seasonLabel);
-    return `${seasonLabel} (${formatDateFriendly(start)} - ${formatDateFriendly(end)})`;
-  }, [fromDate, toDate, comparisonType, rangePreset, priorPeriodRange, seasonLabels]);
+    const resolved = Object.keys(activeYearMapping).length
+      ? resolveCockpitCompareRange(
+        from,
+        to,
+        comparisonType,
+        seasonLabels,
+        activeYearMapping,
+        compareRangePreset,
+      )
+      : alignSeasonCompareRange(from, to, seasonLabel);
+    return `${seasonLabel} (${formatDateFriendly(resolved.start)} - ${formatDateFriendly(resolved.end)})`;
+  }, [
+    fromDate,
+    toDate,
+    comparisonType,
+    priorPeriodRange,
+    seasonLabels,
+    activeYearMapping,
+    compareRangePreset,
+  ]);
 
   const priorDataSlice = useMemo(() => {
     let slice = rawData.filter((row) => {
@@ -527,61 +767,106 @@ export default function DistilleryAnalyticsDashboard() {
   }, [rawData, priorPeriodRange, selectedModes]);
 
   const activeSeasonLabel = useMemo(
-    () => (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
-    [comparisonType, seasonLabels],
+    () => resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, activeYearMapping)
+      || (isSeasonComparisonType(comparisonType) ? seasonLabelForComparisonType(comparisonType, seasonLabels) : null),
+    [comparisonType, seasonLabels, activeYearMapping],
   );
 
   const seasonCompareSlice = useMemo(() => {
     if (!activeSeasonLabel) return [];
     const from = fromDate <= toDate ? fromDate : toDate;
     const to = fromDate <= toDate ? toDate : fromDate;
-    return filterSeasonCompareRowsBySeason(rawData, from, to, activeSeasonLabel, rowDateIso, selectedModes);
-  }, [rawData, fromDate, toDate, activeSeasonLabel, selectedModes]);
-
-  const historicalData = useMemo(() => {
-    if (comparisonType === 'PP') {
-      const priorByIso = new Map(priorDataSlice.map((r) => [rowDateIso(r), r]));
-      return filteredData.map((item, idx) => {
-        const iso = rowDateIso(item);
-        const pmItem = (iso && priorByIso.get(iso)) || priorDataSlice[idx];
-        return overlayPriorMetrics(item, pmItem);
+    if (Object.keys(activeYearMapping).length > 0) {
+      const resolved = resolveCockpitCompareRange(
+        from,
+        to,
+        comparisonType,
+        seasonLabels,
+        activeYearMapping,
+        compareRangePreset,
+      );
+      if (!resolved.start || !resolved.end) return [];
+      return rawData.filter((row) => {
+        const iso = rowDateIso(row);
+        if (!iso || iso < resolved.start || iso > resolved.end) return false;
+        if (selectedModes.length > 0 && !selectedModes.includes(row.mode)) return false;
+        return true;
       });
     }
+    return filterSeasonCompareRowsBySeason(rawData, from, to, activeSeasonLabel, rowDateIso, selectedModes);
+  }, [
+    rawData,
+    fromDate,
+    toDate,
+    activeSeasonLabel,
+    selectedModes,
+    activeYearMapping,
+    comparisonType,
+    seasonLabels,
+    compareRangePreset,
+  ]);
 
-    if (activeSeasonLabel) {
-      return buildSeasonHistoricalByDay(filteredData, seasonCompareSlice, activeSeasonLabel, rowDateIso);
-    }
-
-    return filteredData;
-  }, [filteredData, comparisonType, priorDataSlice, seasonCompareSlice, activeSeasonLabel]);
+  /** Prior-period rows for comparisons — same slices as KPI cards (no day overlay). */
+  const comparisonDataSlice = useMemo(() => {
+    if (comparisonType === 'PP') return priorDataSlice;
+    if (isSeasonComparisonType(comparisonType)) return seasonCompareSlice;
+    return [];
+  }, [comparisonType, priorDataSlice, seasonCompareSlice]);
 
   const currentKPIs = useMemo(() => aggregateKpisFromRows(filteredData), [filteredData]);
 
-  const pyKPIs = useMemo(() => {
-    if (comparisonType === 'PP') {
-      return aggregateKpisFromRows(priorDataSlice);
-    }
-    if (isSeasonComparisonType(comparisonType)) {
-      return aggregateKpisFromRows(seasonCompareSlice);
-    }
-    return aggregateKpisFromRows(historicalData);
-  }, [comparisonType, priorDataSlice, seasonCompareSlice, historicalData]);
+  /** Match Power BI: count days with ethanol production > 0 (not every logged date). */
+  const operatingDaysCount = useMemo(
+    () => filteredData.filter((row) => Number(row.totalProd) > 0).length,
+    [filteredData],
+  );
 
-  const formatMetric = (val) => {
-    if (val > 1000000) return `${(val / 1000000).toFixed(2)}M`;
-    if (val > 1000) return `${(val / 1000).toFixed(2)}K`;
-    return `${val.toFixed(1)}%`;
+  const pyKPIs = useMemo(
+    () => aggregateKpisFromRows(comparisonDataSlice),
+    [comparisonDataSlice],
+  );
+
+  const formatMetric = (val, { asPercent = true } = {}) => {
+    if (val == null || !Number.isFinite(Number(val))) return '—';
+    const n = Number(val);
+    if (Math.abs(n) >= 1000000) return `${(n / 1000000).toFixed(2)}M`;
+    if (Math.abs(n) >= 1000) return `${(n / 1000).toFixed(2)}K`;
+    if (asPercent) return `${n.toFixed(1)}%`;
+    return n.toFixed(2);
   };
+
+  // Efficiency / recovery: blanks stored as 0 → skip zeros (Power BI AVERAGE).
+  const AVG_SKIP_ZERO_KEYS = new Set([
+    'fermEff',
+    'distEff',
+    'overallEff',
+    'recovery',
+    'recBl',
+    'fermSugar',
+    'alcohol',
+    'trs',
+    'ufs',
+    'fs',
+  ]);
+  // Stock: blanks are null; keep real 0 inventory in the average.
+  const AVG_SKIP_NULL_KEYS = new Set(['molInStore', 'ethInStore']);
 
   const getChartMetric = (dataKey, isSum = false, sourceData = filteredData) => {
     if (sourceData.length === 0) return 0;
-    const total = sourceData.reduce((sum, item) => sum + item[dataKey], 0);
-    return isSum ? total : total / sourceData.length;
+    if (isSum) {
+      return sourceData.reduce((sum, item) => sum + (Number(item[dataKey]) || 0), 0);
+    }
+    if (AVG_SKIP_ZERO_KEYS.has(dataKey)) {
+      return averageNonBlank(sourceData, (item) => item[dataKey], { skipZero: true });
+    }
+    if (AVG_SKIP_NULL_KEYS.has(dataKey)) {
+      return averageNonBlank(sourceData, (item) => item[dataKey], { skipZero: false });
+    }
+    const total = sourceData.reduce((sum, item) => sum + (Number(item[dataKey]) || 0), 0);
+    return total / sourceData.length;
   };
 
   const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800';
-  const headerClasses = isDarkMode ? 'text-slate-100' : 'text-slate-900';
-  const subheadClasses = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const cardClasses = isDarkMode ? 'border-slate-700 bg-slate-800 shadow-slate-900/50' : 'border-slate-200 bg-white shadow-sm';
   const textClasses = isDarkMode
     ? {
@@ -607,9 +892,6 @@ export default function DistilleryAnalyticsDashboard() {
     strokeDasharray: '3 3',
   };
 
-  const modePanelClass = isDarkMode
-    ? 'absolute right-0 top-full z-[320] mt-2 w-48 rounded-xl border border-slate-700 bg-slate-800 p-2 shadow-xl'
-    : 'absolute right-0 top-full z-[320] mt-2 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-xl';
   const modeLabelHover = isDarkMode ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50';
 
   if (loading) {
@@ -636,155 +918,72 @@ export default function DistilleryAnalyticsDashboard() {
           {loadError}
         </div>
       ) : null}
-      <div className="mb-2 flex shrink-0 flex-col gap-2 md:mb-2">
-        <Link
-          to="/bi"
-          className={`inline-flex w-fit items-center gap-1 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide transition-colors ${
-            isDarkMode
-              ? 'border-slate-600 bg-slate-800 text-blue-400 hover:bg-slate-700'
-              : 'border-slate-200 bg-white text-blue-600 hover:bg-slate-50'
-          }`}
-        >
-          <MdArrowBack className="h-3.5 w-3.5" />
-          BI Control Tower
-        </Link>
+      <div className="mb-0 flex shrink-0 flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <BiDashboardHeader
+            title="Distillery Operations"
+            subtitle="Enterprise Analytics & PoP Performance"
+            icon={MdScience}
+            iconColor="#6366f1"
+            isDarkMode={isDarkMode}
+          />
 
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="min-w-0">
-          <div className="grid grid-cols-[1fr_auto] items-stretch gap-x-3 gap-y-0.5">
-            <h1
-              className={`col-start-1 row-start-1 self-center text-xl font-black tracking-tight sm:text-2xl ${headerClasses}`}
-            >
-              Distillery Operations
-            </h1>
-            <p
-              className={`col-start-1 row-start-2 self-center text-[11px] font-bold leading-snug ${subheadClasses}`}
-            >
-              Enterprise Analytics & PoP Performance
-            </p>
-            <div
-              className={`col-start-2 row-start-1 row-span-2 flex w-[4.25rem] shrink-0 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center sm:w-[4.75rem] ${
-                isDarkMode ? 'border-slate-600 bg-slate-800' : 'border-slate-300 bg-slate-100'
-              }`}
-              title={`${filteredData.length} operating days — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
-            >
-              <span
-                className={`text-3xl font-black leading-none tabular-nums sm:text-4xl ${
-                  isDarkMode ? 'text-slate-100' : 'text-slate-900'
-                }`}
-              >
-                {filteredData.length}
-              </span>
-              <span className={`mt-1 text-[8px] font-bold leading-tight ${subheadClasses}`}>Operating Days</span>
-              <span className={`max-w-full truncate text-[7px] font-semibold leading-tight ${textClasses.muted}`}>
-                {rangePreset === 'Custom' ? 'Custom' : rangePreset}
-              </span>
-            </div>
+          <div className="flex items-center gap-4">
+            <BiKeyMetricBox
+              value={operatingDaysCount}
+              title="Operating Days"
+              subtitle={rangePreset === 'Custom' ? timeFilterLabel : rangePreset}
+              isDarkMode={isDarkMode}
+              tooltip={`${operatingDaysCount} days with ethanol production > 0 — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
+            />
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 lg:items-end">
-          <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-            <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdDashboard className="h-3.5 w-3.5" />
-              Visual Dashboard
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('table')}
-              className={`flex items-center gap-1.5 border-b-2 pb-1 text-xs font-black transition-colors ${
-                activeTab === 'table'
-                  ? 'border-blue-500 text-blue-500'
-                  : `border-transparent ${textClasses.muted} ${textClasses.hover}`
-              }`}
-            >
-              <MdTableChart className="h-3.5 w-3.5" />
-              Raw Data Table
-            </button>
+        <BiFilterBarLayout isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}>
+            <div className="shrink-0">
+              <OpModeFilter
+                isOpen={isModeOpen}
+                onToggle={() => setIsModeOpen(!isModeOpen)}
+                onClose={() => setIsModeOpen(false)}
+                availableModes={availableModes}
+                selectedModes={selectedModes}
+                toggleMode={toggleMode}
+                isDarkMode={isDarkMode}
+                cardClasses={cardClasses}
+                textClasses={textClasses}
+                modeLabelHover={modeLabelHover}
+              />
             </div>
-          </div>
 
-          <div
-            className={`relative z-[200] flex flex-wrap items-center gap-3 rounded-2xl border p-1.5 shadow-sm backdrop-blur-md sm:gap-4 ${
-              isDarkMode
-                ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
-                : 'border-purple-200 bg-white/80 shadow-purple-100/50'
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`rounded-xl border p-2 transition-colors ${
-                isDarkMode
-                  ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700'
-                  : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'
-              }`}
-            >
-              {isDarkMode ? <MdLightMode className="h-4 w-4" /> : <MdDarkMode className="h-4 w-4" />}
-            </button>
-
-            <div className="relative z-[310]">
-              <button
-                type="button"
-                onClick={() => setIsModeOpen(!isModeOpen)}
-                className={`flex items-center gap-2 rounded-xl border p-1.5 px-3 text-xs font-bold transition-colors ${cardClasses} ${textClasses.muted} ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`}
-              >
-                <MdFilterList className="h-3.5 w-3.5" />
-                Op Mode ({selectedModes.length === availableModes.length ? 'All' : selectedModes.length})
-                <MdExpandMore className={`h-3 w-3 transition-transform ${isModeOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {isModeOpen && (
-                <>
+            <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
+              <div className="flex flex-wrap gap-0.5 sm:gap-1">
+                {YEAR_TYPE_OPTIONS.map((opt) => (
                   <button
+                    key={opt.id}
                     type="button"
-                    aria-label="Close menu"
-                    className="fixed inset-0 z-[300] cursor-default bg-transparent"
-                    onClick={() => setIsModeOpen(false)}
-                  />
-                  <div className={modePanelClass}>
-                    <div
-                      className={`mb-2 border-b px-2 pb-2 text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'border-slate-700 text-slate-500' : 'border-slate-100 text-slate-400'}`}
-                    >
-                      Filter by Mode
-                    </div>
-                    {availableModes.map((m) => (
-                      <label
-                        key={m}
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors ${modeLabelHover}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedModes.includes(m)}
-                          onChange={() => toggleMode(m)}
-                          className={`h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 ${isDarkMode ? 'border-slate-600 bg-slate-900' : ''}`}
-                        />
-                        <span className={`text-sm font-semibold ${textClasses.title}`}>{m}</span>
-                      </label>
-                    ))}
-                  </div>
-                </>
-              )}
+                    title={opt.title}
+                    onClick={() => applyYearType(opt.id)}
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                      yearType === opt.id
+                        ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                        : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className={`flex flex-wrap items-center gap-2 rounded-xl border p-1.5 sm:gap-3 ${cardClasses}`}>
-              <MdCalendarMonth className={`ml-1 h-4 w-4 shrink-0 sm:ml-2 ${textClasses.muted}`} />
-              <div className="flex flex-wrap gap-1">
-                {['MTD', 'QTD', 'YTD'].map((preset) => (
+            <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
+              <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
+              <div className="flex flex-wrap gap-0.5 sm:gap-1">
+                {childPresets.map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => applyRangePreset(preset)}
-                    className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                       rangePreset === preset
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                         : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -796,7 +995,7 @@ export default function DistilleryAnalyticsDashboard() {
                 <button
                   type="button"
                   onClick={selectCustomPreset}
-                  className={`rounded-lg px-3 py-1.5 text-[11px] font-black transition-all ${
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
                     rangePreset === 'Custom'
                       ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
                       : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -807,10 +1006,8 @@ export default function DistilleryAnalyticsDashboard() {
               </div>
             </div>
 
-            <div className={`mx-1 hidden h-6 w-px sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-
-            <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-              <div className="flex flex-col gap-0.5">
+            <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-2">
+              <div className="flex shrink-0 flex-col gap-0.5">
                 <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
                 <input
                   type="date"
@@ -818,14 +1015,14 @@ export default function DistilleryAnalyticsDashboard() {
                   min={dataBounds.min || undefined}
                   max={toDate}
                   onChange={handleFromDateChange}
-                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                  className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
                   }`}
                 />
               </div>
-              <div className="flex flex-col gap-0.5">
+              <div className="flex shrink-0 flex-col gap-0.5">
                 <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>To</span>
                 <input
                   type="date"
@@ -833,7 +1030,7 @@ export default function DistilleryAnalyticsDashboard() {
                   min={fromDate}
                   max={dataBounds.max || undefined}
                   onChange={handleToDateChange}
-                  className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
+                  className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
@@ -842,41 +1039,35 @@ export default function DistilleryAnalyticsDashboard() {
               </div>
             </div>
 
-            {activeTab === 'dashboard' && (
-              <>
-                <div className={`mx-1 h-6 w-px ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
-                <div className="flex items-center gap-2 pr-2">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest ${textClasses.muted}`}>Compare:</span>
-                  <div className={`flex flex-wrap gap-1 rounded-lg border p-1 ${cardClasses}`}>
-                    {comparisonOptions.map((comp) => (
-                      <button
-                        key={comp.id}
-                        type="button"
-                        onClick={() => setComparisonType(comp.id)}
-                        className={`rounded px-3 py-1 text-[10px] font-black transition-all whitespace-nowrap ${
-                          comparisonType === comp.id
-                            ? isDarkMode
-                              ? 'bg-slate-700 text-slate-100 shadow-sm'
-                              : 'bg-slate-800 text-white shadow-sm'
-                            : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
-                        }`}
-                      >
-                        {comp.label}
-                      </button>
-                    ))}
-                  </div>
+            <div className="flex w-full min-w-0 basis-full flex-wrap items-center gap-1.5 sm:basis-auto sm:gap-2 lg:w-auto">
+                <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
+                  Compare:
+                </span>
+                <div className={`flex min-w-0 flex-wrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
+                  {comparisonOptions.map((comp) => (
+                    <button
+                      key={comp.id}
+                      type="button"
+                      onClick={() => onCompareSelect(comp.id)}
+                      className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
+                        comparisonType === comp.id
+                          ? isDarkMode
+                            ? 'bg-slate-700 text-slate-100 shadow-sm'
+                            : 'bg-slate-800 text-white shadow-sm'
+                          : `text-slate-500 ${isDarkMode ? 'hover:bg-slate-700/50 hover:text-slate-300' : 'hover:bg-slate-100 hover:text-slate-700'}`
+                      }`}
+                    >
+                      {comp.label}
+                    </button>
+                  ))}
                 </div>
-              </>
-            )}
-          </div>
-        </div>
-        </div>
+              </div>
+        </BiFilterBarLayout>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto max-md:pb-1 md:flex md:flex-col md:overflow-y-hidden">
-      {activeTab === 'dashboard' ? (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2 md:overflow-hidden">
-          <div className="grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
+          <div className="mt-2 grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
             <MetricCard
               title="Total Ethanol Produced"
               value={currentKPIs.ethanolProd}
@@ -939,7 +1130,7 @@ export default function DistilleryAnalyticsDashboard() {
           <DistilleryChartsGrid
             ChartTitle={ChartTitle}
             filteredData={filteredData}
-            historicalData={historicalData}
+            comparisonData={comparisonDataSlice}
             periodLabel={periodLabel}
             comparisonLabel={comparisonLabel}
             isDarkMode={isDarkMode}
@@ -952,106 +1143,6 @@ export default function DistilleryAnalyticsDashboard() {
           />
 
         </div>
-      ) : (
-        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm ${cardClasses}`}>
-          <div
-            className={`flex items-center border-b p-4 ${isDarkMode ? 'border-slate-700 bg-slate-800/50' : 'border-slate-200 bg-slate-50'}`}
-          >
-            <h3 className={`text-sm font-bold ${textClasses.title}`}>
-              Daily Production Log <span className={`font-normal ${textClasses.muted}`}>({periodLabel} View)</span>
-            </h3>
-          </div>
-
-          <div className="min-w-0 flex-1 overflow-auto">
-            <table className="w-max min-w-full text-left text-sm">
-              <thead
-                className={`sticky top-0 z-10 border-b text-[10px] uppercase tracking-wide backdrop-blur-sm ${
-                  isDarkMode
-                    ? 'border-slate-700 bg-slate-900/90 text-slate-400'
-                    : 'border-slate-200 bg-slate-100/90 text-slate-500'
-                }`}
-              >
-                <tr>
-                  {DISTILLERY_BI_RAW_COLUMNS.map((col) => (
-                    <th
-                      key={col.key}
-                      className={`whitespace-nowrap px-3 py-2.5 font-bold ${
-                        col.kind === 'num' ? 'text-right' : 'text-left'
-                      }`}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className={isDarkMode ? 'divide-y divide-slate-800' : 'divide-y divide-slate-100'}>
-                {[...filteredData].reverse().map((row, idx) => (
-                  <tr
-                    key={idx}
-                    className={isDarkMode ? 'transition-colors hover:bg-slate-800/50' : 'transition-colors hover:bg-slate-50'}
-                  >
-                    {DISTILLERY_BI_RAW_COLUMNS.map((col) => {
-                      if (col.kind === 'modeBadge') {
-                        return (
-                          <td key={col.key} className="px-3 py-2">
-                            <span
-                              className={`inline-flex items-center rounded px-2 py-0.5 text-[11px] font-bold tracking-wide ${
-                                row.mode === 'B Heavy'
-                                  ? isDarkMode
-                                    ? 'bg-blue-500/20 text-blue-400'
-                                    : 'bg-blue-100 text-blue-800'
-                                  : row.mode === 'C Heavy'
-                                    ? isDarkMode
-                                      ? 'bg-emerald-500/20 text-emerald-400'
-                                      : 'bg-emerald-100 text-emerald-800'
-                                    : row.mode === 'Syrup'
-                                      ? isDarkMode
-                                        ? 'bg-indigo-500/20 text-indigo-400'
-                                        : 'bg-indigo-100 text-indigo-800'
-                                      : isDarkMode
-                                        ? 'bg-purple-500/20 text-purple-400'
-                                        : 'bg-purple-100 text-purple-800'
-                              }`}
-                            >
-                              {row.mode}
-                            </span>
-                          </td>
-                        );
-                      }
-                      const raw = formatDistilleryRawScalar(col.kind, row, col.key);
-                      const display =
-                        raw === null || raw === '' ? '—' : raw;
-                      const isNum = col.kind === 'num';
-                      return (
-                        <td
-                          key={col.key}
-                          className={`whitespace-nowrap px-3 py-2 ${
-                            isNum ? 'text-right font-mono' : 'font-medium'
-                          } ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} ${
-                            col.kind === 'date' ? textClasses.title : ''
-                          }`}
-                        >
-                          {display}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-                {filteredData.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={DISTILLERY_BI_RAW_COLUMNS.length}
-                      className={`px-6 py-12 text-center font-semibold ${textClasses.muted}`}
-                    >
-                      No data available for the selected filters.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   );

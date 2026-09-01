@@ -1,0 +1,142 @@
+{
+  "equipment": [
+    {
+      "hierarchy_name": "Inst.Air Comp.-1",
+      "hierarchy_card": "Service Air Compressor",
+      "hierarchy_path": "Power Plant > 150TPH BLR > Ash Handling System > Service Air Compressor",
+      "image_name": "30.85 MW GENERATOR SET",
+      "name": "Inst.Air Comp.-1",
+      "equip_no": "",
+      "tag_name": "",
+      "category": "150TPH BLR",
+      "subcategory": "Ash Handling System",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "drive": "",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "Siemens",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Rating",
+          "val": "75",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Effic.",
+          "val": "0.95",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Type",
+          "val": "Single Module",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Fuse",
+          "val": "550A(Semi.Cond.)",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Power Cable",
+          "val": "Armoured Al Cable 1RX3CX 120 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Frame",
+          "val": "280S",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Speed",
+          "val": "1475",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Duty",
+          "val": "S1",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Make",
+          "val": "ABB",
+          "section": "electrical"
+        },
+        {
+          "lbl": "VFD Rating",
+          "val": "260A",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured Copper Cable 4CX1.5 mm2",
+          "section": "electrical"
+        },
+        {
+          "lbl": "M/C No.",
+          "val": "64704454",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Load",
+          "val": "129",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Bearing DE / NDE",
+          "val": "NU317/ 6317C3 Ins.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Model No.",
+          "val": "ACS850-04-260A-5",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Signal Isolator",
+          "val": "Make - Masibus , Model - 9000U",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "VFD to Motor Earthing - Al.Cable -35Sqmm & VFD Earthing 16 Sqmm Cu Wire",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Voltage",
+          "val": "415AC",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Insul. Class",
+          "val": "F",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Earthing",
+          "val": "50X6mm GI",
+          "section": "electrical"
+        },
+        {
+          "lbl": "Aux. Contactor",
+          "val": "N22E- 06Nos.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "On Load Type Changeover",
+          "val": "Make -HPL , Rating- 315 Amp.",
+          "section": "electrical"
+        },
+        {
+          "lbl": "SDU",
+          "val": "315 Amp. , Make - ABB , Model No.- OT315E03P",
+          "section": "electrical"
+        }
+      ],
+      "schedule": [],
+      "history": []
+    }
+  ]
+}

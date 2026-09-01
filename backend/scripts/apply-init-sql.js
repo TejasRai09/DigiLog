@@ -1,9 +1,12 @@
 /**
- * Applies mysql/init.sql using DATABASE_URL from backend/.env (server connection).
- * Ensures gsmadb exists and defines:
+ * Applies mysql/init.sql using DATABASE_URL / MYSQL_DATABASE from backend/.env.
+ * Substitutes __MYSQL_DATABASE__ in init.sql with the resolved database name.
+ * Ensures that database exists and defines:
  *   system tables (users, apps, forms, mappings, portal_settings), form/logbook tables,
- *   distillery_operations, mh_* Mill House cards, and pp_* Power Plant equipment
- *   (pp_equipment, pp_specs, pp_oem_schedule, pp_history — used by /api/power).
+ *   distillery_operations, mh_* Mill House cards, pp_* Power Plant equipment
+ *   (pp_equipment, pp_specs, pp_oem_schedule, pp_history — used by /api/power),
+ *   and ppn_* Power Plant equipment new hub
+ *   (ppn_equipment, ppn_specs, ppn_oem_schedule, ppn_history — used by /api/power-new).
  *
  * Idempotent on an existing DB (CREATE TABLE IF NOT EXISTS): safe to re-run after pull
  * to add new tables (e.g. pp_*) without wiping data.
@@ -29,32 +32,26 @@ const mysql = require('mysql2/promise');
 
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
+const {
+  getRequiredDatabaseName,
+  readSqlFileWithDatabase,
+  getServerConnectionOptions,
+} = require('../config/databaseName');
+
 const INIT_SQL = path.join(__dirname, '..', '..', 'mysql', 'init.sql');
 
-/**
- * Connect without selecting a database so CREATE DATABASE in init.sql can run.
- * A URL like mysql://u:p@host:3306/gsmadb otherwise fails with ER_BAD_DB_ERROR if gsmadb does not exist yet.
- */
-function connectionOptionsNoDatabase(databaseUrl) {
-  const normalized = databaseUrl.trim().replace(/^mysql:\/\//i, 'http://');
-  const u = new URL(normalized);
-  return {
-    host: u.hostname || 'localhost',
-    port: u.port ? parseInt(u.port, 10) : 3306,
-    user: decodeURIComponent(u.username || 'root'),
-    password: u.password !== '' ? decodeURIComponent(u.password) : undefined,
-    multipleStatements: true,
-  };
+/** CREATE TABLE IF NOT EXISTS does not add columns; ADD COLUMN on re-run errors if present — ignore 1060. */
+async function useDatabase(conn, databaseName) {
+  await conn.query(`USE \`${databaseName}\``);
 }
 
-/** CREATE TABLE IF NOT EXISTS does not add columns; ADD COLUMN on re-run errors if present — ignore 1060. */
-async function ensureDistilleryOperationsCalcColumns(conn) {
+async function ensureDistilleryOperationsCalcColumns(conn, databaseName) {
   const fsExpr =
     'DOUBLE AS (IF(`trs` IS NOT NULL AND `trs` <> 0 AND `fs` IS NOT NULL, `fs` / `trs`, NULL)) STORED';
   const molExpr =
     'DOUBLE AS (IF(`total_bh_molasses_qtls` IS NULL AND `total_ch_molasses_qtls` IS NULL, NULL, COALESCE(`total_bh_molasses_qtls`, 0) + COALESCE(`total_ch_molasses_qtls`, 0))) STORED';
 
-  await conn.query('USE `gsmadb`');
+  await useDatabase(conn, databaseName);
 
   try {
     await conn.query(
@@ -87,13 +84,13 @@ async function ensureDistilleryOperationsCalcColumns(conn) {
 }
 
 /** CREATE TABLE IF NOT EXISTS does not add columns; ADD COLUMN on re-run errors if present — ignore 1060. */
-async function ensureUserProfileColumns(conn) {
+async function ensureUserProfileColumns(conn, databaseName) {
   const alters = [
     'ALTER TABLE `users` ADD COLUMN `department` VARCHAR(255) DEFAULT NULL',
     'ALTER TABLE `users` ADD COLUMN `avatar` MEDIUMTEXT DEFAULT NULL',
     'ALTER TABLE `users` ADD COLUMN `google_id` VARCHAR(200) DEFAULT NULL',
   ];
-  await conn.query('USE `gsmadb`');
+  await useDatabase(conn, databaseName);
   for (const sql of alters) {
     try {
       await conn.query(sql);
@@ -109,8 +106,8 @@ async function ensureUserProfileColumns(conn) {
  * MySQL does not support ADD CONSTRAINT IF NOT EXISTS, so we check
  * information_schema before attempting the ALTER.
  */
-async function ensureManagerColumn(conn) {
-  await conn.query('USE `gsmadb`');
+async function ensureManagerColumn(conn, databaseName) {
+  await useDatabase(conn, databaseName);
 
   // 1. Add the column (ignore if already present)
   try {
@@ -138,9 +135,13 @@ async function ensureManagerColumn(conn) {
 }
 
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    console.error('DATABASE_URL is not set in backend/.env');
+  let databaseName;
+  let serverOpts;
+  try {
+    databaseName = getRequiredDatabaseName();
+    serverOpts = getServerConnectionOptions();
+  } catch (err) {
+    console.error(err.message);
     process.exit(1);
   }
 
@@ -149,18 +150,17 @@ async function main() {
     process.exit(1);
   }
 
-  const sql = fs.readFileSync(INIT_SQL, 'utf8');
+  const sql = readSqlFileWithDatabase(INIT_SQL, databaseName);
 
-  console.log('Applying mysql/init.sql (server connection, no default DB)...');
+  console.log(`Applying mysql/init.sql → database "${databaseName}" (server connection, no default DB)...`);
   let conn;
   try {
-    conn = await mysql.createConnection(connectionOptionsNoDatabase(databaseUrl));
+    conn = await mysql.createConnection(serverOpts);
     await conn.query(sql);
-    await ensureDistilleryOperationsCalcColumns(conn);
-    await ensureUserProfileColumns(conn);
-    await ensureManagerColumn(conn);
-    console.log('Done — schema applied (init.sql: gsmadb + forms + mh_* + pp_* + …).');
-    console.log('Ensure DATABASE_URL database name matches gsmadb or change init.sql USE line.');
+    await ensureDistilleryOperationsCalcColumns(conn, databaseName);
+    await ensureUserProfileColumns(conn, databaseName);
+    await ensureManagerColumn(conn, databaseName);
+    console.log(`Done — schema applied on "${databaseName}" (forms + mh_* + pp_* + ppn_* + …).`);
   } catch (err) {
     console.error('Apply failed:', err.message);
     process.exit(1);

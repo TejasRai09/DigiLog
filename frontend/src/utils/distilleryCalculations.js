@@ -34,7 +34,7 @@ export function formatDistilleryDerivedNumber(v) {
  * @param {Record<string, string|number>} input — raw form state (manual fields only)
  * @returns {Record<string, number|null>} derived keys for API / display (DB-generated cols excluded from INSERT in API)
  */
-export function computeDistilleryDerived(input) {
+export function computeDistilleryDerived(input, { theoreticalYieldFactor = 64.4 } = {}) {
   const syrup = parseNum(input.syrup_molasses_qtls);
   const wash = parseNum(input.wash_distilled);
   const trs = parseNum(input.trs);
@@ -53,7 +53,7 @@ export function computeDistilleryDerived(input) {
   const fs_quantity =
     fs !== null && syrup !== null ? (fs / 100) * syrup : null;
   const theoretical_yield =
-    fs_quantity !== null ? fs_quantity * 64.4 : null;
+    fs_quantity !== null ? fs_quantity * theoreticalYieldFactor : null;
   const alcohol_prod_fermentation =
     alcoholPct !== null && wash !== null ? (alcoholPct / 100) * wash : null;
 

@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import FormReviewModal from '../../../components/FormReviewModal';
+import FormFileUploadRow from '../../../components/FormFileUploadRow';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildEhsNearMissReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const SEVERITY_OPTIONS  = ['', 'Fatal', 'Serious Harm', 'Minor Harm', 'No Harm / Near Miss'];
 const TREATMENT_OPTIONS = ['', 'Nil', 'First Aid', 'Doctor', 'Hospital'];
@@ -17,31 +22,35 @@ const INITIAL = {
   severity: '', treatment: '', treatment_given: '', treatment_by: '',
   description: '',
   hazard_identified: '',
-  hod_comments: '', hod_signed: '', hod_position: '', hod_date: '',
+  hod_signoff_file: '',
+  hod_signoff_file_name: '',
 };
 
 const EhsNearMiss = () => {
-  const [form, setForm]         = useState(INITIAL);
-  const [submitting, setSubmitting] = useState(false);
+  const [form, setForm] = useState(INITIAL);
 
   const handle = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    if (!form.name) { toast.error('Person name is required.'); return; }
-    if (!form.severity) { toast.error('Severity is required.'); return; }
-    setSubmitting(true);
-    try {
-      await api.post('/forms/ehs_near_miss', form);
-      toast.success('Report submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      if (!form.name) { toast.error('Person name is required.'); return false; }
+      if (!form.severity) { toast.error('Severity is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/ehs_near_miss', form),
+        'Report submitted!',
+      );
       setForm(INITIAL);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildEhsNearMissReview(form) : null),
+    [reviewOpen, form],
+  );
 
   const S = (name, label, required = false) => (
     <div>
@@ -54,11 +63,11 @@ const EhsNearMiss = () => {
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
       <FormPageHeader
         formKey="ehs_near_miss"
-        fallbackTitle="Near Miss / Incident / Accident Report"
-        fallbackDescription="Log workplace near misses, incidents and accidents for investigation"
+        fallbackTitle="Accident Report"
+        fallbackDescription="Log workplace accidents for investigation"
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
 
         {/* Section 1 – Date & Time */}
         <div className="form-section space-y-4">
@@ -135,21 +144,23 @@ const EhsNearMiss = () => {
           </div>
         </div>
 
-        {/* Section 6 – HOD Sign-off */}
-        <div className="form-section space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">HOD Sign-off</h2>
-          <div>
-            <label className="label">HOD Comments</label>
-            <textarea name="hod_comments" value={form.hod_comments} onChange={handle} rows={3} className="input resize-none" />
-          </div>
-          <div className="form-row flex-wrap gap-4">
-            {S('hod_signed', 'Signed')}
-            {S('hod_position', 'Position')}
-          </div>
-          <div>
-            <label className="label">HOD Date</label>
-            <input type="date" name="hod_date" value={form.hod_date} onChange={handle} className="input" />
-          </div>
+        {/* Section 6 – HOD Sign-off (signed document upload) */}
+        <div className="form-section">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-1">HOD Sign-off</h2>
+          <FormFileUploadRow
+            label="HOD Sign-off Document"
+            hint="Upload the signed HOD document (JPG, JPEG, PDF, or Word). Max 6 MB."
+            value={form.hod_signoff_file}
+            fileName={form.hod_signoff_file_name}
+            onChange={({ dataUrl, fileName }) =>
+              setForm((p) => ({
+                ...p,
+                hod_signoff_file: dataUrl || '',
+                hod_signoff_file_name: fileName || '',
+              }))
+            }
+            optional
+          />
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
@@ -160,6 +171,16 @@ const EhsNearMiss = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

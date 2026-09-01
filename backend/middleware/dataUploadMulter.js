@@ -1,5 +1,6 @@
 const path = require('path');
 const multer = require('multer');
+const { clientErrorMessage, MSG } = require('../utils/httpError');
 const {
   DATA_INGESTION_DIR,
   buildStoredFilename,
@@ -41,9 +42,9 @@ function uploadDataFileMiddleware(req, res, next) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ message: 'File is too large.' });
       }
-      return res.status(400).json({ message: err.message || 'Upload failed.' });
+      return res.status(400).json({ message: clientErrorMessage(err, MSG.UPLOAD) });
     }
-    return res.status(400).json({ message: err.message || 'Invalid upload.' });
+    return res.status(400).json({ message: clientErrorMessage(err, MSG.UPLOAD) });
   });
 }
 

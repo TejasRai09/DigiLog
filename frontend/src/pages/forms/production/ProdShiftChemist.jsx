@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave, MdAssignment, MdAccessTime } from 'react-icons/md';
+import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
+import { buildProdShiftChemistReview } from '../../../config/gsmaFormReviewBuilders';
+import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
+import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
 const SHIFTS = [
   { key: 'shift8_4',  label: 'Shift 8–4 (Morning)' },
@@ -22,42 +26,45 @@ const INITIAL = {
 
 const ProdShiftChemist = () => {
   const navigate = useNavigate();
-  const [form, setForm]       = useState(INITIAL);
+  const [form, setForm] = useState(INITIAL);
   const [activeShift, setActiveShift] = useState('shift8_4');
-  const [submitting, setSub]  = useState(false);
 
   const handleMeta = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   const handleShift = (key, field, val) =>
     setForm((p) => ({ ...p, [key]: { ...p[key], [field]: val } }));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.date) { toast.error('Date is required.'); return; }
-    setSub(true);
-    try {
-      await api.post('/forms/prod_shift_chemist', {
-        date: form.date,
-        season: form.season,
-        instructions: form.instructions,
-        shift8_4_jobs_done:  form.shift8_4.jobs_done,
-        shift8_4_jobs_todo:  form.shift8_4.jobs_todo,
-        shift8_4_sign:       form.shift8_4.sign,
-        shift4_12_jobs_done: form.shift4_12.jobs_done,
-        shift4_12_jobs_todo: form.shift4_12.jobs_todo,
-        shift4_12_sign:      form.shift4_12.sign,
-        shift12_8_jobs_done: form.shift12_8.jobs_done,
-        shift12_8_jobs_todo: form.shift12_8.jobs_todo,
-        shift12_8_sign:      form.shift12_8.sign,
-      });
-      toast.success('Shift Chemist Log Book submitted!');
+  const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
+    validate: () => {
+      if (!form.date) { toast.error('Date is required.'); return false; }
+      return true;
+    },
+    submit: async () => {
+      await gsmaSubmitRequest(
+        () => api.post('/forms/prod_shift_chemist', {
+          date: form.date,
+          season: form.season,
+          instructions: form.instructions,
+          shift8_4_jobs_done:  form.shift8_4.jobs_done,
+          shift8_4_jobs_todo:  form.shift8_4.jobs_todo,
+          shift8_4_sign:       form.shift8_4.sign,
+          shift4_12_jobs_done: form.shift4_12.jobs_done,
+          shift4_12_jobs_todo: form.shift4_12.jobs_todo,
+          shift4_12_sign:      form.shift4_12.sign,
+          shift12_8_jobs_done: form.shift12_8.jobs_done,
+          shift12_8_jobs_todo: form.shift12_8.jobs_todo,
+          shift12_8_sign:      form.shift12_8.sign,
+        }),
+        'Shift Chemist Log Book submitted!',
+      );
       setForm(INITIAL);
       setActiveShift('shift8_4');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed.');
-    } finally {
-      setSub(false);
-    }
-  };
+    },
+  });
+
+  const reviewConfig = useMemo(
+    () => (reviewOpen ? buildProdShiftChemistReview(form) : null),
+    [reviewOpen, form],
+  );
 
   return (
     <main className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-8">
@@ -67,7 +74,7 @@ const ProdShiftChemist = () => {
       <h1 className="page-title mb-1">Shift Chemist Job Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Production Department Log Register</p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-2 gap-4">
           <div>
             <label className="label">Date <span className="text-red-500">*</span></label>
@@ -140,6 +147,16 @@ const ProdShiftChemist = () => {
           </button>
         </div>
       </form>
+
+      {reviewConfig ? (
+        <FormReviewModal
+          open={reviewOpen}
+          onClose={closeReview}
+          onConfirm={confirmSubmit}
+          confirming={submitting}
+          {...reviewConfig}
+        />
+      ) : null}
     </main>
   );
 };

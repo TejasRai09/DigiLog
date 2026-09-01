@@ -1,0 +1,67 @@
+{
+  "equipment": [
+    {
+      "name": "Example Boiler Feed Pump",
+      "tag_name": "BFP-01",
+      "category": "150TPH BLR",
+      "subcategory": "Auxiliary Equipment",
+      "location": "POWER PLANT",
+      "commissioned": "05.11.2015",
+      "specs": [
+        {
+          "lbl": "Make",
+          "val": "KSB",
+          "section": "mechanical",
+          "sub_section": "Rotor & Frame"
+        },
+        {
+          "lbl": "Bearing DE",
+          "val": "6326 C3",
+          "section": "mechanical",
+          "sub_section": "Bearings"
+        },
+        {
+          "lbl": "Concrete Grade",
+          "val": "M30",
+          "section": "civil",
+          "sub_section": "Foundation Base"
+        },
+        {
+          "lbl": "Control Cable",
+          "val": "Armoured 4CX1.5 mm2",
+          "section": "instrument"
+        },
+        {
+          "lbl": "Motor Rating",
+          "val": "500 KW",
+          "section": "electrical",
+          "sub_section": "Motor Ratings"
+        },
+        {
+          "lbl": "Remarks",
+          "val": "No section field — lands in mechanical by default"
+        }
+      ],
+      "schedule": [
+        {
+          "no": 1,
+          "comp": "Mechanical seal",
+          "act": "Inspect for leakage",
+          "iv_W": "X",
+          "iv_M": "X",
+          "iv_H": "X",
+          "iv_T": "X"
+        }
+      ],
+      "history": [
+        {
+          "season": "Off-Season",
+          "year": "2023",
+          "obs": "Seal leakage",
+          "act": "Seal replaced",
+          "svc": "Internal"
+        }
+      ]
+    }
+  ]
+}
