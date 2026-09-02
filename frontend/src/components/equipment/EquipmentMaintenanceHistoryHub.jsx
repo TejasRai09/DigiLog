@@ -275,10 +275,12 @@ export default function EquipmentMaintenanceHistoryHub({
   onToggle,
   onSave,
   equipmentOptions = [],
+  defaultEquipmentKeys = [],
   exportFileName,
   enableDocuments = false,
   historyApiBase = '',
   equipId = null,
+  observationRequired = true,
 }) {
   const showEquipmentPicker = equipmentOptions.length > 0;
   const records = useMemo(
@@ -292,8 +294,14 @@ export default function EquipmentMaintenanceHistoryHub({
     return map;
   }, [equipmentOptions]);
 
-  const labelForRecord = (rec) => {
+  const resolveEquipmentKeys = (rec) => {
     const keys = rec.equipmentKeys?.length ? rec.equipmentKeys : equipmentKeysFromRecord(rec);
+    if (keys.length) return keys;
+    return defaultEquipmentKeys.length ? [...defaultEquipmentKeys] : [];
+  };
+
+  const labelForRecord = (rec) => {
+    const keys = resolveEquipmentKeys(rec);
     if (!keys.length) return '—';
     return keys
       .map((key) => equipmentLabelMap.get(key))
@@ -365,7 +373,7 @@ export default function EquipmentMaintenanceHistoryHub({
 
         const matchesYear = yearFilter === 'All' || rec.year === yearFilter;
 
-        const recKeys = equipmentKeysFromRecord(rec);
+        const recKeys = resolveEquipmentKeys(rec);
         const matchesEquipment = equipmentFilter.length === 0
           || recKeys.some((key) => equipmentFilter.includes(key));
 
@@ -386,7 +394,9 @@ export default function EquipmentMaintenanceHistoryHub({
     editBaselineRef.current = null;
     setForm({
       ...EMPTY_HISTORY_FORM,
-      equipmentKeys: equipmentOptions[0]?.key ? [equipmentOptions[0].key] : [],
+      equipmentKeys: equipmentOptions[0]?.key
+        ? [equipmentOptions[0].key]
+        : (defaultEquipmentKeys.length ? [...defaultEquipmentKeys] : []),
     });
     setFormOpen(true);
   };
@@ -434,15 +444,19 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const canSave = useMemo(() => {
     if (!form.season?.trim()) return false;
-    if (!form.start?.trim()) return false;
-    if (!form.observation?.trim()) return false;
+    if (observationRequired) {
+      if (!form.start?.trim()) return false;
+      if (!form.observation?.trim()) return false;
+    } else {
+      if (!form.year?.trim()) return false;
+    }
     if (showEquipmentPicker && (!form.equipmentKeys || form.equipmentKeys.length === 0)) return false;
     if (isEditing) {
       if (!editBaselineRef.current) return false;
       return !historyFormsEqual(form, editBaselineRef.current);
     }
     return true;
-  }, [form, isEditing, showEquipmentPicker]);
+  }, [form, isEditing, showEquipmentPicker, observationRequired]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -629,8 +643,8 @@ export default function EquipmentMaintenanceHistoryHub({
                 >
                   {row.maintenanceType || '—'}
                 </td>
-                <td className="px-5 py-3.5 max-w-xs truncate text-slate-800" title={row.observation}>{row.observation}</td>
-                <td className="px-5 py-3.5 max-w-xs truncate" title={row.action}>{row.action || '—'}</td>
+                <td className="px-5 py-3.5 max-w-xs truncate text-slate-800" title={row.observation}>{row.observation || '—'}</td>
+                <td className="px-5 py-3.5 max-w-xs whitespace-pre-line text-slate-800" title={row.action}>{row.action || '—'}</td>
                 <td className="px-5 py-3.5 text-center" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button type="button" onClick={() => openDetail(row)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="View">
@@ -670,7 +684,7 @@ export default function EquipmentMaintenanceHistoryHub({
               <span className="bg-slate-100 text-slate-600 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0">
                 {formatEntryId(row.id)}
               </span>
-              <h3 className="text-xs font-bold text-slate-800 truncate">{row.observation}</h3>
+              <h3 className="text-xs font-bold text-slate-800 truncate">{row.observation || row.action || '—'}</h3>
             </div>
             <SeasonBadge season={row.season} />
           </div>
@@ -684,7 +698,7 @@ export default function EquipmentMaintenanceHistoryHub({
               {maintenanceTypeLabel(row.maintenanceType)}
             </p>
           )}
-          <p className="text-[11px] text-slate-600 line-clamp-2">{row.action || '—'}</p>
+          <p className="text-[11px] text-slate-600 line-clamp-3 whitespace-pre-line">{row.action || '—'}</p>
           <div className="flex items-center justify-between pt-1 border-t border-slate-50">
             <span className="text-[9px] text-slate-400 font-bold uppercase">
               {row.photosBefore?.length || 0} before / {row.photosAfter?.length || 0} after
@@ -805,25 +819,35 @@ export default function EquipmentMaintenanceHistoryHub({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Year <span className="text-slate-400 font-normal">(from start date)</span>
+                  Year {!observationRequired && <span className="text-red-500">*</span>}
+                  {observationRequired && (
+                    <span className="text-slate-400 font-normal">(from start date)</span>
+                  )}
                 </label>
                 <input
                   type="text"
-                  readOnly
+                  readOnly={observationRequired}
                   value={form.year}
-                  placeholder="From start date"
-                  className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-slate-500 text-sm cursor-not-allowed"
+                  onChange={observationRequired
+                    ? undefined
+                    : (e) => setForm((f) => ({ ...f, year: e.target.value }))}
+                  placeholder={observationRequired ? 'From start date' : 'e.g. 2019'}
+                  className={`w-full px-3 py-2 border border-slate-200 rounded-lg text-sm ${
+                    observationRequired
+                      ? 'bg-slate-100 text-slate-500 cursor-not-allowed'
+                      : 'outline-none'
+                  }`}
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Date of Start <span className="text-red-500">*</span>
+                  Date of Start {observationRequired && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="date"
                   value={form.start}
                   onChange={(e) => handleStartChange(e.target.value)}
-                  required
+                  required={observationRequired}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm"
                 />
               </div>
@@ -840,11 +864,11 @@ export default function EquipmentMaintenanceHistoryHub({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Outage / Observation <span className="text-red-500">*</span>
+                Outage / Observation {observationRequired && <span className="text-red-500">*</span>}
               </label>
               <textarea
                 rows={2}
-                required
+                required={observationRequired}
                 value={form.observation}
                 onChange={(e) => setForm((f) => ({ ...f, observation: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm resize-none"
@@ -854,7 +878,7 @@ export default function EquipmentMaintenanceHistoryHub({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Action Taken</label>
               <textarea
-                rows={2}
+                rows={3}
                 value={form.action}
                 onChange={(e) => setForm((f) => ({ ...f, action: e.target.value }))}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg outline-none text-sm resize-none"
@@ -1026,11 +1050,11 @@ export default function EquipmentMaintenanceHistoryHub({
 
           <div>
             <span className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Outage / Observation</span>
-            <p className="text-slate-800 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 font-semibold">{selectedRecord.observation}</p>
+            <p className="text-slate-800 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 font-semibold">{selectedRecord.observation || '—'}</p>
           </div>
           <div>
             <span className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Action Taken</span>
-            <p className="text-slate-600 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100">{selectedRecord.action || '—'}</p>
+            <p className="text-slate-600 bg-slate-50/70 p-3.5 rounded-xl border border-slate-100 whitespace-pre-line">{selectedRecord.action || '—'}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-4">

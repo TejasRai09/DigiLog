@@ -44,6 +44,7 @@ export default function EquipmentSpecificationHub({
   sectionTitle = null,
   defaultBodyOpen = false,
   subGroupCardMode = false,
+  hideAddSubGroup = false,
   equipmentDefaults = {},
   onDeleteSubGroupMaintenanceHistory = null,
   onRenameSubGroupMaintenanceHistory = null,
@@ -747,7 +748,7 @@ export default function EquipmentSpecificationHub({
                     )}
                   </>
                 )}
-                {subGroupCardMode && activeSectionId && (
+                {subGroupCardMode && activeSectionId && !hideAddSubGroup && (
                   <button
                     type="button"
                     onClick={() => openSubModal(activeSectionId)}

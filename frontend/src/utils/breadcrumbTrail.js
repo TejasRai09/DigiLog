@@ -373,3 +373,32 @@ function equipmentStateForDiscipline(hubStateBase, hierarchyPathIds, restoreEqui
     restoreEquipmentId,
   };
 }
+
+const PRODUCTION_HOUSE_HUB = '/production-house-equipment';
+
+export function buildProductionHouseEquipmentTrail({
+  appId,
+  appName,
+  equipmentName = null,
+} = {}) {
+  const items = [DASHBOARD_CRUMB, FORMS_HUB_CRUMB];
+  const hubState = {
+    appId: appId != null && appId !== '' ? String(appId) : undefined,
+  };
+  const hubLabel = (appId && appName)
+    ? appName
+    : HUB_MODULE_LABELS[PRODUCTION_HOUSE_HUB];
+
+  if (!equipmentName) {
+    items.push({ label: hubLabel });
+    return items;
+  }
+
+  items.push({
+    label: hubLabel,
+    to: PRODUCTION_HOUSE_HUB,
+    state: hubState,
+  });
+  items.push({ label: equipmentName });
+  return items;
+}
