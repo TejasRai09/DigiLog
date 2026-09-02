@@ -326,13 +326,22 @@ const PowerEquipmentDetail = () => {
     try {
       const equipId = await resolveEquipmentId();
       if (isNewHub) {
-        await saveHistoryWithDocuments({ apiBase, equipId, form, mode, recordId });
+        const result = await saveHistoryWithDocuments({ apiBase, equipId, form, mode, recordId });
+        if (result?.pending) {
+          toast.success('Sent to HOD for approval. It will appear after approval.');
+          return;
+        }
       } else {
         const body = historyRecordToApi(form);
+        let response;
         if (mode === 'add') {
-          await api.post(`${apiBase}/${equipId}/history`, body);
+          response = await api.post(`${apiBase}/${equipId}/history`, body);
         } else {
-          await api.put(`${apiBase}/${equipId}/history/${recordId}`, body);
+          response = await api.put(`${apiBase}/${equipId}/history/${recordId}`, body);
+        }
+        if (response.status === 202 || response.data?.pending) {
+          toast.success('Sent to HOD for approval. It will appear after approval.');
+          return;
         }
       }
       toast.success(mode === 'add' ? 'Record added.' : 'Record updated.');
@@ -349,7 +358,11 @@ const PowerEquipmentDetail = () => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
-      await api.delete(`${apiBase}/${equipId}/history/${hid}`);
+      const response = await api.delete(`${apiBase}/${equipId}/history/${hid}`);
+      if (response.status === 202 || response.data?.pending) {
+        toast.success('Sent to HOD for approval. It will be removed after approval.');
+        return;
+      }
       toast.success('Record deleted.');
       await loadHistory(equipId);
     } catch (err) {

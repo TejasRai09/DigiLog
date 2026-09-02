@@ -78,4 +78,12 @@ router.get('/activity-logs', listActivityLogs);
 router.get('/sessions', listSessions);
 router.get('/audit-filter-options', listAuditFilterOptions);
 
+const {
+  getMaintenanceHistoryApprovalSettings,
+  putMaintenanceHistoryApprovalSettings,
+} = require('../controllers/maintenanceHistoryApprovalSettings.controller');
+
+router.get('/maintenance-history-approval-settings', getMaintenanceHistoryApprovalSettings);
+router.put('/maintenance-history-approval-settings', putMaintenanceHistoryApprovalSettings);
+
 module.exports = router;

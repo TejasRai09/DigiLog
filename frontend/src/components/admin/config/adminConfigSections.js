@@ -1,9 +1,10 @@
-import { MdCategory, MdHistory, MdInsights, MdPeople, MdCalendarToday } from 'react-icons/md';
+import { MdCategory, MdFactCheck, MdHistory, MdInsights, MdPeople, MdCalendarToday } from 'react-icons/md';
 import EmployeeCategoriesSection from './EmployeeCategoriesSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import BiDashboardSettingsSection from './BiDashboardSettingsSection';
 import SeasonMappingSection from './SeasonMappingSection';
 import AuditLogSection from './AuditLogSection';
+import MaintenanceHistoryApprovalSection from './MaintenanceHistoryApprovalSection';
 
 /**
  * Registry of admin Config sections. Add new entries here to expose
@@ -44,6 +45,13 @@ export const ADMIN_CONFIG_SECTIONS = [
     description: 'Detailed records of create, update, and delete actions from DigiLog.',
     Icon: MdHistory,
     Component: AuditLogSection,
+  },
+  {
+    id: 'maintenance-history-approval',
+    label: 'Maintenance History Approval',
+    description: 'HOD email approval for Sugar House and Power Plant maintenance history.',
+    Icon: MdFactCheck,
+    Component: MaintenanceHistoryApprovalSection,
   },
 ];
 

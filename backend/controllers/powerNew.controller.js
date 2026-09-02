@@ -9,4 +9,5 @@ module.exports = createPowerEquipmentController({
   logPrefix: 'powerNew',
   historySubGroupScoped: true,
   scheduleEquipmentScoped: true,
+  approvalDomain: 'power',
 });
