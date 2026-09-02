@@ -5,6 +5,7 @@ export const HUB_MODULE_LABELS = {
   '/power': 'Power Plant',
   '/power-plant-equipment-new': 'Power Plant Equipment',
   '/sugar-house-equipment-new': 'Sugar House Equipment',
+  '/production-house-equipment': 'Production House Equipment',
   '/production': 'Production',
 };
 

@@ -27,6 +27,8 @@
     "db:import-shn-electrical-refinery-240826:history": "node scripts/import-shn-electrical-life-history.js --replace --file \"./backlog-data/mill data/migration files-24-08-26/ds-refinery-electrical-equipment-history-240826.xlsx\"",
     "db:import-shn-mechanical-hierarchy": "node scripts/import-shn-mechanical-hierarchy.js",
     "db:import-shn-mechanical-life-history": "node scripts/import-shn-mechanical-life-history.js",
+    "db:import-production-house-history": "node scripts/import-production-house-equipment-history.js",
+    "db:import-production-house-history:replace": "node scripts/import-production-house-equipment-history.js --replace",
     "db:shift-turbine-tags-mechanical": "node scripts/shift-turbine-tags-to-mechanical.js",
     "db:import-shn-yellow-instrument-turbine-260826:hierarchy": "node scripts/import-shn-electrical-hierarchy.js --file \"./backlog-data/mill data/migration files-24-08-26/yellow-instrument-turbine-equipment-history-260826.xlsx\"",
     "db:import-shn-yellow-instrument-turbine-260826:history": "node scripts/import-shn-instrument-turbine-life-history.js --replace",

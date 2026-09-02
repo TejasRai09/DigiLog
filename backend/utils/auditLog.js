@@ -14,6 +14,7 @@ const MODULE_LABELS = {
   'power-new': 'Power Plant Equipment',
   power: 'Power Plant Equipment (Legacy)',
   'sugar-new': 'Sugar House Equipment',
+  'production-house': 'Production House Equipment',
   equipment: 'Mill House Equipment',
   forms: 'Forms',
   admin: 'Admin Config',
@@ -839,7 +840,7 @@ function buildChangeDescription({
   }
 
   // ── Equipment root update (Life History Card details) ─────
-  if (['power-new', 'power', 'sugar-new', 'equipment'].includes(moduleKey)
+  if (['power-new', 'power', 'sugar-new', 'equipment', 'production-house'].includes(moduleKey)
     && parts.length === 2
     && /^\d+$/.test(parts[1])
     && (m === 'PUT' || m === 'PATCH')) {
@@ -851,7 +852,7 @@ function buildChangeDescription({
     return base.slice(0, 255);
   }
 
-  if (['power-new', 'power', 'sugar-new', 'equipment'].includes(moduleKey)
+  if (['power-new', 'power', 'sugar-new', 'equipment', 'production-house'].includes(moduleKey)
     && parts.length === 1
     && m === 'POST') {
     const name = pickBodyValue(body, readableBody, 'name');
@@ -1011,6 +1012,9 @@ async function resolvePathNames(pool, rawPath, rawBody = null) {
     } else if (moduleKey === 'equipment' && id) {
       const [[eq]] = await pool.query('SELECT id, name FROM mh_equipment WHERE id = ? LIMIT 1', [id]);
       if (eq?.name) names[`${moduleKey}:${id}`] = eq.name;
+    } else if (moduleKey === 'production-house' && id) {
+      const [[eq]] = await pool.query('SELECT id, name FROM phn_equipment WHERE id = ? LIMIT 1', [id]);
+      if (eq?.name) names[`${moduleKey}:${id}`] = eq.name;
     } else if (moduleKey === 'admin' && parts[1] === 'users' && id) {
       const [[u]] = await pool.query('SELECT id, name, email FROM users WHERE id = ? LIMIT 1', [id]);
       if (u) names[`${moduleKey}:${id}`] = u.name || u.email || `#${id}`;
@@ -1090,7 +1094,7 @@ function inferResourceType(parts) {
   if (parts.includes('history')) return 'history';
   if (parts.includes('specs')) return 'specs';
   if (parts.includes('schedule')) return 'schedule';
-  if (['power-new', 'power', 'sugar-new', 'equipment'].includes(moduleKey)) return 'equipment';
+  if (['power-new', 'power', 'sugar-new', 'equipment', 'production-house'].includes(moduleKey)) return 'equipment';
   return moduleKey || 'unknown';
 }
 
@@ -1186,6 +1190,7 @@ const SPECS_TABLE_BY_MODULE = {
   'power-new': 'ppn_specs',
   power: 'pp_specs',
   'sugar-new': 'shn_specs',
+  'production-house': 'phn_specs',
   equipment: 'mh_specs',
 };
 

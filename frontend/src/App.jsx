@@ -58,6 +58,9 @@ const PowerList = lazy(() => import('./pages/power/PowerList'));
 const PowerEquipmentDetail = lazy(() => import('./pages/power/PowerEquipmentDetail'));
 const PowerPlantEquipmentNew = lazy(() => import('./pages/power/PowerPlantEquipmentNew'));
 const SugarHouseEquipmentNew = lazy(() => import('./pages/sugar/SugarHouseEquipmentNew'));
+const ProductionHouseEquipment = lazy(() => import('./pages/production/ProductionHouseEquipment'));
+const ProductionHouseEquipmentDetail = lazy(() => import('./pages/production/ProductionHouseEquipmentDetail'));
+const ProductionHouseLegacyRedirect = lazy(() => import('./pages/production/ProductionHouseLegacyRedirect'));
 
 const EhsLanding = lazy(() => import('./pages/ehs/EhsLanding'));
 const EhsNearMiss = lazy(() => import('./pages/forms/ehs/EhsNearMiss'));
@@ -140,6 +143,11 @@ const App = () => {
             {/* Sugar House Equipment History */}
             <Route path="/sugar-house-equipment-new" element={<SugarHouseEquipmentNew />} />
             <Route path="/sugar-house-equipment-new/:id/:discipline?" element={<PowerEquipmentDetail />} />
+
+            {/* Production House Equipment History */}
+            <Route path="/production-house-equipment" element={<ProductionHouseEquipment />} />
+            <Route path="/production-house-equipment/:house/:id" element={<ProductionHouseLegacyRedirect />} />
+            <Route path="/production-house-equipment/:id" element={<ProductionHouseEquipmentDetail />} />
 
             {/* EHS Forms */}
             <Route path="/ehs" element={<EhsLanding />} />

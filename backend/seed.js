@@ -71,6 +71,13 @@ const appDefs = [
     sort_order:  6,
   },
   {
+    name:        'Production House Equipment History',
+    description: 'Pan, evaporation, clarification and centrifugal equipment cards — specs and maintenance history',
+    icon:        'MdPrecisionManufacturing',
+    color:       '#C026D3',
+    sort_order:  7,
+  },
+  {
     name:        'EHS — Environment Health & Safety',
     description: 'Incident reports, accident register and water dashboard',
     icon:        'MdSecurity',
@@ -128,6 +135,7 @@ const formDefs = [
   { name: 'Power Plant equipment', description: 'Open power plant equipment history cards',     formKey: 'digilog_hub_power_equipment', app: 'Power Plant Equipment History (old)', sort_order: 1 },
   { name: 'Power Plant equipment hierarchy', description: 'Browse 150TPH/70TPH boilers, STG and WTP equipment', formKey: 'digilog_hub_power_equipment_new', app: 'Power Plant Equipment History', sort_order: 1 },
   { name: 'Sugar House equipment hierarchy', description: 'Browse sugar plant equipment by section, location, main and sub equipment', formKey: 'digilog_hub_sugar_equipment_new', app: 'Sugar House Equipment History', sort_order: 1 },
+  { name: 'Production House equipment', description: 'Browse production house equipment cards by house section', formKey: 'digilog_hub_production_equipment', app: 'Production House Equipment History', sort_order: 1 },
 
   // EHS — individual submit forms
   { name: 'Accident Report',    description: 'Log workplace accidents for investigation', formKey: 'ehs_near_miss',  app: 'EHS — Environment Health & Safety', sort_order: 1 },

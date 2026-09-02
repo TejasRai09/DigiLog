@@ -1,0 +1,6905 @@
+{
+  "source": "DS Evaporation  history record_2.xlsx",
+  "sourcePath": "C:\\vivek\\PLANT\\DS Evaporation  history record_2.xlsx",
+  "extractedAt": "2026-09-01T10:03:29.651Z",
+  "equipmentCount": 31,
+  "specCount": 755,
+  "historyCount": 39,
+  "equipment": [
+    {
+      "sheetName": "VLJH-A",
+      "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+      "type": "Vapour line juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "4000 ft2 (372m2)",
+      "specCount": 23,
+      "historyCount": 9,
+      "years": [
+        "2016",
+        "2017",
+        "2018",
+        "2020",
+        "2022",
+        "2023"
+      ],
+      "issues": [
+        "4 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "4000 ft2 (372m2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "704",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "32",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "22",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "8",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "2220 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "9",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "4760 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "10",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "250 nb",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "11",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "12",
+          "parameter": "Vapour valve type",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "13",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "100 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "14",
+          "parameter": "Condensate valve type",
+          "uom": "",
+          "value": "Robber seated, oblique valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "15",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "16",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "50 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "17",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "19",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "11 nos, 3/4''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "20",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "7 nos, 1''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "21",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "2340 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "22",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "56x2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "sn": "23",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "1''",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2016",
+          "actionNo": 1,
+          "action": "All top partition plate (5 to 6mm) replaced by 16 m M.S plate."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2016",
+          "actionNo": 2,
+          "action": "Bottom weakly partition plate , replaced by 12 mm partition plate."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "Double beat valve (cover) inside nipple 10'' dia patched by S.S rings."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2018",
+          "actionNo": 1,
+          "action": "Top side vapour jacket complete replacment done."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2018",
+          "actionNo": 2,
+          "action": "Vapour inlet nipple &reducer atteched to VLJH jacket replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2018",
+          "actionNo": 3,
+          "action": "Bottom side cover facing is to be done is next off season or to be replaced"
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2020",
+          "actionNo": 1,
+          "action": "Bottom cover (new) fitted."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2022",
+          "actionNo": 1,
+          "action": "Double beat valve replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -A SET",
+          "season": "Off-Season",
+          "year": "2023",
+          "actionNo": 1,
+          "action": "Vapour pipe from VLJH to condensor with bend (above condensor) replaced (6 mtr)"
+        }
+      ]
+    },
+    {
+      "sheetName": "VLJH-B",
+      "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+      "type": "Vapour line juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "243 m2",
+      "specCount": 23,
+      "historyCount": 6,
+      "years": [
+        "2016",
+        "2018",
+        "2019",
+        "2021"
+      ],
+      "issues": [
+        "7 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "243 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "506",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "46",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "11",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "8",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "2200 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "9",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "10",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "11",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "1100",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "12",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "5th vapour",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "13",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "14",
+          "parameter": "Condensate valve type",
+          "uom": "",
+          "value": "Robber seated, oblique valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "15",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "16",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "2'', sluice valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "17",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "19",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "5 nos, 1''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "20",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "6 nos, 1''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "21",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "2250 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "22",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "sn": "23",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "season": "Off-Season",
+          "year": "2016",
+          "actionNo": 1,
+          "action": "Top all partition plate replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "season": "Off-Season",
+          "year": "2016",
+          "actionNo": 2,
+          "action": "Bottom all partition plate replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "season": "Off-Season",
+          "year": "2018",
+          "actionNo": 1,
+          "action": "Wornout double beet valve replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "season": "Off-Season",
+          "year": "2019",
+          "actionNo": 1,
+          "action": "Top vapour jacket (west side) patched."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "season": "Off-Season",
+          "year": "2019",
+          "actionNo": 2,
+          "action": "Top compartment no-1 inside patched."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -B SET",
+          "season": "Off-Season",
+          "year": "2021",
+          "actionNo": 1,
+          "action": "Top inside jacket (2.5X1.5) mtr repalced."
+        }
+      ]
+    },
+    {
+      "sheetName": "VLJH-C",
+      "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+      "type": "Vapour line juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "4000 ft2 (372m2)",
+      "specCount": 23,
+      "historyCount": 6,
+      "years": [
+        "2016",
+        "2018",
+        "2019",
+        "2020"
+      ],
+      "issues": [
+        "5 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "4000 ft2 (372m2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "704",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "32",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "22",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "8",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "2220 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "9",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "4760mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "10",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "11",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "1100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "12",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "5th vapour",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "13",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "150NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "14",
+          "parameter": "Condensate valve type",
+          "uom": "",
+          "value": "Robber seated, oblique valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "15",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "16",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "2'', sluice valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "17",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "19",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "3nos, 1.5''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "20",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "11nos, 1.5''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "21",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "2340 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "22",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "sn": "23",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "season": "Off-Season",
+          "year": "2016",
+          "actionNo": 1,
+          "action": "All bottom partition plate replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "season": "Off-Season",
+          "year": "2016",
+          "actionNo": 2,
+          "action": "Condensate box replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "season": "Off-Season",
+          "year": "2018",
+          "actionNo": 1,
+          "action": "Vapour outlet nipple replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "season": "Off-Season",
+          "year": "2019",
+          "actionNo": 1,
+          "action": "Bottom juice header inside patched."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "season": "Off-Season",
+          "year": "2020",
+          "actionNo": 1,
+          "action": "DB vlave replaced."
+        },
+        {
+          "equipmentName": "VAPOUR LINE JUICE HEATER -C SET",
+          "season": "Off-Season",
+          "year": "2020",
+          "actionNo": 2,
+          "action": "Top cover new fitted."
+        }
+      ]
+    },
+    {
+      "sheetName": "CON.JH1",
+      "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+      "type": "Condensate juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "105 m2",
+      "specCount": 22,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "3 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "105 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "200 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "20",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "10",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "8",
+          "parameter": "No. of top compartment",
+          "uom": "",
+          "value": "6",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "9",
+          "parameter": "No. of bottom compartment",
+          "uom": "",
+          "value": "5",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "10",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "1200",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "11",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "12",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "13",
+          "parameter": "Juice outlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "14",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "VLJH outlet juice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "15",
+          "parameter": "Condensate inlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "16",
+          "parameter": "Condensate outlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "17",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "1''NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "1.5'' NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "19",
+          "parameter": "air vent valve sizes",
+          "uom": "",
+          "value": "1''NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "20",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "1500",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "21",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-01",
+          "sn": "22",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "CON.JH2",
+      "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+      "type": "Condensate juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "105 m2",
+      "specCount": 22,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "3 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "105 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "200 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "20",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "10",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "8",
+          "parameter": "No. of top compartment",
+          "uom": "",
+          "value": "6",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "9",
+          "parameter": "No. of bottom compartment",
+          "uom": "",
+          "value": "5",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "10",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "1200",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "11",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "12",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "13",
+          "parameter": "Juice outlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "14",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "VLJH outlet juice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "15",
+          "parameter": "Condensate inlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "16",
+          "parameter": "Condensate outlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "17",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "1''NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "1.5'' NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "19",
+          "parameter": "air vent valve sizes",
+          "uom": "",
+          "value": "1''NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "20",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "1500",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "21",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-02",
+          "sn": "22",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "CON.JH3",
+      "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+      "type": "Condensate juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "105 m2",
+      "specCount": 22,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "3 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "105 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "200 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "20",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "10",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "8",
+          "parameter": "No. of top compartment",
+          "uom": "",
+          "value": "6",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "9",
+          "parameter": "No. of bottom compartment",
+          "uom": "",
+          "value": "5",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "10",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "1200",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "11",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "12",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "13",
+          "parameter": "Juice outlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "14",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "VLJH outlet juice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "15",
+          "parameter": "Condensate inlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "16",
+          "parameter": "Condensate outlet valve size",
+          "uom": "",
+          "value": "10''NB, B/F valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "17",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "1''NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "1.5'' NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "19",
+          "parameter": "air vent valve sizes",
+          "uom": "",
+          "value": "1''NB ball cock valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "20",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "1500",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "21",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CONDENSATE JUICE HEATER NO.-03",
+          "sn": "22",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "RJH5500",
+      "equipmentName": "RJH(5500ft2)",
+      "type": "Raw juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "5500ft2",
+      "specCount": 23,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block"
+      ],
+      "specs": [
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "5500ft2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "936",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "52",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "18",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "8",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "2350mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "9",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "5450mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "10",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "11",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "24''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "12",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "4th vapour",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "13",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "150NB-02nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "14",
+          "parameter": "Condensate valve type",
+          "uom": "",
+          "value": "Robber seated, oblique valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "15",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "80mm-02nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "16",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "100mm, sluice valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "17",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "80mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "80mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "19",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "7nos, 1''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "20",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "09nos, 1.5''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "21",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "2600mm(2pc.)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "22",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "58X02-1'' & 18X02-1.25''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(5500ft2)",
+          "sn": "23",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "1'' & 1.25''",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "RJH4500",
+      "equipmentName": "RJH(4500ft2)",
+      "type": "Raw juice heater",
+      "duty": "Raw juice heating",
+      "capacity": "4500ft2",
+      "specCount": 23,
+      "historyCount": 1,
+      "years": [
+        "2021"
+      ],
+      "issues": [
+        "1 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Raw juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "4500ft2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "792",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "36",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "22",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "8",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "2330mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "9",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "4750mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "10",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "11",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "24''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "12",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "4th vapour",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "13",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "150NB-02nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "14",
+          "parameter": "Condensate valve type",
+          "uom": "",
+          "value": "Robber seated, oblique valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "15",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "16",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "100mm, sluice valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "17",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "50mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "18",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "50mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "19",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "6nos, 0.75''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "20",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "11nos, 2''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "21",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "2370mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "22",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "48x2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "sn": "23",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "1''",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "RJH(4500ft2)",
+          "season": "Off-Season",
+          "year": "2021",
+          "actionNo": 1,
+          "action": "RJH-4500 ft2 3nos compartment plate 400x400x3nos. replaced."
+        }
+      ]
+    },
+    {
+      "sheetName": "SJH4500",
+      "equipmentName": "SJH(4500ft2)",
+      "type": "Sulphited juice heater",
+      "duty": "Sulphited juice heating",
+      "capacity": "4500ft2",
+      "specCount": 24,
+      "historyCount": 1,
+      "years": [
+        "2019"
+      ],
+      "issues": [
+        "1 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Sulphited juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "4500ft2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "792",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "36",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "22",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "8",
+          "parameter": "No. of top compartment",
+          "uom": "",
+          "value": "12",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "9",
+          "parameter": "No. of bottom compartment",
+          "uom": "",
+          "value": "11",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "10",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "2190mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "11",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "4750mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "12",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "13",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "600 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "14",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "3rd vapour",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "15",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "150NB-02nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "16",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "50NB-2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "17",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "80 NB, sluice valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "18",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "65 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "19",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "65 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "20",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "6nos, 0.75''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "21",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "11nos-2''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "22",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "2390mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "23",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "sn": "24",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "1''",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "SJH(4500ft2)",
+          "season": "Off-Season",
+          "year": "2019",
+          "actionNo": 1,
+          "action": "Bottom side cover replaced."
+        }
+      ]
+    },
+    {
+      "sheetName": "SJH3150",
+      "equipmentName": "SJH(3150ft2)",
+      "type": "Sulphited juice heater",
+      "duty": "Sulphited juice heating",
+      "capacity": "3150ft2 (292 m2)",
+      "specCount": 24,
+      "historyCount": 1,
+      "years": [
+        "2017"
+      ],
+      "issues": [
+        "1 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "Sulphited juice heating",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "3150ft2 (292 m2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "3",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "4000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "616",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "5",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "41x1.2 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "6",
+          "parameter": "No. of tubes/pass",
+          "uom": "",
+          "value": "44",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "7",
+          "parameter": "No. of passes",
+          "uom": "",
+          "value": "14",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "8",
+          "parameter": "No. of top compartment",
+          "uom": "",
+          "value": "8",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "9",
+          "parameter": "No. of bottom compartment",
+          "uom": "",
+          "value": "7",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "10",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "1900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "11",
+          "parameter": "Shell height ( with compartment)",
+          "uom": "",
+          "value": "4500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "12",
+          "parameter": "Double beet valve size",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "13",
+          "parameter": "Vapour valve size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "14",
+          "parameter": "Heating media",
+          "uom": "",
+          "value": "3rd vapour",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "15",
+          "parameter": "Condensate valve size",
+          "uom": "",
+          "value": "150NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "16",
+          "parameter": "Ammonia valve size",
+          "uom": "",
+          "value": "40NB-2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "17",
+          "parameter": "Calendria water valve size",
+          "uom": "",
+          "value": "80 NB, sluice valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "18",
+          "parameter": "Compartment water inlet valve",
+          "uom": "",
+          "value": "50 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "19",
+          "parameter": "Liquidation valve size",
+          "uom": "",
+          "value": "50 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "20",
+          "parameter": "No. of air vent valve & sizes",
+          "uom": "",
+          "value": "7nos, 0.75''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "21",
+          "parameter": "No. of drain valve & sizes",
+          "uom": "",
+          "value": "7nos-(2''x3nos,1.5''x4nos)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "22",
+          "parameter": "Cover dia",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "23",
+          "parameter": "Cover no. of bolts",
+          "uom": "",
+          "value": "45x2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "sn": "24",
+          "parameter": "cover bolt sizes",
+          "uom": "",
+          "value": "1''",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "SJH(3150ft2)",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "Wornout top & bottom cover replaced."
+        }
+      ]
+    },
+    {
+      "sheetName": "SK2500",
+      "equipmentName": "SEMI KESTNER",
+      "type": "Semi Kestner",
+      "duty": "",
+      "capacity": "2500m2",
+      "specCount": 31,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "2 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "1",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "2500m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "2",
+          "parameter": "Effect",
+          "uom": "",
+          "value": "1st",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "45x1.2x4000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "4630",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "14 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "6",
+          "parameter": "Pitch",
+          "uom": "",
+          "value": "59 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "7",
+          "parameter": "Body dia",
+          "uom": "",
+          "value": "5300 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "8",
+          "parameter": "Tube plate dia x Thickness",
+          "uom": "",
+          "value": "4700x32 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "9",
+          "parameter": "Type of downtake",
+          "uom": "",
+          "value": "Peripheral",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "10",
+          "parameter": "Steam inlet valve size",
+          "uom": "",
+          "value": "36'' dia x 2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "11",
+          "parameter": "Vapour outlet valve size",
+          "uom": "",
+          "value": "36'' dia x 2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "12",
+          "parameter": "NO. of NOX connection",
+          "uom": "",
+          "value": "50mm,6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "13",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "14",
+          "parameter": "NO. of NOX connection",
+          "uom": "",
+          "value": "50mmx6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "15",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "16",
+          "parameter": "Heavy NOX valve size",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "17",
+          "parameter": "Light nNOX valve size",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "18",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "200mm , butterfly",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "19",
+          "parameter": "Juice inlet valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "20",
+          "parameter": "Juice outlet valve size",
+          "uom": "",
+          "value": "300mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "21",
+          "parameter": "Circulation valve size",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "22",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "23",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "24",
+          "parameter": "Catcher manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "25",
+          "parameter": "Type of catcher",
+          "uom": "",
+          "value": "Poly buffal & Centrifugal",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "26",
+          "parameter": "Outlet vapour line size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "27",
+          "parameter": "Calendria water line valve size",
+          "uom": "",
+          "value": "4'' dia, glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "28",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "100 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "29",
+          "parameter": "Wash out line size",
+          "uom": "",
+          "value": "150mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "30",
+          "parameter": "No. of poly buffal plate & size",
+          "uom": "",
+          "value": "9 nos, 970x640x460mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SEMI KESTNER",
+          "sn": "31",
+          "parameter": "Make",
+          "uom": "",
+          "value": "Mahashakti Eng. Compny Gaziabad",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "VC2500",
+      "equipmentName": "VAPOUR CELL",
+      "type": "Vapour cell",
+      "duty": "1st/2nd effect",
+      "capacity": "2500 m2",
+      "specCount": 34,
+      "historyCount": 1,
+      "years": [
+        "2018"
+      ],
+      "issues": [
+        "4 SN value(s) used on more than one spec row",
+        "2 spec row(s) with empty value",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "1st/2nd effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "2500 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "3",
+          "parameter": "Tube size (ODxThk)",
+          "uom": "",
+          "value": "45mmx1.2mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "4",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "2000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "5",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "9436",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "6",
+          "parameter": "Tube ligament",
+          "uom": "",
+          "value": "15 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & nos.",
+          "uom": "",
+          "value": "For Exhaust-900mmx2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & nos.",
+          "uom": "",
+          "value": "1st vapour-1200mmx1nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "8",
+          "parameter": "Vapour outlet Valve size & nos.",
+          "uom": "",
+          "value": "For 1st effect-900mmx2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "8",
+          "parameter": "Vapour outlet Valve size & nos.",
+          "uom": "",
+          "value": "For 2nd effect-900mmx2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "9",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "40mmx12nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "10",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "40mmx12nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "11",
+          "parameter": "Nox. Gases outlet header size(H)",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "12",
+          "parameter": "Nox. Gases outlet header size(L)",
+          "uom": "",
+          "value": "100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "13",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "6850mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "14",
+          "parameter": "Shell ( dia x height)",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "15",
+          "parameter": "Vapour separator dia",
+          "uom": "",
+          "value": "4860mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "16",
+          "parameter": "Vapour separator height",
+          "uom": "",
+          "value": "3100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "17",
+          "parameter": "Juice inlet line & valve connection",
+          "uom": "",
+          "value": "400mm(1)/250mm(2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "18",
+          "parameter": "Juice inlet valve type",
+          "uom": "",
+          "value": "B.F/R.S",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "20",
+          "parameter": "Juice outlet line size",
+          "uom": "",
+          "value": "250NB for 1st effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "20",
+          "parameter": "Juice outlet line size",
+          "uom": "",
+          "value": "250NB for 2nd effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "21",
+          "parameter": "Juice outlet valve size/ type",
+          "uom": "",
+          "value": "250NB(R.S) for 1st effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "21",
+          "parameter": "Juice outlet valve size/ type",
+          "uom": "",
+          "value": "250NB(R.S) for 2nd effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "22",
+          "parameter": "Cold water connection line size",
+          "uom": "",
+          "value": "100 NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "23",
+          "parameter": "Cold water line valve size calendria",
+          "uom": "",
+          "value": "100mm/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "24",
+          "parameter": "Cold water line valve size body",
+          "uom": "",
+          "value": "100mm/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "25",
+          "parameter": "Washout , Valve size/type",
+          "uom": "",
+          "value": "150mm/Rubber seated",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "26",
+          "parameter": "Transfer pump-2nos.",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "27",
+          "parameter": "Make",
+          "uom": "",
+          "value": "Mahashakti Eng. Compny Gaziabad",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "28",
+          "parameter": "Capacity",
+          "uom": "",
+          "value": "500 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "29",
+          "parameter": "Head",
+          "uom": "",
+          "value": "35mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "30",
+          "parameter": "Suction x Delivery valve",
+          "uom": "",
+          "value": "250mm(R.S)x250mm(R.S)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "VAPOUR CELL",
+          "sn": "31",
+          "parameter": "Motor HP",
+          "uom": "",
+          "value": "90HP",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "VAPOUR CELL",
+          "season": "Off-Season",
+          "year": "2018",
+          "actionNo": 1,
+          "action": "8'' dia dummy provided in juice inlet box for claening purpose"
+        }
+      ]
+    },
+    {
+      "sheetName": "FFE-2500",
+      "equipmentName": "FFE-2500 m2",
+      "type": "Falling film evaporator",
+      "duty": "2nd effect",
+      "capacity": "2500m2",
+      "specCount": 37,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "2 SN value(s) used on more than one spec row"
+      ],
+      "specs": [
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "2nd effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "2500m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "3",
+          "parameter": "Tube size (ODxThk)",
+          "uom": "",
+          "value": "45mm x 1.2mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "4",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "10000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "5",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "1836",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "6",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": ".1'' NB/6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "7",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1'' NB/6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "8",
+          "parameter": "Nox. Gases outlet header size(H)",
+          "uom": "",
+          "value": "2.5'' NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "9",
+          "parameter": "Nox. Gases outlet header size(L)",
+          "uom": "",
+          "value": "2.5'' NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "10",
+          "parameter": "Steam inlet valve size",
+          "uom": "",
+          "value": "1680mm(42'')",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "11",
+          "parameter": "Vapour outlet Valve size",
+          "uom": "",
+          "value": "2240mm(56'')",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "12",
+          "parameter": "Juice inlet line & valve connection",
+          "uom": "",
+          "value": "250mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "13",
+          "parameter": "Juice inlet valve type",
+          "uom": "",
+          "value": "Rising valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "14",
+          "parameter": "Juice outlet line size",
+          "uom": "",
+          "value": "250mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "15",
+          "parameter": "Juice outlet valve size/ type",
+          "uom": "",
+          "value": "250mm/R.S",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "16",
+          "parameter": "Juice inlet controller",
+          "uom": "",
+          "value": "Magnetic flow meter, auto control valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "17",
+          "parameter": "Juice circulation pump",
+          "uom": "",
+          "value": "2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "17",
+          "parameter": "make",
+          "uom": "",
+          "value": "Sintech",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "17",
+          "parameter": "Capacity",
+          "uom": "",
+          "value": "500 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "17",
+          "parameter": "Head",
+          "uom": "",
+          "value": "20 meter",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "17",
+          "parameter": "Suction x Delivery valve",
+          "uom": "",
+          "value": "250mm x 250mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "17",
+          "parameter": "Motor HP",
+          "uom": "",
+          "value": "90",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "18",
+          "parameter": "Juice transfer pump",
+          "uom": "",
+          "value": "2nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "18",
+          "parameter": "make",
+          "uom": "",
+          "value": "Sintech",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "18",
+          "parameter": "Capacity",
+          "uom": "",
+          "value": "300 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "18",
+          "parameter": "Head",
+          "uom": "",
+          "value": "20 meter",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "18",
+          "parameter": "Suction x Delivery valve",
+          "uom": "",
+          "value": "250mm x 250mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "18",
+          "parameter": "Motor HP",
+          "uom": "",
+          "value": "30",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "19",
+          "parameter": "Condensate valve size/type",
+          "uom": "",
+          "value": "150mm/Butterfly type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "20",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3400 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "21",
+          "parameter": "No. of segment",
+          "uom": "",
+          "value": "6",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "22",
+          "parameter": "Pitch",
+          "uom": "",
+          "value": "60mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "23",
+          "parameter": "Tube ligament",
+          "uom": "",
+          "value": "17.5mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "24",
+          "parameter": "Tie rod",
+          "uom": "",
+          "value": "6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "25",
+          "parameter": "Height ( tube plate to distributor)",
+          "uom": "",
+          "value": "2370mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "26",
+          "parameter": "Manhole",
+          "uom": "",
+          "value": "500mm,2nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-2500 m2",
+          "sn": "27",
+          "parameter": "Light ammonia coil (dia)",
+          "uom": "",
+          "value": "1770mm",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "FFE1250",
+      "equipmentName": "FFE-1250m2",
+      "type": "Falling film evaporator",
+      "duty": "2nd effect",
+      "capacity": "1250m2",
+      "specCount": 24,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "2 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "2nd effect",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "1250m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "3",
+          "parameter": "Tube size (ODxThk)",
+          "uom": "",
+          "value": "45 x 1.2mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "4",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "10000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "5",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "916",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "6",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1'' NB/6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "7",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1'' NB/6nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "8",
+          "parameter": "Nox. Gases outlet header size(H)",
+          "uom": "",
+          "value": "2'' NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "9",
+          "parameter": "Nox. Gases outlet header size(L)",
+          "uom": "",
+          "value": "2'' NB",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "10",
+          "parameter": "Steam inlet valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "11",
+          "parameter": "Vapour outlet Valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "12",
+          "parameter": "Juice inlet line & valve connection",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "13",
+          "parameter": "Juice inlet valve type",
+          "uom": "",
+          "value": "R.S & glove valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "14",
+          "parameter": "Juice outlet line size",
+          "uom": "",
+          "value": "10''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "15",
+          "parameter": "Juice outlet valve size/ type",
+          "uom": "",
+          "value": "10'' & rubber seated",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "16",
+          "parameter": "Juice inlet controller",
+          "uom": "",
+          "value": "Mass flow, Pneumetic control valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "17",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "2310mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "18",
+          "parameter": "No. of segment",
+          "uom": "",
+          "value": "6",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "19",
+          "parameter": "Pitch",
+          "uom": "",
+          "value": "60mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "20",
+          "parameter": "Tube ligament",
+          "uom": "",
+          "value": "17.5mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "21",
+          "parameter": "No. of ammonia withdrawal",
+          "uom": "",
+          "value": "12nos(02 in each segment)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "22",
+          "parameter": "Height ( tube plate to distributor)",
+          "uom": "",
+          "value": "1600mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "23",
+          "parameter": "Manhole",
+          "uom": "",
+          "value": "500mm/1nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "FFE-1250m2",
+          "sn": "24",
+          "parameter": "Condensate valve size / type",
+          "uom": "",
+          "value": "6''/butterfly type",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-A3",
+      "equipmentName": "A-SET 3RD BODY",
+      "type": "Quad body",
+      "duty": "3rd effect evaporator-A set",
+      "capacity": "935m2(10064 ft2)",
+      "specCount": 28,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN",
+        "1 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "3rd effect evaporator-A set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "935m2(10064 ft2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-41mm,ID-38.6mm,Thk-1.2mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "3922",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "2000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "12mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "4132mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size",
+          "uom": "",
+          "value": "900mm,Rubber seated Right angle valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line",
+          "uom": "",
+          "value": "800mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "2.5''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "2.5''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia-4nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia-4nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve size",
+          "uom": "",
+          "value": "3'' dia- sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve size",
+          "uom": "",
+          "value": "3'' dia- sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "10''/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "10'',8''/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "21",
+          "parameter": "Calendria water line valve size",
+          "uom": "",
+          "value": "3''-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "3''-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "23",
+          "parameter": "Wash out line size",
+          "uom": "",
+          "value": "4'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "4100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "6000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type + Helmet",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "27",
+          "parameter": "Calendira vapour Jacket size",
+          "uom": "",
+          "value": "800mm x 250mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 3RD BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "2nos.- 4'' dia",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-A4",
+      "equipmentName": "A-SET 4th BODY",
+      "type": "Quad body",
+      "duty": "4th effect evaporator-A set",
+      "capacity": "743 m2",
+      "specCount": 30,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN",
+        "2 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "4th effect evaporator-A set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.25mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "3922",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "1880mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "11mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3570mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia-9nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia-9nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve size",
+          "uom": "",
+          "value": "3'' dia- glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve size",
+          "uom": "",
+          "value": "3'' dia- glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8''/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8''/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line valve size",
+          "uom": "",
+          "value": "4''-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "4''-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "23",
+          "parameter": "Wash out line size",
+          "uom": "",
+          "value": "4'' dia, sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3570mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "6000mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "27",
+          "parameter": "Calendira vapour Jacket size",
+          "uom": "",
+          "value": "800mm x 250mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "2nos.- 3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "29",
+          "parameter": "Juice distribution coil size",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 4th BODY",
+          "sn": "30",
+          "parameter": "Juice distribution coil piece/hole/size",
+          "uom": "",
+          "value": "8 piece/232 holes/25mm",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-A5",
+      "equipmentName": "A-SET 5th BODY",
+      "type": "Quad body",
+      "duty": "5th effect evaporator-A set",
+      "capacity": "743 m2",
+      "specCount": 29,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN"
+      ],
+      "specs": [
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "5th effect evaporator-A set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.25mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "2990",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "1880mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "11.5mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3570mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size",
+          "uom": "",
+          "value": "900",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "1200MM",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia-9nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia-9nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve size",
+          "uom": "",
+          "value": "3'' dia- glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve size",
+          "uom": "",
+          "value": "3'' dia- glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8''/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8''/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "500mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line valve size",
+          "uom": "",
+          "value": "4''-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "4''-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "23",
+          "parameter": "Wash out line size",
+          "uom": "",
+          "value": "4'' dia, sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3570mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "7175MM",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "2nos.- 3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "29",
+          "parameter": "Juice distribution coil size",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "A-SET 5th BODY",
+          "sn": "30",
+          "parameter": "Juice distribution coil piece/hole/size",
+          "uom": "",
+          "value": "8 piece/232 holes/25mm",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "CONDENSOR-A",
+      "equipmentName": "EVAPORATOR SET-A CONDENSER",
+      "type": "Condenser",
+      "duty": "",
+      "capacity": "",
+      "specCount": 8,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "Spec table starts at column 2",
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN",
+        "4 spec row(s) with empty value"
+      ],
+      "specs": [
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "1",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "2",
+          "parameter": "Water consumption",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "3",
+          "parameter": "Air enjection capacity",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "4",
+          "parameter": "Steam condensing capacity",
+          "uom": "",
+          "value": "",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "5",
+          "parameter": "Spray nozzles",
+          "uom": "",
+          "value": "40 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "6",
+          "parameter": "Jet nozzles",
+          "uom": "",
+          "value": "33 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "7",
+          "parameter": "NRB jet nozzle",
+          "uom": "",
+          "value": "1 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "",
+          "parameter": "Notes",
+          "uom": "",
+          "value": "Vacuum-660 mm hg (abs) @ water inlet 0.2-0.3(g) kgf/cm2 of 35 deg.C",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-B3",
+      "equipmentName": "B-SET 3th BODY",
+      "type": "Quad body",
+      "duty": "3rd effect evaporator-B set",
+      "capacity": "868 m2 (9340 ft2)",
+      "specCount": 29,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN"
+      ],
+      "specs": [
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "3rd effect evaporator-B set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "868 m2 (9340 ft2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-41mm,ID-37.5mm,Thk-1.75mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "3640",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "1994",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "12",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3770 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & type",
+          "uom": "",
+          "value": "900mm - Right angle valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "900mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia- coil",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia- coil",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia-8 nipples",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia-8 nipples",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve size",
+          "uom": "",
+          "value": "3''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "14",
+          "parameter": "Light NOX valve size",
+          "uom": "",
+          "value": "3''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "10'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "10'' dia , 8'' (reduced)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "600 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line/ valve size",
+          "uom": "",
+          "value": "2'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "3'' dia-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "23",
+          "parameter": "Wash out line valve size/ type",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3770 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "5300 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Helmet type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "2nos , 3''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "29",
+          "parameter": "Juice distribution coil size & coil nos.",
+          "uom": "",
+          "value": "8'' dia - 8 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 3th BODY",
+          "sn": "30",
+          "parameter": "Juice distribution coil /hole/size",
+          "uom": "",
+          "value": "72nos ovel-60x30mm,63nos hole-30mm",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-B4",
+      "equipmentName": "B-SET 4th BODY",
+      "type": "Quad body",
+      "duty": "4th effect evaporator-B set",
+      "capacity": "743 m2",
+      "specCount": 30,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN"
+      ],
+      "specs": [
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "4th effect evaporator-B set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.25mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "3922",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "1880 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "11.5 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3550 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & type",
+          "uom": "",
+          "value": "800mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "1100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia- coil",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia- coil",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.25'' dia-10nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.25'' dia-10nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve size",
+          "uom": "",
+          "value": "Glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve size",
+          "uom": "",
+          "value": "Glove type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line/ valve size",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "4'' dia-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "23",
+          "parameter": "Wash out line valve size/ type",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3550 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "4670 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "2nos , 3''",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "29",
+          "parameter": "Juice distribution coil size & coil nos.",
+          "uom": "",
+          "value": "8'' dia - 8 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "30",
+          "parameter": "Juice distribution coil /hole/size",
+          "uom": "",
+          "value": "232 nos-25 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 4th BODY",
+          "sn": "31",
+          "parameter": "Down take type & Dia",
+          "uom": "",
+          "value": "700 mm dia",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-B5",
+      "equipmentName": "B-SET 5th BODY",
+      "type": "Quad body",
+      "duty": "5th effect evaporator-B set",
+      "capacity": "743 m2",
+      "specCount": 28,
+      "historyCount": 2,
+      "years": [
+        "2018-19",
+        "2020"
+      ],
+      "issues": [
+        "1 spec row(s) without SN",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "5th effect evaporator-B set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.25mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "2761",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "2000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "11.5 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & type",
+          "uom": "",
+          "value": "900mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "1100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia- coil",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia- coil",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia-10nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia-10nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line/ valve size",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "4'' dia-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "23",
+          "parameter": "Wash out line valve size/ type",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "4800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "02 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "sn": "29",
+          "parameter": "Down take type & Dia",
+          "uom": "",
+          "value": "750 mm dia",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "season": "Off-Season",
+          "year": "2018-19",
+          "actionNo": 1,
+          "action": "Calendria replaced with tube."
+        },
+        {
+          "equipmentName": "B-SET 5th BODY",
+          "season": "Off-Season",
+          "year": "2020",
+          "actionNo": 1,
+          "action": "Centrifugal, fins, Saveall replaced ."
+        }
+      ]
+    },
+    {
+      "sheetName": "CONDENSOR-B",
+      "equipmentName": "EVAPORATOR SET-B CONDENSER",
+      "type": "Condenser",
+      "duty": "",
+      "capacity": "605 m2",
+      "specCount": 8,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "Spec table starts at column 2",
+        "No YEAR / WORK DONE block",
+        "1 spec row(s) without SN"
+      ],
+      "specs": [
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "1",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "605 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "2",
+          "parameter": "Water consumption",
+          "uom": "",
+          "value": "733 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "3",
+          "parameter": "Air enjection capacity",
+          "uom": "",
+          "value": "510 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "4",
+          "parameter": "Steam condensing capacity",
+          "uom": "",
+          "value": "19",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "5",
+          "parameter": "Spray nozzles",
+          "uom": "",
+          "value": "40 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "6",
+          "parameter": "Jet nozzles",
+          "uom": "",
+          "value": "33 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "7",
+          "parameter": "NRB jet nozzle",
+          "uom": "",
+          "value": "1 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-B CONDENSER",
+          "sn": "",
+          "parameter": "Notes",
+          "uom": "",
+          "value": "Vacuum-660 mm hg (abs) @ water inlet 0.2-0.3(g) kgf/cm2 of 35 deg.C",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "QUAD-C3",
+      "equipmentName": "C-SET 3rd BODY",
+      "type": "Quad body",
+      "duty": "3rd effect evaporator-C set",
+      "capacity": "743 m2",
+      "specCount": 30,
+      "historyCount": 2,
+      "years": [
+        "2017",
+        "2021"
+      ],
+      "issues": [
+        "1 spec row(s) without SN",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "3rd effect evaporator-C set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.25mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "2990",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "1890 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "11.5 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & type",
+          "uom": "",
+          "value": "900mm - Right angle valve",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "900mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia-10nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia-10nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "21",
+          "parameter": "Calendria water line/ valve size",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size",
+          "uom": "",
+          "value": "4'' dia-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "23",
+          "parameter": "Wash out line valve size/ type",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "4670 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "02 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "29",
+          "parameter": "Juice distribution coil size & coil nos.",
+          "uom": "",
+          "value": "6'' dia - 8 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "30",
+          "parameter": "Juice distribution coil /hole/size",
+          "uom": "",
+          "value": "232 nos-25 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "sn": "31",
+          "parameter": "Down take type & Dia",
+          "uom": "",
+          "value": "750 mm dia",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "Internal 1'' M.S NCG lines replaced by S.S lines, header replaced by 3'' lines"
+        },
+        {
+          "equipmentName": "C-SET 3rd BODY",
+          "season": "Off-Season",
+          "year": "2021",
+          "actionNo": 1,
+          "action": "Top centrifugal replaced."
+        }
+      ]
+    },
+    {
+      "sheetName": "QUAD-C4",
+      "equipmentName": "C-SET 4th BODY",
+      "type": "Quad body",
+      "duty": "4th effect evaporator-C set",
+      "capacity": "743 m2",
+      "specCount": 29,
+      "historyCount": 5,
+      "years": [
+        "2017",
+        "2021"
+      ],
+      "issues": [
+        "1 spec row(s) without SN",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "4th effect evaporator-C set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.25mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "2990",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "1880 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "11.5 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & type",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "900mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "1.5'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "1.5'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line/ valve size",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size/type",
+          "uom": "",
+          "value": "4'' dia-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "23",
+          "parameter": "Wash out line valve size/ type",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "4230 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "02 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "29",
+          "parameter": "Juice distribution coil size & coil nos.",
+          "uom": "",
+          "value": "6'' dia - 8 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "sn": "30",
+          "parameter": "Juice distribution coil /hole/size",
+          "uom": "",
+          "value": "232 nos-25 mm",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "New shell & top cone erection work."
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 2,
+          "action": "Internal 1'' M.S NCG lines replaced by S.S lines, header replaced by 3'' lines"
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 3,
+          "action": "external 3'' NCG lines replaced."
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "season": "Off-Season",
+          "year": "2021",
+          "actionNo": 1,
+          "action": "Complete saveall replaced."
+        },
+        {
+          "equipmentName": "C-SET 4th BODY",
+          "season": "Off-Season",
+          "year": "2021",
+          "actionNo": 2,
+          "action": "Downtake pipe & funnel repalced."
+        }
+      ]
+    },
+    {
+      "sheetName": "QUAD-C5",
+      "equipmentName": "C-SET 5th BODY",
+      "type": "Quad body",
+      "duty": "5th effect evaporator-C set",
+      "capacity": "743 m2 (8000 ft2)",
+      "specCount": 28,
+      "historyCount": 3,
+      "years": [
+        "2017",
+        "2020"
+      ],
+      "issues": [
+        "1 spec row(s) without SN",
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "1",
+          "parameter": "Duty",
+          "uom": "",
+          "value": "5th effect evaporator-C set",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "2",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "743 m2 (8000 ft2)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "3",
+          "parameter": "Tube size",
+          "uom": "",
+          "value": "OD-45mm,ID-42.5mm,Thk-1.20mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "4",
+          "parameter": "No. of tubes",
+          "uom": "",
+          "value": "2814 (Phy.-2824)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "",
+          "parameter": "Tube length",
+          "uom": "",
+          "value": "2000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "5",
+          "parameter": "Ligament",
+          "uom": "",
+          "value": "12.5 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "6",
+          "parameter": "Tube plate dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "7",
+          "parameter": "Steam inlet valve size & type",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "8",
+          "parameter": "Vapour outlet line/ valve size",
+          "uom": "",
+          "value": "1100mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "9",
+          "parameter": "Heavy NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "10",
+          "parameter": "Light NOX header size",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "11",
+          "parameter": "Nox.gases size & nos.(H)",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "12",
+          "parameter": "Nox.gases size & nos.(L)",
+          "uom": "",
+          "value": "3'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "13",
+          "parameter": "Heavy NOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "14",
+          "parameter": "Light nNOX valve type",
+          "uom": "",
+          "value": "Sluice type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "15",
+          "parameter": "Condensate line size & valve",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "16",
+          "parameter": "Juice inlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "17",
+          "parameter": "Juice outlet valve size/type",
+          "uom": "",
+          "value": "8'' dia/sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "19",
+          "parameter": "Body manhole size",
+          "uom": "",
+          "value": "450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "20",
+          "parameter": "Bottom manhole size",
+          "uom": "",
+          "value": "500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "21",
+          "parameter": "Calendria water line/ valve size",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "22",
+          "parameter": "Body water line valve size/type",
+          "uom": "",
+          "value": "4'' dia-sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "23",
+          "parameter": "Wash out line valve size/ type",
+          "uom": "",
+          "value": "4'' dia - sluice",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "24",
+          "parameter": "Shell dia",
+          "uom": "",
+          "value": "3570 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "25",
+          "parameter": "Shell height( above tube plate)",
+          "uom": "",
+          "value": "4900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "26",
+          "parameter": "Vapour seprator type",
+          "uom": "",
+          "value": "Centrifugal type",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "28",
+          "parameter": "No. & size of J- pipe",
+          "uom": "",
+          "value": "02 nos.",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "sn": "29",
+          "parameter": "Down take type & Dia",
+          "uom": "",
+          "value": "700 mm dia",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "Complete calendria replaced along with tubes & ammonia lines , Down take , bottom saucer."
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 2,
+          "action": "External 6'' dia ammonia header replaced by S.S."
+        },
+        {
+          "equipmentName": "C-SET 5th BODY",
+          "season": "Off-Season",
+          "year": "2020",
+          "actionNo": 1,
+          "action": "saveall top cone replaced."
+        }
+      ]
+    },
+    {
+      "sheetName": "CONDENSOR-C",
+      "equipmentName": "EVAPORATOR SET-A CONDENSER",
+      "type": "Condenser",
+      "duty": "",
+      "capacity": "790 m2",
+      "specCount": 8,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block",
+        "Title says SET-A condenser but sheet is CONDENSOR-C",
+        "1 spec row(s) without SN"
+      ],
+      "specs": [
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "1",
+          "parameter": "Heating surface",
+          "uom": "",
+          "value": "790 m2",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "2",
+          "parameter": "Water consumption",
+          "uom": "",
+          "value": "992 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "3",
+          "parameter": "Air enjection capacity",
+          "uom": "",
+          "value": "720 m3/hr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "4",
+          "parameter": "Steam condensing capacity",
+          "uom": "",
+          "value": "26",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "5",
+          "parameter": "Spray nozzles",
+          "uom": "",
+          "value": "40 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "6",
+          "parameter": "Jet nozzles",
+          "uom": "",
+          "value": "33 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "7",
+          "parameter": "NRB jet nozzle",
+          "uom": "",
+          "value": "1 nos",
+          "isSection": false
+        },
+        {
+          "equipmentName": "EVAPORATOR SET-A CONDENSER",
+          "sn": "",
+          "parameter": "Notes",
+          "uom": "",
+          "value": "Vacuum-660 mm hg (abs) @ water inlet 0.2-0.3(g) kgf/cm2 of 35 deg.C",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "DCH-SJ",
+      "equipmentName": "SULPHITED JUICE DCH",
+      "type": "Direct contact heater",
+      "duty": "",
+      "capacity": "",
+      "specCount": 31,
+      "historyCount": 1,
+      "years": [
+        "2017"
+      ],
+      "issues": [
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "1",
+          "parameter": "1st vessel length",
+          "uom": "",
+          "value": "2800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "2",
+          "parameter": "1st vessel diameter",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "3",
+          "parameter": "1st vessel juice sealing pipe length",
+          "uom": "",
+          "value": "6500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "4",
+          "parameter": "1st vessel juice sealing pipe diameter",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "5",
+          "parameter": "1st vessel juice entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "6",
+          "parameter": "1st vessel vapour entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "7",
+          "parameter": "1st vessel juice sealing bottle length",
+          "uom": "",
+          "value": "1500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "8",
+          "parameter": "1st vessel juice sealing bottle diameter",
+          "uom": "",
+          "value": "800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "9",
+          "parameter": "1st vessel ammonia valve size",
+          "uom": "",
+          "value": "1.5'' dia (40 mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "10",
+          "parameter": "1st vessel ammonia header size",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "11",
+          "parameter": "1st vessel ammonia air venting valve",
+          "uom": "",
+          "value": "1'' dia (25mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "12",
+          "parameter": "2nd vessel length",
+          "uom": "",
+          "value": "2800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "13",
+          "parameter": "2nd vessel diameter",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "14",
+          "parameter": "2nd vessel juice sealing pipe length",
+          "uom": "",
+          "value": "7250 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "15",
+          "parameter": "2nd vessel juice sealing pipe diameter",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "16",
+          "parameter": "2nd vessel vapour entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "17",
+          "parameter": "2nd vessel juice sealing bottle length",
+          "uom": "",
+          "value": "1500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "18",
+          "parameter": "2nd vessel juice sealing bottle diameter",
+          "uom": "",
+          "value": "800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "19",
+          "parameter": "2nd vessel ammonia air venting valve",
+          "uom": "",
+          "value": "1.5'' dia (40 mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "20",
+          "parameter": "2nd vessel ammonia drain line size",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "21",
+          "parameter": "3rd vessel length",
+          "uom": "",
+          "value": "1600 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "22",
+          "parameter": "3rd vessel diameter",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "23",
+          "parameter": "3rd vessel juice syphon descanding limb",
+          "uom": "",
+          "value": "7900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "24",
+          "parameter": "3rd vessel juice syphon ascending limb",
+          "uom": "",
+          "value": "6500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "25",
+          "parameter": "3rd vessel vapour entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "26",
+          "parameter": "3rd vessel juice syphon size",
+          "uom": "",
+          "value": "16'' dia(400mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "27",
+          "parameter": "3rd vessel juice inlet line size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "28",
+          "parameter": "3rd vessel ammonia valve size",
+          "uom": "",
+          "value": "1.5'' dia (40 mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "29",
+          "parameter": "3rd vessel ammonia drain line size",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "30",
+          "parameter": "3rd vessel outlet height from FFL",
+          "uom": "",
+          "value": "15.65 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "sn": "31",
+          "parameter": "Top plate from height from FFL",
+          "uom": "",
+          "value": "3400 mm",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "SULPHITED JUICE DCH",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "Vacuum transmitter installed in 1st stage heater."
+        }
+      ]
+    },
+    {
+      "sheetName": "DCH-CJ",
+      "equipmentName": "CLEAR JUICE DCH",
+      "type": "Direct contact heater",
+      "duty": "",
+      "capacity": "",
+      "specCount": 20,
+      "historyCount": 1,
+      "years": [
+        "2017"
+      ],
+      "issues": [
+        "History is year-only (no Off-Season / Season heading); recorded as Off-Season"
+      ],
+      "specs": [
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "1",
+          "parameter": "1st vessel length",
+          "uom": "",
+          "value": "2800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "2",
+          "parameter": "1st vessel diameter",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "3",
+          "parameter": "1st vessel Juice entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "4",
+          "parameter": "1st vessel vapour entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "5",
+          "parameter": "1st vessel juice sealing pipe length",
+          "uom": "",
+          "value": "7700 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "6",
+          "parameter": "1st vessel juice sealing pipe diameter",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "7",
+          "parameter": "1st vessel ammonia valve size",
+          "uom": "",
+          "value": "1.5'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "8",
+          "parameter": "1st vessel ammonia drain size",
+          "uom": "",
+          "value": "2'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "9",
+          "parameter": "1st vessel ammonia air venting valve",
+          "uom": "",
+          "value": "1'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "10",
+          "parameter": "1st vessel juice sealing bottle length",
+          "uom": "",
+          "value": "1500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "11",
+          "parameter": "1st vessel juice sealing bottle diameter",
+          "uom": "",
+          "value": "800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "12",
+          "parameter": "2nd vessel length",
+          "uom": "",
+          "value": "2800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "13",
+          "parameter": "2nd vessel diameter",
+          "uom": "",
+          "value": "900 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "14",
+          "parameter": "2nd vessel Juice outlet size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "15",
+          "parameter": "2nd vessel Juice outlet line expand",
+          "uom": "",
+          "value": "12'' dia (300mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "16",
+          "parameter": "1st vessel vapour entry size",
+          "uom": "",
+          "value": "10'' dia (250mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "17",
+          "parameter": "2nd vessel ammonia valve size",
+          "uom": "",
+          "value": "1.5'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "18",
+          "parameter": "2nd vessel juice descending limb",
+          "uom": "",
+          "value": "2200 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "19",
+          "parameter": "2nd vessel juice sealing bottle height from FFL",
+          "uom": "",
+          "value": "12.85 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "sn": "20",
+          "parameter": "1st vessel plate form from FFL",
+          "uom": "",
+          "value": "26.5 mtr",
+          "isSection": false
+        }
+      ],
+      "history": [
+        {
+          "equipmentName": "CLEAR JUICE DCH",
+          "season": "Off-Season",
+          "year": "2017",
+          "actionNo": 1,
+          "action": "Clear juice DCH bypass arrangement done by 10'' dia sluice valve & line in 1st effect juice inlet header."
+        }
+      ]
+    },
+    {
+      "sheetName": "DCH-C1H,A1H",
+      "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+      "type": "Direct contact heater",
+      "duty": "",
+      "capacity": "",
+      "specCount": 20,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block"
+      ],
+      "specs": [
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "1",
+          "parameter": "Main vessel diameter",
+          "uom": "",
+          "value": "960 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "2",
+          "parameter": "Main vessel length",
+          "uom": "",
+          "value": "3500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "3",
+          "parameter": "DCH height from FFL",
+          "uom": "",
+          "value": "19.85 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "4",
+          "parameter": "Molasses sealing leg length",
+          "uom": "",
+          "value": "9550 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "5",
+          "parameter": "Molasses sealing leg diameter",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "6",
+          "parameter": "Molasses sealing bottle length",
+          "uom": "",
+          "value": "1000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "7",
+          "parameter": "Molasses sealing bottle diameter",
+          "uom": "",
+          "value": "850 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "8",
+          "parameter": "Molasses sealing bottle heigth (FFL)",
+          "uom": "",
+          "value": "9300 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "9",
+          "parameter": "Molasses inlet syphon length",
+          "uom": "",
+          "value": "6000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "10",
+          "parameter": "Molasses inlet ascending limb",
+          "uom": "",
+          "value": "8450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "11",
+          "parameter": "Molasses inlet line diameter",
+          "uom": "",
+          "value": "6'' dia(150mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "12",
+          "parameter": "Vapour entry valve",
+          "uom": "",
+          "value": "6'' dia(150mm),B/F",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "13",
+          "parameter": "Ammonia withdrawl valve",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "14",
+          "parameter": "Molasses syphon air vent valve",
+          "uom": "",
+          "value": "1'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "15",
+          "parameter": "Ammonia drain line size",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "16",
+          "parameter": "Ammonia drain sealing length",
+          "uom": "",
+          "value": "13.70 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "17",
+          "parameter": "Ammonia drain sealing bottle",
+          "uom": "",
+          "value": "600 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "18",
+          "parameter": "Ammonia header size (common)",
+          "uom": "",
+          "value": "6'' (150mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "19",
+          "parameter": "Ammonia header length (common)",
+          "uom": "",
+          "value": "4000 MM",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C1/A1 HEAVYMOLASSES DCH",
+          "sn": "20",
+          "parameter": "Ammonia drain header size (common)",
+          "uom": "",
+          "value": "4'' (100mm)",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "DCH-CL",
+      "equipmentName": "C-LIGHT MOLASSES DCH",
+      "type": "Direct contact heater",
+      "duty": "",
+      "capacity": "",
+      "specCount": 24,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block"
+      ],
+      "specs": [
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "1",
+          "parameter": "Main vessel diameter",
+          "uom": "",
+          "value": "950 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "2",
+          "parameter": "Main vessel length",
+          "uom": "",
+          "value": "2800 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "3",
+          "parameter": "Vapour entry valve size",
+          "uom": "",
+          "value": "14'' (350mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "4",
+          "parameter": "Molasses inlet line size",
+          "uom": "",
+          "value": "8'' (200mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "5",
+          "parameter": "Molasses outlet line size",
+          "uom": "",
+          "value": "8'' (200mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "6",
+          "parameter": "Molasses inlet line before syphon",
+          "uom": "",
+          "value": "4'' (100mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "7",
+          "parameter": "DCH height from FFL",
+          "uom": "",
+          "value": "19.85 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "8",
+          "parameter": "Molasses sealing leg length",
+          "uom": "",
+          "value": "9550 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "9",
+          "parameter": "Molasses sealing leg diameter",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "10",
+          "parameter": "Molasses sealing bottle length",
+          "uom": "",
+          "value": "1000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "11",
+          "parameter": "Molasses sealing bottle diameter",
+          "uom": "",
+          "value": "850 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "12",
+          "parameter": "Molasses sealing bottle heigth (FFL)",
+          "uom": "",
+          "value": "9300 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "13",
+          "parameter": "Molasses inlet syphon length",
+          "uom": "",
+          "value": "6000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "14",
+          "parameter": "Molasses inlet ascending limb",
+          "uom": "",
+          "value": "8450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "15",
+          "parameter": "Molasses inlet line diameter",
+          "uom": "",
+          "value": "6'' dia(150mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "16",
+          "parameter": "Vapour entry size/ valve",
+          "uom": "",
+          "value": "14'' /BUTTER FLY",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "17",
+          "parameter": "Ammonia withdrawl valve",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "18",
+          "parameter": "Molasses syphon air vent valve",
+          "uom": "",
+          "value": "1'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "19",
+          "parameter": "Ammonia drain line size",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "20",
+          "parameter": "Ammonia drain sealing length",
+          "uom": "",
+          "value": "13.70 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "21",
+          "parameter": "Ammonia drain sealing bottle",
+          "uom": "",
+          "value": "600 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "22",
+          "parameter": "Ammonia header size (common)",
+          "uom": "",
+          "value": "6'' (150mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "23",
+          "parameter": "Ammonia header length (common)",
+          "uom": "",
+          "value": "4000 MM",
+          "isSection": false
+        },
+        {
+          "equipmentName": "C-LIGHT MOLASSES DCH",
+          "sn": "24",
+          "parameter": "Ammonia drain header size (common)",
+          "uom": "",
+          "value": "4'' (100mm)",
+          "isSection": false
+        }
+      ],
+      "history": []
+    },
+    {
+      "sheetName": "DCH-BH",
+      "equipmentName": "B-HEAVY DCH",
+      "type": "Direct contact heater",
+      "duty": "",
+      "capacity": "",
+      "specCount": 20,
+      "historyCount": 0,
+      "years": [],
+      "issues": [
+        "No YEAR / WORK DONE block"
+      ],
+      "specs": [
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "1",
+          "parameter": "Main vessel diameter",
+          "uom": "",
+          "value": "960 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "2",
+          "parameter": "Main vessel length",
+          "uom": "",
+          "value": "3500 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "3",
+          "parameter": "DCH height from FFL",
+          "uom": "",
+          "value": "19.85 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "4",
+          "parameter": "Molasses sealing leg length",
+          "uom": "",
+          "value": "9550 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "5",
+          "parameter": "Molasses sealing leg diameter",
+          "uom": "",
+          "value": "6'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "6",
+          "parameter": "Molasses sealing bottle length",
+          "uom": "",
+          "value": "1000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "7",
+          "parameter": "Molasses sealing bottle diameter",
+          "uom": "",
+          "value": "850 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "8",
+          "parameter": "Molasses sealing bottle heigth (FFL)",
+          "uom": "",
+          "value": "9300 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "9",
+          "parameter": "Molasses inlet syphon length",
+          "uom": "",
+          "value": "6000 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "10",
+          "parameter": "Molasses inlet ascending limb",
+          "uom": "",
+          "value": "8450 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "11",
+          "parameter": "Molasses inlet line diameter",
+          "uom": "",
+          "value": "6'' dia(150mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "12",
+          "parameter": "Vapour entry valve",
+          "uom": "",
+          "value": "8'' dia(200mm),B/F",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "13",
+          "parameter": "Ammonia withdrawl valve",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "14",
+          "parameter": "Molasses syphon air vent valve",
+          "uom": "",
+          "value": "1'' dia",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "15",
+          "parameter": "Ammonia drain line size",
+          "uom": "",
+          "value": "2'' dia (50mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "16",
+          "parameter": "Ammonia drain sealing length",
+          "uom": "",
+          "value": "13.70 mtr",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "17",
+          "parameter": "Ammonia drain sealing bottle",
+          "uom": "",
+          "value": "600 mm",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "18",
+          "parameter": "Ammonia header size (common)",
+          "uom": "",
+          "value": "6'' (150mm)",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "19",
+          "parameter": "Ammonia header length (common)",
+          "uom": "",
+          "value": "4000 MM",
+          "isSection": false
+        },
+        {
+          "equipmentName": "B-HEAVY DCH",
+          "sn": "20",
+          "parameter": "Ammonia drain header size (common)",
+          "uom": "",
+          "value": "4'' (100mm)",
+          "isSection": false
+        }
+      ],
+      "history": []
+    }
+  ]
+}
