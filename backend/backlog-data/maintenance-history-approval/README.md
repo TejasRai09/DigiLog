@@ -56,4 +56,6 @@ Required in `backend/.env` (same as account activation mail):
 | `POST /api/sugar-new\|power-new/:id/history` | User | Returns `202` when approval queued |
 | `POST .../history-approval/:requestId/documents` | User | Stage pending document uploads |
 
-Frontend landing pages: `/maintenance-approval/accept?token=...` and `/maintenance-approval/reject?token=...`
+Frontend landing pages (optional fallback): `/maintenance-approval/accept?token=...` and `/maintenance-approval/reject?token=...`
+
+HOD email buttons link directly to `/api/maintenance-approval/accept|reject?token=...` — a simple confirmation page, no app login.

@@ -1,28 +1,76 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MdCheckCircle, MdError, MdWarning } from 'react-icons/md';
+import { MdCheck, MdError, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
+import AppBrandHeader from '../components/AppBrandHeader';
+import useAuth from '../hooks/useAuth';
 
-function ResultCard({ tone, title, message }) {
+function ResultIcon({ tone }) {
   const tones = {
-    success: { icon: MdCheckCircle, className: 'text-emerald-600', bg: 'bg-emerald-50' },
-    warning: { icon: MdWarning, className: 'text-amber-600', bg: 'bg-amber-50' },
-    error: { icon: MdError, className: 'text-red-600', bg: 'bg-red-50' },
+    success: {
+      Icon: MdCheck,
+      ring: 'bg-emerald-50 border-emerald-100',
+      icon: 'text-emerald-600',
+    },
+    warning: {
+      Icon: MdWarning,
+      ring: 'bg-amber-50 border-amber-100',
+      icon: 'text-amber-600',
+    },
+    error: {
+      Icon: MdError,
+      ring: 'bg-red-50 border-red-100',
+      icon: 'text-red-600',
+    },
   };
   const cfg = tones[tone] || tones.success;
-  const Icon = cfg.icon;
+  const Icon = cfg.Icon;
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
-        <div className={`mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ${cfg.bg}`}>
-          <Icon className={`w-8 h-8 ${cfg.className}`} />
-        </div>
-        <h1 className="text-xl font-bold text-slate-800 mb-2">{title}</h1>
-        <p className="text-sm text-slate-600 leading-relaxed">{message}</p>
-      </div>
+    <div
+      className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full border-4 shadow-sm ${cfg.ring}`}
+    >
+      <Icon className={`h-10 w-10 ${cfg.icon}`} />
     </div>
+  );
+}
+
+function ResultLayout({ children }) {
+  const { user } = useAuth();
+  const showBrandHeader = !user;
+
+  return (
+    <div
+      className={`flex flex-col bg-slate-50 ${
+        showBrandHeader ? 'min-h-screen' : 'min-h-[calc(100vh-4rem)]'
+      }`}
+    >
+      {showBrandHeader && <AppBrandHeader />}
+      {children}
+    </div>
+  );
+}
+
+function ResultCard({ tone, title, message }) {
+  const titleColors = {
+    success: 'text-emerald-600',
+    warning: 'text-amber-600',
+    error: 'text-red-600',
+  };
+
+  return (
+    <ResultLayout>
+      <div className="flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+          <ResultIcon tone={tone} />
+          <h1 className={`mb-3 text-2xl font-bold ${titleColors[tone] || titleColors.success}`}>
+            {title}
+          </h1>
+          <p className="text-sm leading-relaxed text-slate-600">{message}</p>
+        </div>
+      </div>
+    </ResultLayout>
   );
 }
 
@@ -49,9 +97,11 @@ export default function MaintenanceApprovalResult({ mode }) {
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
+      <ResultLayout>
+        <div className="flex flex-1 items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      </ResultLayout>
     );
   }
 
@@ -60,26 +110,32 @@ export default function MaintenanceApprovalResult({ mode }) {
   }
 
   if (mode === 'accept') {
+    const when = result?.resolvedAtDisplay;
     return (
       <ResultCard
         tone="success"
         title={result?.alreadyResolved ? 'Already approved' : 'Approved'}
         message={
           result?.alreadyResolved
-            ? `This maintenance history change for ${result?.equipmentName || 'the equipment'} was already approved.`
+            ? when
+              ? `This maintenance history change for ${result?.equipmentName || 'the equipment'} was already approved on ${when}.`
+              : `This maintenance history change for ${result?.equipmentName || 'the equipment'} was already approved.`
             : `The maintenance history entry for ${result?.equipmentName || 'the equipment'} has been saved in DigiLog.`
         }
       />
     );
   }
 
+  const when = result?.resolvedAtDisplay;
   return (
     <ResultCard
       tone="warning"
       title={result?.alreadyResolved ? 'Already processed' : 'Sent for modification'}
       message={
         result?.alreadyResolved
-          ? `This request for ${result?.equipmentName || 'the equipment'} was already sent back for modification.`
+          ? when
+            ? `This request for ${result?.equipmentName || 'the equipment'} was already sent back for modification on ${when}.`
+            : `This request for ${result?.equipmentName || 'the equipment'} was already sent back for modification.`
           : `The submitter has been notified that the entry for ${result?.equipmentName || 'the equipment'} was not saved in DigiLog.`
       }
     />
