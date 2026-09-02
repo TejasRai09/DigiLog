@@ -9,4 +9,5 @@ module.exports = createPowerEquipmentController({
   logPrefix: 'sugarNew',
   historySubGroupScoped: true,
   scheduleEquipmentScoped: true,
+  approvalDomain: 'sugar',
 });

@@ -27,6 +27,7 @@ const ManagementDashboard = lazy(() => import('./pages/bi/ManagementDashboard'))
 const AppDetail = lazy(() => import('./pages/AppDetail'));
 const EmployeeManagement = lazy(() => import('./pages/admin/EmployeeManagement'));
 const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
+const MaintenanceApprovalResult = lazy(() => import('./pages/MaintenanceApprovalResult'));
 const DataIngestionCenter = lazy(() => import('./pages/DataIngestionCenter'));
 
 const EquipmentTemp = lazy(() => import('./pages/forms/mill/EquipmentTemp'));
@@ -92,6 +93,8 @@ const App = () => {
           <Route path="/operations-desk" element={<MarketingDashboard />} />
           <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <MarketingLanding />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/maintenance-approval/accept" element={<MaintenanceApprovalResult mode="accept" />} />
+          <Route path="/maintenance-approval/reject" element={<MaintenanceApprovalResult mode="reject" />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<HomeLanding />} />
             <Route path="/data-upload" element={<DataIngestionCenter />} />

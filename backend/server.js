@@ -22,6 +22,7 @@ const dataUploadRoutes    = require('./routes/dataUpload.routes');
 const canePerformanceRoutes = require('./routes/canePerformanceRoutes');
 const biPowerHouseRoutes = require('./routes/biPowerHouse.routes');
 const activityRoutes = require('./routes/activity.routes');
+const maintenanceApprovalRoutes = require('./routes/maintenanceApproval.routes');
 const { expireStaleSessions } = require('./utils/sessionActivity');
 
 const app = express();
@@ -90,6 +91,7 @@ app.use('/api/bi/power-house', biPowerHouseRoutes);
 app.use('/api/homepage-cards', homepageCardsRoutes);
 app.use('/api/data-upload',      dataUploadRoutes);
 app.use('/api/activity',         activityRoutes);
+app.use('/api/maintenance-approval', maintenanceApprovalRoutes);
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 

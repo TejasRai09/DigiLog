@@ -21,6 +21,17 @@ export async function uploadHistoryDocument(apiBase, equipId, historyId, file, d
   return data.document;
 }
 
+export async function uploadApprovalHistoryDocument(apiBase, equipId, approvalRequestId, file, displayName) {
+  const fd = new FormData();
+  fd.append('document', file);
+  fd.append('displayName', displayName || file.name);
+  const { data } = await api.post(
+    `${apiBase}/${equipId}/history-approval/${approvalRequestId}/documents`,
+    fd,
+  );
+  return data.document;
+}
+
 export async function downloadHistoryDocument(apiBase, equipId, historyId, doc, fallbackName = 'document') {
   const fileName = documentFileName(doc.storageKey);
   if (!fileName) throw new Error('Invalid document.');
@@ -53,11 +64,30 @@ export async function saveHistoryWithDocuments({
   body.documents = serializeHistoryDocumentsForApi(savedDocs);
 
   let historyId = recordId;
+  let response;
+
   if (mode === 'add') {
-    const { data } = await api.post(`${apiBase}/${equipId}/history`, body);
-    historyId = data.id;
+    response = await api.post(`${apiBase}/${equipId}/history`, body);
+    historyId = response.data.id;
   } else {
-    await api.put(`${apiBase}/${equipId}/history/${historyId}`, body);
+    response = await api.put(`${apiBase}/${equipId}/history/${historyId}`, body);
+  }
+
+  if (response.status === 202 || response.data?.pending) {
+    const approvalRequestId = response.data.approvalRequestId;
+    let uploadedCount = 0;
+    for (const doc of pendingDocs) {
+      if (savedDocs.length + uploadedCount >= MAX_HISTORY_DOCUMENTS) break;
+      await uploadApprovalHistoryDocument(
+        apiBase,
+        equipId,
+        approvalRequestId,
+        doc.file,
+        doc.displayName,
+      );
+      uploadedCount += 1;
+    }
+    return { pending: true, approvalRequestId };
   }
 
   let uploadedCount = 0;

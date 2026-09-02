@@ -3,6 +3,17 @@ const path = require('path');
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
+const {
+  isApprovalEnabled,
+  createPendingRequest,
+  assertPendingRequestForUser,
+  approvalStagingDir,
+  listStagedDocuments,
+} = require('../services/maintenanceHistoryApproval.service');
+const {
+  createApprovalDocumentUploadMiddleware,
+  MAX_HISTORY_DOCUMENTS: MAX_APPROVAL_STAGED_DOCS,
+} = require('../middleware/approvalDocumentUpload');
 const { enrichEquipment } = require('../utils/powerEquipmentClassification');
 const { createHistoryDocumentUploadMiddleware } = require('../middleware/historyDocumentUpload');
 const {
@@ -220,9 +231,52 @@ function createPowerEquipmentController(tables) {
     logPrefix = 'power',
     historySubGroupScoped = false,
     scheduleEquipmentScoped = false,
+    approvalDomain = null,
   } = tables;
 
   const uploadHistoryDocumentMiddleware = createHistoryDocumentUploadMiddleware(HIST);
+  const uploadApprovalDocumentMiddleware = approvalDomain
+    ? createApprovalDocumentUploadMiddleware()
+    : null;
+
+  async function queueHistoryApprovalIfEnabled(req, res, {
+    action,
+    equipId,
+    historyId,
+    payload,
+    previousRow,
+    equipment,
+  }) {
+    if (!approvalDomain) return false;
+    const enabled = await isApprovalEnabled(approvalDomain);
+    if (!enabled) return false;
+
+    try {
+      const pending = await createPendingRequest({
+        domain: approvalDomain,
+        action,
+        equipId,
+        historyId,
+        payload,
+        previousRow,
+        reqUser: req.user,
+        equipment,
+      });
+
+      res.status(202).json({
+        message: 'Submitted for HOD approval.',
+        pending: true,
+        approvalRequestId: pending.id,
+      });
+      return true;
+    } catch (err) {
+      if (err.status) {
+        res.status(err.status).json({ message: err.message });
+        return true;
+      }
+      throw err;
+    }
+  }
 
   const getEq = async (id) => {
     const [[eq]] = await pool.execute(`SELECT * FROM \`${EQUIP}\` WHERE id = ?`, [id]);
@@ -621,6 +675,25 @@ function createPowerEquipmentController(tables) {
         return res.status(400).json({ message: `Invalid documents (max ${MAX_HISTORY_DOCUMENTS} files).` });
       }
 
+      const payload = {
+        season, year, date_start, date_finish, obs, act, cost, svc,
+        maintenance_type, provider, resp, rem, img_before, img_after,
+        section: equipmentRefs[0]?.section,
+        sub_section: equipmentRefs[0]?.sub_section,
+        equipment_refs: equipmentRefs,
+        documents: parsedDocuments,
+      };
+
+      const queued = await queueHistoryApprovalIfEnabled(req, res, {
+        action: 'create',
+        equipId: id,
+        historyId: null,
+        payload,
+        previousRow: null,
+        equipment: eq,
+      });
+      if (queued) return;
+
       const cols = ['equip_id'];
       const placeholders = ['?'];
       const values = [id];
@@ -668,7 +741,7 @@ function createPowerEquipmentController(tables) {
       } = req.body;
 
       const [[existingRow]] = await pool.execute(
-        `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
+        `SELECT * FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
         [hid, id],
       );
       if (!existingRow) {
@@ -679,6 +752,36 @@ function createPowerEquipmentController(tables) {
       if (parsedDocuments === null) {
         return res.status(400).json({ message: `Invalid documents (max ${MAX_HISTORY_DOCUMENTS} files).` });
       }
+
+      const equipmentRefs = parseEquipmentRefsFromBody({
+        equipment_refs,
+        section,
+        sub_section: subSectionBody ?? subSection,
+      });
+      if (historySubGroupScoped && equipmentRefs.length === 0) {
+        return res.status(400).json({ message: 'At least one equipment mapping is required.' });
+      }
+
+      const payload = {
+        season, year, date_start, date_finish, obs, act, cost, svc,
+        maintenance_type, provider, resp, rem, img_before, img_after,
+        section: equipmentRefs[0]?.section,
+        sub_section: equipmentRefs[0]?.sub_section,
+        equipment_refs: equipmentRefs,
+        documents: parsedDocuments,
+      };
+
+      const eq = await getEq(id);
+      const queued = await queueHistoryApprovalIfEnabled(req, res, {
+        action: 'update',
+        equipId: id,
+        historyId: Number(hid),
+        payload,
+        previousRow: existingRow,
+        equipment: eq,
+      });
+      if (queued) return;
+
       unlinkRemovedHistoryDocuments(
         historyDocumentsRemoved(existingRow.documents, parsedDocuments),
       );
@@ -698,14 +801,6 @@ function createPowerEquipmentController(tables) {
       ];
 
       if (historySubGroupScoped) {
-        const equipmentRefs = parseEquipmentRefsFromBody({
-          equipment_refs,
-          section,
-          sub_section: subSectionBody ?? subSection,
-        });
-        if (equipmentRefs.length === 0) {
-          return res.status(400).json({ message: 'At least one equipment mapping is required.' });
-        }
         setParts.push('section=?', 'sub_section=?', 'equipment_refs=?');
         values.push(
           equipmentRefs[0].section,
@@ -782,12 +877,24 @@ function createPowerEquipmentController(tables) {
     try {
       const { id, hid } = req.params;
       const [[existingRow]] = await pool.execute(
-        `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
+        `SELECT * FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
         [hid, id],
       );
       if (!existingRow) {
         return res.status(404).json({ message: 'Record not found.' });
       }
+
+      const eq = await getEq(id);
+      const queued = await queueHistoryApprovalIfEnabled(req, res, {
+        action: 'delete',
+        equipId: id,
+        historyId: Number(hid),
+        payload: {},
+        previousRow: existingRow,
+        equipment: eq,
+      });
+      if (queued) return;
+
       unlinkRemovedHistoryDocuments(parseHistoryDocuments(existingRow.documents));
 
       const [result] = await pool.execute(
@@ -880,6 +987,52 @@ function createPowerEquipmentController(tables) {
     }
   };
 
+  const uploadApprovalDocument = async (req, res) => {
+    if (!approvalDomain || !uploadApprovalDocumentMiddleware) {
+      return res.status(404).json({ message: 'Not found.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'Document file is required (field name: document).' });
+    }
+
+    try {
+      const { id, requestId } = req.params;
+      await assertPendingRequestForUser(Number(requestId), Number(id), approvalDomain, req.user?.id);
+
+      const staged = listStagedDocuments(requestId);
+      if (staged.length >= MAX_APPROVAL_STAGED_DOCS) {
+        fs.unlink(req.file.path, () => {});
+        return res.status(400).json({ message: `Maximum ${MAX_APPROVAL_STAGED_DOCS} documents allowed.` });
+      }
+
+      const displayName = String(req.body.displayName || req.file.originalname || 'Document').trim()
+        || req.file.originalname;
+      const metaPath = path.join(approvalStagingDir(requestId), `${path.basename(req.file.filename)}.meta.json`);
+      fs.writeFileSync(metaPath, JSON.stringify({
+        displayName,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+      }));
+
+      res.status(201).json({
+        document: {
+          displayName,
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+          size: req.file.size,
+          pending: true,
+        },
+      });
+    } catch (err) {
+      if (req.file?.path) fs.unlink(req.file.path, () => {});
+      const status = err.status || 500;
+      if (status < 500) {
+        return res.status(status).json({ message: err.message });
+      }
+      sendServerError(res, `${logPrefix}.uploadApprovalDocument:`, err, MSG.UPLOAD);
+    }
+  };
+
   return {
     lookupEquipment,
     listEquipment,
@@ -898,6 +1051,8 @@ function createPowerEquipmentController(tables) {
     renameSubGroupHistory,
     uploadHistoryDocumentMiddleware,
     uploadHistoryDocument,
+    uploadApprovalDocumentMiddleware,
+    uploadApprovalDocument,
     downloadHistoryDocument,
   };
 }
