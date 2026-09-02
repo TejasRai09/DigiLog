@@ -4,6 +4,7 @@ import {
   MdChevronLeft,
   MdChevronRight,
   MdClose,
+  MdDelete,
   MdDownload,
   MdEdit,
   MdInfo,
@@ -41,6 +42,7 @@ import {
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
 import { downloadHistoryDocument } from '../../utils/historyDocuments';
+import useAuth from '../../hooks/useAuth';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
@@ -274,6 +276,7 @@ export default function EquipmentMaintenanceHistoryHub({
   open = true,
   onToggle,
   onSave,
+  onDelete = null,
   equipmentOptions = [],
   defaultEquipmentKeys = [],
   exportFileName,
@@ -282,6 +285,8 @@ export default function EquipmentMaintenanceHistoryHub({
   equipId = null,
   observationRequired = true,
 }) {
+  const { user } = useAuth();
+  const canDelete = user?.role === 'admin' && typeof onDelete === 'function';
   const showEquipmentPicker = equipmentOptions.length > 0;
   const records = useMemo(
     () => apiRecords.map(historyRecordFromApi),
@@ -432,6 +437,21 @@ export default function EquipmentMaintenanceHistoryHub({
   const openDetail = (record) => {
     setSelectedRecord(record);
     setDetailOpen(true);
+  };
+
+  const handleDelete = async (record, e) => {
+    if (e) e.stopPropagation();
+    if (!canDelete || !record?.id) return;
+    const label = formatEntryId(record.id);
+    if (!window.confirm(`Delete maintenance history record ${label}? This cannot be undone.`)) return;
+    await onDelete(record.id);
+    if (detailOpen && selectedRecord?.id === record.id) {
+      setDetailOpen(false);
+      setSelectedRecord(null);
+    }
+    if (formOpen && selectedRecord?.id === record.id) {
+      setFormOpen(false);
+    }
   };
 
   const handleStartChange = (value) => {
@@ -653,6 +673,11 @@ export default function EquipmentMaintenanceHistoryHub({
                     <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                       <MdEdit className="w-3.5 h-3.5" />
                     </button>
+                    {canDelete && (
+                      <button type="button" onClick={(e) => handleDelete(row, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                        <MdDelete className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -710,6 +735,11 @@ export default function EquipmentMaintenanceHistoryHub({
               <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-blue-600">
                 <MdEdit className="w-3.5 h-3.5" />
               </button>
+              {canDelete && (
+                <button type="button" onClick={(e) => handleDelete(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-red-600">
+                  <MdDelete className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1160,6 +1190,16 @@ export default function EquipmentMaintenanceHistoryHub({
             <MdEdit className="w-3.5 h-3.5" />
             Edit
           </button>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={(e) => handleDelete(selectedRecord, e)}
+              className="px-4 py-2 border border-red-200 text-red-600 font-semibold rounded-lg text-xs flex items-center gap-1 hover:bg-red-50"
+            >
+              <MdDelete className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          )}
           <button type="button" onClick={() => setDetailOpen(false)} className="px-4 py-2 bg-slate-800 text-white font-semibold rounded-lg text-xs">
             Close
           </button>

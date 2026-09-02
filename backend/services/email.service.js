@@ -69,8 +69,8 @@ function diffTableHtml(diff) {
 }
 
 function actionButtonsHtml(acceptToken, rejectToken) {
-  const acceptUrl = `${publicBase}/maintenance-approval/accept?token=${encodeURIComponent(acceptToken)}`;
-  const rejectUrl = `${publicBase}/maintenance-approval/reject?token=${encodeURIComponent(rejectToken)}`;
+  const acceptUrl = `${publicBase}/api/maintenance-approval/accept?token=${encodeURIComponent(acceptToken)}`;
+  const rejectUrl = `${publicBase}/api/maintenance-approval/reject?token=${encodeURIComponent(rejectToken)}`;
   return `
     <div style="text-align:center;margin:24px 0;">
       <a href="${acceptUrl}"
@@ -83,9 +83,7 @@ function actionButtonsHtml(acceptToken, rejectToken) {
       </a>
     </div>
     <p style="font-size:12px;color:#64748b;text-align:center;">
-      Or open in DigiLog:<br/>
-      <a href="${acceptUrl}" style="color:#2563eb;">Accept link</a> ·
-      <a href="${rejectUrl}" style="color:#2563eb;">Send for modification link</a>
+      One click approves or sends back — no DigiLog login required.
     </p>
   `;
 }

@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
+const { requireRole } = require('../middleware/roleCheck');
 const ctrl = require('../controllers/powerNew.controller');
 const hier = require('../controllers/ppnHierarchy.controller');
 
@@ -25,7 +26,7 @@ router.put('/:id/history-sub-group/rename', authenticate, ctrl.renameSubGroupHis
 router.get('/:id/history',          authenticate, ctrl.getHistory);
 router.post('/:id/history',         authenticate, ctrl.addHistory);
 router.put('/:id/history/:hid',     authenticate, ctrl.updateHistory);
-router.delete('/:id/history/:hid',  authenticate, ctrl.deleteHistory);
+router.delete('/:id/history/:hid',  authenticate, requireRole('admin'), ctrl.deleteHistory);
 router.post('/:id/history/:hid/documents', authenticate, ctrl.uploadHistoryDocumentMiddleware, ctrl.uploadHistoryDocument);
 router.post('/:id/history-approval/:requestId/documents', authenticate, ctrl.uploadApprovalDocumentMiddleware, ctrl.uploadApprovalDocument);
 router.get('/:id/history/:hid/documents/:fileName', authenticate, ctrl.downloadHistoryDocument);

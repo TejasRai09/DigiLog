@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
+const { requireRole } = require('../middleware/roleCheck');
 const ctrl = require('../controllers/productionHouse.controller');
 
 router.get('/houses', authenticate, ctrl.listHouses);
@@ -10,6 +11,6 @@ router.put('/:id/specs', authenticate, ctrl.updateSpecs);
 router.get('/:id/history', authenticate, ctrl.getHistory);
 router.post('/:id/history', authenticate, ctrl.addHistory);
 router.put('/:id/history/:hid', authenticate, ctrl.updateHistory);
-router.delete('/:id/history/:hid', authenticate, ctrl.deleteHistory);
+router.delete('/:id/history/:hid', authenticate, requireRole('admin'), ctrl.deleteHistory);
 
 module.exports = router;
