@@ -8,6 +8,7 @@ const {
   CLIENT_ORIGIN,
   APP_LOGO_URL,
 } = require('../config/env');
+const { emailLogoBlockHtml } = require('../utils/digilogBrand');
 
 const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
 const loginUrl = `${publicBase}/login`;
@@ -91,12 +92,8 @@ function actionButtonsHtml(acceptToken, rejectToken) {
 const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-      <a href="${publicBase}" style="text-decoration:none; color: inherit;">
-        <img src="${logoUrl}" alt="DigiLog" width="72" height="72"
-             style="display:block; margin: 0 auto 16px; border:0;" />
-      </a>
+      ${emailLogoBlockHtml(logoUrl, { width: 72, linkHref: publicBase, withTagline: true })}
       <h2 style="color: #2563EB; text-align: center; margin: 0;">Welcome to DigiLog</h2>
-      <p style="color:#4b5563; font-size:14px; margin-top:4px; text-align: center;">Your digital logbook</p>
       <p style="text-align: center; margin: 20px 0;">
         <a href="${loginUrl}"
            style="display:inline-block; background:#2563eb; color:#fff; text-decoration:none;
@@ -145,7 +142,7 @@ async function sendMaintenanceHistoryApprovalEmail({
 }) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 680px; margin: auto;">
-      <img src="${logoUrl}" alt="DigiLog" width="64" height="64" style="display:block;margin:0 auto 12px;" />
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
       <h2 style="color:#2563eb;text-align:center;margin:0;">Maintenance History Approval</h2>
       <p style="text-align:center;color:#64748b;font-size:14px;">${escapeHtml(domainLabel)}</p>
       <p>Hi <strong>${escapeHtml(hodName || 'HOD')}</strong>,</p>
@@ -179,7 +176,7 @@ async function sendMaintenanceHistoryRejectedEmail({
 }) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-      <img src="${logoUrl}" alt="DigiLog" width="64" height="64" style="display:block;margin:0 auto 12px;" />
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
       <h2 style="color:#dc2626;text-align:center;">Entry Not Saved</h2>
       <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
       <p>
@@ -213,7 +210,7 @@ async function sendMaintenanceHistoryApprovedEmail({
 }) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
-      <img src="${logoUrl}" alt="DigiLog" width="64" height="64" style="display:block;margin:0 auto 12px;" />
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
       <h2 style="color:#059669;text-align:center;">Entry Approved</h2>
       <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
       <p>

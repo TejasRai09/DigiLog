@@ -14,6 +14,7 @@ import {
   MdWaterDrop,
 } from 'react-icons/md';
 import DigiLogLoginModal from '../components/DigiLogLoginModal';
+import { DigiLogTitle } from '../components/DigiLogBrandMark';
 import MarketingSiteNav from '../components/marketing/MarketingSiteNav';
 import OperationsDeskCard from '../components/marketing/OperationsDeskCard';
 import { useOpenLoginFromQuery } from '../hooks/useOpenLoginFromQuery';
@@ -358,7 +359,10 @@ export default function MarketingLanding() {
                 <path d="M34 18V28L37 25.5L40 28V18H34" fill="#94a3b8" />
               </svg>
             </div>
-            <span className="text-sm font-bold text-slate-300">DigiLog</span>
+            <DigiLogTitle
+              titleClassName="text-sm font-bold text-slate-300"
+              versionClassName="text-[10px] text-slate-500"
+            />
           </div>
           <div className="text-sm text-slate-500">&copy; {new Date().getFullYear()} DigiLog. All rights reserved.</div>
         </div>

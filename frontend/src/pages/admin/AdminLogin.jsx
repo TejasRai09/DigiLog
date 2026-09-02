@@ -4,6 +4,7 @@ import { MdEmail, MdLock, MdLogin } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import Spinner from '../../components/Spinner';
+import DigiLogBrandMark from '../../components/DigiLogBrandMark';
 import { validateLoginForm, getLoginErrorMessage } from '../../utils/loginValidation';
 
 const AdminLogin = () => {
@@ -43,15 +44,12 @@ const AdminLogin = () => {
 
         {/* Header */}
         <div className="text-center mb-8">
-          <img
-            src="/logo.png"
-            alt="DigiLog"
-            className="mx-auto h-20 w-auto object-contain mb-4 drop-shadow-lg rounded-xl"
-            width={80}
-            height={80}
+          <DigiLogBrandMark
+            size="lg"
+            stacked
+            titleTone="white"
+            logoClassName="mb-4 drop-shadow-lg rounded-xl"
           />
-          <h1 className="text-2xl font-bold text-white">DigiLog</h1>
-          <p className="mt-1 text-sm text-slate-300">Your digital logbook</p>
           <p className="mt-2 text-xs text-slate-500">Administrator sign-in</p>
         </div>
 

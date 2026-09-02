@@ -142,7 +142,9 @@ export default function DigiLogLoginModal({ open, onClose }) {
         <div className="p-6">
           <div className="space-y-5">
             <div>
-              <h3 className="text-xl font-extrabold text-slate-900">Sign in to DigiLog</h3>
+              <h3 className="text-xl font-extrabold text-slate-900">
+                Sign in to <DigiLogTitle titleClassName="text-xl font-extrabold text-slate-900" versionClassName="text-sm" />
+              </h3>
               <p className="mt-1 text-xs text-slate-500">Authenticate your operational logbook session.</p>
             </div>
 
