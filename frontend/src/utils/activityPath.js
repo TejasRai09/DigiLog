@@ -95,6 +95,14 @@ export function classifyPath(pathname) {
       form_or_dashboard = titleFromSlug(parts[2]);
       crumbs.push(form_or_dashboard);
     }
+  } else if (path.startsWith('/production-house-equipment')) {
+    section = 'Production House Equipment';
+    crumbs.push('Production House Equipment');
+    event_type = parts.length <= 1 ? 'section_open' : 'page_view';
+    if (parts[1] && /^\d+$/.test(parts[1])) {
+      form_or_dashboard = `Equipment #${parts[1]}`;
+      crumbs.push(form_or_dashboard);
+    }
   } else if (path.startsWith('/equipment')) {
     section = 'Mill House Equipment';
     crumbs.push('Mill House Equipment');
