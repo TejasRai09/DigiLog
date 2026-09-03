@@ -30,11 +30,13 @@ When enabled:
 
 - User add/edit/delete → pending request queued (no immediate email to HOD)
 - At the configured **daily digest time (IST)**, one email per card is sent to the HOD with **all changes submitted that calendar day**
-- Each entry in the digest has its own **Accept** and **Send for modification** buttons (selective approval — HOD can approve one entry without affecting others)
+- Each digest row has a **Review details** link (not the full field table)
+- **Review page** (`/api/maintenance-approval/review?token=`) shows every field (previous vs new) plus photos, then **Accept** / **Send for modification**
+- HOD can still approve **one entry** without affecting the others
 - **Accept** → change applied to `shn_history` or `ppn_history`; submitter notified
 - **Send for modification** → change discarded; submitter emailed to contact HOD
 
-Approval links expire after **7 days**. Digest includes same-day submissions only; HOD acts via links in that day's email (no automatic re-mail on later days).
+Review and approve/reject links expire after **7 days**.
 
 ## Daily digest behaviour
 
@@ -69,17 +71,17 @@ Required in `backend/.env` (same as account activation mail):
 | Endpoint | Auth | Purpose |
 |----------|------|---------|
 | `GET/PUT /api/admin/maintenance-history-approval-settings` | Admin | Toggle, HOD picker, digest time |
+| `GET /api/maintenance-approval/review?token=` | Public | HOD review page — all fields, then Accept / Reject |
+| `POST /api/maintenance-approval/review` | Public | JSON payload for the SPA review page |
 | `GET /api/maintenance-approval/accept?token=` | Public | HOD accept one entry (HTML) |
 | `GET /api/maintenance-approval/reject?token=` | Public | HOD reject one entry (HTML) |
 | `POST /api/sugar-new\|power-new/:id/history` | User | Returns `202` when approval queued |
 | `POST .../history-approval/:requestId/documents` | User | Stage pending document uploads |
 
-HOD email buttons link directly to `/api/maintenance-approval/accept|reject?token=...` — a simple confirmation page, no app login.
+HOD digest email uses **Review details** → `/api/maintenance-approval/review?token=...` (full field list in the browser, no login). Accept / Reject on that page use the same 7-day tokens.
 
-Frontend landing pages (optional fallback): `/maintenance-approval/accept?token=...` and `/maintenance-approval/reject?token=...`
+Frontend landing pages (optional fallback): `/maintenance-approval/review?token=...`, `/maintenance-approval/accept?token=...`, `/maintenance-approval/reject?token=...`
 
-## Selective approval (Phase 1)
+## Selective approval
 
-The digest email lists each pending entry separately. Each row has unique Accept/Reject URLs tied to that request's tokens. No bulk-approve-all action — by design, so the HOD can approve only the entries they want.
-
-**Future (Phase 2):** optional in-app review page with checkboxes and bulk approve/reject for large batches.
+The digest email lists each pending entry with its own **Review details** link. Approving one row does not approve the rest.

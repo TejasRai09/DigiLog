@@ -189,7 +189,7 @@ function buildFieldDiff(action, previous, payload) {
 
 function normalizeDigestTime(value) {
   const raw = String(value || DEFAULT_DIGEST_TIME).trim();
-  const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(raw);
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(raw);
   if (!match) return null;
   return `${String(match[1]).padStart(2, '0')}:${match[2]}`;
 }
@@ -198,24 +198,16 @@ function validateDigestTime(value) {
   return normalizeDigestTime(value) != null;
 }
 
+/** Reliable 24h IST clock (sv-SE). en-GB + hour12:false can stay 12-hour on Windows Node. */
 function getIstDateParts(date = new Date()) {
-  const fmt = new Intl.DateTimeFormat('en-GB', {
-    timeZone: DIGEST_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-  const parts = Object.fromEntries(
-    fmt.formatToParts(date)
-      .filter((p) => p.type !== 'literal')
-      .map((p) => [p.type, p.value]),
-  );
+  const raw = date.toLocaleString('sv-SE', { timeZone: DIGEST_TIMEZONE });
+  const match = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}):(\d{2})/.exec(raw);
+  if (!match) {
+    return { date: '', time: '' };
+  }
   return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}:${parts.minute}`,
+    date: match[1],
+    time: `${match[2]}:${match[3]}`,
   };
 }
 
@@ -566,6 +558,66 @@ async function getRequestByToken(token, type) {
   return row || null;
 }
 
+function imageSources(value) {
+  if (value == null || value === '') return [];
+  const list = Array.isArray(value) ? value : [value];
+  return list
+    .map((item) => String(item || '').trim())
+    .filter((src) => src.startsWith('data:image') || src.startsWith('http://') || src.startsWith('https://'));
+}
+
+async function getReviewByToken(token) {
+  let request = await getRequestByToken(token, 'accept');
+  if (!request) {
+    const err = new Error('Invalid review link.');
+    err.status = 404;
+    throw err;
+  }
+  request = await markExpiredIfNeeded(request);
+
+  const payload = parseJson(request.payload_json, {});
+  const previous = parseJson(request.previous_json, null);
+  const photoSource = request.action === 'delete' ? previous : payload;
+
+  return {
+    status: request.status,
+    alreadyResolved: request.status !== 'pending',
+    request,
+    equipmentName: equipmentNameFromRequest(request),
+    domain: request.domain,
+    domainLabel: DOMAIN_TABLES[request.domain]?.label || '',
+    action: request.action,
+    actionLabel: actionLabel(request.action),
+    submitterName: request.requested_by_name || 'A user',
+    submitterEmail: request.requested_by_email || '',
+    diff: buildFieldDiff(request.action, previous, payload),
+    acceptToken: request.token_accept,
+    rejectToken: request.token_reject,
+    tokenExpiresAt: request.token_expires_at || null,
+    resolvedAt: request.resolved_at || null,
+    photosBefore: imageSources(photoSource?.img_before),
+    photosAfter: imageSources(photoSource?.img_after),
+  };
+}
+
+async function getInboxByToken(token) {
+  const review = await getReviewByToken(token);
+  const [rows] = await pool.query(
+    `SELECT * FROM maintenance_history_approval_request
+     WHERE domain = ? AND hod_email = ? AND status = 'pending'
+     ORDER BY created_at ASC, id ASC`,
+    [review.request.domain, review.request.hod_email],
+  );
+  return {
+    status: review.status,
+    alreadyResolved: review.alreadyResolved && !rows.length,
+    domain: review.domain,
+    domainLabel: review.domainLabel,
+    hodEmail: review.request.hod_email,
+    entries: rows.map(buildDigestEntry),
+  };
+}
+
 async function markExpiredIfNeeded(request) {
   if (request.status !== 'pending') return request;
   if (new Date(request.token_expires_at) >= new Date()) return request;
@@ -629,16 +681,77 @@ async function createPendingRequest({
   return { id: result.insertId, tokenAccept, tokenReject };
 }
 
-async function fetchPendingForDigest(domain, istDate) {
-  const [rows] = await pool.query(
-    `SELECT * FROM maintenance_history_approval_request
-     WHERE domain = ?
-       AND status = 'pending'
-       AND hod_notified_at IS NULL
-     ORDER BY created_at ASC, id ASC`,
-    [domain],
+async function fetchPendingForDigest(domain, _istDate) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM maintenance_history_approval_request
+       WHERE domain = ?
+         AND status = 'pending'
+         AND hod_notified_at IS NULL
+       ORDER BY created_at ASC, id ASC`,
+      [domain],
+    );
+    return rows;
+  } catch (err) {
+    if (String(err.message || '').includes('hod_notified_at')) {
+      const wrap = new Error(
+        'Digest column missing. Apply mysql/migrate_maintenance_history_approval_digest.sql and restart the backend.',
+      );
+      wrap.status = 500;
+      throw wrap;
+    }
+    throw err;
+  }
+}
+
+async function ensureDigestSchema() {
+  const [[col]] = await pool.query(
+    `SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'maintenance_history_approval_request'
+       AND COLUMN_NAME = 'hod_notified_at'`,
   );
-  return rows.filter((row) => getIstDateParts(new Date(row.created_at)).date === istDate);
+  if (!Number(col?.n)) {
+    await pool.execute(
+      `ALTER TABLE maintenance_history_approval_request
+       ADD COLUMN hod_notified_at DATETIME NULL DEFAULT NULL`,
+    );
+    console.log('[maintenanceHistoryApproval] added hod_notified_at column');
+  }
+
+  const keys = [
+    [SETTINGS_KEYS.sugar.digestTime, DEFAULT_DIGEST_TIME],
+    [SETTINGS_KEYS.power.digestTime, DEFAULT_DIGEST_TIME],
+    [SETTINGS_KEYS.sugar.digestLastSentDate, ''],
+    [SETTINGS_KEYS.power.digestLastSentDate, ''],
+  ];
+  for (const [key, value] of keys) {
+    await pool.execute(
+      `INSERT INTO portal_settings (setting_key, setting_value) VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE setting_key = setting_key`,
+      [key, value],
+    );
+  }
+}
+
+async function countNotifiedOnIstDate(domain, istDate) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT hod_notified_at FROM maintenance_history_approval_request
+       WHERE domain = ? AND hod_notified_at IS NOT NULL`,
+      [domain],
+    );
+    return rows.filter((row) => getIstDateParts(new Date(row.hod_notified_at)).date === istDate).length;
+  } catch (err) {
+    if (String(err.message || '').includes('hod_notified_at')) {
+      const wrap = new Error(
+        'Digest column missing. Apply mysql/migrate_maintenance_history_approval_digest.sql and restart the backend.',
+      );
+      wrap.status = 500;
+      throw wrap;
+    }
+    throw err;
+  }
 }
 
 function buildDigestEntry(request) {
@@ -668,8 +781,7 @@ async function sendDigestForDomain(domain) {
   const pendingRows = await fetchPendingForDigest(domain, ist.date);
 
   if (pendingRows.length === 0) {
-    await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
-    return { sent: false, count: 0 };
+    return { sent: false, count: 0, reason: 'empty' };
   }
 
   const hod = await resolveHodUser(domain);
@@ -699,22 +811,32 @@ async function runDigestSchedulerTick() {
   const settings = await getApprovalSettings();
   const ist = getIstDateParts();
   const nowMinutes = timeToMinutes(ist.time);
-  if (nowMinutes == null) return;
+  if (nowMinutes == null) {
+    console.error('[maintenanceHistoryApproval] digest tick skipped: could not parse IST time', ist);
+    return;
+  }
 
   for (const domain of ['sugar', 'power']) {
     const domainSettings = settings[domain];
     if (!domainSettings?.enabled) continue;
 
     const digestMinutes = timeToMinutes(domainSettings.digestTime);
-    if (digestMinutes == null || nowMinutes < digestMinutes) continue;
-    if (domainSettings.digestLastSentDate === ist.date) continue;
+    if (digestMinutes == null) continue;
 
     try {
+      const pending = await fetchPendingForDigest(domain, ist.date);
+      if (!pending.length) continue;
+
+      if (nowMinutes < digestMinutes) {
+        console.log(
+          `[maintenanceHistoryApproval] ${pending.length} pending ${domain} item(s); waiting until ${domainSettings.digestTime} IST (now ${ist.time})`,
+        );
+        continue;
+      }
+
       const result = await sendDigestForDomain(domain);
       if (result.sent) {
-        console.log(`[maintenanceHistoryApproval] digest sent for ${domain}: ${result.count} item(s)`);
-      } else {
-        console.log(`[maintenanceHistoryApproval] digest tick for ${domain}: no pending items today`);
+        console.log(`[maintenanceHistoryApproval] digest sent for ${domain}: ${result.count} item(s) to HOD`);
       }
     } catch (err) {
       console.error(`[maintenanceHistoryApproval] digest failed for ${domain}:`, err.message);
@@ -839,11 +961,14 @@ module.exports = {
   isApprovalEnabled,
   resolveHodUser,
   createPendingRequest,
+  getReviewByToken,
+  getInboxByToken,
   approveByToken,
   rejectByToken,
   fetchPendingForDigest,
   sendDigestForDomain,
   runDigestSchedulerTick,
+  ensureDigestSchema,
   validateDigestTime,
   normalizeDigestTime,
   buildFieldDiff,

@@ -27,6 +27,9 @@ const createTransporter = () =>
   });
 
 async function sendMail({ to, subject, html }) {
+  if (!SMTP_HOST || !SMTP_FROM) {
+    throw new Error('SMTP is not configured. Set SMTP_HOST and SMTP_FROM in backend/.env');
+  }
   const transporter = createTransporter();
   await transporter.sendMail({
     from: SMTP_FROM,
@@ -34,6 +37,7 @@ async function sendMail({ to, subject, html }) {
     subject,
     html,
   });
+  console.log(`[email] sent "${subject}" to ${to}`);
 }
 
 function escapeHtml(value) {
@@ -128,60 +132,49 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
   });
 };
 
-function compactDiffSummaryHtml(diff, maxRows = 3) {
-  if (!diff?.length) {
-    return '<p style="color:#64748b;font-size:12px;margin:8px 0 0;">No field details available.</p>';
-  }
-  const shown = diff.slice(0, maxRows);
-  const rows = shown.map((row) => `
-    <tr>
-      <td style="padding:6px 8px;border:1px solid #e2e8f0;font-weight:600;font-size:12px;">${escapeHtml(row.label)}</td>
-      <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:12px;">${escapeHtml(row.oldValue)} → ${escapeHtml(row.newValue)}</td>
-    </tr>
-  `).join('');
-  const more = diff.length > maxRows
-    ? `<p style="color:#64748b;font-size:11px;margin:6px 0 0;">+ ${diff.length - maxRows} more field(s)</p>`
-    : '';
-  return `
-    <table style="border-collapse:collapse;width:100%;margin:8px 0 0;">
-      <tbody>${rows}</tbody>
-    </table>
-    ${more}
-  `;
+function reviewUrl(acceptToken) {
+  return `${publicBase}/api/maintenance-approval/review?token=${encodeURIComponent(acceptToken)}`;
 }
 
-function rowActionButtonsHtml(acceptToken, rejectToken) {
-  const acceptUrl = `${publicBase}/api/maintenance-approval/accept?token=${encodeURIComponent(acceptToken)}`;
-  const rejectUrl = `${publicBase}/api/maintenance-approval/reject?token=${encodeURIComponent(rejectToken)}`;
-  return `
-    <div style="margin-top:10px;">
-      <a href="${acceptUrl}"
-         style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-weight:600;padding:8px 14px;border-radius:6px;margin:0 6px 6px 0;font-size:12px;">
-        Accept
-      </a>
-      <a href="${rejectUrl}"
-         style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:600;padding:8px 14px;border-radius:6px;margin:0 0 6px 0;font-size:12px;">
-        Send for Modification
-      </a>
-    </div>
-  `;
+function inboxUrl(acceptToken) {
+  return `${publicBase}/api/maintenance-approval/inbox?token=${encodeURIComponent(acceptToken)}`;
 }
 
 function digestEntriesHtml(entries = []) {
-  return entries.map((entry, index) => `
-    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin:16px 0;background:#f8fafc;">
-      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#0f172a;">
-        ${index + 1}. ${escapeHtml(entry.equipmentName)}
-        <span style="color:#64748b;font-weight:600;"> — ${escapeHtml(entry.actionLabel)}</span>
-      </p>
-      <p style="margin:0;font-size:12px;color:#475569;">
-        Submitted by <strong>${escapeHtml(entry.submitterName)}</strong>
-        ${entry.submitterEmail ? `(${escapeHtml(entry.submitterEmail)})` : ''}
-      </p>
-      ${compactDiffSummaryHtml(entry.diff)}
-      ${rowActionButtonsHtml(entry.acceptToken, entry.rejectToken)}
-    </div>
-  `).join('');
+  const rows = entries.map((entry, index) => {
+    const url = reviewUrl(entry.acceptToken);
+    const submitter = entry.submitterEmail
+      ? `${entry.submitterName} (${entry.submitterEmail})`
+      : entry.submitterName;
+    return `
+      <tr>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;text-align:center;color:#64748b;">${index + 1}</td>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${escapeHtml(entry.equipmentName)}</td>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;">${escapeHtml(entry.actionLabel)}</td>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(submitter)}</td>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;text-align:center;">
+          <a href="${url}" style="color:#2563eb;font-weight:700;text-decoration:none;">Review</a>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:collapse;width:100%;font-size:13px;margin:16px 0;">
+      <thead>
+        <tr style="background:#1d4ed8;color:#fff;">
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:center;width:40px;">#</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Equipment</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Action</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Submitted by</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:center;">Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
 }
 
 async function sendMaintenanceHistoryDigestEmail({
@@ -193,7 +186,7 @@ async function sendMaintenanceHistoryDigestEmail({
 }) {
   const count = entries.length;
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 720px; margin: auto;">
+    <div style="font-family: Arial, sans-serif; max-width: 800px; margin: auto;">
       ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
       <h2 style="color:#2563eb;text-align:center;margin:0;">Daily Maintenance History Digest</h2>
       <p style="text-align:center;color:#64748b;font-size:14px;margin:4px 0 0;">
@@ -201,12 +194,19 @@ async function sendMaintenanceHistoryDigestEmail({
       </p>
       <p style="margin:20px 0 8px;">Hi <strong>${escapeHtml(hodName || 'HOD')}</strong>,</p>
       <p style="margin:0 0 8px;color:#334155;font-size:14px;">
-        ${count} maintenance history change${count === 1 ? '' : 's'} submitted today require your review.
-        Approve or send back each entry individually using the buttons below.
+        ${count} maintenance history change${count === 1 ? '' : 's'} require your review.
+        Open <strong>Review</strong> on a row to see every field before you accept or send back.
       </p>
       ${digestEntriesHtml(entries)}
+      ${entries[0]?.acceptToken ? `
+      <p style="text-align:center;margin:16px 0 0;">
+        <a href="${inboxUrl(entries[0].acceptToken)}"
+           style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px;font-size:13px;">
+          Open all approvals in browser
+        </a>
+      </p>` : ''}
       <p style="font-size:12px;color:#64748b;margin-top:20px;">
-        One click per entry — no DigiLog login required. Links expire after 7 days.
+        No DigiLog login required. Review links expire after 7 days.
       </p>
       <p style="color:#6b7280;font-size:12px;">This is an automated message from DigiLog.</p>
     </div>
@@ -246,6 +246,12 @@ async function sendMaintenanceHistoryApprovalEmail({
         <tr><td style="padding:6px;font-weight:bold;">Action</td><td style="padding:6px;">${escapeHtml(actionLabel)}</td></tr>
       </table>
       ${diffTableHtml(diff)}
+      <div style="text-align:center;margin:20px 0 8px;">
+        <a href="${publicBase}/api/maintenance-approval/review?token=${encodeURIComponent(acceptToken)}"
+           style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Review details
+        </a>
+      </div>
       ${actionButtonsHtml(acceptToken, rejectToken)}
       <p style="color:#6b7280;font-size:12px;">This is an automated message from DigiLog.</p>
     </div>
