@@ -6,9 +6,6 @@ node_modules/
 .env.*
 !.env.example
 
-# Local extract / tooling scripts (use backend/scripts for app DB scripts)
-/scripts/
-
 # Python
 __pycache__/
 *.py[cod]
