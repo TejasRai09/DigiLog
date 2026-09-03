@@ -128,6 +128,97 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
   });
 };
 
+function compactDiffSummaryHtml(diff, maxRows = 3) {
+  if (!diff?.length) {
+    return '<p style="color:#64748b;font-size:12px;margin:8px 0 0;">No field details available.</p>';
+  }
+  const shown = diff.slice(0, maxRows);
+  const rows = shown.map((row) => `
+    <tr>
+      <td style="padding:6px 8px;border:1px solid #e2e8f0;font-weight:600;font-size:12px;">${escapeHtml(row.label)}</td>
+      <td style="padding:6px 8px;border:1px solid #e2e8f0;font-size:12px;">${escapeHtml(row.oldValue)} → ${escapeHtml(row.newValue)}</td>
+    </tr>
+  `).join('');
+  const more = diff.length > maxRows
+    ? `<p style="color:#64748b;font-size:11px;margin:6px 0 0;">+ ${diff.length - maxRows} more field(s)</p>`
+    : '';
+  return `
+    <table style="border-collapse:collapse;width:100%;margin:8px 0 0;">
+      <tbody>${rows}</tbody>
+    </table>
+    ${more}
+  `;
+}
+
+function rowActionButtonsHtml(acceptToken, rejectToken) {
+  const acceptUrl = `${publicBase}/api/maintenance-approval/accept?token=${encodeURIComponent(acceptToken)}`;
+  const rejectUrl = `${publicBase}/api/maintenance-approval/reject?token=${encodeURIComponent(rejectToken)}`;
+  return `
+    <div style="margin-top:10px;">
+      <a href="${acceptUrl}"
+         style="display:inline-block;background:#059669;color:#fff;text-decoration:none;font-weight:600;padding:8px 14px;border-radius:6px;margin:0 6px 6px 0;font-size:12px;">
+        Accept
+      </a>
+      <a href="${rejectUrl}"
+         style="display:inline-block;background:#dc2626;color:#fff;text-decoration:none;font-weight:600;padding:8px 14px;border-radius:6px;margin:0 0 6px 0;font-size:12px;">
+        Send for Modification
+      </a>
+    </div>
+  `;
+}
+
+function digestEntriesHtml(entries = []) {
+  return entries.map((entry, index) => `
+    <div style="border:1px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin:16px 0;background:#f8fafc;">
+      <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:#0f172a;">
+        ${index + 1}. ${escapeHtml(entry.equipmentName)}
+        <span style="color:#64748b;font-weight:600;"> — ${escapeHtml(entry.actionLabel)}</span>
+      </p>
+      <p style="margin:0;font-size:12px;color:#475569;">
+        Submitted by <strong>${escapeHtml(entry.submitterName)}</strong>
+        ${entry.submitterEmail ? `(${escapeHtml(entry.submitterEmail)})` : ''}
+      </p>
+      ${compactDiffSummaryHtml(entry.diff)}
+      ${rowActionButtonsHtml(entry.acceptToken, entry.rejectToken)}
+    </div>
+  `).join('');
+}
+
+async function sendMaintenanceHistoryDigestEmail({
+  to,
+  hodName,
+  domainLabel,
+  digestDate,
+  entries = [],
+}) {
+  const count = entries.length;
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 720px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#2563eb;text-align:center;margin:0;">Daily Maintenance History Digest</h2>
+      <p style="text-align:center;color:#64748b;font-size:14px;margin:4px 0 0;">
+        ${escapeHtml(domainLabel)} · ${escapeHtml(digestDate)} (IST)
+      </p>
+      <p style="margin:20px 0 8px;">Hi <strong>${escapeHtml(hodName || 'HOD')}</strong>,</p>
+      <p style="margin:0 0 8px;color:#334155;font-size:14px;">
+        ${count} maintenance history change${count === 1 ? '' : 's'} submitted today require your review.
+        Approve or send back each entry individually using the buttons below.
+      </p>
+      ${digestEntriesHtml(entries)}
+      <p style="font-size:12px;color:#64748b;margin-top:20px;">
+        One click per entry — no DigiLog login required. Links expire after 7 days.
+      </p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message from DigiLog.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] Daily maintenance digest (${count}) — ${domainLabel}`,
+    html,
+  });
+}
+
 async function sendMaintenanceHistoryApprovalEmail({
   to,
   hodName,
@@ -238,6 +329,7 @@ module.exports = {
   sendMail,
   sendAccountActivationEmail,
   sendMaintenanceHistoryApprovalEmail,
+  sendMaintenanceHistoryDigestEmail,
   sendMaintenanceHistoryRejectedEmail,
   sendMaintenanceHistoryApprovedEmail,
 };

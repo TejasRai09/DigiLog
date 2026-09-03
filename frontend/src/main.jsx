@@ -15,7 +15,7 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 const app = (
   <React.StrictMode>
-    <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <ActivityTracker />
         <App />

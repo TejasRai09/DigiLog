@@ -18,6 +18,31 @@
     background-color: #fafaf9;
     background-image: radial-gradient(ellipse 85% 70% at 0% 0%, rgb(220 252 231 / 0.85) 0%, rgb(240 253 244 / 0.35) 42%, transparent 68%);
   }
+
+  /* Staging banner: scroll text to the right, loop in from the left */
+  .animate-staging-marquee {
+    animation: staging-marquee 30s linear infinite;
+  }
+
+  .staging-banner:hover .animate-staging-marquee {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes staging-marquee {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-staging-marquee {
+    animation: none;
+    transform: translateX(0);
+  }
 }
 
 @layer components {

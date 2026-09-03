@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import Spinner from './Spinner';
 import GoogleSignInButton from './GoogleSignInButton';
+import { DigiLogTitle } from './DigiLogBrandMark';
 import {
   validateLoginForm,
   getLoginErrorMessage,

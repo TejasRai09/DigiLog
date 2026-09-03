@@ -3,6 +3,7 @@ const { sendServerError, MSG } = require('../utils/httpError');
 const {
   getApprovalSettings,
   updateApprovalSettings,
+  validateDigestTime,
 } = require('../services/maintenanceHistoryApproval.service');
 
 const getMaintenanceHistoryApprovalSettings = async (_req, res) => {
@@ -32,6 +33,11 @@ const putMaintenanceHistoryApprovalSettings = async (req, res) => {
 
     for (const [domain, cfg] of Object.entries({ sugar, power })) {
       if (!cfg) continue;
+      if (cfg.digestTime != null && cfg.digestTime !== '' && !validateDigestTime(cfg.digestTime)) {
+        return res.status(400).json({
+          message: `Daily digest time for ${domain === 'sugar' ? 'Sugar House' : 'Power Plant'} must be HH:mm (24-hour, IST).`,
+        });
+      }
       if (cfg.enabled && cfg.hodUserId) {
         const [[user]] = await pool.query(
           'SELECT id, email FROM users WHERE id = ? AND is_active = 1 LIMIT 1',
