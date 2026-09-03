@@ -73,6 +73,32 @@ in the data file are not in the yellow set — listed in the audit's
 
 Re-extract: `py -3 DigiLog/scripts/extract_turbine_instrument_life_history.py`
 
+### Patch: 43 Instrument tags (OEM schedule + 3 SCVS full cards)
+
+Some control-valve cards had specs/history but **no OEM schedule** because the
+extractor rejected `Sr. No.` / `SrNo.` headers (fixed in
+`DigiLog/scripts/equipment_history_extract_lib.py`). The 3 SCVS UPS tags also
+needed full specs + history from `UPS HISTORY`.
+
+```bash
+# From DigiLog/backend/ with DATABASE_URL = production
+
+# 0) Deploy code that includes the Sr.No. header fix
+
+# 1) Ensure SCVS hierarchy leaves exist (safe to re-run; skips existing)
+npm run db:add-scvs-ups-hierarchy
+
+# 2) Extract from Turbine & Instrument source workbook
+npm run db:patch-43-instrument-tags:extract
+
+# 3) Dry-run, then import
+npm run db:patch-43-instrument-tags:dry-run
+npm run db:patch-43-instrument-tags:import
+```
+
+Requires source file:
+`backlog-data/mill data/migration files-24-08-26/Turbine & Instrument Equipment life histroy 20-06-2026 (2).xlsx`
+
 ### Import into the app
 
 Hierarchy import reuses the generic (discipline-agnostic) tree importer.
