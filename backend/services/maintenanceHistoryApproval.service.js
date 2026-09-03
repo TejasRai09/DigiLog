@@ -16,19 +16,26 @@ const {
   extensionForUpload,
 } = require('../utils/historyDocuments');
 const {
-  sendMaintenanceHistoryApprovalEmail,
+  sendMaintenanceHistoryDigestEmail,
   sendMaintenanceHistoryRejectedEmail,
   sendMaintenanceHistoryApprovedEmail,
 } = require('./email.service');
+
+const DIGEST_TIMEZONE = 'Asia/Kolkata';
+const DEFAULT_DIGEST_TIME = '22:00';
 
 const SETTINGS_KEYS = {
   sugar: {
     enabled: 'mh_approval_sugar_enabled',
     hodUserId: 'mh_approval_sugar_hod_user_id',
+    digestTime: 'mh_approval_sugar_digest_time',
+    digestLastSentDate: 'mh_approval_sugar_digest_last_sent_date',
   },
   power: {
     enabled: 'mh_approval_power_enabled',
     hodUserId: 'mh_approval_power_hod_user_id',
+    digestTime: 'mh_approval_power_digest_time',
+    digestLastSentDate: 'mh_approval_power_digest_last_sent_date',
   },
 };
 
@@ -180,6 +187,64 @@ function buildFieldDiff(action, previous, payload) {
   return rows;
 }
 
+function normalizeDigestTime(value) {
+  const raw = String(value || DEFAULT_DIGEST_TIME).trim();
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(raw);
+  if (!match) return null;
+  return `${String(match[1]).padStart(2, '0')}:${match[2]}`;
+}
+
+function validateDigestTime(value) {
+  return normalizeDigestTime(value) != null;
+}
+
+function getIstDateParts(date = new Date()) {
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: DIGEST_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  const parts = Object.fromEntries(
+    fmt.formatToParts(date)
+      .filter((p) => p.type !== 'literal')
+      .map((p) => [p.type, p.value]),
+  );
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${parts.minute}`,
+  };
+}
+
+function timeToMinutes(hhmm) {
+  const normalized = normalizeDigestTime(hhmm);
+  if (!normalized) return null;
+  const [h, m] = normalized.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function equipmentNameFromRequest(request) {
+  try {
+    const ctx = typeof request.equipment_context_json === 'string'
+      ? JSON.parse(request.equipment_context_json)
+      : request.equipment_context_json;
+    return ctx?.name || ctx?.equip_no || ctx?.tag_name || 'Equipment';
+  } catch {
+    return 'Equipment';
+  }
+}
+
+async function setPortalSetting(key, value) {
+  await pool.execute(
+    `INSERT INTO portal_settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    [key, value],
+  );
+}
+
 function actionLabel(action) {
   if (action === 'create') return 'Created';
   if (action === 'update') return 'Updated';
@@ -200,33 +265,42 @@ async function readPortalSettings(keys) {
 }
 
 async function getApprovalSettings() {
-  const keys = Object.values(SETTINGS_KEYS).flatMap((k) => [k.enabled, k.hodUserId]);
+  const keys = Object.values(SETTINGS_KEYS).flatMap((k) => [
+    k.enabled,
+    k.hodUserId,
+    k.digestTime,
+    k.digestLastSentDate,
+  ]);
   const map = await readPortalSettings(keys);
   return {
     sugar: {
       enabled: parseBool(map[SETTINGS_KEYS.sugar.enabled]),
       hodUserId: map[SETTINGS_KEYS.sugar.hodUserId] ? Number(map[SETTINGS_KEYS.sugar.hodUserId]) : null,
+      digestTime: normalizeDigestTime(map[SETTINGS_KEYS.sugar.digestTime]) || DEFAULT_DIGEST_TIME,
+      digestLastSentDate: map[SETTINGS_KEYS.sugar.digestLastSentDate] || '',
     },
     power: {
       enabled: parseBool(map[SETTINGS_KEYS.power.enabled]),
       hodUserId: map[SETTINGS_KEYS.power.hodUserId] ? Number(map[SETTINGS_KEYS.power.hodUserId]) : null,
+      digestTime: normalizeDigestTime(map[SETTINGS_KEYS.power.digestTime]) || DEFAULT_DIGEST_TIME,
+      digestLastSentDate: map[SETTINGS_KEYS.power.digestLastSentDate] || '',
     },
   };
 }
 
 async function updateApprovalSettings(body) {
+  const sugarDigestTime = normalizeDigestTime(body.sugar?.digestTime) || DEFAULT_DIGEST_TIME;
+  const powerDigestTime = normalizeDigestTime(body.power?.digestTime) || DEFAULT_DIGEST_TIME;
   const updates = [
     [SETTINGS_KEYS.sugar.enabled, body.sugar?.enabled ? '1' : '0'],
     [SETTINGS_KEYS.power.enabled, body.power?.enabled ? '1' : '0'],
     [SETTINGS_KEYS.sugar.hodUserId, body.sugar?.hodUserId ? String(body.sugar.hodUserId) : ''],
     [SETTINGS_KEYS.power.hodUserId, body.power?.hodUserId ? String(body.power.hodUserId) : ''],
+    [SETTINGS_KEYS.sugar.digestTime, sugarDigestTime],
+    [SETTINGS_KEYS.power.digestTime, powerDigestTime],
   ];
   for (const [key, value] of updates) {
-    await pool.execute(
-      `INSERT INTO portal_settings (setting_key, setting_value) VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [key, value],
-    );
+    await setPortalSetting(key, value);
   }
   return getApprovalSettings();
 }
@@ -526,7 +600,6 @@ async function createPendingRequest({
   };
 
   const previousSnapshot = previousRow ? snapshotFromRow(previousRow) : null;
-  const diff = buildFieldDiff(action, previousSnapshot, payload);
 
   const [result] = await pool.execute(
     `INSERT INTO maintenance_history_approval_request
@@ -553,35 +626,100 @@ async function createPendingRequest({
     ],
   );
 
-  const requestRow = {
-    id: result.insertId,
-    domain,
-    action,
-    token_accept: tokenAccept,
-    token_reject: tokenReject,
-    requested_by_name: reqUser?.name,
-    requested_by_email: reqUser?.email,
-    equipment_context_json: JSON.stringify(equipmentContext),
-  };
+  return { id: result.insertId, tokenAccept, tokenReject };
+}
 
-  try {
-    await sendMaintenanceHistoryApprovalEmail({
-      to: hod.email,
-      hodName: hod.name,
-      submitterName: reqUser?.name || 'A user',
-      submitterEmail: reqUser?.email || '',
-      domainLabel: DOMAIN_TABLES[domain].label,
-      equipmentName: equipmentContext.name || equipmentContext.equip_no || 'Equipment',
-      actionLabel: actionLabel(action),
-      diff,
-      acceptToken: tokenAccept,
-      rejectToken: tokenReject,
-    });
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] email failed:', err.message);
+async function fetchPendingForDigest(domain, istDate) {
+  const [rows] = await pool.query(
+    `SELECT * FROM maintenance_history_approval_request
+     WHERE domain = ?
+       AND status = 'pending'
+       AND hod_notified_at IS NULL
+     ORDER BY created_at ASC, id ASC`,
+    [domain],
+  );
+  return rows.filter((row) => getIstDateParts(new Date(row.created_at)).date === istDate);
+}
+
+function buildDigestEntry(request) {
+  const payload = parseJson(request.payload_json, {});
+  const previous = parseJson(request.previous_json, null);
+  const diff = buildFieldDiff(request.action, previous, payload);
+  return {
+    id: request.id,
+    equipmentName: equipmentNameFromRequest(request),
+    actionLabel: actionLabel(request.action),
+    submitterName: request.requested_by_name || 'A user',
+    submitterEmail: request.requested_by_email || '',
+    diff,
+    acceptToken: request.token_accept,
+    rejectToken: request.token_reject,
+  };
+}
+
+async function sendDigestForDomain(domain) {
+  const settings = await getApprovalSettings();
+  const domainSettings = settings[domain];
+  if (!domainSettings?.enabled) {
+    return { sent: false, reason: 'disabled' };
   }
 
-  return { id: result.insertId, tokenAccept, tokenReject };
+  const ist = getIstDateParts();
+  const pendingRows = await fetchPendingForDigest(domain, ist.date);
+
+  if (pendingRows.length === 0) {
+    await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
+    return { sent: false, count: 0 };
+  }
+
+  const hod = await resolveHodUser(domain);
+  const entries = pendingRows.map(buildDigestEntry);
+  await sendMaintenanceHistoryDigestEmail({
+    to: hod.email,
+    hodName: hod.name,
+    domainLabel: DOMAIN_TABLES[domain].label,
+    digestDate: ist.date,
+    entries,
+  });
+
+  const ids = pendingRows.map((row) => row.id);
+  const placeholders = ids.map(() => '?').join(', ');
+  await pool.execute(
+    `UPDATE maintenance_history_approval_request
+     SET hod_notified_at = NOW()
+     WHERE id IN (${placeholders})`,
+    ids,
+  );
+
+  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
+  return { sent: true, count: pendingRows.length };
+}
+
+async function runDigestSchedulerTick() {
+  const settings = await getApprovalSettings();
+  const ist = getIstDateParts();
+  const nowMinutes = timeToMinutes(ist.time);
+  if (nowMinutes == null) return;
+
+  for (const domain of ['sugar', 'power']) {
+    const domainSettings = settings[domain];
+    if (!domainSettings?.enabled) continue;
+
+    const digestMinutes = timeToMinutes(domainSettings.digestTime);
+    if (digestMinutes == null || nowMinutes < digestMinutes) continue;
+    if (domainSettings.digestLastSentDate === ist.date) continue;
+
+    try {
+      const result = await sendDigestForDomain(domain);
+      if (result.sent) {
+        console.log(`[maintenanceHistoryApproval] digest sent for ${domain}: ${result.count} item(s)`);
+      } else {
+        console.log(`[maintenanceHistoryApproval] digest tick for ${domain}: no pending items today`);
+      }
+    } catch (err) {
+      console.error(`[maintenanceHistoryApproval] digest failed for ${domain}:`, err.message);
+    }
+  }
 }
 
 async function approveByToken(token) {
@@ -703,6 +841,11 @@ module.exports = {
   createPendingRequest,
   approveByToken,
   rejectByToken,
+  fetchPendingForDigest,
+  sendDigestForDomain,
+  runDigestSchedulerTick,
+  validateDigestTime,
+  normalizeDigestTime,
   buildFieldDiff,
   actionLabel,
   snapshotFromRow,

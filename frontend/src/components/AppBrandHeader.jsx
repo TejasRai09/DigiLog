@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import DigiLogBrandMark from './DigiLogBrandMark';
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -26,21 +27,9 @@ export default function AppBrandHeader() {
           </a>
           <Link
             to="/"
-            className="flex min-w-0 shrink items-center gap-2 rounded-lg py-0.5 sm:gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            className="flex min-w-0 shrink items-center rounded-lg py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
-            <img
-              src="/logo.png"
-              alt="DigiLog"
-              className="h-10 w-10 shrink-0 object-contain sm:h-11 sm:w-11 md:h-12 md:w-12"
-              width={48}
-              height={48}
-            />
-            <div className="hidden min-w-0 flex-col text-left leading-tight sm:flex">
-              <span className="text-sm font-bold text-blue-700 sm:text-base">DigiLog</span>
-              <span className="max-w-[8rem] truncate text-[10px] text-gray-500 sm:max-w-none sm:text-xs">
-                Your digital logbook
-              </span>
-            </div>
+            <DigiLogBrandMark size="md" />
           </Link>
         </div>
       </div>

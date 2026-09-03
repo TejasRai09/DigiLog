@@ -9,6 +9,7 @@ import {
   MdSync,
 } from 'react-icons/md';
 import MobileNavDrawer from '../MobileNavDrawer';
+import DigiLogBrandMark from '../DigiLogBrandMark';
 
 const SECTION_LINKS = [
   {
@@ -79,24 +80,7 @@ export default function MarketingSiteNav({ onLoginClick }) {
               />
             </div>
             <div className="hidden h-6 w-px bg-slate-200 sm:block" />
-            <div className="flex min-w-0 items-center gap-2">
-              <img
-                src="/logo.png"
-                alt="DigiLog"
-                width={36}
-                height={36}
-                className="h-8 w-8 shrink-0 object-contain sm:h-9 sm:w-9"
-                decoding="async"
-              />
-              <div className="flex min-w-0 flex-col text-left">
-                <span className="truncate text-sm font-extrabold leading-none tracking-tight text-slate-900">
-                  DigiLog
-                </span>
-                <span className="mt-0.5 hidden text-[9px] font-semibold uppercase tracking-wider text-slate-400 sm:block">
-                  Your digital logbook
-                </span>
-              </div>
-            </div>
+            <DigiLogBrandMark size="sm" titleTone="slate" hideTitleBelow="none" />
           </Link>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-4 md:gap-6">

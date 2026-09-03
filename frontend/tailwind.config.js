@@ -7,6 +7,15 @@ export default {
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        'staging-marquee': {
+          '0%': { transform: 'translateX(-50%)' },
+          '100%': { transform: 'translateX(0)' },
+        },
+      },
+      animation: {
+        'staging-marquee': 'staging-marquee 28s linear infinite',
+      },
       colors: {
         brand: {
           50: '#f0fdf4',

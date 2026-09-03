@@ -24,6 +24,7 @@ const biPowerHouseRoutes = require('./routes/biPowerHouse.routes');
 const activityRoutes = require('./routes/activity.routes');
 const maintenanceApprovalRoutes = require('./routes/maintenanceApproval.routes');
 const { expireStaleSessions } = require('./utils/sessionActivity');
+const { runDigestSchedulerTick } = require('./services/maintenanceHistoryApproval.service');
 
 const app = express();
 
@@ -38,6 +39,13 @@ testMysqlConnection();
 setInterval(() => {
   expireStaleSessions(pool).catch((err) => {
     console.error('[sessionSweeper]', err.message);
+  });
+}, 60 * 1000);
+
+// Daily HOD maintenance history digest (IST, per-domain time in admin config)
+setInterval(() => {
+  runDigestSchedulerTick().catch((err) => {
+    console.error('[maintenanceDigestScheduler]', err.message);
   });
 }, 60 * 1000);
 

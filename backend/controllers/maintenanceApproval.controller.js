@@ -5,6 +5,7 @@ const {
   DOMAIN_TABLES,
 } = require('../services/maintenanceHistoryApproval.service');
 const { CLIENT_ORIGIN, APP_LOGO_URL } = require('../config/env');
+const { brandTitleHtml } = require('../utils/digilogBrand');
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -114,6 +115,12 @@ function renderHtmlPage({ title, message, tone = 'info' }) {
       font-weight: 700;
       color: #1d4ed8;
     }
+    .brand-version {
+      font-size: 10px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-left: 2px;
+    }
     .brand-tagline {
       font-size: 11px;
       color: #6b7280;
@@ -175,7 +182,7 @@ function renderHtmlPage({ title, message, tone = 'info' }) {
     <a class="brand-link" href="${escapeHtml(publicBase || '/')}">
       <img class="digilog-logo" src="${escapeHtml(logoUrl)}" alt="DigiLog" />
       <span class="brand-text">
-        <span class="brand-name">DigiLog</span>
+        ${brandTitleHtml({ color: '#1d4ed8', fontSize: '16px', versionColor: '#94a3b8' })}
         <span class="brand-tagline">Your digital logbook</span>
       </span>
     </a>

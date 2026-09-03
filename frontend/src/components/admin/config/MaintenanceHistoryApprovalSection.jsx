@@ -11,9 +11,11 @@ function ApprovalCard({
   icon: Icon,
   enabled,
   hodUserId,
+  digestTime,
   employees,
   onToggle,
   onHodChange,
+  onDigestTimeChange,
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/40 p-5 space-y-4">
@@ -55,6 +57,22 @@ function ApprovalCard({
           ))}
         </select>
       </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
+          Daily digest time (IST)
+        </label>
+        <input
+          type="time"
+          value={digestTime || '22:00'}
+          onChange={(e) => onDigestTimeChange(e.target.value || '22:00')}
+          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+        />
+        <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+          One email to the HOD at this time with all maintenance changes submitted that calendar day.
+          Each entry has its own Accept / Send for modification buttons.
+        </p>
+      </div>
     </div>
   );
 }
@@ -63,8 +81,8 @@ export default function MaintenanceHistoryApprovalSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [employees, setEmployees] = useState([]);
-  const [sugar, setSugar] = useState({ enabled: false, hodUserId: null });
-  const [power, setPower] = useState({ enabled: false, hodUserId: null });
+  const [sugar, setSugar] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
+  const [power, setPower] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
 
   useEffect(() => {
     let cancelled = false;
@@ -73,8 +91,8 @@ export default function MaintenanceHistoryApprovalSection() {
         const { data } = await api.get('/admin/maintenance-history-approval-settings');
         if (cancelled) return;
         setEmployees(data.employees || []);
-        setSugar(data.sugar || { enabled: false, hodUserId: null });
-        setPower(data.power || { enabled: false, hodUserId: null });
+        setSugar(data.sugar || { enabled: false, hodUserId: null, digestTime: '22:00' });
+        setPower(data.power || { enabled: false, hodUserId: null, digestTime: '22:00' });
       } catch {
         if (!cancelled) toast.error('Failed to load maintenance history approval settings.');
       } finally {
@@ -101,7 +119,7 @@ export default function MaintenanceHistoryApprovalSection() {
   return (
     <ConfigSectionPanel
       title="Maintenance History Approval"
-      description="When enabled, maintenance history add/edit/delete on Sugar House and Power Plant equipment cards is held pending until the configured HOD accepts via email."
+      description="When enabled, maintenance history add/edit/delete on Sugar House and Power Plant equipment cards is held pending until the configured HOD accepts via the daily digest email."
       actions={
         loading ? <Spinner size="sm" /> : (
           <button
@@ -126,9 +144,11 @@ export default function MaintenanceHistoryApprovalSection() {
             icon={MdDomain}
             enabled={sugar.enabled}
             hodUserId={sugar.hodUserId}
+            digestTime={sugar.digestTime}
             employees={employees}
             onToggle={(enabled) => setSugar((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setSugar((s) => ({ ...s, hodUserId }))}
+            onDigestTimeChange={(digestTime) => setSugar((s) => ({ ...s, digestTime }))}
           />
           <ApprovalCard
             title="Power Plant"
@@ -136,9 +156,11 @@ export default function MaintenanceHistoryApprovalSection() {
             icon={MdFactory}
             enabled={power.enabled}
             hodUserId={power.hodUserId}
+            digestTime={power.digestTime}
             employees={employees}
             onToggle={(enabled) => setPower((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setPower((s) => ({ ...s, hodUserId }))}
+            onDigestTimeChange={(digestTime) => setPower((s) => ({ ...s, digestTime }))}
           />
         </div>
       )}

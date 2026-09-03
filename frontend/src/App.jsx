@@ -5,6 +5,7 @@ import useAuth from './hooks/useAuth';
 import Spinner from './components/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
+import StagingBanner from './components/StagingBanner';
 
 /** Eager: shell / first paint only */
 import MarketingLanding from './pages/MarketingLanding';
@@ -85,6 +86,7 @@ const App = () => {
   return (
     <>
       {user && <Navbar />}
+      <StagingBanner />
       <Suspense fallback={<Spinner fullScreen />}>
         <Routes>
           {/* Public */}
