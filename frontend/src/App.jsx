@@ -30,6 +30,7 @@ const EmployeeManagement = lazy(() => import('./pages/admin/EmployeeManagement')
 const AdminConfig = lazy(() => import('./pages/admin/AdminConfig'));
 const MaintenanceApprovalResult = lazy(() => import('./pages/MaintenanceApprovalResult'));
 const MaintenanceApprovalReview = lazy(() => import('./pages/MaintenanceApprovalReview'));
+const MaintenanceApprovals = lazy(() => import('./pages/MaintenanceApprovals'));
 const DataIngestionCenter = lazy(() => import('./pages/DataIngestionCenter'));
 
 const EquipmentTemp = lazy(() => import('./pages/forms/mill/EquipmentTemp'));
@@ -101,6 +102,7 @@ const App = () => {
           <Route path="/maintenance-approval/reject" element={<MaintenanceApprovalResult mode="reject" />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<HomeLanding />} />
+            <Route path="/maintenance/approvals" element={<MaintenanceApprovals />} />
             <Route path="/data-upload" element={<DataIngestionCenter />} />
             <Route path="/forms-hub" element={<Dashboard />} />
             <Route path="/bi" element={<BiControlTower />} />

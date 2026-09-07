@@ -1,19 +1,27 @@
 export const APP_VERSION = 'v1';
 
-/** "DigiLog" title with small version label (e.g. v1). */
+const VERSION_LETTER = APP_VERSION.replace(/[0-9].*$/, '') || 'v';
+const VERSION_NUMBER = APP_VERSION.replace(/^[^0-9]*/, '') || '1';
+
+/** "DigiLog" title with version label (v1) — same size as DigiLog letters, grey, not bold. */
 export function DigiLogTitle({
   className = '',
   titleClassName = '',
   versionClassName = '',
 }) {
   return (
-    <span className={`inline-flex items-baseline gap-0.5 ${className}`}>
-      <span className={titleClassName}>DigiLog</span>
-      <span
-        className={`text-[0.62em] font-semibold leading-none text-slate-400 ${versionClassName}`}
-        aria-label={`version ${APP_VERSION}`}
-      >
-        {APP_VERSION}
+    <span className={`inline-flex items-baseline gap-1 ${className}`}>
+      <span className={`inline-flex items-baseline gap-1 ${titleClassName}`}>
+        <span>DigiLog</span>
+        <span
+          className={`inline-flex items-baseline !font-normal !text-slate-400 ${versionClassName}`}
+          aria-label={`version ${APP_VERSION}`}
+        >
+          <span>(</span>
+          <span>{VERSION_LETTER}</span>
+          <span>{VERSION_NUMBER}</span>
+          <span>)</span>
+        </span>
       </span>
     </span>
   );
@@ -75,14 +83,14 @@ export default function DigiLogBrandMark({
         />
         {showTitle && hideTitleBelow === 'sm' && (
           <span className="absolute -bottom-0.5 -right-1 rounded bg-white/90 px-0.5 text-[8px] font-bold leading-none text-slate-400 sm:hidden">
-            {APP_VERSION}
+            ({APP_VERSION})
           </span>
         )}
       </div>
 
       {showTitle && (
         <div className={`min-w-0 flex-col text-left leading-tight ${hideTitleClass} ${stacked ? '!flex text-center' : ''}`}>
-          <DigiLogTitle titleClassName={titleToneClass} versionClassName={titleTone === 'white' ? 'text-slate-400' : ''} />
+          <DigiLogTitle titleClassName={titleToneClass} />
           {showTagline && (
             <span className={taglineClassName || defaultTaglineClass}>
               Your digital logbook

@@ -3,11 +3,13 @@ import DigiLogLoginModal from '../components/DigiLogLoginModal';
 import MarketingSiteNav from '../components/marketing/MarketingSiteNav';
 import OperationsDeskCard from '../components/marketing/OperationsDeskCard';
 import { useOpenLoginFromQuery } from '../hooks/useOpenLoginFromQuery';
+import { usePostLoginRedirect } from '../hooks/usePostLoginRedirect';
 
 /** Public preview of the operations desk (big card) at `/operations-desk`. */
 export default function MarketingDashboard() {
   const [loginOpen, setLoginOpen] = useState(false);
   useOpenLoginFromQuery(setLoginOpen);
+  usePostLoginRedirect();
 
   useEffect(() => {
     const onKey = (e) => {

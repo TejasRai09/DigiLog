@@ -4,6 +4,7 @@ const {
   getApprovalSettings,
   updateApprovalSettings,
   validateDigestTime,
+  sendDigestForDomain,
 } = require('../services/maintenanceHistoryApproval.service');
 
 const getMaintenanceHistoryApprovalSettings = async (_req, res) => {
@@ -67,7 +68,33 @@ const putMaintenanceHistoryApprovalSettings = async (req, res) => {
   }
 };
 
+const postResendMaintenanceHistoryDigest = async (req, res) => {
+  try {
+    const domain = String(req.body?.domain || '').trim();
+    const mode = String(req.body?.mode || 'all').trim() === 'new' ? 'new' : 'all';
+    if (domain !== 'sugar' && domain !== 'power') {
+      return res.status(400).json({ message: 'domain must be sugar or power.' });
+    }
+    const result = await sendDigestForDomain(domain, { force: true, mode });
+    if (!result.sent) {
+      return res.status(200).json({
+        message: result.message || 'No digest sent.',
+        ...result,
+      });
+    }
+    return res.json({
+      message: mode === 'new'
+        ? `Emailed ${result.count} new pending item(s) to the ${domain === 'sugar' ? 'Sugar House' : 'Power Plant'} HOD.`
+        : `Resent digest with ${result.count} pending item(s) to the ${domain === 'sugar' ? 'Sugar House' : 'Power Plant'} HOD.`,
+      ...result,
+    });
+  } catch (err) {
+    sendServerError(res, 'postResendMaintenanceHistoryDigest:', err, MSG.SAVE);
+  }
+};
+
 module.exports = {
   getMaintenanceHistoryApprovalSettings,
   putMaintenanceHistoryApprovalSettings,
+  postResendMaintenanceHistoryDigest,
 };
