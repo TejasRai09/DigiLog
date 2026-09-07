@@ -14,6 +14,13 @@ const {
   rowToPayload,
 } = require('../utils/ppnHierarchyLib');
 const { isProtectedSeededNodeId } = require('../utils/ppnHierarchyProtection');
+const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
+
+async function assertPowerLockedDenied(req, nodeId, tree, actionLabel) {
+  if (!(await isProtectedSeededNodeId(nodeId, tree))) return null;
+  if (await canManageLockedCards(req.user, 'power')) return null;
+  return `Built-in hierarchy items cannot be ${actionLabel}.`;
+}
 
 const getTree = async (req, res) => {
   try {
@@ -113,8 +120,9 @@ const updateNode = async (req, res) => {
     if (!existing) return res.status(404).json({ message: 'Node not found.' });
 
     const tree = await getHierarchyTree();
-    if (await isProtectedSeededNodeId(id, tree)) {
-      return res.status(403).json({ message: 'Built-in hierarchy items cannot be edited.' });
+    const denied = await assertPowerLockedDenied(req, id, tree, 'edited');
+    if (denied) {
+      return res.status(403).json({ message: denied });
     }
 
     const name = req.body.name != null ? String(req.body.name).trim() : existing.name;
@@ -251,8 +259,9 @@ const deleteNode = async (req, res) => {
     if (!id) return res.status(400).json({ message: 'Invalid node id.' });
 
     const tree = await getHierarchyTree();
-    if (await isProtectedSeededNodeId(id, tree)) {
-      return res.status(403).json({ message: 'Built-in hierarchy items cannot be deleted.' });
+    const denied = await assertPowerLockedDenied(req, id, tree, 'deleted');
+    if (denied) {
+      return res.status(403).json({ message: denied });
     }
 
     const [[rootRow]] = await pool.execute(

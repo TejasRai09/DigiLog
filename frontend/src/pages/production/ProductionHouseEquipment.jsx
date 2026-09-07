@@ -115,6 +115,9 @@ const ProductionHouseEquipment = () => {
                     </div>
                     <div className="min-w-0">
                       <h3 className="text-sm font-semibold text-gray-900 leading-snug">{eq.name}</h3>
+                      {eq.isImported ? (
+                        <p className="text-[10px] font-medium text-slate-500 mt-0.5">Imported</p>
+                      ) : null}
                       <p className="text-xs text-gray-500 mt-1">
                         {productionHouseSectionLabel(eq.house_section)}
                         {eq.type ? ` · ${eq.type}` : ''}

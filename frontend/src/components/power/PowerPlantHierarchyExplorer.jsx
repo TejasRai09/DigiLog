@@ -37,6 +37,7 @@ import {
   splitSugarLeafLabel,
 } from '../../utils/hierarchyTreeUtils';
 import { isZilEquipNo } from '../../config/powerEquipmentFields';
+import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
@@ -358,6 +359,8 @@ export default function PowerPlantHierarchyExplorer({
   const [view, setView] = useState(VIEW_CARDS);
   const [opening, setOpening] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const { canManageApiBase } = useLockedCardManageAccess();
+  const canManageLockedCards = canManageApiBase(apiBase);
 
   const isDbTree = hierarchySource === 'database';
 
@@ -385,6 +388,7 @@ export default function PowerPlantHierarchyExplorer({
     isDbTree,
     apiBase,
     getAddAction,
+    canManageLockedCards,
   });
 
   const updateNavigation = (nextPathIds, nextActiveEquipmentId = null) => {
@@ -433,7 +437,7 @@ export default function PowerPlantHierarchyExplorer({
   }, [activeEquipment, currentNode, tree, apiBase, pathIds]);
 
   const cardManageActionsEnabled = (node) =>
-    isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase);
+    isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase, canManageLockedCards);
 
   const buildNavState = (node, specSection = null) => ({
     appId: appId != null && appId !== '' ? String(appId) : undefined,

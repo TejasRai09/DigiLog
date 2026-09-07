@@ -46,10 +46,10 @@ function isSugarSubEquipmentSlots(modalOrAction) {
   return Boolean(modalOrAction?.sugarLeafFields);
 }
 
-function childToSlot(child, { kind, tree, apiBase, sugarLeafFields, sortOrder = 0 }) {
+function childToSlot(child, { kind, tree, apiBase, sugarLeafFields, sortOrder = 0, canManage = false }) {
   const locked =
-    (kind === 'category' && isProtectedRootCategoryName(child.name))
-    || isHierarchyNodeLocked(tree, child, apiBase);
+    (kind === 'category' && isProtectedRootCategoryName(child.name) && !canManage)
+    || isHierarchyNodeLocked(tree, child, apiBase, canManage);
 
   if (sugarLeafFields && kind === 'equipment') {
     const parts = splitSugarLeafLabel(child);
@@ -199,6 +199,7 @@ export function useHierarchyManage({
   isDbTree = false,
   apiBase = '/power-new',
   getAddAction = hierarchyAddAction,
+  canManageLockedCards = false,
 }) {
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState(null);
@@ -224,6 +225,7 @@ export function useHierarchyManage({
         apiBase,
         sugarLeafFields,
         sortOrder: index,
+        canManage: canManageLockedCards,
       }),
     );
     const existingIds = existing.map((s) => s.dbId).filter(Boolean);
@@ -247,7 +249,7 @@ export function useHierarchyManage({
   };
 
   const openEdit = (node) => {
-    if (isHierarchyNodeLocked(tree, node, apiBase)) return;
+    if (isHierarchyNodeLocked(tree, node, apiBase, canManageLockedCards)) return;
     setModalError('');
     if (apiBase === '/sugar-new' && node.nodeType === 'equipment') {
       const parts = splitSugarLeafLabel(node);
@@ -623,7 +625,7 @@ export function useHierarchyManage({
   };
 
   const deleteNode = async (node) => {
-    if (isHierarchyNodeLocked(tree, node, apiBase)) return;
+    if (isHierarchyNodeLocked(tree, node, apiBase, canManageLockedCards)) return;
     if (!window.confirm(`Delete "${node.name}"?`)) return;
     const nodeId = node.dbId ?? Number(node.id);
     setSaving(true);
