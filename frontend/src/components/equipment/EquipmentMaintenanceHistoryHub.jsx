@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   MdAdd,
   MdChevronLeft,
@@ -284,36 +284,9 @@ export default function EquipmentMaintenanceHistoryHub({
   historyApiBase = '',
   equipId = null,
   observationRequired = true,
-  focusApprovalRequestId = null,
-  onFocusHandled = null,
 }) {
   const { user } = useAuth();
   const canDelete = user?.role === 'admin' && typeof onDelete === 'function';
-  const canEditRecord = (record) => (
-    !record?.pendingRequestId || record.pendingStatus === 'needs_modification'
-  );
-  const approvalBadge = (record) => {
-    if (!record?.pendingRequestId) return null;
-    if (record.pendingStatus === 'needs_modification') {
-      return (
-        <span className="ml-1 inline-flex rounded-full bg-orange-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-700">
-          Needs modification
-        </span>
-      );
-    }
-    if (record.pendingAction === 'delete') {
-      return (
-        <span className="ml-1 inline-flex rounded-full bg-rose-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-rose-700">
-          Delete pending
-        </span>
-      );
-    }
-    return (
-      <span className="ml-1 inline-flex rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
-        Pending HOD approval
-      </span>
-    );
-  };
   const showEquipmentPicker = equipmentOptions.length > 0;
   const records = useMemo(
     () => apiRecords.map(historyRecordFromApi),
@@ -375,37 +348,6 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxCaption, setLightboxCaption] = useState('');
-  const [highlightedRequestId, setHighlightedRequestId] = useState(null);
-  const focusHandledRef = useRef(null);
-  const isFocusHighlighted = (row) => {
-    const focusId = Number(highlightedRequestId);
-    const rowId = Number(row?.pendingRequestId);
-    return Number.isFinite(focusId) && focusId > 0
-      && Number.isFinite(rowId) && rowId > 0
-      && rowId === focusId;
-  };
-  const isApprovalHighlighted = (row) => Boolean(row?.pendingRequestId);
-  const rowEmphasisClass = (row) => {
-    if (isFocusHighlighted(row)) {
-      return 'bg-amber-50 ring-2 ring-inset ring-amber-400';
-    }
-    if (!isApprovalHighlighted(row)) return '';
-    if (row.pendingStatus === 'needs_modification') {
-      return 'bg-orange-50/90';
-    }
-    // Pending HOD approval / delete pending / resubmitted
-    return 'bg-amber-50/90';
-  };
-  const mobileEmphasisClass = (row) => {
-    if (isFocusHighlighted(row)) {
-      return 'border-amber-400 ring-2 ring-amber-300 bg-amber-50/60';
-    }
-    if (!isApprovalHighlighted(row)) return 'border-slate-200/60';
-    if (row.pendingStatus === 'needs_modification') {
-      return 'border-orange-300 bg-orange-50/80';
-    }
-    return 'border-amber-300 bg-amber-50/80';
-  };
 
   const fileBeforeRef = useRef(null);
   const fileAfterRef = useRef(null);
@@ -442,18 +384,7 @@ export default function EquipmentMaintenanceHistoryHub({
 
         return matchesSearch && matchesSeason && matchesYear && matchesEquipment;
       })
-      .sort((a, b) => {
-        // Needs-modification first, then other pending approval rows, then by created_at.
-        const rank = (row) => {
-          if (row.pendingStatus === 'needs_modification') return 0;
-          if (row.pendingRequestId) return 1;
-          return 2;
-        };
-        const aRank = rank(a);
-        const bRank = rank(b);
-        if (aRank !== bRank) return aRank - bRank;
-        return compareMaintenanceHistoryByDate(a, b, startSortOrder);
-      });
+      .sort((a, b) => compareMaintenanceHistoryByDate(a, b, startSortOrder));
   }, [records, searchQuery, seasonFilter, yearFilter, equipmentFilter, equipmentLabelMap, startSortOrder]);
 
   const totalPages = Math.ceil(filteredRecords.length / ITEMS_PER_PAGE) || 1;
@@ -461,45 +392,6 @@ export default function EquipmentMaintenanceHistoryHub({
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredRecords.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredRecords, currentPage]);
-
-  useEffect(() => {
-    const focusId = Number(focusApprovalRequestId);
-    if (!focusId || Number.isNaN(focusId)) return;
-    if (focusHandledRef.current === focusId) return;
-    if (!filteredRecords.length) return;
-
-    const idx = filteredRecords.findIndex(
-      (row) => Number(row.pendingRequestId) === focusId,
-    );
-    if (idx < 0) return;
-
-    const page = Math.floor(idx / ITEMS_PER_PAGE) + 1;
-    setCurrentPage(page);
-    setHighlightedRequestId(focusId);
-    const row = filteredRecords[idx];
-
-    const timer = window.setTimeout(() => {
-      focusHandledRef.current = focusId;
-      const el = document.querySelector(`[data-approval-request-id="${focusId}"]`);
-      if (el?.scrollIntoView) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      if (row?.pendingStatus === 'needs_modification') {
-        openEdit(row);
-      }
-      if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
-    }, 120);
-
-    const clearHighlight = window.setTimeout(() => {
-      setHighlightedRequestId((prev) => (Number(prev) === focusId ? null : prev));
-    }, 8000);
-
-    return () => {
-      window.clearTimeout(timer);
-      window.clearTimeout(clearHighlight);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusApprovalRequestId, filteredRecords, onFocusHandled]);
 
   const openAdd = () => {
     setIsEditing(false);
@@ -516,7 +408,6 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const openEdit = (record, e) => {
     if (e) e.stopPropagation();
-    if (record?.pendingRequestId && record.pendingStatus !== 'needs_modification') return;
     setIsEditing(true);
     setSelectedRecord(record);
     const snapshot = formSnapshotFromRecord(record);
@@ -551,10 +442,6 @@ export default function EquipmentMaintenanceHistoryHub({
   const handleDelete = async (record, e) => {
     if (e) e.stopPropagation();
     if (!canDelete || !record?.id) return;
-    if (record.pendingRequestId) {
-      window.alert('This record already has a pending HOD request.');
-      return;
-    }
     const label = formatEntryId(record.id);
     if (!window.confirm(`Delete maintenance history record ${label}? This cannot be undone.`)) return;
     await onDelete(record.id);
@@ -594,7 +481,7 @@ export default function EquipmentMaintenanceHistoryHub({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canSave) return;
-    await onSave(form, isEditing ? 'edit' : 'add', selectedRecord?.id, selectedRecord);
+    await onSave(form, isEditing ? 'edit' : 'add', selectedRecord?.id);
     setFormOpen(false);
   };
 
@@ -645,8 +532,8 @@ export default function EquipmentMaintenanceHistoryHub({
   );
 
   const sortFilterOptions = useMemo(() => ([
-    { value: 'desc', label: 'Created: Newest first' },
-    { value: 'asc', label: 'Created: Oldest first' },
+    { value: 'desc', label: 'Start: Newest first' },
+    { value: 'asc', label: 'Start: Oldest first' },
   ]), []);
 
   const toolbar = (
@@ -757,16 +644,10 @@ export default function EquipmentMaintenanceHistoryHub({
             {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
               <tr
                 key={row.id}
-                data-approval-request-id={row.pendingRequestId || undefined}
-                className={`hover:bg-slate-50/50 transition-colors group cursor-pointer ${rowEmphasisClass(row)}`}
+                className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
                 onClick={() => openDetail(row)}
               >
-                <td className="px-5 py-3.5 font-mono font-bold text-slate-800">
-                  <div className="flex flex-col gap-1">
-                    <span>{formatEntryId(row.id)}</span>
-                    {approvalBadge(row)}
-                  </div>
-                </td>
+                <td className="px-5 py-3.5 font-mono font-bold text-slate-800">{formatEntryId(row.id)}</td>
                 {showEquipmentPicker && (
                   <td className="px-5 py-3.5 text-slate-800 font-semibold max-w-[140px] truncate" title={labelForRecord(row)}>
                     {labelForRecord(row)}
@@ -789,11 +670,9 @@ export default function EquipmentMaintenanceHistoryHub({
                     <button type="button" onClick={() => openDetail(row)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="View">
                       <MdVisibility className="w-4 h-4" />
                     </button>
-                    {canEditRecord(row) && (
-                      <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
-                        <MdEdit className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
+                      <MdEdit className="w-3.5 h-3.5" />
+                    </button>
                     {canDelete && (
                       <button type="button" onClick={(e) => handleDelete(row, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
                         <MdDelete className="w-3.5 h-3.5" />
@@ -819,11 +698,7 @@ export default function EquipmentMaintenanceHistoryHub({
   const mobileCards = (
     <div className="md:hidden px-4 py-4 space-y-3">
       {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
-        <div
-          key={row.id}
-          data-approval-request-id={row.pendingRequestId || undefined}
-          className={`bg-white rounded-2xl p-4 border shadow-sm space-y-3 ${mobileEmphasisClass(row)}`}
-        >
+        <div key={row.id} className="bg-white rounded-2xl p-4 border border-slate-200/60 shadow-sm space-y-3">
           {showEquipmentPicker && (
             <p className="text-[10px] font-bold uppercase tracking-wide text-violet-600 truncate">
               {labelForRecord(row)}
@@ -834,7 +709,6 @@ export default function EquipmentMaintenanceHistoryHub({
               <span className="bg-slate-100 text-slate-600 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0">
                 {formatEntryId(row.id)}
               </span>
-              {approvalBadge(row)}
               <h3 className="text-xs font-bold text-slate-800 truncate">{row.observation || row.action || '—'}</h3>
             </div>
             <SeasonBadge season={row.season} />
@@ -858,11 +732,9 @@ export default function EquipmentMaintenanceHistoryHub({
               <button type="button" onClick={() => openDetail(row)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
                 <MdVisibility className="w-3.5 h-3.5" />
               </button>
-              {canEditRecord(row) && (
-                <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-blue-600">
-                  <MdEdit className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-blue-600">
+                <MdEdit className="w-3.5 h-3.5" />
+              </button>
               {canDelete && (
                 <button type="button" onClick={(e) => handleDelete(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-red-600">
                   <MdDelete className="w-3.5 h-3.5" />
@@ -930,11 +802,7 @@ export default function EquipmentMaintenanceHistoryHub({
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
           <div>
             <h3 className="text-base font-bold text-slate-800">
-              {isEditing ? (
-              selectedRecord?.pendingStatus === 'needs_modification'
-                ? 'Revise and resubmit'
-                : 'Edit History Record'
-            ) : 'Add History Record'}
+              {isEditing ? 'Edit History Record' : 'Add History Record'}
             </h3>
             {isEditing && selectedRecord && (
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
@@ -949,11 +817,6 @@ export default function EquipmentMaintenanceHistoryHub({
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-4 text-sm">
-            {selectedRecord?.hodComment && (
-              <div className="rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-orange-900">
-                <span className="font-bold">HOD comment:</span> {selectedRecord.hodComment}
-              </div>
-            )}
             {showEquipmentPicker && (
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1.5">

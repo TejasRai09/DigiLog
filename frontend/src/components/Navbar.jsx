@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MdLogout, MdHome, MdUpload, MdMenu, MdSettings, MdFactCheck } from 'react-icons/md';
+import { MdLogout, MdHome, MdUpload, MdMenu, MdSettings } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
-import useHodApprovalAccess from '../hooks/useHodApprovalAccess';
 import ProfileModal from './ProfileModal';
 import MobileNavDrawer from './MobileNavDrawer';
 import AuthenticatedImage from './AuthenticatedImage';
 import DigiLogBrandMark from './DigiLogBrandMark';
-import NotificationBell from './notifications/NotificationBell';
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -18,7 +16,6 @@ const ADVENTZ_LOGO_URL =
 const Navbar = () => {
   const { user, logout, refreshUser } = useAuth();
   const { enabled: dataUploadEnabled } = useDataUploadAccess();
-  const { enabled: hodApprovalsEnabled } = useHodApprovalAccess();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -32,15 +29,11 @@ const Navbar = () => {
 
   const navItems = [
     { to: '/dashboard', label: 'Home', Icon: MdHome, show: true },
-    { to: '/maintenance/approvals', label: 'Approvals', Icon: MdFactCheck, show: hodApprovalsEnabled },
     { to: '/data-upload', label: 'Data Upload', Icon: MdUpload, show: dataUploadEnabled },
     { to: '/admin/config', label: 'Config', Icon: MdSettings, show: user?.role === 'admin' },
   ].filter((item) => item.show);
 
   const isNavActive = (to) => {
-    if (to === '/maintenance/approvals') {
-      return pathname === '/maintenance/approvals' || pathname.startsWith('/maintenance/approvals');
-    }
     if (to === '/admin/config') {
       return pathname === '/admin/config' || pathname === '/admin/employees' || pathname === '/admin/mappings';
     }
@@ -56,7 +49,7 @@ const Navbar = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
+      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm">
         <div className="flex w-full min-h-[3.75rem] items-center gap-2 py-2 sm:min-h-16 sm:gap-3">
           <div className="flex min-w-0 shrink-0 items-center gap-2 pl-1 sm:gap-3 sm:pl-2 md:gap-4 md:pl-3">
             <a
@@ -137,7 +130,6 @@ const Navbar = () => {
                 user?.name?.[0] ?? '?'
               )}
             </button>
-            <NotificationBell />
             <button
               type="button"
               onClick={() => {

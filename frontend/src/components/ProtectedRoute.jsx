@@ -1,15 +1,10 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import { rememberPostLoginRedirect } from '../utils/postLoginRedirect';
 
 const ProtectedRoute = ({ requiredRole }) => {
   const { user } = useAuth();
-  const location = useLocation();
 
   if (!user) {
-    if (requiredRole !== 'admin') {
-      rememberPostLoginRedirect(`${location.pathname}${location.search || ''}`);
-    }
     const dest = requiredRole === 'admin' ? '/admin/login' : '/?login=1';
     return <Navigate to={dest} replace />;
   }

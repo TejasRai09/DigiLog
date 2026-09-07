@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react';
-import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
@@ -34,8 +34,6 @@ const HIST_FETCH_LIMIT = 200;
 
 const PowerEquipmentDetail = () => {
   const { id, dept, discipline: disciplineParam } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const focusApprovalRequestId = searchParams.get('approvalRequestId');
   const navigate = useNavigate();
   const location = useLocation();
   const isPowerNewHub = location.pathname.startsWith('/power-plant-equipment-new');
@@ -147,18 +145,6 @@ const PowerEquipmentDetail = () => {
   const [open, setOpen] = useState({ spec: false, oem: false, hist: false });
   const toggle = (s) => setOpen(o => ({ ...o, [s]: !o[s] }));
 
-  useEffect(() => {
-    if (!focusApprovalRequestId) return;
-    setOpen((o) => (o.hist ? o : { ...o, hist: true }));
-  }, [focusApprovalRequestId]);
-
-  const clearFocusApprovalRequest = useCallback(() => {
-    if (!searchParams.has('approvalRequestId')) return;
-    const next = new URLSearchParams(searchParams);
-    next.delete('approvalRequestId');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
   const loadHistory = async (equipId) => {
     const eid = equipId ?? equipIdRef.current;
     if (eid === 'new') return;
@@ -195,11 +181,8 @@ const PowerEquipmentDetail = () => {
       setEq(data.equipment);
       setSpecs(data.specs);
       setSchedule(data.schedule);
-      // Always load history via /history so pending approval overlays
-      // (create / needs_modification) are included — getEquipment history has none.
-      if (isNewHub) {
-        const params = { page: 1, limit: HIST_FETCH_LIMIT };
-        if (specSection) params.section = specSection;
+      if (isNewHub && specSection) {
+        const params = { page: 1, limit: HIST_FETCH_LIMIT, section: specSection };
         const histRes = await api.get(`${apiBase}/${id}/history`, { params });
         setHistory(histRes.data.records);
         setHistTotal(histRes.data.total);
@@ -338,22 +321,14 @@ const PowerEquipmentDetail = () => {
     }
   };
 
-  const saveMaintenanceRecord = async (form, mode, recordId, record) => {
+  const saveMaintenanceRecord = async (form, mode, recordId) => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
-      if (record?.pendingStatus === 'needs_modification' && record.pendingRequestId) {
-        const body = historyRecordToApi(form);
-        await api.put(`/change-requests/${record.pendingRequestId}/resubmit`, body);
-        toast.success('Resubmitted for HOD approval.');
-        await loadHistory(equipId);
-        return;
-      }
       if (isNewHub) {
         const result = await saveHistoryWithDocuments({ apiBase, equipId, form, mode, recordId });
         if (result?.pending) {
-          toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
-          await loadHistory(equipId);
+          toast.success('Sent to HOD for approval. It will appear after approval.');
           return;
         }
       } else {
@@ -365,8 +340,7 @@ const PowerEquipmentDetail = () => {
           response = await api.put(`${apiBase}/${equipId}/history/${recordId}`, body);
         }
         if (response.status === 202 || response.data?.pending) {
-          toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
-          await loadHistory(equipId);
+          toast.success('Sent to HOD for approval. It will appear after approval.');
           return;
         }
       }
@@ -386,8 +360,7 @@ const PowerEquipmentDetail = () => {
       const equipId = await resolveEquipmentId();
       const response = await api.delete(`${apiBase}/${equipId}/history/${hid}`);
       if (response.status === 202 || response.data?.pending) {
-        toast.success('Delete requested. The record stays until the HOD approves.');
-        await loadHistory(equipId);
+        toast.success('Sent to HOD for approval. It will be removed after approval.');
         return;
       }
       toast.success('Record deleted.');
@@ -619,8 +592,6 @@ const PowerEquipmentDetail = () => {
         enableDocuments={isNewHub}
         historyApiBase={apiBase}
         equipId={eq?.id || id}
-        focusApprovalRequestId={focusApprovalRequestId}
-        onFocusHandled={clearFocusApprovalRequest}
       />
 
       {isNewHub && pdfModalOpen && (

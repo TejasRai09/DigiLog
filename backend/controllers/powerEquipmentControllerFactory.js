@@ -9,7 +9,6 @@ const {
   assertPendingRequestForUser,
   approvalStagingDir,
   listStagedDocuments,
-  overlayPendingHistory,
 } = require('../services/maintenanceHistoryApproval.service');
 const {
   createApprovalDocumentUploadMiddleware,
@@ -474,26 +473,14 @@ function createPowerEquipmentController(tables) {
       const [[{ total }]] = await pool.execute(
         `SELECT COUNT(*) AS total FROM \`${HIST}\` WHERE equip_id = ?`, [eq.id],
       );
-      const [historyRows] = await pool.execute(
+      const [history] = await pool.execute(
         `SELECT * FROM \`${HIST}\` WHERE equip_id = ?
-         ORDER BY created_at DESC, id DESC
+         ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
          LIMIT 20`,
         [eq.id],
       );
-      const history = await overlayPendingHistory(
-        approvalDomain,
-        Number(eq.id),
-        req.user?.id,
-        historyRows,
-      );
 
-      res.json({
-        equipment: eq,
-        specs,
-        schedule,
-        history,
-        histTotal: total + Math.max(0, history.length - historyRows.length),
-      });
+      res.json({ equipment: eq, specs, schedule, history, histTotal: total });
     } catch (err) {
       sendServerError(res, `${logPrefix}.getEquipment:`, err, MSG.LOAD);
     }
@@ -657,17 +644,11 @@ function createPowerEquipmentController(tables) {
       );
       const [records] = await pool.query(
         `SELECT * FROM \`${HIST}\` WHERE ${where}
-         ORDER BY created_at DESC, id DESC
+         ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
          LIMIT ${limit} OFFSET ${offset}`,
         params,
       );
-      const overlaid = await overlayPendingHistory(approvalDomain, Number(id), req.user?.id, records);
-      res.json({
-        total: total + Math.max(0, overlaid.length - records.length),
-        page,
-        limit,
-        records: overlaid,
-      });
+      res.json({ total, page, limit, records });
     } catch (err) {
       sendServerError(res, `${logPrefix}.getHistory:`, err, MSG.LOAD);
     }

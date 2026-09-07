@@ -55,7 +55,7 @@ export default function MaintenanceApprovalReview() {
     );
   }
 
-  if (review?.alreadyResolved || (review?.status !== 'pending' && review?.status !== 'resubmitted')) {
+  if (review?.alreadyResolved || review?.status !== 'pending') {
     const when = review?.resolvedAtDisplay;
     const approved = review?.status === 'approved';
     return (
@@ -78,8 +78,8 @@ export default function MaintenanceApprovalReview() {
     );
   }
 
-  const acceptHref = `/maintenance-approval/accept?token=${encodeURIComponent(review.acceptToken)}`;
-  const rejectHref = `/maintenance-approval/reject?token=${encodeURIComponent(review.rejectToken)}`;
+  const acceptHref = `/api/maintenance-approval/accept?token=${encodeURIComponent(review.acceptToken)}`;
+  const rejectHref = `/api/maintenance-approval/reject?token=${encodeURIComponent(review.rejectToken)}`;
 
   return (
     <ReviewLayout>

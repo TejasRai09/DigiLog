@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { rememberPostLoginRedirect } from '../utils/postLoginRedirect';
 
 /** Prefer explicit API origin/path (prod / split hosts); else same-origin `/api` (nginx → Node :5000). */
 function resolveApiBaseURL() {
@@ -48,11 +47,6 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       sessionStorage.removeItem('digilog_session_id');
       localStorage.removeItem('digilog_session_id');
-      try {
-        rememberPostLoginRedirect(`${window.location.pathname}${window.location.search || ''}`);
-      } catch {
-        // ignore
-      }
       window.location.href = '/?login=1';
     }
     return Promise.reject(err);

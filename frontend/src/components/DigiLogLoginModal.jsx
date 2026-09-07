@@ -11,7 +11,6 @@ import {
   getLoginErrorMessage,
   HOME_PORTAL_DENIED_MSG,
 } from '../utils/loginValidation';
-import { consumePostLoginRedirect } from '../utils/postLoginRedirect';
 import { msalInstance } from '../msalConfig';
 
 const MicrosoftIcon = () => (
@@ -63,12 +62,6 @@ export default function DigiLogLoginModal({ open, onClose }) {
 
   const handleChange = (e) => setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const finishLogin = () => {
-    const redirect = consumePostLoginRedirect();
-    navigate(redirect || '/dashboard');
-    onClose();
-  };
-
   const handleManualLogin = async (e) => {
     e.preventDefault();
     const check = validateLoginForm(form.email, form.password);
@@ -80,7 +73,8 @@ export default function DigiLogLoginModal({ open, onClose }) {
     try {
       await loginManual(check.email, form.password, { adminPortal: false });
       toast.success('Signed in successfully.');
-      finishLogin();
+      navigate('/dashboard');
+      onClose();
     } catch (err) {
       toast.error(getLoginErrorMessage(err, HOME_PORTAL_DENIED_MSG));
     } finally {
@@ -105,7 +99,8 @@ export default function DigiLogLoginModal({ open, onClose }) {
     try {
       await loginGoogle(accessToken, { adminPortal: false });
       toast.success('Signed in successfully.');
-      finishLogin();
+      navigate('/dashboard');
+      onClose();
     } catch (err) {
       toast.error(getLoginErrorMessage(err, HOME_PORTAL_DENIED_MSG));
     } finally {

@@ -44,7 +44,7 @@ export default function StagingBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="staging-banner sticky top-16 z-40 cursor-default overflow-hidden border-b border-amber-600/30 bg-amber-500 py-2 text-xs font-semibold text-amber-950 sm:text-sm"
+      className="staging-banner sticky top-16 z-[45] cursor-default overflow-hidden border-b border-amber-600/30 bg-amber-500 py-2 text-xs font-semibold text-amber-950 sm:text-sm"
     >
       <div className="flex w-max animate-staging-marquee">
         {track}

@@ -18,13 +18,11 @@ import { DigiLogTitle } from '../components/DigiLogBrandMark';
 import MarketingSiteNav from '../components/marketing/MarketingSiteNav';
 import OperationsDeskCard from '../components/marketing/OperationsDeskCard';
 import { useOpenLoginFromQuery } from '../hooks/useOpenLoginFromQuery';
-import { usePostLoginRedirect } from '../hooks/usePostLoginRedirect';
 
 /** Public marketing homepage at `/` with embedded operations desk preview; log in via modal only. */
 export default function MarketingLanding() {
   const [loginOpen, setLoginOpen] = useState(false);
   useOpenLoginFromQuery(setLoginOpen);
-  usePostLoginRedirect();
 
   useEffect(() => {
     const onKey = (e) => {

@@ -4,8 +4,6 @@ Optional email approval for **Sugar House** and **Power Plant** equipment mainte
 
 Production House is **not** included.
 
-**HOD approvals do not require DigiLog login.** The daily digest opens a public token inbox where the HOD can review, approve selected rows, approve remaining, or resend the pending list to email.
-
 ## Production setup
 
 ```bash
@@ -25,22 +23,20 @@ npm run db:apply-sql -- ../mysql/migrate_maintenance_history_approval_digest.sql
    - Set **Daily digest time (IST)** — default `22:00` (10:00 PM)
    - Toggle **Enable HOD approval**
 3. Click **Save**
-4. Optional: **Resend full digest** or **Email new pending only** if the HOD missed the mail
 
 When disabled, maintenance history saves directly to the database (existing behaviour).
 
 When enabled:
 
 - User add/edit/delete → pending request queued (no immediate email to HOD)
-- At the configured **daily digest time (IST)**, one email is sent to the HOD with pending changes
-- Primary CTA: **Open approvals inbox (no login)** → `/api/maintenance-approval/inbox?token=`
-- Inbox supports:
-  - **Review** modal (field diffs + photos + documents) → Accept / Send for modification; row drops off the list
-- Per-row **Review** in the email opens the same inbox with that row’s modal
+- At the configured **daily digest time (IST)**, one email per card is sent to the HOD with **all changes submitted that calendar day**
+- Each digest row has a **Review details** link (not the full field table)
+- **Review page** (`/api/maintenance-approval/review?token=`) shows every field (previous vs new) plus photos, then **Accept** / **Send for modification**
+- HOD can still approve **one entry** without affecting the others
 - **Accept** → change applied to `shn_history` or `ppn_history`; submitter notified
-- **Send for modification** → change discarded; submitter emailed
+- **Send for modification** → change discarded; submitter emailed to contact HOD
 
-Review and approve/reject links expire after **7 days** (refreshed on each digest).
+Review and approve/reject links expire after **7 days**.
 
 ## Daily digest behaviour
 
@@ -49,10 +45,8 @@ Review and approve/reject links expire after **7 days** (refreshed on each diges
 | User saves 10 rows same day | 0 immediate emails; 1 digest at configured time with 10 entries |
 | HOD accepts 1 of 10 | Only that row applied; others stay pending |
 | Entry after digest time | Included in **next day's** digest |
-| Zero pending same day | No email sent; day not marked sent until there is something to send |
+| Zero pending same day | No email sent; scheduler still marks the day as processed |
 | Server missed digest window | Catch-up on next tick when IST time ≥ digest time and day not yet marked sent |
-| Digest already sent, admin changes time to **later than now** (IST) | Today's "sent" marker is cleared; digest can send again at the new time |
-| Admin resend | Force-sends again (all pending, or **new** = never notified) |
 
 Times are evaluated in **Asia/Kolkata (IST)**.
 
@@ -77,16 +71,17 @@ Required in `backend/.env` (same as account activation mail):
 | Endpoint | Auth | Purpose |
 |----------|------|---------|
 | `GET/PUT /api/admin/maintenance-history-approval-settings` | Admin | Toggle, HOD picker, digest time |
-| `POST /api/admin/maintenance-history-approval-settings/resend-digest` | Admin | `{ domain, mode: 'all'\|'new' }` force email |
-| `GET /api/maintenance-approval/inbox?token=&open=` | Public | No-login inbox (modal review) |
-| `GET /api/maintenance-approval/document?token=` | Public | View/download attachment from review modal |
-| `GET /api/maintenance-approval/review?token=` | Public | Redirects pending items to inbox |
-| `POST /api/maintenance-approval/review` | Public | JSON payload for review modal |
-| `GET/POST /api/maintenance-approval/accept` | Public | Accept one entry |
-| `GET/POST /api/maintenance-approval/reject` | Public | Send for modification |
+| `GET /api/maintenance-approval/review?token=` | Public | HOD review page — all fields, then Accept / Reject |
+| `POST /api/maintenance-approval/review` | Public | JSON payload for the SPA review page |
+| `GET /api/maintenance-approval/accept?token=` | Public | HOD accept one entry (HTML) |
+| `GET /api/maintenance-approval/reject?token=` | Public | HOD reject one entry (HTML) |
 | `POST /api/sugar-new\|power-new/:id/history` | User | Returns `202` when approval queued |
 | `POST .../history-approval/:requestId/documents` | User | Stage pending document uploads |
 
+HOD digest email uses **Review details** → `/api/maintenance-approval/review?token=...` (full field list in the browser, no login). Accept / Reject on that page use the same 7-day tokens.
+
+Frontend landing pages (optional fallback): `/maintenance-approval/review?token=...`, `/maintenance-approval/accept?token=...`, `/maintenance-approval/reject?token=...`
+
 ## Selective approval
 
-The inbox lists each pending entry. Approving one row does not approve the rest.
+The digest email lists each pending entry with its own **Review details** link. Approving one row does not approve the rest.
