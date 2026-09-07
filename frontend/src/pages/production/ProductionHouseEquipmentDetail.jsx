@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MdPictureAsPdf } from 'react-icons/md';
+import { MdDelete, MdPictureAsPdf, MdSave } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
@@ -9,6 +9,7 @@ import EquipmentSpecificationHub from '../../components/equipment/EquipmentSpeci
 import EquipmentMaintenanceHistoryHub from '../../components/equipment/EquipmentMaintenanceHistoryHub';
 import { buildProductionHouseEquipmentTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
+import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { historyRecordToApi } from '../../utils/equipmentHistoryModel';
@@ -36,12 +37,22 @@ const ProductionHouseEquipmentDetail = () => {
   const appName = useAppName(appId);
   const equipId = /^\d+$/.test(String(id || '')) ? String(id) : null;
 
+  const { canManage } = useLockedCardManageAccess();
+  const canManageProduction = canManage('production');
+
   const [eq, setEq] = useState(null);
   const [specs, setSpecs] = useState([]);
   const [history, setHistory] = useState([]);
   const [histTotal, setHistTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [identitySaving, setIdentitySaving] = useState(false);
+  const [identityForm, setIdentityForm] = useState({
+    name: '',
+    type: '',
+    duty: '',
+    capacity: '',
+  });
   const [histOpen, setHistOpen] = useState(true);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
@@ -66,7 +77,14 @@ const ProductionHouseEquipmentDetail = () => {
     setLoading(true);
     try {
       const { data } = await api.get(`${API_BASE}/${equipId}`);
-      setEq(data.equipment);
+      const equipment = data.equipment;
+      setEq(equipment);
+      setIdentityForm({
+        name: equipment?.name || '',
+        type: equipment?.type || '',
+        duty: equipment?.duty || '',
+        capacity: equipment?.capacity || '',
+      });
       setSpecs(formatProductionHouseSpecRows(data.specs));
       setHistory(data.history);
       setHistTotal(data.histTotal);
@@ -83,6 +101,7 @@ const ProductionHouseEquipmentDetail = () => {
   useEffect(() => { load(); }, [load]);
 
   const houseLabel = eq ? productionHouseSectionLabel(eq.house_section) : '';
+  const identityLocked = Boolean(eq?.isImported) && !canManageProduction;
 
   const equipmentDefaults = useMemo(() => ({
     tagNo: '',
@@ -144,6 +163,47 @@ const ProductionHouseEquipmentDetail = () => {
       toast.error(err?.message || 'Could not generate PDF.');
     } finally {
       setPdfGenerating(false);
+    }
+  };
+
+  const saveIdentity = async (e) => {
+    e?.preventDefault?.();
+    if (!equipId || identityLocked) return;
+    const name = String(identityForm.name || '').trim();
+    if (!name) {
+      toast.error('Equipment name is required.');
+      return;
+    }
+    setIdentitySaving(true);
+    try {
+      await api.put(`${API_BASE}/${equipId}`, {
+        name,
+        type: String(identityForm.type || '').trim(),
+        duty: String(identityForm.duty || '').trim(),
+        capacity: String(identityForm.capacity || '').trim(),
+      });
+      toast.success('Equipment details saved.');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Save failed.');
+    } finally {
+      setIdentitySaving(false);
+    }
+  };
+
+  const deleteEquipment = async () => {
+    if (!equipId || identityLocked) return;
+    if (!window.confirm(`Delete "${eq?.name || 'this equipment'}"? Specs and history will be removed.`)) {
+      return;
+    }
+    setIdentitySaving(true);
+    try {
+      await api.delete(`${API_BASE}/${equipId}`);
+      toast.success('Equipment deleted.');
+      navigate('/production-house-equipment', { replace: true, state: location.state });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Delete failed.');
+      setIdentitySaving(false);
     }
   };
 
@@ -218,6 +278,87 @@ const ProductionHouseEquipmentDetail = () => {
           Download PDF
         </button>
       </div>
+
+      <section className="card mb-4 p-4">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Equipment details</h2>
+            <p className="mt-0.5 text-xs text-gray-500">
+              {houseLabel}
+              {eq.equip_no ? ` · ${eq.equip_no}` : ''}
+              {eq.isImported ? ' · Extracted / imported card' : ''}
+            </p>
+          </div>
+          {identityLocked && (
+            <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
+              Identity locked — ask an admin for locked-card manage access
+            </span>
+          )}
+        </div>
+        <form onSubmit={saveIdentity} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-medium text-gray-600 sm:col-span-2">
+            Name
+            <input
+              type="text"
+              value={identityForm.name}
+              readOnly={identityLocked}
+              onChange={(e) => setIdentityForm((prev) => ({ ...prev, name: e.target.value }))}
+              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+            />
+          </label>
+          <label className="block text-xs font-medium text-gray-600">
+            Type
+            <input
+              type="text"
+              value={identityForm.type}
+              readOnly={identityLocked}
+              onChange={(e) => setIdentityForm((prev) => ({ ...prev, type: e.target.value }))}
+              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+            />
+          </label>
+          <label className="block text-xs font-medium text-gray-600">
+            Duty
+            <input
+              type="text"
+              value={identityForm.duty}
+              readOnly={identityLocked}
+              onChange={(e) => setIdentityForm((prev) => ({ ...prev, duty: e.target.value }))}
+              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+            />
+          </label>
+          <label className="block text-xs font-medium text-gray-600 sm:col-span-2">
+            Capacity
+            <input
+              type="text"
+              value={identityForm.capacity}
+              readOnly={identityLocked}
+              onChange={(e) => setIdentityForm((prev) => ({ ...prev, capacity: e.target.value }))}
+              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+            />
+          </label>
+          {!identityLocked && (
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+              <button
+                type="submit"
+                disabled={identitySaving}
+                className="btn-primary disabled:opacity-50"
+              >
+                <MdSave className="h-4 w-4" />
+                Save details
+              </button>
+              <button
+                type="button"
+                onClick={deleteEquipment}
+                disabled={identitySaving}
+                className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+              >
+                <MdDelete className="h-4 w-4" />
+                Delete card
+              </button>
+            </div>
+          )}
+        </form>
+      </section>
 
       <div className="mb-3">
         <EquipmentSpecificationHub

@@ -13,6 +13,12 @@ const {
   NODE_SELECT,
   rowToPayload,
 } = require('../utils/shnHierarchyLib');
+const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
+
+async function assertCanEditImportedSugarNode(req, existing) {
+  if (!existing?.isImported) return false;
+  return !(await canManageLockedCards(req.user, 'sugar'));
+}
 
 const getTree = async (req, res) => {
   try {
@@ -133,7 +139,9 @@ const updateNode = async (req, res) => {
     const existing = await getNodeById(id);
     if (!existing) return res.status(404).json({ message: 'Node not found.' });
     if (existing.isImported) {
-      return res.status(403).json({ message: 'Imported hierarchy items cannot be edited.' });
+      if (await assertCanEditImportedSugarNode(req, existing)) {
+        return res.status(403).json({ message: 'Imported hierarchy items cannot be edited.' });
+      }
     }
 
     const name = req.body.name != null ? String(req.body.name).trim() : existing.name;
@@ -201,7 +209,9 @@ const deleteNode = async (req, res) => {
     const existing = await getNodeById(id);
     if (!existing) return res.status(404).json({ message: 'Node not found.' });
     if (existing.isImported) {
-      return res.status(403).json({ message: 'Imported hierarchy items cannot be deleted.' });
+      if (!(await canManageLockedCards(req.user, 'sugar'))) {
+        return res.status(403).json({ message: 'Imported hierarchy items cannot be deleted.' });
+      }
     }
 
     const [[rootRow]] = await pool.execute(
@@ -267,7 +277,9 @@ const syncNodeName = async (req, res) => {
       return res.status(400).json({ message: 'Only equipment nodes can be renamed via sync.' });
     }
     if (existing.isImported) {
-      return res.status(403).json({ message: 'Imported hierarchy items cannot be renamed.' });
+      if (!(await canManageLockedCards(req.user, 'sugar'))) {
+        return res.status(403).json({ message: 'Imported hierarchy items cannot be renamed.' });
+      }
     }
 
     const parentId = existing.parentId != null ? parseInt(existing.parentId, 10) : null;

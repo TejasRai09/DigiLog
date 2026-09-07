@@ -207,8 +207,8 @@ async function importHouse(conn, house, data) {
 
     const [result] = await conn.execute(
       `INSERT INTO phn_equipment
-         (house_section, sheet_name, equip_no, name, type, duty, capacity, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (house_section, sheet_name, equip_no, name, type, duty, capacity, sort_order, is_imported)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
       [
         house.id,
         sheetName.slice(0, 120),

@@ -2,6 +2,7 @@ const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { formatProductionHouseSpecValue } = require('../utils/productionHouseSpecValue');
+const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
 
 const HOUSE_SECTIONS = new Set([
   'pan_crystallizer',
@@ -11,6 +12,14 @@ const HOUSE_SECTIONS = new Set([
 ]);
 
 const SPEC_SECTION = 'mechanical';
+
+function serializeEquipment(eq) {
+  if (!eq) return eq;
+  return {
+    ...eq,
+    isImported: Boolean(eq.is_imported),
+  };
+}
 
 function scopeHistoryRow(row, eq) {
   if (!row || !eq) return row;
@@ -82,7 +91,7 @@ const listEquipment = async (req, res) => {
     );
     const [rows] = await pool.query(
       `SELECT e.id, e.house_section, e.sheet_name, e.equip_no, e.name, e.type,
-              e.duty, e.capacity, e.sort_order,
+              e.duty, e.capacity, e.sort_order, e.is_imported,
               (SELECT COUNT(*) FROM phn_specs s
                  WHERE s.equip_id = e.id
                    AND s.lbl NOT IN ('__subsections__', '__subgroup_meta__')) AS spec_count,
@@ -93,7 +102,7 @@ const listEquipment = async (req, res) => {
        LIMIT ${limit} OFFSET ${offset}`,
       params
     );
-    res.json({ total, page, limit, equipment: rows });
+    res.json({ total, page, limit, equipment: rows.map(serializeEquipment) });
   } catch (err) {
     sendServerError(res, 'listEquipment:', err, MSG.LOAD);
   }
@@ -118,13 +127,13 @@ const getEquipment = async (req, res) => {
     );
     const [history] = await pool.execute(
       `SELECT * FROM phn_history WHERE equip_id = ?
-       ORDER BY (year IS NULL OR year = '') ASC, year DESC, id DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT 200`,
       [eq.id]
     );
 
     res.json({
-      equipment: eq,
+      equipment: serializeEquipment(eq),
       specs,
       schedule: [],
       history: scopeHistoryRows(history, eq),
@@ -140,6 +149,12 @@ const updateEquipment = async (req, res) => {
     const eq = await getEq(req.params.id);
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
+    if (eq.is_imported && !(await canManageLockedCards(req.user, 'production'))) {
+      return res.status(403).json({
+        message: 'Imported production equipment cannot be edited without locked-card manage access.',
+      });
+    }
+
     const { name, type, duty, capacity } = req.body;
     await pool.execute(
       'UPDATE phn_equipment SET name=?, type=?, duty=?, capacity=? WHERE id=?',
@@ -148,6 +163,24 @@ const updateEquipment = async (req, res) => {
     res.json({ message: 'Equipment updated.' });
   } catch (err) {
     sendServerError(res, 'updateEquipment:', err, MSG.SAVE);
+  }
+};
+
+const deleteEquipment = async (req, res) => {
+  try {
+    const eq = await getEq(req.params.id);
+    if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
+
+    if (eq.is_imported && !(await canManageLockedCards(req.user, 'production'))) {
+      return res.status(403).json({
+        message: 'Imported production equipment cannot be deleted without locked-card manage access.',
+      });
+    }
+
+    await pool.execute('DELETE FROM phn_equipment WHERE id = ?', [eq.id]);
+    res.json({ message: 'Equipment deleted.' });
+  } catch (err) {
+    sendServerError(res, 'deleteEquipment:', err, MSG.DELETE);
   }
 };
 
@@ -197,7 +230,7 @@ const getHistory = async (req, res) => {
 
     const [records] = await pool.query(
       `SELECT * FROM phn_history WHERE equip_id = ?
-       ORDER BY (year IS NULL OR year = '') ASC, year DESC, id DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT ${limit} OFFSET ${offset}`,
       [id]
     );
@@ -297,6 +330,7 @@ module.exports = {
   listEquipment,
   getEquipment,
   updateEquipment,
+  deleteEquipment,
   updateSpecs,
   getHistory,
   addHistory,

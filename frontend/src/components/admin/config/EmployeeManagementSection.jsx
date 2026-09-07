@@ -3,16 +3,23 @@ import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch,
   MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdUpload,
-  MdSupervisorAccount,
+  MdSupervisorAccount, MdLockOpen,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../Spinner';
 import EmployeeFormMappingModal from '../EmployeeFormMappingModal';
 import EmployeeDataUploadAccessModal from '../EmployeeDataUploadAccessModal';
+import EmployeeLockedCardManageModal from '../EmployeeLockedCardManageModal';
 import { DATA_UPLOAD_SECTIONS } from '../../../config/dataUploadSections';
 import AssignManagerModal from '../AssignManagerModal';
 import ConfigSectionPanel from './ConfigSectionPanel';
+
+const LOCKED_CARD_DOMAIN_LABELS = {
+  sugar: 'Sugar',
+  power: 'Power',
+  production: 'Production',
+};
 
 const ROLES = ['employee', 'admin'];
 
@@ -138,23 +145,27 @@ export default function EmployeeManagementSection() {
   const [rowMenu, setRowMenu] = useState(null);
   const [mappingModal, setMappingModal] = useState(null);
   const [dataUploadModal, setDataUploadModal] = useState(null);
+  const [lockedCardModal, setLockedCardModal] = useState(null);
   const [managerModal, setManagerModal] = useState(null);
   const [mappings, setMappings] = useState([]);
   const [dataUploadAssignments, setDataUploadAssignments] = useState([]);
+  const [lockedCardAssignments, setLockedCardAssignments] = useState([]);
   const [categories, setCategories] = useState([]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [uRes, mRes, dRes, cRes] = await Promise.all([
+      const [uRes, mRes, dRes, lRes, cRes] = await Promise.all([
         api.get('/admin/users'),
         api.get('/admin/mappings'),
         api.get('/admin/data-upload-access'),
+        api.get('/admin/locked-card-manage-access'),
         api.get('/admin/categories'),
       ]);
       setUsers(uRes.data);
       setMappings(mRes.data);
       setDataUploadAssignments(dRes.data.assignments || []);
+      setLockedCardAssignments(lRes.data.assignments || []);
       setCategories(cRes.data);
     } catch {
       toast.error('Failed to load data.');
@@ -308,13 +319,14 @@ export default function EmployeeManagementSection() {
                   <th className="th">Status</th>
                   <th className="th min-w-[8rem]">Manager</th>
                   <th className="th min-w-[6rem] whitespace-normal">Data upload</th>
+                  <th className="th min-w-[7rem] whitespace-normal">Locked cards</th>
                   <th className="th w-16 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="td py-10 text-center text-gray-400">No employees found.</td>
+                    <td colSpan={10} className="td py-10 text-center text-gray-400">No employees found.</td>
                   </tr>
                 ) : (
                   filtered.map((u) => {
@@ -377,6 +389,22 @@ export default function EmployeeManagementSection() {
                             <span className="badge bg-purple-50 text-purple-700">Admin</span>
                           )}
                         </td>
+                        <td className="td align-top">
+                          {(() => {
+                            const row = lockedCardAssignments.find((a) => String(a.user?._id) === String(u._id));
+                            const domains = Array.isArray(row?.domains) ? row.domains : [];
+                            if (!domains.length) return <span className="text-gray-300">—</span>;
+                            return (
+                              <div className="flex flex-col gap-1">
+                                {domains.map((key) => (
+                                  <span key={key} className="badge w-fit bg-sky-50 text-sky-800">
+                                    {LOCKED_CARD_DOMAIN_LABELS[key] || key}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td className="td w-16">
                           <div className="flex justify-center">
                             <button
@@ -387,7 +415,7 @@ export default function EmployeeManagementSection() {
                                 const r = target.getBoundingClientRect();
                                 setRowMenu((prev) => {
                                   if (prev?.user._id === u._id) return null;
-                                  const menuH = 220;
+                                  const menuH = 280;
                                   let top = r.bottom + 4;
                                   if (top + menuH > window.innerHeight - 8) {
                                     top = Math.max(8, r.top - menuH - 4);
@@ -495,6 +523,19 @@ export default function EmployeeManagementSection() {
                 onClick={() => {
                   const x = rowMenu.user;
                   setRowMenu(null);
+                  setLockedCardModal(x);
+                }}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <MdLockOpen className="h-4 w-4 text-sky-600" />
+                Locked card manage access
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  const x = rowMenu.user;
+                  setRowMenu(null);
                   setManagerModal(x);
                 }}
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
@@ -541,6 +582,19 @@ export default function EmployeeManagementSection() {
           onClose={() => setDataUploadModal(null)}
           onSaved={() => {
             setDataUploadModal(null);
+            fetchData();
+          }}
+        />
+      )}
+
+      {lockedCardModal && (
+        <EmployeeLockedCardManageModal
+          key={`locked-card-${lockedCardModal._id}`}
+          user={lockedCardModal}
+          assignments={lockedCardAssignments}
+          onClose={() => setLockedCardModal(null)}
+          onSaved={() => {
+            setLockedCardModal(null);
             fetchData();
           }}
         />

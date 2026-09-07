@@ -51,6 +51,14 @@ router.get('/data-upload-access',  getAdminDataUploadAccess);
 router.put('/data-upload-access',  upsertAdminDataUploadAccess);
 
 const {
+  getAdminLockedCardManageAccess,
+  upsertAdminLockedCardManageAccess,
+} = require('../controllers/lockedCardManageAccess.controller');
+
+router.get('/locked-card-manage-access', getAdminLockedCardManageAccess);
+router.put('/locked-card-manage-access', upsertAdminLockedCardManageAccess);
+
+const {
   getAllSeasons,
   createSeason,
   updateSeason,
@@ -81,9 +89,11 @@ router.get('/audit-filter-options', listAuditFilterOptions);
 const {
   getMaintenanceHistoryApprovalSettings,
   putMaintenanceHistoryApprovalSettings,
+  postResendMaintenanceHistoryDigest,
 } = require('../controllers/maintenanceHistoryApprovalSettings.controller');
 
 router.get('/maintenance-history-approval-settings', getMaintenanceHistoryApprovalSettings);
 router.put('/maintenance-history-approval-settings', putMaintenanceHistoryApprovalSettings);
+router.post('/maintenance-history-approval-settings/resend-digest', postResendMaintenanceHistoryDigest);
 
 module.exports = router;

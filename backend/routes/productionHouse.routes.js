@@ -7,6 +7,7 @@ router.get('/houses', authenticate, ctrl.listHouses);
 router.get('/', authenticate, ctrl.listEquipment);
 router.get('/:id', authenticate, ctrl.getEquipment);
 router.put('/:id', authenticate, ctrl.updateEquipment);
+router.delete('/:id', authenticate, ctrl.deleteEquipment);
 router.put('/:id/specs', authenticate, ctrl.updateSpecs);
 router.get('/:id/history', authenticate, ctrl.getHistory);
 router.post('/:id/history', authenticate, ctrl.addHistory);

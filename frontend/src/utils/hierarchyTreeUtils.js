@@ -78,9 +78,13 @@ export function isImportedHierarchyNode(node) {
   return Boolean(node?.isImported);
 }
 
-/** Whether edit/delete should be disabled for a hierarchy node. */
-export function isHierarchyNodeLocked(tree, node, apiBase = '/power-new') {
+/**
+ * Whether edit/delete should be disabled for a hierarchy node.
+ * When `canManage` is true (admin or domain grant), structural locks are ignored.
+ */
+export function isHierarchyNodeLocked(tree, node, apiBase = '/power-new', canManage = false) {
   if (!node) return true;
+  if (canManage) return false;
   if (apiBase === '/sugar-new') return isImportedHierarchyNode(node);
   return Boolean(tree && isProtectedSeededNode(tree, node.id));
 }

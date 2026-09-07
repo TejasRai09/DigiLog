@@ -23,6 +23,9 @@ const canePerformanceRoutes = require('./routes/canePerformanceRoutes');
 const biPowerHouseRoutes = require('./routes/biPowerHouse.routes');
 const activityRoutes = require('./routes/activity.routes');
 const maintenanceApprovalRoutes = require('./routes/maintenanceApproval.routes');
+const changeRequestRoutes = require('./routes/changeRequest.routes');
+const approvalRoutes = require('./routes/approval.routes');
+const userNotificationRoutes = require('./routes/userNotification.routes');
 const { expireStaleSessions } = require('./utils/sessionActivity');
 const {
   runDigestSchedulerTick,
@@ -113,6 +116,10 @@ app.use('/api/homepage-cards', homepageCardsRoutes);
 app.use('/api/data-upload',      dataUploadRoutes);
 app.use('/api/activity',         activityRoutes);
 app.use('/api/maintenance-approval', maintenanceApprovalRoutes);
+app.use('/api/change-requests', changeRequestRoutes);
+app.use('/api/approvals', approvalRoutes);
+app.use('/api/notifications', userNotificationRoutes);
+app.use('/api/locked-card-manage-access', require('./routes/lockedCardManageAccess.routes'));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
