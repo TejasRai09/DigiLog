@@ -50,7 +50,7 @@ const getEquipment = async (req, res) => {
     );
     const [history] = await pool.execute(
       `SELECT * FROM mh_history WHERE equip_id = ?
-       ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT 20`,
       [eq.id]
     );
@@ -174,7 +174,7 @@ const getHistory = async (req, res) => {
     );
     const [records] = await pool.query(
       `SELECT * FROM mh_history WHERE equip_id = ?
-       ORDER BY (date_start IS NULL) ASC, date_start DESC, created_at DESC
+       ORDER BY created_at DESC, id DESC
        LIMIT ${limit} OFFSET ${offset}`,
       [id]
     );

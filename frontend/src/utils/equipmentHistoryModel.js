@@ -74,6 +74,12 @@ export function serializeHistoryPhotos(photos) {
 
 export function formatEntryId(id) {
   if (!id) return 'EM-0000';
+  const raw = String(id);
+  if (raw.startsWith('pending-')) {
+    const n = Number(raw.slice('pending-'.length));
+    if (!Number.isNaN(n)) return `PEND-${String(n).padStart(4, '0')}`;
+    return `PEND-${raw.slice(-4)}`;
+  }
   const n = Number(id);
   if (!Number.isNaN(n) && n < 10000) {
     return `EM-${String(n).padStart(4, '0')}`;
@@ -91,31 +97,22 @@ export function formatDateDisplay(dateString) {
   return dateString;
 }
 
-function historyRecordYearValue(rec) {
-  const y = String(rec?.year ?? '').trim();
-  if (!y || y === '—') return null;
-  const n = Number.parseInt(y, 10);
-  return Number.isNaN(n) ? null : n;
+function historyRecordCreatedAtMs(rec) {
+  const raw = rec?.createdAt ?? rec?.created_at ?? null;
+  if (!raw) return 0;
+  const ms = new Date(raw).getTime();
+  return Number.isFinite(ms) ? ms : 0;
 }
 
-function historyRecordStartValue(rec) {
-  const start = String(rec?.start ?? '').slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : '';
-}
-
-/** Sort maintenance history newest → oldest: year desc, then start date desc. */
+/** Sort maintenance history newest → oldest by created_at timestamp. */
 export function compareMaintenanceHistoryNewestFirst(a, b) {
-  const yearA = historyRecordYearValue(a);
-  const yearB = historyRecordYearValue(b);
-  if (yearA !== yearB) {
-    return (yearB ?? -1) - (yearA ?? -1);
-  }
+  const createdA = historyRecordCreatedAtMs(a);
+  const createdB = historyRecordCreatedAtMs(b);
+  if (createdB !== createdA) return createdB - createdA;
 
-  const startA = historyRecordStartValue(a);
-  const startB = historyRecordStartValue(b);
-  if (startB !== startA) return startB.localeCompare(startA);
-
-  return (Number(b?.id) || 0) - (Number(a?.id) || 0);
+  const idA = Number(String(a?.id).replace(/^pending-/, '')) || 0;
+  const idB = Number(String(b?.id).replace(/^pending-/, '')) || 0;
+  return idB - idA;
 }
 
 /** `order`: `'desc'` newest first (default), `'asc'` oldest first. */
@@ -246,6 +243,11 @@ export function historyRecordFromApi(row) {
     photosBefore: parseHistoryPhotos(row.img_before),
     photosAfter: parseHistoryPhotos(row.img_after),
     documents: parseHistoryDocuments(row.documents),
+    createdAt: row.created_at || row.createdAt || null,
+    pendingRequestId: row.pendingRequestId || null,
+    pendingStatus: row.pendingStatus || null,
+    pendingAction: row.pendingAction || null,
+    hodComment: row.hodComment || '',
   };
 }
 

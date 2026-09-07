@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MdDomain, MdFactory, MdSave } from 'react-icons/md';
+import { MdDomain, MdFactory, MdSave, MdEmail } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../Spinner';
@@ -9,6 +9,7 @@ function ApprovalCard({
   title,
   description,
   icon: Icon,
+  domain,
   enabled,
   hodUserId,
   digestTime,
@@ -16,6 +17,8 @@ function ApprovalCard({
   onToggle,
   onHodChange,
   onDigestTimeChange,
+  onResend,
+  resending,
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 dark:border-slate-700/50 bg-white dark:bg-slate-900/40 p-5 space-y-4">
@@ -69,10 +72,33 @@ function ApprovalCard({
           className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
         />
         <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          One email to the HOD at this time with all maintenance changes submitted that calendar day.
-          Each entry has its own Accept / Send for modification buttons.
+          One email to the HOD at this time with pending maintenance changes. The email opens a
+          no-login approvals inbox where they can review each change and accept or send for modification.
         </p>
       </div>
+
+      {enabled && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            disabled={resending === `${domain}:all`}
+            onClick={() => onResend(domain, 'all')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+          >
+            {resending === `${domain}:all` ? <Spinner size="sm" /> : <MdEmail className="w-3.5 h-3.5" />}
+            Resend full digest
+          </button>
+          <button
+            type="button"
+            disabled={resending === `${domain}:new`}
+            onClick={() => onResend(domain, 'new')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
+          >
+            {resending === `${domain}:new` ? <Spinner size="sm" /> : <MdEmail className="w-3.5 h-3.5" />}
+            Email new pending only
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -80,6 +106,7 @@ function ApprovalCard({
 export default function MaintenanceHistoryApprovalSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resending, setResending] = useState('');
   const [employees, setEmployees] = useState([]);
   const [sugar, setSugar] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
   const [power, setPower] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
@@ -116,10 +143,27 @@ export default function MaintenanceHistoryApprovalSection() {
     }
   };
 
+  const resend = async (domain, mode) => {
+    const key = `${domain}:${mode}`;
+    setResending(key);
+    try {
+      const { data } = await api.post('/admin/maintenance-history-approval-settings/resend-digest', {
+        domain,
+        mode,
+      });
+      if (data.sent) toast.success(data.message || 'Digest sent.');
+      else toast(data.message || 'Nothing to email.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to resend digest.');
+    } finally {
+      setResending('');
+    }
+  };
+
   return (
     <ConfigSectionPanel
       title="Maintenance History Approval"
-      description="When enabled, maintenance history add/edit/delete on Sugar House and Power Plant equipment cards is held pending until the configured HOD accepts via the daily digest email."
+      description="When enabled, maintenance history add/edit/delete on Sugar House and Power Plant equipment cards is held pending until the configured HOD reviews them from the daily digest email inbox — no DigiLog login required."
       actions={
         loading ? <Spinner size="sm" /> : (
           <button
@@ -142,6 +186,7 @@ export default function MaintenanceHistoryApprovalSection() {
             title="Sugar House"
             description="Equipment cards under Sugar House Equipment History."
             icon={MdDomain}
+            domain="sugar"
             enabled={sugar.enabled}
             hodUserId={sugar.hodUserId}
             digestTime={sugar.digestTime}
@@ -149,11 +194,14 @@ export default function MaintenanceHistoryApprovalSection() {
             onToggle={(enabled) => setSugar((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setSugar((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setSugar((s) => ({ ...s, digestTime }))}
+            onResend={resend}
+            resending={resending}
           />
           <ApprovalCard
             title="Power Plant"
             description="Equipment cards under Power Plant Equipment History."
             icon={MdFactory}
+            domain="power"
             enabled={power.enabled}
             hodUserId={power.hodUserId}
             digestTime={power.digestTime}
@@ -161,6 +209,8 @@ export default function MaintenanceHistoryApprovalSection() {
             onToggle={(enabled) => setPower((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setPower((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setPower((s) => ({ ...s, digestTime }))}
+            onResend={resend}
+            resending={resending}
           />
         </div>
       )}
