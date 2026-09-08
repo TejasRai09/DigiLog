@@ -1,8 +1,6 @@
 # Maintenance History HOD Approval
 
-Optional email approval for **Sugar House** and **Power Plant** equipment maintenance history (add / edit / delete on individual records).
-
-Production House is **not** included.
+Optional email approval for **Sugar House**, **Power Plant**, and **Production House** equipment maintenance history (add / edit / delete on individual records).
 
 **HOD approvals do not require DigiLog login.** The daily digest opens a public token inbox where the HOD can review, approve selected rows, approve remaining, or resend the pending list to email.
 
@@ -12,6 +10,9 @@ Production House is **not** included.
 cd backend
 npm run db:apply-sql -- ../mysql/migrate_maintenance_history_approval.sql
 npm run db:apply-sql -- ../mysql/migrate_maintenance_history_approval_digest.sql
+npm run db:apply-sql -- ../mysql/migrate_maintenance_history_approval_workflow.sql
+npm run db:apply-sql -- ../mysql/migrate_user_notifications.sql
+npm run db:apply-sql -- ../mysql/migrate_maintenance_history_approval_production.sql
 # deploy backend + frontend
 # ensure SMTP_* and CLIENT_ORIGIN are set in backend/.env
 # restart backend (digest scheduler runs inside the Node process)
@@ -20,7 +21,7 @@ npm run db:apply-sql -- ../mysql/migrate_maintenance_history_approval_digest.sql
 ### Admin configuration
 
 1. Open **Admin → Config → Maintenance History Approval**
-2. For **Sugar House** and/or **Power Plant**:
+2. For **Sugar House**, **Power Plant**, and/or **Production House**:
    - Select the **HOD employee** (must have an active DigiLog account with email)
    - Set **Daily digest time (IST)** — default `22:00` (10:00 PM)
    - Toggle **Enable HOD approval**
@@ -37,7 +38,7 @@ When enabled:
 - Inbox supports:
   - **Review** modal (field diffs + photos + documents) → Accept / Send for modification; row drops off the list
 - Per-row **Review** in the email opens the same inbox with that row’s modal
-- **Accept** → change applied to `shn_history` or `ppn_history`; submitter notified
+- **Accept** → change applied to `shn_history`, `ppn_history`, or `phn_history`; submitter notified
 - **Send for modification** → change discarded; submitter emailed
 
 Review and approve/reject links expire after **7 days** (refreshed on each digest).
@@ -67,10 +68,10 @@ Required in `backend/.env` (same as account activation mail):
 
 - `maintenance_history_approval_request` — pending/approved/rejected requests; `hod_notified_at` when included in a digest
 - `portal_settings` keys:
-  - `mh_approval_sugar_enabled`, `mh_approval_power_enabled`
-  - `mh_approval_sugar_hod_user_id`, `mh_approval_power_hod_user_id`
-  - `mh_approval_sugar_digest_time`, `mh_approval_power_digest_time` (HH:mm, default `22:00`)
-  - `mh_approval_sugar_digest_last_sent_date`, `mh_approval_power_digest_last_sent_date` (YYYY-MM-DD IST)
+  - `mh_approval_sugar_enabled`, `mh_approval_power_enabled`, `mh_approval_production_enabled`
+  - `mh_approval_sugar_hod_user_id`, `mh_approval_power_hod_user_id`, `mh_approval_production_hod_user_id`
+  - `mh_approval_sugar_digest_time`, `mh_approval_power_digest_time`, `mh_approval_production_digest_time` (HH:mm, default `22:00`)
+  - `mh_approval_sugar_digest_last_sent_date`, `mh_approval_power_digest_last_sent_date`, `mh_approval_production_digest_last_sent_date` (YYYY-MM-DD IST)
 
 ## API (reference)
 

@@ -49,7 +49,7 @@ export const ADMIN_CONFIG_SECTIONS = [
   {
     id: 'maintenance-history-approval',
     label: 'Maintenance History Approval',
-    description: 'HOD email approval for Sugar House and Power Plant maintenance history.',
+    description: 'HOD email approval for Sugar House, Power Plant, and Production House maintenance history.',
     Icon: MdFactCheck,
     Component: MaintenanceHistoryApprovalSection,
   },
