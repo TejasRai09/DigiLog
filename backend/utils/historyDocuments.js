@@ -31,6 +31,7 @@ const MIME_TO_EXT = {
 function historyDocPrefix(historyTable) {
   if (historyTable === 'shn_history') return 'shn';
   if (historyTable === 'ppn_history') return 'ppn';
+  if (historyTable === 'phn_history') return 'phn';
   return 'history';
 }
 

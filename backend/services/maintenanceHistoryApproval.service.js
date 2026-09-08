@@ -44,12 +44,21 @@ const SETTINGS_KEYS = {
     digestTime: 'mh_approval_power_digest_time',
     digestLastSentDate: 'mh_approval_power_digest_last_sent_date',
   },
+  production: {
+    enabled: 'mh_approval_production_enabled',
+    hodUserId: 'mh_approval_production_hod_user_id',
+    digestTime: 'mh_approval_production_digest_time',
+    digestLastSentDate: 'mh_approval_production_digest_last_sent_date',
+  },
 };
 
 const DOMAIN_TABLES = {
   sugar: { equipment: 'shn_equipment', history: 'shn_history', label: 'Sugar House' },
   power: { equipment: 'ppn_equipment', history: 'ppn_history', label: 'Power Plant' },
+  production: { equipment: 'phn_equipment', history: 'phn_history', label: 'Production House' },
 };
+
+const APPROVAL_DOMAINS = Object.keys(DOMAIN_TABLES);
 
 const TOKEN_TTL_DAYS = 7;
 
@@ -311,34 +320,33 @@ async function getApprovalSettings() {
     k.digestLastSentDate,
   ]);
   const map = await readPortalSettings(keys);
-  return {
-    sugar: {
-      enabled: parseBool(map[SETTINGS_KEYS.sugar.enabled]),
-      hodUserId: map[SETTINGS_KEYS.sugar.hodUserId] ? Number(map[SETTINGS_KEYS.sugar.hodUserId]) : null,
-      digestTime: normalizeDigestTime(map[SETTINGS_KEYS.sugar.digestTime]) || DEFAULT_DIGEST_TIME,
-      digestLastSentDate: map[SETTINGS_KEYS.sugar.digestLastSentDate] || '',
-    },
-    power: {
-      enabled: parseBool(map[SETTINGS_KEYS.power.enabled]),
-      hodUserId: map[SETTINGS_KEYS.power.hodUserId] ? Number(map[SETTINGS_KEYS.power.hodUserId]) : null,
-      digestTime: normalizeDigestTime(map[SETTINGS_KEYS.power.digestTime]) || DEFAULT_DIGEST_TIME,
-      digestLastSentDate: map[SETTINGS_KEYS.power.digestLastSentDate] || '',
-    },
-  };
+  const settings = {};
+  for (const domain of APPROVAL_DOMAINS) {
+    const k = SETTINGS_KEYS[domain];
+    settings[domain] = {
+      enabled: parseBool(map[k.enabled]),
+      hodUserId: map[k.hodUserId] ? Number(map[k.hodUserId]) : null,
+      digestTime: normalizeDigestTime(map[k.digestTime]) || DEFAULT_DIGEST_TIME,
+      digestLastSentDate: map[k.digestLastSentDate] || '',
+    };
+  }
+  return settings;
 }
 
 async function updateApprovalSettings(body) {
   const current = await getApprovalSettings();
-  const sugarDigestTime = normalizeDigestTime(body.sugar?.digestTime) || DEFAULT_DIGEST_TIME;
-  const powerDigestTime = normalizeDigestTime(body.power?.digestTime) || DEFAULT_DIGEST_TIME;
-  const updates = [
-    [SETTINGS_KEYS.sugar.enabled, body.sugar?.enabled ? '1' : '0'],
-    [SETTINGS_KEYS.power.enabled, body.power?.enabled ? '1' : '0'],
-    [SETTINGS_KEYS.sugar.hodUserId, body.sugar?.hodUserId ? String(body.sugar.hodUserId) : ''],
-    [SETTINGS_KEYS.power.hodUserId, body.power?.hodUserId ? String(body.power.hodUserId) : ''],
-    [SETTINGS_KEYS.sugar.digestTime, sugarDigestTime],
-    [SETTINGS_KEYS.power.digestTime, powerDigestTime],
-  ];
+  const nextByDomain = {};
+  const updates = [];
+  for (const domain of APPROVAL_DOMAINS) {
+    const cfg = body?.[domain] || {};
+    const digestTime = normalizeDigestTime(cfg.digestTime) || DEFAULT_DIGEST_TIME;
+    nextByDomain[domain] = digestTime;
+    updates.push(
+      [SETTINGS_KEYS[domain].enabled, cfg.enabled ? '1' : '0'],
+      [SETTINGS_KEYS[domain].hodUserId, cfg.hodUserId ? String(cfg.hodUserId) : ''],
+      [SETTINGS_KEYS[domain].digestTime, digestTime],
+    );
+  }
   for (const [key, value] of updates) {
     await setPortalSetting(key, value);
   }
@@ -347,11 +355,7 @@ async function updateApprovalSettings(body) {
   // clear today's "sent" marker so the scheduler can send again at the new time.
   const ist = getIstDateParts();
   const nowMinutes = timeToMinutes(ist.time);
-  const nextByDomain = {
-    sugar: sugarDigestTime,
-    power: powerDigestTime,
-  };
-  for (const domain of ['sugar', 'power']) {
+  for (const domain of APPROVAL_DOMAINS) {
     const prevTime = normalizeDigestTime(current[domain]?.digestTime) || DEFAULT_DIGEST_TIME;
     const nextTime = nextByDomain[domain];
     if (prevTime === nextTime) continue;
@@ -966,6 +970,24 @@ async function ensureWorkflowSchema() {
   );
   await addColumnIfMissing('shn_history', 'version', '`version` INT NOT NULL DEFAULT 1');
   await addColumnIfMissing('ppn_history', 'version', '`version` INT NOT NULL DEFAULT 1');
+  await addColumnIfMissing('phn_history', 'version', '`version` INT NOT NULL DEFAULT 1');
+  await addColumnIfMissing('phn_history', 'documents', '`documents` JSON DEFAULT NULL');
+  await addColumnIfMissing('phn_history', 'equipment_refs', '`equipment_refs` JSON DEFAULT NULL');
+
+  const [[domainCol]] = await pool.query(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'maintenance_history_approval_request'
+       AND COLUMN_NAME = 'domain'`,
+  );
+  const domainType = String(domainCol?.COLUMN_TYPE || '');
+  if (domainType && !domainType.includes('production')) {
+    await pool.execute(
+      `ALTER TABLE maintenance_history_approval_request
+       MODIFY COLUMN domain ENUM('sugar','power','production') NOT NULL`,
+    );
+    console.log('[maintenanceHistoryApproval] expanded domain enum to include production');
+  }
 
   const [[statusCol]] = await pool.query(
     `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
@@ -1010,8 +1032,10 @@ async function ensureDigestSchema() {
   const keys = [
     [SETTINGS_KEYS.sugar.digestTime, DEFAULT_DIGEST_TIME],
     [SETTINGS_KEYS.power.digestTime, DEFAULT_DIGEST_TIME],
+    [SETTINGS_KEYS.production.digestTime, DEFAULT_DIGEST_TIME],
     [SETTINGS_KEYS.sugar.digestLastSentDate, ''],
     [SETTINGS_KEYS.power.digestLastSentDate, ''],
+    [SETTINGS_KEYS.production.digestLastSentDate, ''],
   ];
   for (const [key, value] of keys) {
     await pool.execute(
@@ -1250,7 +1274,7 @@ async function runDigestSchedulerTick() {
     return;
   }
 
-  for (const domain of ['sugar', 'power']) {
+  for (const domain of APPROVAL_DOMAINS) {
     const domainSettings = settings[domain];
     if (!domainSettings?.enabled) continue;
 
@@ -1405,10 +1429,13 @@ function serializeApprovalRequest(request, extra = {}) {
 
 async function getHodAccess(userId) {
   const settings = await getApprovalSettings();
-  return {
-    sugar: Boolean(settings.sugar.enabled && Number(settings.sugar.hodUserId) === Number(userId)),
-    power: Boolean(settings.power.enabled && Number(settings.power.hodUserId) === Number(userId)),
-  };
+  const access = {};
+  for (const domain of APPROVAL_DOMAINS) {
+    access[domain] = Boolean(
+      settings[domain].enabled && Number(settings[domain].hodUserId) === Number(userId),
+    );
+  }
+  return access;
 }
 
 async function assertHodForRequest(user, request) {
@@ -1492,8 +1519,11 @@ function buildApprovalDeepLinkPath(request, { includeApprovalQuery = true } = {}
   ).trim().toLowerCase();
   const basePath = request.domain === 'sugar'
     ? `/sugar-house-equipment-new/${equipId}`
-    : `/power-plant-equipment-new/${equipId}`;
-  const pathPrefix = section
+    : request.domain === 'production'
+      ? `/production-house-equipment/${equipId}`
+      : `/power-plant-equipment-new/${equipId}`;
+  // Production House has no discipline segment in the URL
+  const pathPrefix = (section && request.domain !== 'production')
     ? `${basePath}/${encodeURIComponent(section)}`
     : basePath;
   if (includeApprovalQuery && requestId) {
@@ -1933,7 +1963,7 @@ async function listMyRequests(userId, query = {}) {
 
 async function listPendingForHod(user, query = {}) {
   const access = await getHodAccess(user.id);
-  const domains = ['sugar', 'power'].filter((d) => access[d]);
+  const domains = APPROVAL_DOMAINS.filter((d) => access[d]);
   if (!domains.length) {
     const err = new Error('You are not the assigned HOD for maintenance history approval.');
     err.status = 403;

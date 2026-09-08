@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { MdDomain, MdFactory, MdSave, MdEmail } from 'react-icons/md';
+﻿import { useEffect, useState } from 'react';
+import { MdDomain, MdFactory, MdPrecisionManufacturing, MdSave, MdEmail } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../Spinner';
@@ -103,13 +103,16 @@ function ApprovalCard({
   );
 }
 
+const EMPTY_DOMAIN = { enabled: false, hodUserId: null, digestTime: '22:00' };
+
 export default function MaintenanceHistoryApprovalSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState('');
   const [employees, setEmployees] = useState([]);
-  const [sugar, setSugar] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
-  const [power, setPower] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
+  const [sugar, setSugar] = useState(EMPTY_DOMAIN);
+  const [power, setPower] = useState(EMPTY_DOMAIN);
+  const [production, setProduction] = useState(EMPTY_DOMAIN);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,8 +121,9 @@ export default function MaintenanceHistoryApprovalSection() {
         const { data } = await api.get('/admin/maintenance-history-approval-settings');
         if (cancelled) return;
         setEmployees(data.employees || []);
-        setSugar(data.sugar || { enabled: false, hodUserId: null, digestTime: '22:00' });
-        setPower(data.power || { enabled: false, hodUserId: null, digestTime: '22:00' });
+        setSugar(data.sugar || EMPTY_DOMAIN);
+        setPower(data.power || EMPTY_DOMAIN);
+        setProduction(data.production || EMPTY_DOMAIN);
       } catch {
         if (!cancelled) toast.error('Failed to load maintenance history approval settings.');
       } finally {
@@ -132,9 +136,14 @@ export default function MaintenanceHistoryApprovalSection() {
   const save = async () => {
     setSaving(true);
     try {
-      const { data } = await api.put('/admin/maintenance-history-approval-settings', { sugar, power });
+      const { data } = await api.put('/admin/maintenance-history-approval-settings', {
+        sugar,
+        power,
+        production,
+      });
       setSugar(data.sugar);
       setPower(data.power);
+      setProduction(data.production);
       toast.success('Maintenance history approval settings saved.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save settings.');
@@ -163,7 +172,7 @@ export default function MaintenanceHistoryApprovalSection() {
   return (
     <ConfigSectionPanel
       title="Maintenance History Approval"
-      description="When enabled, maintenance history add/edit/delete on Sugar House and Power Plant equipment cards is held pending until the configured HOD reviews them from the daily digest email inbox — no DigiLog login required."
+      description="When enabled, maintenance history add/edit/delete on Sugar House, Power Plant, and Production House equipment cards is held pending until the configured HOD reviews them from the daily digest email inbox — no DigiLog login required."
       actions={
         loading ? <Spinner size="sm" /> : (
           <button
@@ -199,7 +208,7 @@ export default function MaintenanceHistoryApprovalSection() {
           />
           <ApprovalCard
             title="Power Plant"
-            description="Equipment cards under Power Plant Equipment History."
+            description="Equipment cards under Power Plant Equipment History (new)."
             icon={MdFactory}
             domain="power"
             enabled={power.enabled}
@@ -209,6 +218,21 @@ export default function MaintenanceHistoryApprovalSection() {
             onToggle={(enabled) => setPower((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setPower((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setPower((s) => ({ ...s, digestTime }))}
+            onResend={resend}
+            resending={resending}
+          />
+          <ApprovalCard
+            title="Production House"
+            description="Equipment cards under Production House Equipment History."
+            icon={MdPrecisionManufacturing}
+            domain="production"
+            enabled={production.enabled}
+            hodUserId={production.hodUserId}
+            digestTime={production.digestTime}
+            employees={employees}
+            onToggle={(enabled) => setProduction((s) => ({ ...s, enabled }))}
+            onHodChange={(hodUserId) => setProduction((s) => ({ ...s, hodUserId }))}
+            onDigestTimeChange={(digestTime) => setProduction((s) => ({ ...s, digestTime }))}
             onResend={resend}
             resending={resending}
           />

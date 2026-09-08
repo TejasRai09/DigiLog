@@ -19,7 +19,7 @@ const EMPTY_FILTERS = {
 };
 
 export default function ApprovalDashboard() {
-  const { sugar, power, enabled, loading: accessLoading } = useHodApprovalAccess();
+  const { sugar, power, production, enabled, loading: accessLoading } = useHodApprovalAccess();
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [applied, setApplied] = useState(EMPTY_FILTERS);
   const [page, setPage] = useState(1);
@@ -142,7 +142,7 @@ export default function ApprovalDashboard() {
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-slate-800">Approvals</h1>
         <p className="mt-2 text-base text-slate-500">
-          You are not the assigned HOD for Sugar House or Power Plant maintenance history.
+          You are not the assigned HOD for Sugar House, Power Plant, or Production House maintenance history.
         </p>
       </div>
     );
@@ -181,6 +181,7 @@ export default function ApprovalDashboard() {
           <option value="">All domains</option>
           {sugar && <option value="sugar">Sugar House</option>}
           {power && <option value="power">Power Plant</option>}
+          {production && <option value="production">Production House</option>}
         </select>
         <select
           value={filters.operation}

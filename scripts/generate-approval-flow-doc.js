@@ -148,7 +148,7 @@ async function main() {
 
           h('1. What this feature does'),
           p(
-            'When this feature is turned on, an employee’s maintenance history change (add, edit, or delete) for Sugar House or Power Plant equipment is not final until the HOD reviews it. The HOD can accept the change or send it back for correction. Production House is not part of this process.',
+            'When this feature is turned on, an employee’s maintenance history change (add, edit, or delete) for Sugar House, Power Plant, or Production House equipment is not final until the HOD reviews it. The HOD can accept the change or send it back for correction.',
           ),
 
           h('2. Who is involved'),

@@ -24,7 +24,7 @@ const getApprovalAccess = async (req, res) => {
     const access = await getHodAccess(req.user.id);
     res.json({
       ...access,
-      enabled: Boolean(access.sugar || access.power),
+      enabled: Boolean(access.sugar || access.power || access.production),
     });
   } catch (err) {
     sendServerError(res, 'getApprovalAccess:', err, MSG.LOAD);
