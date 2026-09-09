@@ -25,17 +25,43 @@ export function parseHistoryDocuments(value) {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(parsed)) return [];
     return parsed
-      .map((raw) => {
-        const storageKey = String(raw?.storageKey || '').trim();
-        const displayName = String(raw?.displayName || raw?.originalName || '').trim();
-        if (!storageKey || !displayName) return null;
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null;
+        const displayName = String(item.displayName || item.originalName || '').trim();
+        if (!displayName) return null;
+
+        // Staged on an approval request (not yet in history.documents column)
+        const isStaged = Boolean(item.staged)
+          || String(item.storageKey || '').startsWith('staged:');
+        if (isStaged && item.approvalRequestId) {
+          const stagedFileName = String(item.stagedFileName || '').trim()
+            || String(item.storageKey || '').split(':').pop()
+            || '';
+          if (!stagedFileName) return null;
+          return {
+            storageKey: String(item.storageKey || `staged:${item.approvalRequestId}:${stagedFileName}`),
+            displayName,
+            originalName: String(item.originalName || displayName).trim(),
+            mimeType: String(item.mimeType || 'application/octet-stream').trim(),
+            size: Number(item.size) || 0,
+            pending: false,
+            staged: true,
+            approvalRequestId: Number(item.approvalRequestId),
+            stagedFileName,
+            file: null,
+          };
+        }
+
+        const storageKey = String(item.storageKey || '').trim();
+        if (!storageKey) return null;
         return {
           storageKey,
           displayName,
-          originalName: String(raw?.originalName || displayName).trim(),
-          mimeType: String(raw?.mimeType || 'application/octet-stream').trim(),
-          size: Number(raw?.size) || 0,
+          originalName: String(item.originalName || displayName).trim(),
+          mimeType: String(item.mimeType || 'application/octet-stream').trim(),
+          size: Number(item.size) || 0,
           pending: false,
+          staged: false,
           file: null,
         };
       })
@@ -45,10 +71,16 @@ export function parseHistoryDocuments(value) {
   }
 }
 
-/** Saved documents → API JSON array (no pending uploads). */
+/** Saved documents → API JSON array (exclude local pending uploads and staged approval refs). */
 export function serializeHistoryDocumentsForApi(documents) {
   const list = (documents || [])
-    .filter((doc) => doc && !doc.pending && doc.storageKey)
+    .filter((doc) => (
+      doc
+      && !doc.pending
+      && !doc.staged
+      && doc.storageKey
+      && !String(doc.storageKey).startsWith('staged:')
+    ))
     .map(({ storageKey, displayName, originalName, mimeType, size }) => ({
       storageKey,
       displayName: String(displayName || originalName || '').trim(),
@@ -61,6 +93,27 @@ export function serializeHistoryDocumentsForApi(documents) {
 }
 
 export const MAX_HISTORY_DOCUMENTS = 2;
+/** Must match backend MAX_HISTORY_DOCUMENT_BYTES (multer limit). */
+export const MAX_HISTORY_DOCUMENT_BYTES = 10 * 1024 * 1024;
+
+export function formatHistoryDocumentMaxSizeLabel() {
+  return '10 MB';
+}
+
+/**
+ * Returns an error message if any pending upload exceeds the size limit; otherwise null.
+ */
+export function getOversizedHistoryDocumentError(documents = []) {
+  const pending = (documents || []).filter((doc) => doc?.pending && doc.file);
+  for (const doc of pending) {
+    const size = Number(doc.file?.size ?? doc.size) || 0;
+    if (size > MAX_HISTORY_DOCUMENT_BYTES) {
+      const name = doc.displayName || doc.originalName || doc.file?.name || 'Document';
+      return `"${name}" is too large (max ${formatHistoryDocumentMaxSizeLabel()}).`;
+    }
+  }
+  return null;
+}
 
 export const HISTORY_DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.txt,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 

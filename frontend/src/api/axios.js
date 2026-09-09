@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { rememberPostLoginRedirect } from '../utils/postLoginRedirect';
+import { disconnectRealtime } from '../realtime/socket';
 
 /** Prefer explicit API origin/path (prod / split hosts); else same-origin `/api` (nginx → Node :5000). */
 function resolveApiBaseURL() {
@@ -48,6 +49,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token');
       sessionStorage.removeItem('digilog_session_id');
       localStorage.removeItem('digilog_session_id');
+      disconnectRealtime();
       try {
         rememberPostLoginRedirect(`${window.location.pathname}${window.location.search || ''}`);
       } catch {

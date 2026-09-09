@@ -90,7 +90,10 @@ export default function MaintenanceApprovalReview() {
             {review.domainLabel} · {review.actionLabel}
           </p>
           <p className="mt-2 text-sm text-slate-600">
-            Equipment: <span className="font-semibold text-slate-800">{review.equipmentName}</span>
+            Equipment: <span className="break-words font-semibold text-slate-800">{review.equipmentName}</span>
+          </p>
+          <p className="text-sm text-slate-600">
+            Path: <span className="break-words font-semibold text-slate-800">{review.equipmentPath || '—'}</span>
           </p>
           <p className="text-sm text-slate-600">
             Submitted by {review.submitterName}

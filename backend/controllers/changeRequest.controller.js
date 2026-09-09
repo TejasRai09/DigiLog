@@ -12,8 +12,11 @@ const {
   listMyRequests,
   listPendingForHod,
   loadConflictState,
+  getDocumentForLoggedInUser,
 } = require('../services/maintenanceHistoryApproval.service');
 const { sendServerError, MSG } = require('../utils/httpError');
+const path = require('path');
+const fs = require('fs');
 
 function actorFromUser(user) {
   return { id: user.id, userId: user.id, email: user.email };
@@ -53,7 +56,7 @@ const approveChangeRequest = async (req, res) => {
         : (result.alreadyResolved ? 'Already approved.' : 'Approved.'),
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      item: serializeApprovalRequest(result.request, extra),
+      item: await serializeApprovalRequest(result.request, extra),
     });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -70,7 +73,7 @@ const sendChangeForModification = async (req, res) => {
       message: result.alreadyResolved ? 'Already sent for modification.' : 'Sent for modification.',
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      item: serializeApprovalRequest(result.request),
+      item: await serializeApprovalRequest(result.request),
     });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -101,7 +104,7 @@ const resolveChangeConflict = async (req, res) => {
     res.json({
       message: result.status === 'cancelled' ? 'Conflict discarded.' : 'Conflict applied.',
       status: result.status,
-      item: serializeApprovalRequest(result.request, extra),
+      item: await serializeApprovalRequest(result.request, extra),
     });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -125,7 +128,7 @@ const getChangeRequestById = async (req, res) => {
     const extra = request.status === 'conflict'
       ? { conflict: await loadConflictState(request) }
       : {};
-    res.json(serializeApprovalRequest(request, extra));
+    res.json(await serializeApprovalRequest(request, extra));
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
     sendServerError(res, 'getChangeRequestById:', err, MSG.LOAD);
@@ -138,11 +141,33 @@ const resubmitChangeRequest = async (req, res) => {
     const updated = await resubmitRequest(request, req.body || {}, req.user);
     res.json({
       message: 'Resubmitted for HOD approval.',
-      item: serializeApprovalRequest(updated),
+      item: await serializeApprovalRequest(updated),
     });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
     sendServerError(res, 'resubmitChangeRequest:', err, MSG.SAVE);
+  }
+};
+
+const downloadApprovalDocument = async (req, res) => {
+  const source = String(req.query.source || 'stored').trim();
+  const name = String(req.query.name || '').trim();
+  const disposition = String(req.query.disposition || 'inline').trim() === 'attachment'
+    ? 'attachment'
+    : 'inline';
+  try {
+    const file = await getDocumentForLoggedInUser(req.user, req.params.id, source, name);
+    const safeDownloadName = path.basename(file.displayName || name || 'document');
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    res.setHeader(
+      'Content-Disposition',
+      `${disposition}; filename="${safeDownloadName.replace(/"/g, '')}"`,
+    );
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return fs.createReadStream(file.absPath).pipe(res);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
+    sendServerError(res, 'downloadApprovalDocument:', err, MSG.LOAD);
   }
 };
 
@@ -156,4 +181,5 @@ module.exports = {
   getMyChangeRequests,
   getChangeRequestById,
   resubmitChangeRequest,
+  downloadApprovalDocument,
 };

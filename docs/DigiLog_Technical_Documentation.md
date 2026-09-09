@@ -2040,6 +2040,24 @@ No Docker in repo. Typical: MySQL 8 + Node backend + nginx serving Vite `dist/`.
 - `VITE_GOOGLE_CLIENT_ID` — Google OAuth
 - `VITE_AZURE_CLIENT_ID` / `VITE_AZURE_TENANT_ID` — MSAL
 
+### 12.3 In-app notifications (Socket.IO)
+
+Realtime push uses Socket.IO on the same Node HTTP server (`/socket.io/`). Auth is JWT via `handshake.auth.token` (same as Bearer REST). Creating a row in `user_notification` emits `notification:new` to room `user:{userId}`. The SPA falls back to a 60s unread poll if the socket is down.
+
+When nginx proxies the API, also upgrade WebSockets:
+
+```nginx
+location /socket.io/ {
+  proxy_pass http://127.0.0.1:5000;
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+  proxy_set_header Host $host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
 ## 13. Security
 
 - JWT Bearer + bcrypt; SSO token verification

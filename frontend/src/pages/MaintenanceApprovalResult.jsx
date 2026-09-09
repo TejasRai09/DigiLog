@@ -151,8 +151,9 @@ export default function MaintenanceApprovalResult({ mode }) {
             <button
               type="submit"
               disabled={submitting || !comment.trim()}
-              className="mt-4 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
             >
+              {submitting ? <Spinner size="sm" /> : null}
               {submitting ? 'Sending…' : 'Send for modification'}
             </button>
           </form>

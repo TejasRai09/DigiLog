@@ -86,7 +86,7 @@ function ApprovalCard({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
           >
             {resending === `${domain}:all` ? <Spinner size="sm" /> : <MdEmail className="w-3.5 h-3.5" />}
-            Resend full digest
+            {resending === `${domain}:all` ? 'Sending…' : 'Resend full digest'}
           </button>
           <button
             type="button"
@@ -95,7 +95,7 @@ function ApprovalCard({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
           >
             {resending === `${domain}:new` ? <Spinner size="sm" /> : <MdEmail className="w-3.5 h-3.5" />}
-            Email new pending only
+            {resending === `${domain}:new` ? 'Sending…' : 'Email new pending only'}
           </button>
         </div>
       )}
@@ -182,7 +182,7 @@ export default function MaintenanceHistoryApprovalSection() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50"
           >
             {saving ? <Spinner size="sm" /> : <MdSave className="w-3.5 h-3.5" />}
-            Save
+            {saving ? 'Saving…' : 'Save'}
           </button>
         )
       }

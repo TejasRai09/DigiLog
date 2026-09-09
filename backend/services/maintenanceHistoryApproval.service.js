@@ -27,6 +27,8 @@ const { CLIENT_ORIGIN } = require('../config/env');
 const NOTIF_REF_APPROVAL = 'maintenance_history_approval_request';
 const NOTIF_TYPE_MH_APPROVED = 'mh_approved';
 const NOTIF_TYPE_MH_NEEDS_MODIFICATION = 'mh_needs_modification';
+const NOTIF_TYPE_MH_PENDING_HOD = 'mh_pending_hod';
+const HOD_APPROVALS_PATH = '/maintenance/approvals';
 
 const DIGEST_TIMEZONE = 'Asia/Kolkata';
 const DEFAULT_DIGEST_TIME = '22:00';
@@ -117,7 +119,6 @@ const FIELD_LABELS = {
   rem: 'Remarks',
   section: 'Section',
   sub_section: 'Equipment',
-  equipment_refs: 'Equipment mapping',
 };
 
 function parseBool(v) {
@@ -267,6 +268,31 @@ function getIstDateParts(date = new Date()) {
   };
 }
 
+/**
+ * mysql2 dateStrings under session UTC → "YYYY-MM-DD HH:mm:ss" (no zone).
+ * Parse as UTC so IST day/time math is correct on an IST host.
+ */
+function parseMysqlUtcDateTime(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const s = String(value).trim();
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(\.\d+)?$/.exec(s);
+  if (mysqlUtc) {
+    const d = new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}${mysqlUtc[3] || ''}Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** API-facing ISO UTC string for created/resolved timestamps. */
+function toApiUtcIso(value) {
+  const d = parseMysqlUtcDateTime(value);
+  return d ? d.toISOString() : null;
+}
+
 function timeToMinutes(hhmm) {
   const normalized = normalizeDigestTime(hhmm);
   if (!normalized) return null;
@@ -274,15 +300,146 @@ function timeToMinutes(hhmm) {
   return h * 60 + m;
 }
 
-function equipmentNameFromRequest(request) {
-  try {
-    const ctx = typeof request.equipment_context_json === 'string'
-      ? JSON.parse(request.equipment_context_json)
-      : request.equipment_context_json;
-    return ctx?.name || ctx?.equip_no || ctx?.tag_name || 'Equipment';
-  } catch {
-    return 'Equipment';
+const PATH_SEP = ' › ';
+
+const PRODUCTION_HOUSE_SECTION_LABELS = {
+  pan_crystallizer: 'Pan & Crystallizer',
+  evaporation: 'Evaporation',
+  clarification: 'Clarification',
+  centrifugal_drier: 'Centrifugal & Drier House',
+};
+
+async function walkHierarchyNodeLabels(nodeId, hierarchyTable) {
+  const labels = [];
+  let currentId = nodeId;
+  const guard = new Set();
+  while (currentId && !guard.has(String(currentId))) {
+    guard.add(String(currentId));
+    const [[row]] = await pool.query(
+      `SELECT id, parent_id, name FROM \`${hierarchyTable}\` WHERE id = ? LIMIT 1`,
+      [currentId],
+    );
+    if (!row) break;
+    labels.unshift(String(row.name || '').trim());
+    currentId = row.parent_id;
   }
+  return labels.filter(Boolean);
+}
+
+/**
+ * Full equipment path labels for HOD display (mail / inbox / logged-in approvals).
+ * Sugar/Power: hierarchy tree. Production: house section + equipment name.
+ */
+async function resolveHierarchyPathLabels(domain, equipId, equipment = null) {
+  const eid = Number(equipId);
+  if (!Number.isFinite(eid) || eid <= 0) return [];
+
+  if (domain === 'production') {
+    let eq = equipment;
+    if (!eq) {
+      const [[row]] = await pool.query(
+        'SELECT name, house_section, equip_no FROM phn_equipment WHERE id = ? LIMIT 1',
+        [eid],
+      );
+      eq = row || null;
+    }
+    const labels = ['Production House'];
+    const sectionLabel = PRODUCTION_HOUSE_SECTION_LABELS[eq?.house_section]
+      || String(eq?.house_section || '').trim();
+    if (sectionLabel) labels.push(sectionLabel);
+    const leaf = String(eq?.name || eq?.equip_no || '').trim();
+    if (leaf) labels.push(leaf);
+    return labels;
+  }
+
+  if (domain === 'sugar' || domain === 'power') {
+    const hierarchyTable = domain === 'sugar' ? 'shn_hierarchy_node' : 'ppn_hierarchy_node';
+    const equipCol = domain === 'sugar' ? 'shn_equip_id' : 'ppn_equip_id';
+    const [[node]] = await pool.query(
+      `SELECT id FROM \`${hierarchyTable}\`
+       WHERE ${equipCol} = ? AND is_active = 1
+       ORDER BY id ASC
+       LIMIT 1`,
+      [eid],
+    );
+    if (node?.id) {
+      const labels = await walkHierarchyNodeLabels(node.id, hierarchyTable);
+      if (labels.length) return labels;
+    }
+
+    let eq = equipment;
+    if (!eq) {
+      const table = DOMAIN_TABLES[domain]?.equipment;
+      if (table) {
+        const [[row]] = await pool.query(
+          `SELECT name, category, subcategory, equip_no, tag_name FROM \`${table}\` WHERE id = ? LIMIT 1`,
+          [eid],
+        );
+        eq = row || null;
+      }
+    }
+    const labels = [DOMAIN_TABLES[domain]?.label || (domain === 'sugar' ? 'Sugar House' : 'Power Plant')];
+    if (eq?.category) labels.push(String(eq.category).trim());
+    if (eq?.subcategory) labels.push(String(eq.subcategory).trim());
+    const leaf = String(eq?.name || eq?.equip_no || eq?.tag_name || '').trim();
+    if (leaf) labels.push(leaf);
+    return labels.filter(Boolean);
+  }
+
+  return [];
+}
+
+function formatHierarchyPath(labels = []) {
+  return labels.filter(Boolean).join(PATH_SEP);
+}
+
+function equipmentLeafNameFromContext(ctx = {}) {
+  return String(ctx?.name || ctx?.equip_no || ctx?.tag_name || '').trim() || 'Equipment';
+}
+
+/**
+ * Split leaf equipment name vs hierarchy path for HOD mail / inbox / approvals.
+ * Path uses stored or resolved hierarchy labels; drops the last label when it
+ * duplicates the equipment name.
+ */
+function splitEquipmentDisplay(ctx = {}, hierarchyLabels = []) {
+  const equipmentName = equipmentLeafNameFromContext(ctx);
+  let pathLabels = Array.isArray(hierarchyLabels)
+    ? hierarchyLabels.map((x) => String(x || '').trim()).filter(Boolean)
+    : [];
+  if (!pathLabels.length && ctx.hierarchyPath) {
+    pathLabels = String(ctx.hierarchyPath).split(PATH_SEP).map((x) => x.trim()).filter(Boolean);
+  }
+  if (pathLabels.length) {
+    const last = pathLabels[pathLabels.length - 1];
+    if (last && last.toLowerCase() === equipmentName.toLowerCase()) {
+      pathLabels = pathLabels.slice(0, -1);
+    }
+  }
+  return {
+    equipmentName,
+    equipmentPath: formatHierarchyPath(pathLabels),
+  };
+}
+
+async function equipmentDisplayPartsFromRequest(request) {
+  const ctx = parseJson(request.equipment_context_json, {}) || {};
+  let labels = Array.isArray(ctx.hierarchyLabels) ? ctx.hierarchyLabels : [];
+  if (!labels.length) {
+    try {
+      labels = await resolveHierarchyPathLabels(request.domain, request.equip_id, null);
+    } catch (err) {
+      console.error('[maintenanceHistoryApproval] hierarchy path resolve failed:', err.message);
+      labels = [];
+    }
+  }
+  return splitEquipmentDisplay(ctx, labels);
+}
+
+/** Leaf equipment name only (notifications / short labels). */
+async function equipmentDisplayNameFromRequest(request) {
+  const parts = await equipmentDisplayPartsFromRequest(request);
+  return parts.equipmentName;
 }
 
 async function setPortalSetting(key, value) {
@@ -407,7 +564,14 @@ function listStagedDocuments(requestId) {
   const dir = approvalStagingDir(requestId);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
-    .filter((filename) => !filename.endsWith('.meta.json'))
+    .filter((filename) => {
+      if (!filename || filename.endsWith('.meta.json') || filename.startsWith('.')) return false;
+      try {
+        return fs.statSync(path.join(dir, filename)).isFile();
+      } catch {
+        return false;
+      }
+    })
     .map((filename) => {
       const metaPath = path.join(dir, `${filename}.meta.json`);
       let meta = {};
@@ -435,6 +599,29 @@ function cleanupStagingDir(requestId) {
   const dir = approvalStagingDir(requestId);
   if (!fs.existsSync(dir)) return;
   fs.rmSync(dir, { recursive: true, force: true });
+}
+
+/** Remove one staged file (+ meta) for an approval request. Returns true if removed. */
+function deleteStagedDocument(requestId, fileName) {
+  const safeName = path.basename(String(fileName || '').trim());
+  if (!safeName || safeName !== String(fileName || '').trim() || safeName.endsWith('.meta.json')) {
+    const err = new Error('Invalid document name.');
+    err.status = 400;
+    throw err;
+  }
+  const staged = listStagedDocuments(requestId);
+  const match = staged.find((f) => f.filename === safeName);
+  if (!match) {
+    const err = new Error('Document not found.');
+    err.status = 404;
+    throw err;
+  }
+  const dir = approvalStagingDir(requestId);
+  const abs = path.join(dir, safeName);
+  const metaPath = path.join(dir, `${safeName}.meta.json`);
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+  return true;
 }
 
 async function moveStagedDocumentsToHistory(domain, equipId, historyId, requestId) {
@@ -673,11 +860,17 @@ function documentViewUrl(acceptToken, source, name) {
   return `/api/maintenance-approval/document?${params.toString()}`;
 }
 
-function buildReviewDocuments(request, acceptToken) {
-  const payload = parseJson(request.payload_json, {});
-  const previous = parseJson(request.previous_json, null);
-  const docSource = request.action === 'delete' ? previous : payload;
-  const stored = parseHistoryDocuments(docSource?.documents).map((doc) => {
+/** Authenticated HOD / owner document URL (Bearer required — open via API client). */
+function documentAuthViewUrl(requestId, source, name) {
+  const params = new URLSearchParams({
+    source: source === 'staged' ? 'staged' : 'stored',
+    name: String(name || ''),
+  });
+  return `/api/approvals/${encodeURIComponent(requestId)}/documents?${params.toString()}`;
+}
+
+function mapStoredDocsForReview(docs, makeUrl) {
+  return (docs || []).map((doc) => {
     const name = path.basename(doc.storageKey);
     return {
       source: 'stored',
@@ -685,9 +878,88 @@ function buildReviewDocuments(request, acceptToken) {
       displayName: doc.displayName,
       mimeType: doc.mimeType || 'application/octet-stream',
       size: Number(doc.size) || 0,
-      url: documentViewUrl(acceptToken, 'stored', name),
+      url: makeUrl('stored', name),
     };
   });
+}
+
+/** After approve, docs live on the history row — payload may still be empty. */
+async function findLikelyCreatedHistoryId(request) {
+  if (request.action !== 'create' || request.status !== STATUS.APPROVED) return null;
+  const tables = DOMAIN_TABLES[request.domain];
+  if (!tables?.history) return null;
+  const payload = parseJson(request.payload_json, {}) || {};
+  try {
+    const [[row]] = await pool.query(
+      `SELECT id FROM \`${tables.history}\`
+       WHERE equip_id = ?
+         AND documents IS NOT NULL
+         AND JSON_LENGTH(documents) > 0
+         AND (date_start <=> ?)
+         AND (obs <=> ?)
+         AND (act <=> ?)
+         AND (rem <=> ?)
+       ORDER BY id DESC
+       LIMIT 1`,
+      [
+        request.equip_id,
+        payload.date_start || null,
+        payload.obs || null,
+        payload.act || null,
+        payload.rem || null,
+      ],
+    );
+    return row?.id ? Number(row.id) : null;
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] find created history id failed:', err.message);
+    return null;
+  }
+}
+
+async function loadHistoryDocumentsForRequest(request) {
+  let historyId = Number(request.history_id) || 0;
+  if (!historyId) {
+    historyId = (await findLikelyCreatedHistoryId(request)) || 0;
+    // Lazy backfill so approved Review keeps working after create approvals.
+    if (historyId) {
+      try {
+        await pool.execute(
+          `UPDATE maintenance_history_approval_request
+           SET history_id = COALESCE(history_id, ?)
+           WHERE id = ?`,
+          [historyId, request.id],
+        );
+        request.history_id = historyId;
+      } catch {
+        /* non-fatal */
+      }
+    }
+  }
+  if (!historyId || request.action === 'delete') return [];
+  const tables = DOMAIN_TABLES[request.domain];
+  if (!tables?.history) return [];
+  try {
+    const [[row]] = await pool.query(
+      `SELECT documents FROM \`${tables.history}\` WHERE id = ? AND equip_id = ? LIMIT 1`,
+      [historyId, request.equip_id],
+    );
+    return parseHistoryDocuments(row?.documents);
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] load history documents failed:', err.message);
+    return [];
+  }
+}
+
+async function buildReviewDocuments(request, { acceptToken = null, useAuthUrl = false } = {}) {
+  const payload = parseJson(request.payload_json, {});
+  const previous = parseJson(request.previous_json, null);
+  const docSource = request.action === 'delete' ? previous : payload;
+  const makeUrl = (source, name) => (
+    useAuthUrl
+      ? documentAuthViewUrl(request.id, source, name)
+      : documentViewUrl(acceptToken, source, name)
+  );
+  let stored = mapStoredDocsForReview(parseHistoryDocuments(docSource?.documents), makeUrl);
   const staged = request.action === 'delete'
     ? []
     : listStagedDocuments(request.id).map((file) => ({
@@ -696,13 +968,24 @@ function buildReviewDocuments(request, acceptToken) {
       displayName: file.displayName,
       mimeType: file.mimeType || 'application/octet-stream',
       size: Number(file.size) || 0,
-      url: documentViewUrl(acceptToken, 'staged', file.filename),
+      url: makeUrl('staged', file.filename),
     }));
+
+  // Approved creates/updates move staged files into history and clear staging;
+  // fall back to the live history row when payload still has no document keys.
+  if (
+    !stored.length
+    && !staged.length
+    && request.action !== 'delete'
+    && (request.history_id || request.status === STATUS.APPROVED)
+  ) {
+    stored = mapStoredDocsForReview(await loadHistoryDocumentsForRequest(request), makeUrl);
+  }
+
   return [...stored, ...staged];
 }
 
-async function getDocumentForReviewToken(token, source, name) {
-  const review = await getReviewByToken(token);
+async function resolveDocumentFileForRequest(request, source, name) {
   const safeName = path.basename(String(name || '').replace(/\\/g, '/'));
   if (!safeName || safeName === '.' || safeName === '..') {
     const err = new Error('Invalid document name.');
@@ -712,7 +995,7 @@ async function getDocumentForReviewToken(token, source, name) {
   const src = source === 'staged' ? 'staged' : 'stored';
 
   if (src === 'staged') {
-    const file = listStagedDocuments(review.request.id).find((f) => f.filename === safeName);
+    const file = listStagedDocuments(request.id).find((f) => f.filename === safeName);
     if (!file || !fs.existsSync(file.absPath)) {
       const err = new Error('Document not found.');
       err.status = 404;
@@ -725,11 +1008,18 @@ async function getDocumentForReviewToken(token, source, name) {
     };
   }
 
-  const payload = parseJson(review.request.payload_json, {});
-  const previous = parseJson(review.request.previous_json, null);
-  const docSource = review.request.action === 'delete' ? previous : payload;
-  const document = parseHistoryDocuments(docSource?.documents)
+  const payload = parseJson(request.payload_json, {});
+  const previous = parseJson(request.previous_json, null);
+  const docSource = request.action === 'delete' ? previous : payload;
+  let document = parseHistoryDocuments(docSource?.documents)
     .find((doc) => path.basename(doc.storageKey) === safeName);
+
+  if (!document && request.action !== 'delete'
+    && (request.history_id || request.status === STATUS.APPROVED)) {
+    document = (await loadHistoryDocumentsForRequest(request))
+      .find((doc) => path.basename(doc.storageKey) === safeName);
+  }
+
   if (!document) {
     const err = new Error('Document not found.');
     err.status = 404;
@@ -748,6 +1038,17 @@ async function getDocumentForReviewToken(token, source, name) {
   };
 }
 
+async function getDocumentForReviewToken(token, source, name) {
+  const review = await getReviewByToken(token);
+  return resolveDocumentFileForRequest(review.request, source, name);
+}
+
+async function getDocumentForLoggedInUser(user, requestId, source, name) {
+  const request = await getRequestById(requestId);
+  await assertCanViewRequest(user, request);
+  return resolveDocumentFileForRequest(request, source, name);
+}
+
 async function getReviewByToken(token) {
   let request = await getRequestByToken(token, 'accept');
   if (!request) {
@@ -762,12 +1063,14 @@ async function getReviewByToken(token) {
   const photoSource = request.action === 'delete' ? previous : payload;
   const acceptToken = request.token_accept;
 
+  const display = await equipmentDisplayPartsFromRequest(request);
   return {
     status: request.status,
     alreadyResolved: !ACTIVE_QUEUE_STATUSES.includes(request.status),
     tokenExpired: Boolean(request.tokenExpired),
     request,
-    equipmentName: equipmentNameFromRequest(request),
+    equipmentName: display.equipmentName,
+    equipmentPath: display.equipmentPath,
     domain: request.domain,
     domainLabel: DOMAIN_TABLES[request.domain]?.label || '',
     action: request.action,
@@ -783,7 +1086,7 @@ async function getReviewByToken(token) {
     resolvedAt: request.resolved_at || null,
     photosBefore: imageSources(photoSource?.img_before),
     photosAfter: imageSources(photoSource?.img_after),
-    documents: buildReviewDocuments(request, acceptToken),
+    documents: await buildReviewDocuments(request, { acceptToken }),
   };
 }
 
@@ -795,13 +1098,17 @@ async function getInboxByToken(token) {
      ORDER BY created_at ASC, id ASC`,
     [review.request.domain, review.request.hod_email],
   );
+  const entries = [];
+  for (const row of rows) {
+    entries.push(await buildDigestEntry(row));
+  }
   return {
     status: review.status,
     alreadyResolved: review.alreadyResolved && !rows.length,
     domain: review.domain,
     domainLabel: review.domainLabel,
     hodEmail: review.request.hod_email,
-    entries: rows.map(buildDigestEntry),
+    entries,
   };
 }
 
@@ -860,11 +1167,22 @@ async function createPendingRequest({
   }
 
   const tokens = newTokenPair();
+  const hierarchyLabels = await resolveHierarchyPathLabels(domain, equipId, equipment);
+  const display = splitEquipmentDisplay({
+    name: equipment?.name || '',
+    equip_no: equipment?.equip_no || equipment?.tag_name || '',
+    tag_name: equipment?.tag_name || '',
+  }, hierarchyLabels);
   const equipmentContext = {
     name: equipment?.name || '',
     equip_no: equipment?.equip_no || equipment?.tag_name || '',
     tag_name: equipment?.tag_name || '',
     dept: equipment?.dept || '',
+    house_section: equipment?.house_section || '',
+    category: equipment?.category || '',
+    subcategory: equipment?.subcategory || '',
+    hierarchyLabels,
+    hierarchyPath: display.equipmentPath,
   };
 
   const previousSnapshot = previousRow ? snapshotFromRow(previousRow) : null;
@@ -898,6 +1216,10 @@ async function createPendingRequest({
     ],
   );
 
+  // After DB clear + AUTO_INCREMENT reset, new ids can reuse folders that still
+  // hold orphaned staged files — wipe so uploads start from an empty quota.
+  cleanupStagingDir(result.insertId);
+
   try {
     await insertAudit({
       requestId: result.insertId,
@@ -909,6 +1231,13 @@ async function createPendingRequest({
     });
   } catch (err) {
     console.error('[maintenanceHistoryApproval] audit create failed:', err.message);
+  }
+
+  const created = await getRequestById(result.insertId);
+  try {
+    await notifyHodInAppPending(created, { resubmitted: false });
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] hod notify failed:', err.message);
   }
 
   return { id: result.insertId, tokenAccept: tokens.tokenAccept, tokenReject: tokens.tokenReject };
@@ -1059,7 +1388,7 @@ async function countNotifiedOnIstDate(domain, istDate) {
        WHERE domain = ? AND hod_notified_at IS NOT NULL`,
       [domain],
     );
-    return rows.filter((row) => getIstDateParts(new Date(row.hod_notified_at)).date === istDate).length;
+    return rows.filter((row) => getIstDateParts(parseMysqlUtcDateTime(row.hod_notified_at) || new Date(0)).date === istDate).length;
   } catch (err) {
     if (String(err.message || '').includes('hod_notified_at')) {
       const wrap = new Error(
@@ -1072,13 +1401,15 @@ async function countNotifiedOnIstDate(domain, istDate) {
   }
 }
 
-function buildDigestEntry(request) {
+async function buildDigestEntry(request) {
   const payload = parseJson(request.payload_json, {});
   const previous = parseJson(request.previous_json, null);
   const diff = buildFieldDiff(request.action, previous, payload);
+  const display = await equipmentDisplayPartsFromRequest(request);
   return {
     id: request.id,
-    equipmentName: equipmentNameFromRequest(request),
+    equipmentName: display.equipmentName,
+    equipmentPath: display.equipmentPath,
     actionLabel: actionLabel(request.action),
     submitterName: request.requested_by_name || 'A user',
     submitterEmail: request.requested_by_email || '',
@@ -1093,7 +1424,7 @@ function splitDigestByIstDate(rows, istDate) {
   const previous = [];
   const today = [];
   for (const row of rows) {
-    const created = getIstDateParts(new Date(row.created_at)).date;
+    const created = getIstDateParts(parseMysqlUtcDateTime(row.created_at) || new Date(0)).date;
     if (created === istDate) today.push(row);
     else previous.push(row);
   }
@@ -1162,7 +1493,10 @@ async function sendDigestForDomain(domain, options = {}) {
     });
   }
 
-  const entries = refreshed.map(buildDigestEntry);
+  const entries = [];
+  for (const row of refreshed) {
+    entries.push(await buildDigestEntry(row));
+  }
   await sendMaintenanceHistoryDigestEmail({
     to: hod.email,
     hodName: hod.name,
@@ -1240,7 +1574,7 @@ async function bulkApproveByInboxToken(seedToken, ids) {
         status: result.status,
         alreadyResolved: Boolean(result.alreadyResolved),
         conflict: conflict || null,
-        equipmentName: equipmentNameFromRequest(result.request),
+        equipmentName: await equipmentDisplayNameFromRequest(result.request),
         message: conflict
           ? 'Version conflict — open Review for this row.'
           : null,
@@ -1384,15 +1718,16 @@ async function loadConflictState(request, conn) {
 }
 
 function requestCreatedIstDate(request) {
-  return getIstDateParts(new Date(request.created_at)).date;
+  return getIstDateParts(parseMysqlUtcDateTime(request.created_at) || new Date(0)).date;
 }
 
-function serializeApprovalRequest(request, extra = {}) {
+async function serializeApprovalRequest(request, extra = {}) {
   const payload = parseJson(request.payload_json, {});
   const previous = parseJson(request.previous_json, null);
   const createdIst = requestCreatedIstDate(request);
   const todayIst = getIstDateParts().date;
   const photoSource = request.action === 'delete' ? previous : payload;
+  const display = await equipmentDisplayPartsFromRequest(request);
   return {
     id: request.id,
     module: request.module || 'maintenance',
@@ -1403,7 +1738,8 @@ function serializeApprovalRequest(request, extra = {}) {
     operationLabel: actionLabel(request.action),
     entityId: request.history_id,
     equipId: request.equip_id,
-    equipmentName: equipmentNameFromRequest(request),
+    equipmentName: display.equipmentName,
+    equipmentPath: display.equipmentPath,
     previousData: previous,
     requestedData: payload,
     changedFields: buildFieldDiff(request.action, previous, payload),
@@ -1414,15 +1750,16 @@ function serializeApprovalRequest(request, extra = {}) {
     },
     status: request.status,
     hodComment: request.hod_comment || '',
-    requestedAt: request.created_at,
-    reviewedAt: request.resolved_at,
+    requestedAt: toApiUtcIso(request.created_at),
+    reviewedAt: toApiUtcIso(request.resolved_at),
     reviewedBy: request.reviewed_by_user_id,
     baseVersion: request.base_version,
     notificationCount: request.notification_count,
-    lastNotificationAt: request.hod_notified_at,
+    lastNotificationAt: toApiUtcIso(request.hod_notified_at),
     group: createdIst && createdIst === todayIst ? 'today' : 'previous',
     photosBefore: imageSources(photoSource?.img_before),
     photosAfter: imageSources(photoSource?.img_after),
+    documents: await buildReviewDocuments(request, { useAuthUrl: true }),
     ...extra,
   };
 }
@@ -1475,30 +1812,48 @@ async function applyPendingRequestDb(request, conn) {
 
 async function applyPendingRequestFiles(request, historyId) {
   const payload = parseJson(request.payload_json, {});
+  let nextPayload = payload;
+
   if (request.action === 'create' || request.action === 'update') {
     const targetId = historyId || request.history_id;
-    if (!targetId) return;
-    const withDocs = await mergeStagedDocumentsIntoPayload(
-      request.domain,
-      request.equip_id,
-      targetId,
-      request.id,
-      payload,
-    );
-    if (withDocs.documents !== payload.documents) {
-      await applyHistoryUpdate(request.domain, request.equip_id, targetId, withDocs);
+    if (targetId) {
+      nextPayload = await mergeStagedDocumentsIntoPayload(
+        request.domain,
+        request.equip_id,
+        targetId,
+        request.id,
+        payload,
+      );
+      if (nextPayload.documents !== payload.documents) {
+        await applyHistoryUpdate(request.domain, request.equip_id, targetId, nextPayload);
+      }
     }
-    return;
+  } else {
+    cleanupStagingDir(request.id);
   }
-  cleanupStagingDir(request.id);
+
+  // Keep payload_json + history_id in sync so approved Review still shows documents
+  // after staging is cleared.
+  const docsChanged = JSON.stringify(nextPayload?.documents ?? null)
+    !== JSON.stringify(payload?.documents ?? null);
+  const needHistoryId = Boolean(historyId) && !request.history_id;
+  if (docsChanged || needHistoryId) {
+    await pool.execute(
+      `UPDATE maintenance_history_approval_request
+       SET payload_json = ?, history_id = COALESCE(history_id, ?)
+       WHERE id = ?`,
+      [JSON.stringify(nextPayload || {}), historyId || null, request.id],
+    );
+  }
 }
 
-async function markRequestApproved(conn, request, actor) {
+async function markRequestApproved(conn, request, actor, historyId = null) {
   await db(conn).execute(
     `UPDATE maintenance_history_approval_request
-     SET status = 'approved', resolved_at = NOW(), resolved_by = ?, reviewed_by_user_id = ?
+     SET status = 'approved', resolved_at = NOW(), resolved_by = ?, reviewed_by_user_id = ?,
+         history_id = COALESCE(history_id, ?)
      WHERE id = ?`,
-    [actor.email || request.hod_email, actor.userId || null, request.id],
+    [actor.email || request.hod_email, actor.userId || null, historyId || null, request.id],
   );
 }
 
@@ -1510,11 +1865,13 @@ function buildApprovalDeepLinkPath(request, { includeApprovalQuery = true } = {}
 
   const payload = parseJson(request.payload_json, {});
   const previous = parseJson(request.previous_json, {});
+  const ctx = parseJson(request.equipment_context_json, {}) || {};
   const section = String(
     payload.section
     || previous.section
     || payload.equipment_refs?.[0]?.section
     || previous.equipment_refs?.[0]?.section
+    || ctx.dept
     || '',
   ).trim().toLowerCase();
   const basePath = request.domain === 'sugar'
@@ -1527,16 +1884,56 @@ function buildApprovalDeepLinkPath(request, { includeApprovalQuery = true } = {}
     ? `${basePath}/${encodeURIComponent(section)}`
     : basePath;
   if (includeApprovalQuery && requestId) {
+    // Same query the in-app "View / Edit" notification uses (opens history + edit form)
     return `${pathPrefix}?approvalRequestId=${encodeURIComponent(requestId)}`;
   }
   return pathPrefix;
 }
 
+/** Absolute URL for emails — identical destination to the in-app notification CTA. */
+function buildEmployeeModificationOpenUrl(request) {
+  const relativePath = buildApprovalDeepLinkPath(request, { includeApprovalQuery: true });
+  const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
+  if (!relativePath) {
+    return publicBase ? `${publicBase}/?login=1` : '';
+  }
+  if (!publicBase) return relativePath;
+  return `${publicBase}${relativePath}`;
+}
+
+async function notifyHodInAppPending(request, { resubmitted = false } = {}) {
+  const userId = Number(request.hod_user_id);
+  if (!userId) return;
+  const equipmentName = await equipmentDisplayNameFromRequest(request);
+  const parts = await equipmentDisplayPartsFromRequest(request);
+  const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
+  const op = actionLabel(request.action);
+  const submitter = request.requested_by_name || request.requested_by_email || 'A user';
+  const pathBit = parts.equipmentPath ? ` — ${parts.equipmentPath}` : '';
+  await createUserNotification({
+    userId,
+    type: NOTIF_TYPE_MH_PENDING_HOD,
+    title: resubmitted
+      ? 'Maintenance history resubmitted for approval'
+      : 'Maintenance history awaiting approval',
+    body: `${submitter} ${resubmitted ? 'resubmitted' : 'submitted'} ${op.toLowerCase()} for ${equipmentName}${pathBit}${domainLabel ? ` (${domainLabel})` : ''}.`,
+    linkUrl: HOD_APPROVALS_PATH,
+    ctaLabel: 'Open approvals',
+    refType: NOTIF_REF_APPROVAL,
+    refId: request.id,
+    meta: {
+      domain: request.domain,
+      action: request.action,
+      equipId: request.equip_id,
+      status: resubmitted ? STATUS.RESUBMITTED : STATUS.PENDING,
+    },
+  });
+}
+
 async function notifySubmitterInAppApproved(request) {
   const userId = Number(request.requested_by_user_id);
   if (!userId) return;
-  const ctx = parseJson(request.equipment_context_json, {});
-  const equipmentName = ctx.name || ctx.equip_no || 'Equipment';
+  const equipmentName = await equipmentDisplayNameFromRequest(request);
   const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
   const op = actionLabel(request.action);
   await createUserNotification({
@@ -1560,8 +1957,7 @@ async function notifySubmitterInAppApproved(request) {
 async function notifySubmitterInAppNeedsModification(request, comment) {
   const userId = Number(request.requested_by_user_id);
   if (!userId) return;
-  const ctx = parseJson(request.equipment_context_json, {});
-  const equipmentName = ctx.name || ctx.equip_no || 'Equipment';
+  const equipmentName = await equipmentDisplayNameFromRequest(request);
   const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
   const op = actionLabel(request.action);
   const commentText = String(comment || '').trim();
@@ -1589,12 +1985,11 @@ async function notifyApproved(request) {
   await notifySubmitterInAppApproved(request);
   if (!request.requested_by_email) return;
   try {
-    const ctx = parseJson(request.equipment_context_json, {});
     await sendMaintenanceHistoryApprovedEmail({
       to: request.requested_by_email,
       submitterName: request.requested_by_name || 'User',
       domainLabel: DOMAIN_TABLES[request.domain].label,
-      equipmentName: ctx.name || ctx.equip_no || 'Equipment',
+      equipmentName: await equipmentDisplayNameFromRequest(request),
       actionLabel: actionLabel(request.action),
     });
   } catch (err) {
@@ -1606,18 +2001,14 @@ async function notifyNeedsModification(request, comment) {
   await notifySubmitterInAppNeedsModification(request, comment);
   if (!request.requested_by_email) return;
   try {
-    const ctx = parseJson(request.equipment_context_json, {});
-    const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
-    const relativePath = buildApprovalDeepLinkPath(request, { includeApprovalQuery: true });
-    const openUrl = publicBase && relativePath ? `${publicBase}${relativePath}` : '';
     await sendMaintenanceHistoryModificationEmail({
       to: request.requested_by_email,
       submitterName: request.requested_by_name || 'User',
       domainLabel: DOMAIN_TABLES[request.domain].label,
-      equipmentName: ctx.name || ctx.equip_no || 'Equipment',
+      equipmentName: await equipmentDisplayNameFromRequest(request),
       actionLabel: actionLabel(request.action),
       comment,
-      openUrl,
+      openUrl: buildEmployeeModificationOpenUrl(request),
     });
   } catch (err) {
     console.error('[maintenanceHistoryApproval] modification notify failed:', err.message);
@@ -1684,7 +2075,7 @@ async function approveRequest(request, actor = {}, { force = false } = {}) {
   try {
     await conn.beginTransaction();
     historyId = await applyPendingRequestDb(request, conn);
-    await markRequestApproved(conn, request, actor);
+    await markRequestApproved(conn, request, actor, historyId);
     await insertAudit({
       conn,
       requestId: request.id,
@@ -1855,7 +2246,14 @@ async function resubmitRequest(request, payload, user) {
     console.error('[maintenanceHistoryApproval] resubmit audit failed:', err.message);
   }
 
-  return getRequestById(request.id);
+  const updated = await getRequestById(request.id);
+  try {
+    await notifyHodInAppPending(updated, { resubmitted: true });
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] hod resubmit notify failed:', err.message);
+  }
+
+  return updated;
 }
 
 async function resolveConflict(request, resolution, actor) {
@@ -1953,11 +2351,15 @@ async function listMyRequests(userId, query = {}) {
      LIMIT ${limit} OFFSET ${offset}`,
     params,
   );
+  const items = [];
+  for (const row of rows) {
+    items.push(await serializeApprovalRequest(row));
+  }
   return {
     page,
     limit,
     total,
-    items: rows.map((row) => serializeApprovalRequest(row)),
+    items,
   };
 }
 
@@ -1981,68 +2383,102 @@ async function listPendingForHod(user, query = {}) {
   const from = String(query.from || '').trim();
   const to = String(query.to || '').trim();
 
-  const clauses = [];
-  const params = [];
+  const sharedClauses = [];
+  const sharedParams = [];
 
   if (domain && domains.includes(domain)) {
-    clauses.push('domain = ?');
-    params.push(domain);
+    sharedClauses.push('domain = ?');
+    sharedParams.push(domain);
   } else {
-    clauses.push(`domain IN (${domains.map(() => '?').join(', ')})`);
-    params.push(...domains);
-  }
-
-  if (status && HOD_QUEUE_STATUSES.includes(status)) {
-    clauses.push('status = ?');
-    params.push(status);
-  } else {
-    clauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
-    params.push(...HOD_QUEUE_STATUSES);
+    sharedClauses.push(`domain IN (${domains.map(() => '?').join(', ')})`);
+    sharedParams.push(...domains);
   }
 
   if (employee) {
-    clauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR requested_by_user_id = ?)');
-    params.push(`%${employee}%`, `%${employee}%`, employee);
+    sharedClauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR requested_by_user_id = ?)');
+    sharedParams.push(`%${employee}%`, `%${employee}%`, employee);
   }
   if (operation && ['create', 'update', 'delete'].includes(operation)) {
-    clauses.push('action = ?');
-    params.push(operation);
+    sharedClauses.push('action = ?');
+    sharedParams.push(operation);
   }
   if (from) {
-    clauses.push('created_at >= ?');
-    params.push(`${from} 00:00:00`);
+    sharedClauses.push('created_at >= ?');
+    sharedParams.push(`${from} 00:00:00`);
   }
   if (to) {
-    clauses.push('created_at <= ?');
-    params.push(`${to} 23:59:59`);
+    sharedClauses.push('created_at <= ?');
+    sharedParams.push(`${to} 23:59:59`);
   }
   if (search) {
-    clauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR equipment_context_json LIKE ?)');
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    sharedClauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR equipment_context_json LIKE ?)');
+    sharedParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  const where = clauses.join(' AND ');
-  const [countRows] = await pool.query(
-    `SELECT status, created_at FROM maintenance_history_approval_request WHERE ${where}`,
-    params,
+  const listClauses = [...sharedClauses];
+  const listParams = [...sharedParams];
+  if (status === STATUS.APPROVED) {
+    listClauses.push('status = ?');
+    listParams.push(STATUS.APPROVED);
+  } else if (status && HOD_QUEUE_STATUSES.includes(status)) {
+    listClauses.push('status = ?');
+    listParams.push(status);
+  } else {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+  }
+
+  const listWhere = listClauses.join(' AND ');
+
+  // Pending KPI cards always from pending queue (ignore approved status filter)
+  const pendingClauses = [
+    ...sharedClauses,
+    `status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`,
+  ];
+  const pendingParams = [...sharedParams, ...HOD_QUEUE_STATUSES];
+  const pendingWhere = pendingClauses.join(' AND ');
+  const [pendingRows] = await pool.query(
+    `SELECT status, created_at FROM maintenance_history_approval_request WHERE ${pendingWhere}`,
+    pendingParams,
   );
   const todayIst = getIstDateParts().date;
   let previousPending = 0;
   let newToday = 0;
   let conflict = 0;
-  for (const row of countRows) {
+  for (const row of pendingRows) {
     if (row.status === STATUS.CONFLICT) conflict += 1;
-    const created = getIstDateParts(new Date(row.created_at)).date;
+    const created = getIstDateParts(parseMysqlUtcDateTime(row.created_at) || new Date(0)).date;
     if (created === todayIst) newToday += 1;
     else previousPending += 1;
   }
 
+  // Lifetime / period KPIs (not limited to pending queue status)
+  const [[kpiRow]] = await pool.query(
+    `SELECT
+       COUNT(*) AS totalRequests,
+       SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approvedRequests
+     FROM maintenance_history_approval_request
+     WHERE ${sharedClauses.join(' AND ')}`,
+    sharedParams,
+  );
+  const totalRequests = Number(kpiRow?.totalRequests) || 0;
+  const approvedRequests = Number(kpiRow?.approvedRequests) || 0;
+
+  const [[{ listTotal }]] = await pool.query(
+    `SELECT COUNT(*) AS listTotal FROM maintenance_history_approval_request WHERE ${listWhere}`,
+    listParams,
+  );
+
+  const orderSql = status === STATUS.APPROVED
+    ? 'ORDER BY created_at DESC, id DESC'
+    : "ORDER BY FIELD(status, 'conflict', 'resubmitted', 'pending'), created_at ASC, id ASC";
+
   const [rows] = await pool.query(
     `SELECT * FROM maintenance_history_approval_request
-     WHERE ${where}
-     ORDER BY FIELD(status, 'conflict', 'resubmitted', 'pending'), created_at ASC, id ASC
+     WHERE ${listWhere}
+     ${orderSql}
      LIMIT ${limit} OFFSET ${offset}`,
-    params,
+    listParams,
   );
 
   const items = [];
@@ -2051,18 +2487,20 @@ async function listPendingForHod(user, query = {}) {
     if (row.status === STATUS.CONFLICT) {
       extra = { conflict: await loadConflictState(row) };
     }
-    items.push(serializeApprovalRequest(row, extra));
+    items.push(await serializeApprovalRequest(row, extra));
   }
 
   return {
     page,
     limit,
-    total: countRows.length,
+    total: Number(listTotal) || 0,
     summary: {
       previousPending,
       newToday,
-      total: countRows.length,
+      total: pendingRows.length,
       conflict,
+      totalRequests,
+      approvedRequests,
     },
     items,
   };
@@ -2085,6 +2523,35 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
     return records;
   }
 
+  /** Staged approval uploads + any stored keys already in payload/history. */
+  function documentsForPendingRequest(request, fallbackDocs) {
+    const payload = parseJson(request.payload_json, {}) || {};
+    const previous = parseJson(request.previous_json, null);
+    const baseRaw = request.action === 'delete'
+      ? (previous?.documents ?? fallbackDocs)
+      : (payload.documents ?? fallbackDocs);
+    const base = parseHistoryDocuments(baseRaw);
+    const staged = listStagedDocuments(request.id).map((file) => ({
+      storageKey: `staged:${request.id}:${file.filename}`,
+      displayName: file.displayName || file.originalName || file.filename,
+      originalName: file.originalName || file.displayName || file.filename,
+      mimeType: file.mimeType || 'application/octet-stream',
+      size: Number(file.size) || 0,
+      pending: false,
+      staged: true,
+      approvalRequestId: Number(request.id),
+      stagedFileName: file.filename,
+    }));
+    const seen = new Set(base.map((d) => d.storageKey));
+    const merged = [...base];
+    for (const doc of staged) {
+      if (seen.has(doc.storageKey)) continue;
+      seen.add(doc.storageKey);
+      merged.push(doc);
+    }
+    return merged.slice(0, MAX_HISTORY_DOCUMENTS);
+  }
+
   const stamped = (records || []).map((rec) => {
     const match = rows.find((r) => (
       r.history_id
@@ -2092,8 +2559,20 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
       && (r.action === 'update' || r.action === 'delete')
     ));
     if (!match) return rec;
+    const payload = parseJson(match.payload_json, {}) || {};
+    // For pending updates, surface requested payload fields + staged docs on the row
+    // so view/edit match what HOD sees (not only the last approved history row).
+    const overlaid = match.action === 'update'
+      ? {
+        ...rec,
+        ...payload,
+        id: rec.id,
+        created_at: rec.created_at,
+      }
+      : { ...rec };
     return {
-      ...rec,
+      ...overlaid,
+      documents: documentsForPendingRequest(match, overlaid.documents ?? rec.documents),
       pendingRequestId: match.id,
       pendingStatus: match.status,
       pendingAction: match.action,
@@ -2104,11 +2583,12 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
   const virtual = rows
     .filter((r) => r.action === 'create')
     .map((r) => {
-      const payload = parseJson(r.payload_json, {});
+      const payload = parseJson(r.payload_json, {}) || {};
       return {
         ...payload,
         id: `pending-${r.id}`,
         created_at: r.created_at || r.updated_at || null,
+        documents: documentsForPendingRequest(r, payload.documents),
         pendingRequestId: r.id,
         pendingStatus: r.status,
         pendingAction: 'create',
@@ -2133,7 +2613,7 @@ async function assertPendingRequestForUser(requestId, equipId, domain, userId) {
     throw err;
   }
   if (userId && row.requested_by_user_id && row.requested_by_user_id !== userId) {
-    const err = new Error('Not allowed to upload documents for this request.');
+    const err = new Error('Not allowed to modify documents for this request.');
     err.status = 403;
     throw err;
   }
@@ -2163,9 +2643,12 @@ module.exports = {
   getReviewByToken,
   getInboxByToken,
   getDocumentForReviewToken,
+  getDocumentForLoggedInUser,
   approveByToken,
   rejectByToken,
   bulkApproveByInboxToken,
+  equipmentDisplayNameFromRequest,
+  equipmentDisplayPartsFromRequest,
   resendDigestByToken,
   fetchPendingForDigest,
   sendDigestForDomain,
@@ -2178,6 +2661,7 @@ module.exports = {
   snapshotFromRow,
   approvalStagingDir,
   listStagedDocuments,
+  deleteStagedDocument,
   assertPendingRequestForUser,
   cleanupStagingDir,
   getHodAccess,

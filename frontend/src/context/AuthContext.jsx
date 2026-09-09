@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { msalInstance, loginRequest } from '../msalConfig';
 import api from '../api/axios';
 import { endTrackingSession, startTrackingSession, setStoredSessionId } from '../components/ActivityTracker';
+import { connectRealtime, disconnectRealtime } from '../realtime/socket';
 
 const SSO_DENIED_FALLBACK =
   'You do not have access to use this application. Please contact the administrator.';
@@ -19,6 +20,7 @@ async function afterLogin() {
   } catch {
     /* tracking is best-effort */
   }
+  connectRealtime();
 }
 
 export const AuthProvider = ({ children }) => {
@@ -33,9 +35,11 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data } = await api.get('/auth/me');
         setUser(data.user);
+        connectRealtime();
       } catch {
         localStorage.removeItem('token');
         setStoredSessionId(null);
+        disconnectRealtime();
       } finally {
         setLoading(false);
       }
@@ -117,6 +121,7 @@ export const AuthProvider = ({ children }) => {
     await endTrackingSession();
     localStorage.removeItem('token');
     setUser(null);
+    disconnectRealtime();
     if (msalInstance && msalInstance.getAllAccounts().length > 0) {
       msalInstance.logoutRedirect({ account: msalInstance.getAllAccounts()[0] });
     }

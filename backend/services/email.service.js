@@ -165,7 +165,8 @@ function digestEntriesHtml(entries = []) {
     return `
       <tr>
         <td style="padding:10px 12px;border:1px solid #e2e8f0;text-align:center;color:#64748b;">${index + 1}</td>
-        <td style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:700;color:#0f172a;">${escapeHtml(entry.equipmentName)}</td>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;font-weight:700;color:#0f172a;word-break:break-word;max-width:220px;">${escapeHtml(entry.equipmentName)}</td>
+        <td style="padding:10px 12px;border:1px solid #e2e8f0;color:#475569;word-break:break-word;min-width:280px;">${escapeHtml(entry.equipmentPath || '—')}</td>
         <td style="padding:10px 12px;border:1px solid #e2e8f0;">${escapeHtml(entry.actionLabel)}</td>
         <td style="padding:10px 12px;border:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${escapeHtml(createdAt)}</td>
         <td style="padding:10px 12px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(submitter)}</td>
@@ -182,6 +183,7 @@ function digestEntriesHtml(entries = []) {
         <tr style="background:#1d4ed8;color:#fff;">
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:center;width:40px;">#</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Equipment</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Path</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Action</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Created at</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Submitted by</th>
@@ -213,7 +215,7 @@ async function sendMaintenanceHistoryDigestEmail({
     ? 'This email lists only items that were not included in a previous digest.'
     : 'This email lists all currently pending items (including carry-forward).';
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 800px; margin: auto;">
+    <div style="font-family: Arial, sans-serif; max-width: 1100px; width: 100%; margin: auto;">
       ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
       <h2 style="color:#2563eb;text-align:center;margin:0;">Action Required: ${count} Maintenance Change${count === 1 ? '' : 's'} Awaiting Approval</h2>
       <p style="text-align:center;color:#64748b;font-size:14px;margin:4px 0 0;">
@@ -270,6 +272,7 @@ async function sendMaintenanceHistoryApprovalEmail({
   submitterEmail,
   domainLabel,
   equipmentName,
+  equipmentPath,
   actionLabel,
   diff,
   acceptToken,
@@ -286,7 +289,8 @@ async function sendMaintenanceHistoryApprovalEmail({
         (${escapeHtml(submitterEmail)}) submitted a maintenance history change for your review.
       </p>
       <table style="border-collapse:collapse;margin:12px 0;font-size:14px;">
-        <tr><td style="padding:6px;font-weight:bold;">Equipment</td><td style="padding:6px;">${escapeHtml(equipmentName)}</td></tr>
+        <tr><td style="padding:6px;font-weight:bold;vertical-align:top;">Equipment</td><td style="padding:6px;word-break:break-word;">${escapeHtml(equipmentName)}</td></tr>
+        <tr><td style="padding:6px;font-weight:bold;vertical-align:top;">Path</td><td style="padding:6px;word-break:break-word;">${escapeHtml(equipmentPath || '—')}</td></tr>
         <tr><td style="padding:6px;font-weight:bold;">Action</td><td style="padding:6px;">${escapeHtml(actionLabel)}</td></tr>
       </table>
       ${diffTableHtml(diff)}
@@ -384,7 +388,13 @@ async function sendMaintenanceHistoryModificationEmail({
   comment,
   openUrl,
 }) {
-  const ctaUrl = openUrl || loginUrl;
+  // Prefer deep link (same as in-app View / Edit). Fallback: login with next= deep path.
+  const trimmedOpen = String(openUrl || '').trim();
+  let ctaUrl = trimmedOpen || loginUrl;
+  if (!trimmedOpen && publicBase) {
+    ctaUrl = `${publicBase}/?login=1`;
+  }
+  const safeCta = escapeHtml(ctaUrl);
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
       ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
@@ -400,10 +410,11 @@ async function sendMaintenanceHistoryModificationEmail({
       </p>` : ''}
       <p>Open DigiLog to go to that entry, edit it, and resubmit for HOD review.</p>
       <p style="text-align:center;margin:20px 0;">
-        <a href="${ctaUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+        <a href="${safeCta}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
           Open DigiLog
         </a>
       </p>
+      <p style="color:#6b7280;font-size:12px;">Or copy this link: <a href="${safeCta}" style="color:#2563eb;">${safeCta}</a></p>
       <p style="color:#6b7280;font-size:12px;">This is an automated message. Do not reply.</p>
     </div>
   `;

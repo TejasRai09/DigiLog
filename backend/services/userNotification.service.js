@@ -4,6 +4,7 @@
  * string and optional meta — no schema change required for new kinds.
  */
 const { pool } = require('../config/mysql');
+const { emitToUser, EVENT_NOTIFICATION_NEW } = require('./realtime.service');
 
 const LIST_LIMIT_DEFAULT = 50;
 const LIST_LIMIT_MAX = 100;
@@ -18,6 +19,20 @@ function parseMeta(raw) {
   }
 }
 
+function toApiUtcIso(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const s = String(value).trim();
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(\.\d+)?$/.exec(s);
+  if (mysqlUtc) {
+    return new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}${mysqlUtc[3] || ''}Z`).toISOString();
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function serializeNotification(row) {
   return {
     id: row.id,
@@ -30,8 +45,8 @@ function serializeNotification(row) {
     refId: row.ref_id != null ? Number(row.ref_id) : null,
     meta: parseMeta(row.meta_json),
     read: Boolean(row.read_at),
-    readAt: row.read_at || null,
-    createdAt: row.created_at,
+    readAt: toApiUtcIso(row.read_at),
+    createdAt: toApiUtcIso(row.created_at),
   };
 }
 
@@ -70,7 +85,33 @@ async function createUserNotification(input) {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [userId, type, title, body, linkUrl, ctaLabel, refType, refId || null, metaJson],
     );
-    return { id: result.insertId };
+    const id = result.insertId;
+    const createdAt = new Date();
+    const serialized = serializeNotification({
+      id,
+      type,
+      title,
+      body,
+      link_url: linkUrl,
+      cta_label: ctaLabel,
+      ref_type: refType,
+      ref_id: refId,
+      meta_json: metaJson,
+      read_at: null,
+      created_at: createdAt,
+    });
+
+    try {
+      const unread = await getUnreadCount(userId);
+      emitToUser(userId, EVENT_NOTIFICATION_NEW, {
+        ...serialized,
+        unreadCount: unread.count,
+      });
+    } catch (emitErr) {
+      console.error('[userNotification] realtime emit failed:', emitErr.message);
+    }
+
+    return { id };
   } catch (err) {
     console.error('[userNotification] create failed:', err.message);
     return null;
@@ -126,11 +167,31 @@ async function markAllNotificationsRead(userId) {
   return { ok: true };
 }
 
+async function deleteNotification(userId, notificationId) {
+  const id = Number(notificationId);
+  if (!id) {
+    const err = new Error('Notification not found.');
+    err.status = 404;
+    throw err;
+  }
+  const [result] = await pool.execute(
+    `DELETE FROM user_notification WHERE id = ? AND user_id = ?`,
+    [id, userId],
+  );
+  if (result.affectedRows === 0) {
+    const err = new Error('Notification not found.');
+    err.status = 404;
+    throw err;
+  }
+  return { ok: true };
+}
+
 module.exports = {
   createUserNotification,
   listNotificationsForUser,
   getUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
   serializeNotification,
 };

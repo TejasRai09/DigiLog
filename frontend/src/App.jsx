@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 
 import Spinner from './components/Spinner';
@@ -12,6 +12,16 @@ import MarketingLanding from './pages/MarketingLanding';
 import AdminLogin from './pages/admin/AdminLogin';
 import HomeLanding from './pages/HomeLanding';
 import NotFound from './pages/NotFound';
+
+/** Logged-in users at `/` go to dashboard, unless `next` is a same-origin deep link (email CTA). */
+function LoggedInHomeRedirect() {
+  const [searchParams] = useSearchParams();
+  const next = String(searchParams.get('next') || '').trim();
+  if (next.startsWith('/') && !next.startsWith('//')) {
+    return <Navigate to={next} replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+}
 
 /** Lazy: heavy pages stay out of the main bundle (and ease Lightsail Vite builds) */
 const MarketingDashboard = lazy(() => import('./pages/MarketingDashboard'));
@@ -95,7 +105,7 @@ const App = () => {
           <Route path="/login" element={<Navigate to="/?login=1" replace />} />
           <Route path="/dashbaord" element={<Navigate to="/dashboard" replace />} />
           <Route path="/operations-desk" element={<MarketingDashboard />} />
-          <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <MarketingLanding />} />
+          <Route path="/" element={user ? <LoggedInHomeRedirect /> : <MarketingLanding />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/maintenance-approval/review" element={<MaintenanceApprovalReview />} />
           <Route path="/maintenance-approval/accept" element={<MaintenanceApprovalResult mode="accept" />} />
