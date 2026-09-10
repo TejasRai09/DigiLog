@@ -17,10 +17,19 @@ fs.mkdirSync(HISTORY_DOCUMENTS_ROOT, { recursive: true });
 function createApprovalDocumentUploadMiddleware() {
   const storage = multer.diskStorage({
     destination: (req, _file, cb) => {
-      const { requestId } = req.params;
-      const dir = approvalStagingDir(requestId);
-      fs.mkdirSync(dir, { recursive: true });
-      cb(null, dir);
+      try {
+        const { requestId } = req.params;
+        const dir = approvalStagingDir(requestId);
+        fs.mkdirSync(dir, { recursive: true });
+        // Count files already staged BEFORE writing this one (avoids off-by-one reject on 2nd of 2).
+        const existing = listStagedDocuments(requestId);
+        if (existing.length >= MAX_HISTORY_DOCUMENTS) {
+          return cb(new Error(`Maximum ${MAX_HISTORY_DOCUMENTS} documents allowed.`));
+        }
+        cb(null, dir);
+      } catch (err) {
+        cb(err);
+      }
     },
     filename: (_req, file, cb) => {
       const ext = extensionForUpload(file.mimetype, file.originalname) || '.bin';

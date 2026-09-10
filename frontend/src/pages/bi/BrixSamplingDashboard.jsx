@@ -589,7 +589,7 @@ export default function BrixSamplingDashboard() {
   );
 
   return (
-    <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'
+    <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'
       } transition-colors duration-200 font-sans`}>
 
       <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">

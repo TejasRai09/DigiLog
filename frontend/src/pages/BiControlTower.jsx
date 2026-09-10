@@ -8,7 +8,6 @@ import BiBentoHub from '../components/bi/BiBentoHub';
 import { BI_CONTROL_TOWER_APP_NAME, biDashboardPath } from '../config/biDashboardRoutes';
 import { sortBiHubForms } from '../config/biHubMeta';
 
-const HUB_BG = '/images/bi/bi-industry-bg-day.jpg';
 const VIEW_STORAGE_KEY = 'bi-hub-view';
 
 function readStoredView() {
@@ -64,23 +63,14 @@ const BiControlTower = () => {
 
   if (loading) {
     return (
-      <div className="relative flex min-h-[calc(100dvh-3.75rem)] items-center justify-center bg-slate-100">
-        <img src={HUB_BG} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
+      <div className="relative flex min-h-[calc(100dvh-3.75rem)] items-center justify-center">
         <Spinner size="lg" />
       </div>
     );
   }
 
   return (
-    <main className="relative min-h-[calc(100dvh-3.75rem)] overflow-hidden bg-slate-100">
-      <img
-        src={HUB_BG}
-        alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center"
-        fetchPriority="high"
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-100/75 via-white/70 to-slate-100/85" />
-
+    <main className="relative min-h-[calc(100dvh-3.75rem)] overflow-hidden">
       <div className="relative z-10 flex min-h-[calc(100dvh-3.75rem)] flex-col">
         <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <nav aria-label="Breadcrumb" className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 shadow-sm backdrop-blur-md">
@@ -146,7 +136,7 @@ const BiControlTower = () => {
 
         {!forms.length ? (
           <div className="flex flex-1 items-center justify-center px-4 pb-16">
-            <div className="max-w-md rounded-2xl border border-slate-200 bg-white px-8 py-10 text-center shadow-sm">
+            <div className="max-w-md rounded-2xl border border-slate-200 bg-white/95 px-8 py-10 text-center shadow-sm backdrop-blur-sm">
               <MdInsights className="mx-auto h-12 w-12 text-blue-600" />
               <p className="mt-3 text-lg font-bold text-slate-900">No BI dashboards assigned</p>
               <p className="mt-2 text-sm text-slate-500">

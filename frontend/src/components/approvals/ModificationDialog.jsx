@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import BusyButton from './BusyButton.jsx';
 
 export default function ModificationDialog({ open, onClose, onSubmit, busy }) {
   const [comment, setComment] = useState('');
@@ -13,21 +14,28 @@ export default function ModificationDialog({ open, onClose, onSubmit, busy }) {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={4}
-          className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-base"
+          disabled={busy}
+          className="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-base disabled:opacity-60"
           placeholder="Describe the required change"
         />
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-base font-semibold text-slate-600 hover:bg-slate-50">
-            Cancel
-          </button>
           <button
             type="button"
-            disabled={busy || !comment.trim()}
+            disabled={busy}
+            onClick={onClose}
+            className="rounded-lg px-3 py-2 text-base font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <BusyButton
+            busy={busy}
+            busyLabel="Sending…"
+            disabled={!comment.trim()}
             onClick={() => onSubmit(comment.trim())}
             className="rounded-lg bg-amber-600 px-4 py-2 text-base font-bold text-white disabled:opacity-50"
           >
             Send back
-          </button>
+          </BusyButton>
         </div>
       </div>
     </div>

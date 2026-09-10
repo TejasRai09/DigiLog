@@ -1,4 +1,6 @@
 const { pool } = require('../config/mysql');
+const fs = require('fs');
+const path = require('path');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { formatProductionHouseSpecValue } = require('../utils/productionHouseSpecValue');
@@ -7,7 +9,23 @@ const {
   isApprovalEnabled,
   createPendingRequest,
   overlayPendingHistory,
+  assertPendingRequestForUser,
+  listStagedDocuments,
+  deleteStagedDocument,
+  approvalStagingDir,
 } = require('../services/maintenanceHistoryApproval.service');
+const {
+  MAX_HISTORY_DOCUMENTS,
+  parseHistoryDocuments,
+  serializeHistoryDocumentsColumn,
+  historyDocumentStorageKey,
+  resolveHistoryDocumentAbsPath,
+} = require('../utils/historyDocuments');
+const { createHistoryDocumentUploadMiddleware } = require('../middleware/historyDocumentUpload');
+const {
+  createApprovalDocumentUploadMiddleware,
+  MAX_HISTORY_DOCUMENTS: MAX_APPROVAL_STAGED_DOCS,
+} = require('../middleware/approvalDocumentUpload');
 
 const HOUSE_SECTIONS = new Set([
   'pan_crystallizer',
@@ -18,6 +36,10 @@ const HOUSE_SECTIONS = new Set([
 
 const SPEC_SECTION = 'mechanical';
 const APPROVAL_DOMAIN = 'production';
+const HIST = 'phn_history';
+
+const uploadHistoryDocumentMiddleware = createHistoryDocumentUploadMiddleware(HIST);
+const uploadApprovalDocumentMiddleware = createApprovalDocumentUploadMiddleware();
 
 function serializeEquipment(eq) {
   if (!eq) return eq;
@@ -445,6 +467,147 @@ const deleteHistory = async (req, res) => {
   }
 };
 
+const uploadHistoryDocument = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Document file is required (field name: document).' });
+  }
+
+  try {
+    const { id, hid } = req.params;
+    const [[existingRow]] = await pool.execute(
+      'SELECT documents FROM phn_history WHERE id=? AND equip_id=? LIMIT 1',
+      [hid, id],
+    );
+    if (!existingRow) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ message: 'Record not found.' });
+    }
+
+    const docs = parseHistoryDocuments(existingRow.documents);
+    if (docs.length >= MAX_HISTORY_DOCUMENTS) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ message: `Maximum ${MAX_HISTORY_DOCUMENTS} documents allowed.` });
+    }
+
+    const displayName = String(req.body.displayName || req.file.originalname || 'Document').trim()
+      || req.file.originalname;
+    const document = {
+      storageKey: historyDocumentStorageKey(HIST, id, hid, req.file.filename),
+      displayName,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    };
+    docs.push(document);
+
+    await pool.execute(
+      'UPDATE phn_history SET documents=? WHERE id=? AND equip_id=?',
+      [serializeHistoryDocumentsColumn(docs), hid, id],
+    );
+    res.status(201).json({ document });
+  } catch (err) {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    sendServerError(res, 'uploadHistoryDocument:', err, MSG.UPLOAD);
+  }
+};
+
+const downloadHistoryDocument = async (req, res) => {
+  try {
+    const { id, hid, fileName } = req.params;
+    const safeName = path.basename(String(fileName || ''));
+    if (!safeName) {
+      return res.status(400).json({ message: 'Invalid document name.' });
+    }
+
+    const [[existingRow]] = await pool.execute(
+      'SELECT documents FROM phn_history WHERE id=? AND equip_id=? LIMIT 1',
+      [hid, id],
+    );
+    if (!existingRow) {
+      return res.status(404).json({ message: 'Document not found.' });
+    }
+
+    const docs = parseHistoryDocuments(existingRow.documents);
+    const document = docs.find((doc) => path.basename(doc.storageKey) === safeName);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found.' });
+    }
+
+    const absPath = resolveHistoryDocumentAbsPath(document.storageKey);
+    if (!absPath || !fs.existsSync(absPath)) {
+      return res.status(404).json({ message: 'Document file not found.' });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.download(absPath, document.displayName);
+  } catch (err) {
+    sendServerError(res, 'downloadHistoryDocument:', err, MSG.LOAD);
+  }
+};
+
+const uploadApprovalDocument = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Document file is required (field name: document).' });
+  }
+
+  try {
+    const { id, requestId } = req.params;
+    await assertPendingRequestForUser(Number(requestId), Number(id), APPROVAL_DOMAIN, req.user?.id);
+
+    const staged = listStagedDocuments(requestId);
+    // Safety net only — primary limit is enforced in multer destination before write.
+    const currentName = path.basename(req.file.filename || req.file.path || '');
+    const otherStaged = staged.filter((f) => f.filename !== currentName);
+    if (otherStaged.length >= MAX_APPROVAL_STAGED_DOCS) {
+      fs.unlink(req.file.path, () => {});
+      const metaPath = path.join(approvalStagingDir(requestId), `${currentName}.meta.json`);
+      fs.unlink(metaPath, () => {});
+      return res.status(400).json({ message: `Maximum ${MAX_APPROVAL_STAGED_DOCS} documents allowed.` });
+    }
+
+    const displayName = String(req.body.displayName || req.file.originalname || 'Document').trim()
+      || req.file.originalname;
+    const metaPath = path.join(approvalStagingDir(requestId), `${path.basename(req.file.filename)}.meta.json`);
+    fs.writeFileSync(metaPath, JSON.stringify({
+      displayName,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+    }));
+
+    res.status(201).json({
+      document: {
+        displayName,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        pending: true,
+      },
+    });
+  } catch (err) {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    const status = err.status || 500;
+    if (status < 500) {
+      return res.status(status).json({ message: err.message });
+    }
+    sendServerError(res, 'uploadApprovalDocument:', err, MSG.UPLOAD);
+  }
+};
+
+const deleteApprovalDocument = async (req, res) => {
+  try {
+    const { id, requestId, fileName } = req.params;
+    await assertPendingRequestForUser(Number(requestId), Number(id), APPROVAL_DOMAIN, req.user?.id);
+    deleteStagedDocument(Number(requestId), decodeURIComponent(String(fileName || '')));
+    return res.json({ ok: true });
+  } catch (err) {
+    const status = err.status || 500;
+    if (status < 500) {
+      return res.status(status).json({ message: err.message });
+    }
+    sendServerError(res, 'deleteApprovalDocument:', err, MSG.DELETE);
+  }
+};
+
 module.exports = {
   listHouses,
   listEquipment,
@@ -456,4 +619,10 @@ module.exports = {
   addHistory,
   updateHistory,
   deleteHistory,
+  uploadHistoryDocumentMiddleware,
+  uploadHistoryDocument,
+  uploadApprovalDocumentMiddleware,
+  uploadApprovalDocument,
+  deleteApprovalDocument,
+  downloadHistoryDocument,
 };

@@ -1,4 +1,5 @@
 const { PORT, CLIENT_ORIGIN, NODE_ENV } = require('./config/env');
+const http = require('http');
 const express   = require('express');
 const cors      = require('cors');
 const helmet    = require('helmet');
@@ -31,8 +32,10 @@ const {
   runDigestSchedulerTick,
   ensureDigestSchema,
 } = require('./services/maintenanceHistoryApproval.service');
+const { attachRealtime } = require('./services/realtimeSocket.service');
 
 const app = express();
+const httpServer = http.createServer(app);
 
 if (NODE_ENV === 'production') {
   app.set('trust proxy', 1);
@@ -136,4 +139,5 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ message: globalErrorMessage(err) });
 });
 
-app.listen(PORT, () => console.log(`🚀  Server running on http://localhost:${PORT}`));
+attachRealtime(httpServer);
+httpServer.listen(PORT, () => console.log(`🚀  Server running on http://localhost:${PORT}`));

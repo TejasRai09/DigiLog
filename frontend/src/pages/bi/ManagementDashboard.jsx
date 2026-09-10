@@ -321,7 +321,7 @@ export default function ManagementDashboard() {
     () =>
       dm
         ? 'bg-slate-950 text-slate-100'
-        : 'bg-slate-50 text-slate-900',
+        : 'bg-transparent text-slate-900',
     [dm],
   );
 

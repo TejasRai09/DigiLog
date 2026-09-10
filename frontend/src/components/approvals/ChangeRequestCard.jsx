@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ChangeComparison from './ChangeComparison';
 import ApprovalActions from './ApprovalActions';
+import ApprovalMediaAttachments from './ApprovalMediaAttachments.jsx';
 import { StatusBadge, formatSubmittedAt } from './approvalDisplay.jsx';
 
 function ConflictPanel({ conflict }) {
@@ -19,6 +20,7 @@ export default function ChangeRequestCard({
   selected,
   onToggle,
   busy,
+  busyAction,
   onApprove,
   onModify,
   onResolve,
@@ -41,13 +43,18 @@ export default function ChangeRequestCard({
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-bold text-slate-900 sm:text-lg">{item.equipmentName}</h3>
+            <h3 className="break-words text-base font-bold text-slate-900 sm:text-lg">{item.equipmentName}</h3>
             <StatusBadge status={item.status} />
             <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600 sm:text-sm">
               {item.operationLabel}
             </span>
             <span className="text-xs font-semibold text-slate-400 sm:text-sm">{item.domainLabel}</span>
           </div>
+          {item.equipmentPath ? (
+            <p className="mt-1 break-words text-sm text-slate-500">
+              <span className="font-semibold text-slate-600">Path:</span> {item.equipmentPath}
+            </p>
+          ) : null}
           <p className="mt-1.5 text-sm text-slate-500">
             {item.requestedBy?.name || 'Employee'}
             {item.requestedBy?.email ? ` (${item.requestedBy.email})` : ''}
@@ -72,9 +79,11 @@ export default function ChangeRequestCard({
       {open && (
         <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
           <ChangeComparison item={item} />
+          <ApprovalMediaAttachments item={item} />
           <ApprovalActions
             item={item}
             busy={busy}
+            busyAction={busyAction}
             onApprove={onApprove}
             onModify={onModify}
             onResolve={onResolve}

@@ -10,9 +10,10 @@ import EquipmentMaintenanceHistoryHub from '../../components/equipment/Equipment
 import { buildProductionHouseEquipmentTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
+import useMaintenanceHistoryHodRefresh from '../../hooks/useMaintenanceHistoryHodRefresh';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
-import { historyRecordToApi } from '../../utils/equipmentHistoryModel';
+import { saveHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
 import {
   isProductionHouseSection,
   productionHouseSectionLabel,
@@ -85,6 +86,12 @@ const ProductionHouseEquipmentDetail = () => {
     setHistory(data.records);
     setHistTotal(data.total);
   }, [equipId]);
+
+  useMaintenanceHistoryHodRefresh({
+    equipId,
+    domain: 'production',
+    reload: loadHistory,
+  });
 
   const load = useCallback(async () => {
     if (!equipId) return;
@@ -240,21 +247,26 @@ const ProductionHouseEquipmentDetail = () => {
     setSaving(true);
     try {
       if (record?.pendingStatus === 'needs_modification' && record.pendingRequestId) {
-        const body = historyRecordToApi(form);
-        await api.put(`/change-requests/${record.pendingRequestId}/resubmit`, body);
+        await resubmitHistoryWithDocuments({
+          apiBase: API_BASE,
+          equipId,
+          form,
+          approvalRequestId: record.pendingRequestId,
+          previousDocuments: record.documents || [],
+        });
         toast.success('Resubmitted for HOD approval.');
         await loadHistory();
         return;
       }
 
-      const body = historyRecordToApi(form);
-      let response;
-      if (mode === 'add') {
-        response = await api.post(`${API_BASE}/${equipId}/history`, body);
-      } else {
-        response = await api.put(`${API_BASE}/${equipId}/history/${recordId}`, body);
-      }
-      if (response.status === 202 || response.data?.pending) {
+      const result = await saveHistoryWithDocuments({
+        apiBase: API_BASE,
+        equipId,
+        form,
+        mode,
+        recordId,
+      });
+      if (result?.pending) {
         toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
         await loadHistory();
         return;
@@ -262,7 +274,14 @@ const ProductionHouseEquipmentDetail = () => {
       toast.success(mode === 'add' ? 'Record added.' : 'Record updated.');
       await loadHistory();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Save failed.');
+      toast.error(err.response?.data?.message || err.message || 'Save failed.');
+      if (err.pendingCreated) {
+        try {
+          await loadHistory();
+        } catch {
+          /* ignore */
+        }
+      }
       throw err;
     } finally {
       setSaving(false);
@@ -419,7 +438,9 @@ const ProductionHouseEquipmentDetail = () => {
         equipmentOptions={equipmentOptions}
         defaultEquipmentKeys={equipmentOptions.map((opt) => opt.key)}
         observationRequired={false}
+        enableDocuments
         historyApiBase={API_BASE}
+        equipId={eq?.id || equipId}
         focusApprovalRequestId={focusApprovalRequestId}
         onFocusHandled={clearFocusApprovalRequest}
       />

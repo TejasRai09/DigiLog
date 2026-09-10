@@ -8,7 +8,7 @@ import useAuth from '../hooks/useAuth';
 function ReviewLayout({ children }) {
   const { user } = useAuth();
   return (
-    <div className={`flex flex-col bg-slate-50 ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen'}`}>
+    <div className={`flex flex-col ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen bg-slate-50'}`}>
       {!user && <AppBrandHeader />}
       {children}
     </div>
@@ -90,7 +90,10 @@ export default function MaintenanceApprovalReview() {
             {review.domainLabel} · {review.actionLabel}
           </p>
           <p className="mt-2 text-sm text-slate-600">
-            Equipment: <span className="font-semibold text-slate-800">{review.equipmentName}</span>
+            Equipment: <span className="break-words font-semibold text-slate-800">{review.equipmentName}</span>
+          </p>
+          <p className="text-sm text-slate-600">
+            Path: <span className="break-words font-semibold text-slate-800">{review.equipmentPath || '—'}</span>
           </p>
           <p className="text-sm text-slate-600">
             Submitted by {review.submitterName}

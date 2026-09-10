@@ -1829,7 +1829,7 @@ export default function CanePerformanceDashboard(){
     };
   }, [prior]);
 
-  const bg=dm?"bg-slate-950 text-slate-100":"bg-slate-50 text-slate-800";
+  const bg=dm?"bg-slate-950 text-slate-100":"bg-transparent text-slate-800";
   const hdr=dm?"bg-slate-900 border-slate-800":"bg-white border-slate-200/80";
 
   return(

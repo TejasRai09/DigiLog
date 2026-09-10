@@ -6,6 +6,8 @@ const {
   getRequestForRejectToken,
   getDocumentForReviewToken,
   bulkApproveByInboxToken,
+  equipmentDisplayNameFromRequest,
+  equipmentDisplayPartsFromRequest,
   actionLabel,
   DOMAIN_TABLES,
 } = require('../services/maintenanceHistoryApproval.service');
@@ -28,7 +30,12 @@ function escapeHtml(value) {
 /** Entry / request created_at for HOD inbox & review UI (IST). */
 function formatEntryCreatedAt(value) {
   if (!value) return '—';
-  const d = new Date(value);
+  const s = String(value).trim();
+  // mysql2 dateStrings + session UTC → treat bare DATETIME as UTC
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(\.\d+)?$/.exec(s);
+  const d = mysqlUtc
+    ? new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}${mysqlUtc[3] || ''}Z`)
+    : new Date(s);
   if (Number.isNaN(d.getTime())) return '—';
   return `${d.toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -330,6 +337,7 @@ function renderReviewPage(review) {
       <h1>Review maintenance history change</h1>
       <p class="meta"><strong>${escapeHtml(review.domainLabel)}</strong> · ${escapeHtml(review.actionLabel)}</p>
       <p class="meta">Equipment: <strong>${escapeHtml(review.equipmentName)}</strong></p>
+      <p class="meta">Path: <strong>${escapeHtml(review.equipmentPath || '—')}</strong></p>
       <p class="meta">Submitted by ${escapeHtml(review.submitterName)}${review.submitterEmail ? ` (${escapeHtml(review.submitterEmail)})` : ''}</p>
       <p class="meta">Created at: <strong>${escapeHtml(formatEntryCreatedAt(review.createdAt))}</strong></p>
       ${expires ? `<p class="meta">This link expires on ${escapeHtml(expires)}.</p>` : ''}
@@ -358,6 +366,7 @@ function renderInboxPage(inbox, options = {}) {
       acceptToken: entry.acceptToken,
       rejectToken: entry.rejectToken,
       equipmentName: entry.equipmentName,
+      equipmentPath: entry.equipmentPath || '',
       actionLabel: entry.actionLabel,
       submitterName: entry.submitterName,
       submitterEmail: entry.submitterEmail,
@@ -375,6 +384,7 @@ function renderInboxPage(inbox, options = {}) {
         <td class="check" data-label="Select"><input type="checkbox" class="row-check" value="${Number(entry.id)}" /></td>
         <td class="num" data-label="#"></td>
         <td class="equip" data-label="Equipment">${escapeHtml(entry.equipmentName)}</td>
+        <td class="path" data-label="Path">${escapeHtml(entry.equipmentPath || '—')}</td>
         <td data-label="Action">${escapeHtml(entry.actionLabel)}</td>
         <td class="created" data-label="Created at">${escapeHtml(formatEntryCreatedAt(entry.createdAt))}</td>
         <td class="submitter" data-label="Submitted by">${escapeHtml(submitter)}</td>
@@ -397,6 +407,7 @@ function renderInboxPage(inbox, options = {}) {
             <th style="width:40px;"></th>
             <th style="width:48px;">#</th>
             <th>Equipment</th>
+            <th>Path</th>
             <th>Action</th>
             <th>Created at</th>
             <th>Submitted by</th>
@@ -418,7 +429,7 @@ function renderInboxPage(inbox, options = {}) {
     * { box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; background:#f8fafc; margin:0; min-height:100vh; color:#334155; }
     ${sharedHeaderCss()}
-    .page-body { max-width: 960px; margin: 0 auto; padding: 28px 16px 48px; }
+    .page-body { max-width: 1100px; margin: 0 auto; padding: 28px 16px 48px; }
     .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:28px; box-shadow:0 4px 24px rgba(15,23,42,.06); }
     h1 { font-size:22px; margin:0 0 8px; color:#0f172a; line-height:1.3; }
     .meta { color:#64748b; font-size:14px; line-height:1.6; margin:0 0 16px; }
@@ -432,7 +443,8 @@ function renderInboxPage(inbox, options = {}) {
     table.grid th { background:#1d4ed8; color:#fff; text-align:left; padding:10px 12px; border:1px solid #1e40af; }
     table.grid td { padding:10px 12px; border:1px solid #e2e8f0; vertical-align:middle; }
     table.grid tbody tr:nth-child(even) { background:#f8fafc; }
-    td.equip { font-weight:700; color:#0f172a; }
+    td.equip { font-weight:700; color:#0f172a; word-break:break-word; max-width:220px; }
+    td.path { color:#475569; word-break:break-word; max-width:280px; }
     td.act, td.check { text-align:center; }
     button.link {
       background:none; border:0; padding:8px 4px; cursor:pointer;
@@ -597,6 +609,18 @@ function renderInboxPage(inbox, options = {}) {
         margin-bottom: 4px;
       }
       table.grid.inbox td.equip::before { content: 'Equipment'; }
+      table.grid.inbox td.path {
+        order: 0;
+        text-align: left;
+        flex-direction: column;
+        gap: 2px;
+        color: #475569;
+        font-size: 13px;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-bottom: 4px;
+      }
+      table.grid.inbox td.path::before { content: 'Path'; }
       table.grid.inbox td.act {
         margin-top: 8px;
         padding-top: 10px;
@@ -851,6 +875,7 @@ function renderInboxPage(inbox, options = {}) {
           '<h2 id="modal-title">Review maintenance history change</h2>' +
           '<p class="meta"><strong>' + esc(data.domainLabel || '') + '</strong> · ' + esc(data.actionLabel || '') + '</p>' +
           '<p class="meta">Equipment: <strong>' + esc(data.equipmentName) + '</strong></p>' +
+          '<p class="meta">Path: <strong>' + esc(data.equipmentPath || '—') + '</strong></p>' +
           '<p class="meta">Submitted by ' + esc(submitter) + '</p>' +
           '<p class="meta">Created at: <strong>' + esc(data.createdAtLabel || '—') + '</strong></p>' +
           (data.tokenExpiresAtDisplay ? '<p class="meta">This link expires on ' + esc(data.tokenExpiresAtDisplay) + '.</p>' : '') +
@@ -953,8 +978,20 @@ function renderInboxPage(inbox, options = {}) {
         busy = true;
         var acceptBtn = modalBody.querySelector('[data-act="accept"]');
         var rejectBtn = modalBody.querySelector('[data-act="reject"]');
-        if (acceptBtn) acceptBtn.disabled = true;
-        if (rejectBtn) rejectBtn.disabled = true;
+        var rejectConfirm = modalBody.querySelector('[data-act="reject-confirm"]');
+        function setBtnBusy(btn, label) {
+          if (!btn) return;
+          btn.disabled = true;
+          btn.dataset.prevLabel = btn.textContent;
+          btn.textContent = label;
+        }
+        if (kind === 'accept') {
+          setBtnBusy(acceptBtn, 'Approving…');
+          if (rejectBtn) rejectBtn.disabled = true;
+        } else {
+          setBtnBusy(rejectConfirm || rejectBtn, 'Sending…');
+          if (acceptBtn) acceptBtn.disabled = true;
+        }
         try {
           var path = kind === 'accept' ? '/api/maintenance-approval/accept' : '/api/maintenance-approval/reject';
           var result = await postJson(path, extra);
@@ -973,8 +1010,11 @@ function renderInboxPage(inbox, options = {}) {
           }
         } catch (err) {
           busy = false;
-          if (acceptBtn) acceptBtn.disabled = false;
-          if (rejectBtn) rejectBtn.disabled = false;
+          [acceptBtn, rejectBtn, rejectConfirm].forEach(function (btn) {
+            if (!btn) return;
+            btn.disabled = false;
+            if (btn.dataset.prevLabel) btn.textContent = btn.dataset.prevLabel;
+          });
           showToast(err.message || 'Action failed.', 'err');
         }
       }
@@ -988,6 +1028,12 @@ function renderInboxPage(inbox, options = {}) {
         if (!window.confirm('Approve the ' + ids.length + ' selected item(s)?')) return;
         if (busy) return;
         busy = true;
+        var bulkBtn = document.getElementById('btn-approve-selected');
+        if (bulkBtn) {
+          bulkBtn.disabled = true;
+          bulkBtn.dataset.prevLabel = bulkBtn.textContent;
+          bulkBtn.textContent = 'Approving…';
+        }
         syncToolbar();
         try {
           var result = await postJson('/api/maintenance-approval/bulk-accept', {
@@ -1011,6 +1057,10 @@ function renderInboxPage(inbox, options = {}) {
           showToast(err.message || 'Bulk approve failed.', 'err');
         } finally {
           busy = false;
+          if (bulkBtn) {
+            bulkBtn.disabled = false;
+            if (bulkBtn.dataset.prevLabel) bulkBtn.textContent = bulkBtn.dataset.prevLabel;
+          }
           syncToolbar();
         }
       }
@@ -1115,7 +1165,7 @@ const acceptByToken = async (req, res) => {
 
   try {
     const result = await approveRequestByToken(token);
-    const label = equipmentLabel(result.request);
+    const label = await equipmentDisplayNameFromRequest(result.request);
     const domainLabel = DOMAIN_TABLES[result.request.domain]?.label || '';
     const msg = result.alreadyResolved
       ? alreadyApprovedMessage(label, result.request.resolved_at)
@@ -1135,8 +1185,9 @@ const acceptByToken = async (req, res) => {
   }
 };
 
-function renderModificationForm(request, token, errorMessage) {
-  const label = equipmentLabel(request);
+function renderModificationForm(request, token, errorMessage, equipmentName, equipmentPath) {
+  const label = equipmentName || equipmentLabel(request);
+  const path = equipmentPath || '—';
   const err = errorMessage
     ? `<p class="hint" style="color:#dc2626;">${escapeHtml(errorMessage)}</p>`
     : '';
@@ -1165,6 +1216,7 @@ function renderModificationForm(request, token, errorMessage) {
     <div class="card">
       <h1>Send for modification</h1>
       <p class="meta">Equipment: <strong>${escapeHtml(label)}</strong></p>
+      <p class="meta">Path: <strong>${escapeHtml(path)}</strong></p>
       <p class="meta">A comment is required so the employee can correct this request. The approved record will not change.</p>
       ${err}
       <form method="POST" action="/api/maintenance-approval/reject">
@@ -1192,6 +1244,8 @@ const rejectByToken = async (req, res) => {
   if (req.method === 'GET') {
     try {
       const request = await getRequestForRejectToken(token);
+      const display = await equipmentDisplayPartsFromRequest(request);
+      const label = display.equipmentName;
       if (request.tokenExpired) {
         return res.status(410).send(renderHtmlPage({
           title: 'Link expired',
@@ -1202,11 +1256,11 @@ const rejectByToken = async (req, res) => {
       if (request.status === 'needs_modification') {
         return res.send(renderHtmlPage({
           title: 'Already processed',
-          message: alreadyRejectedMessage(equipmentLabel(request), request.resolved_at),
+          message: alreadyRejectedMessage(label, request.resolved_at),
           tone: 'warning',
         }));
       }
-      return res.send(renderModificationForm(request, token));
+      return res.send(renderModificationForm(request, token, null, label, display.equipmentPath));
     } catch (err) {
       return res.status(err.status || 500).send(renderHtmlPage({
         title: 'Unable to process',
@@ -1220,7 +1274,14 @@ const rejectByToken = async (req, res) => {
   if (!comment) {
     try {
       const request = await getRequestForRejectToken(token);
-      return res.status(400).send(renderModificationForm(request, token, 'A comment is required.'));
+      const display = await equipmentDisplayPartsFromRequest(request);
+      return res.status(400).send(renderModificationForm(
+        request,
+        token,
+        'A comment is required.',
+        display.equipmentName,
+        display.equipmentPath,
+      ));
     } catch (err) {
       return res.status(err.status || 500).send(renderHtmlPage({
         title: 'Unable to process',
@@ -1232,7 +1293,7 @@ const rejectByToken = async (req, res) => {
 
   try {
     const result = await rejectRequestByToken(token, comment);
-    const label = equipmentLabel(result.request);
+    const label = await equipmentDisplayNameFromRequest(result.request);
     const msg = result.alreadyResolved
       ? alreadyRejectedMessage(label, result.request.resolved_at)
       : `The submitter has been asked to modify the entry for ${label}.`;
@@ -1260,7 +1321,7 @@ const acceptByTokenJson = async (req, res) => {
     return res.json({
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      equipmentName: equipmentLabel(result.request),
+      equipmentName: await equipmentDisplayNameFromRequest(result.request),
       action: result.request.action,
       domain: result.request.domain,
       resolvedAt: result.request.resolved_at || null,
@@ -1281,7 +1342,7 @@ const rejectByTokenJson = async (req, res) => {
     return res.json({
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      equipmentName: equipmentLabel(result.request),
+      equipmentName: await equipmentDisplayNameFromRequest(result.request),
       action: result.request.action,
       domain: result.request.domain,
       resolvedAt: result.request.resolved_at || null,
@@ -1349,6 +1410,7 @@ const reviewByTokenJson = async (req, res) => {
       status: review.status,
       alreadyResolved: review.alreadyResolved,
       equipmentName: review.equipmentName,
+      equipmentPath: review.equipmentPath || '',
       action: review.action,
       actionLabel: review.actionLabel,
       domain: review.domain,

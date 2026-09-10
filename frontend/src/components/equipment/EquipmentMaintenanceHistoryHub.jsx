@@ -24,12 +24,16 @@ import EquipmentSectionShell from './EquipmentSectionShell';
 import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
 import ToolbarFilterSelect from './ToolbarFilterSelect';
 import { resizeImage } from '../../utils/resizeImage';
+import toast from 'react-hot-toast';
 import {
   EMPTY_HISTORY_FORM,
   HISTORY_MAINTENANCE_TYPE_OPTIONS,
   HISTORY_SERVICE_OPTIONS,
   HISTORY_DOCUMENT_ACCEPT,
   MAX_HISTORY_DOCUMENTS,
+  MAX_HISTORY_DOCUMENT_BYTES,
+  formatHistoryDocumentMaxSizeLabel,
+  getOversizedHistoryDocumentError,
   equipmentKeysFromRecord,
   compareMaintenanceHistoryByDate,
   formatDateDisplay,
@@ -41,7 +45,7 @@ import {
   serviceLabel,
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
-import { downloadHistoryDocument } from '../../utils/historyDocuments';
+import { downloadHistoryDocument, downloadApprovalStagedDocument } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
 
 const ITEMS_PER_PAGE = 8;
@@ -196,6 +200,12 @@ function DocumentUploadGrid({ documents, onChange, inputRef }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || documents.length >= MAX_HISTORY_DOCUMENTS) return;
+    if (file.size > MAX_HISTORY_DOCUMENT_BYTES) {
+      toast.error(
+        `"${file.name}" is too large (max ${formatHistoryDocumentMaxSizeLabel()}).`,
+      );
+      return;
+    }
     onChange([
       ...documents,
       {
@@ -473,22 +483,23 @@ export default function EquipmentMaintenanceHistoryHub({
     );
     if (idx < 0) return;
 
+    focusHandledRef.current = focusId;
     const page = Math.floor(idx / ITEMS_PER_PAGE) + 1;
     setCurrentPage(page);
     setHighlightedRequestId(focusId);
     const row = filteredRecords[idx];
+    // Same path as notification "View / Edit": open the edit form for needs-modification.
+    if (row?.pendingStatus === 'needs_modification') {
+      openEdit(row);
+    }
 
     const timer = window.setTimeout(() => {
-      focusHandledRef.current = focusId;
       const el = document.querySelector(`[data-approval-request-id="${focusId}"]`);
       if (el?.scrollIntoView) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-      if (row?.pendingStatus === 'needs_modification') {
-        openEdit(row);
-      }
       if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
-    }, 120);
+    }, 180);
 
     const clearHighlight = window.setTimeout(() => {
       setHighlightedRequestId((prev) => (Number(prev) === focusId ? null : prev));
@@ -594,6 +605,13 @@ export default function EquipmentMaintenanceHistoryHub({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canSave) return;
+    if (enableDocuments) {
+      const oversized = getOversizedHistoryDocumentError(form.documents);
+      if (oversized) {
+        toast.error(oversized);
+        return;
+      }
+    }
     await onSave(form, isEditing ? 'edit' : 'add', selectedRecord?.id, selectedRecord);
     setFormOpen(false);
   };
@@ -608,11 +626,18 @@ export default function EquipmentMaintenanceHistoryHub({
   };
 
   const handleDownloadDocument = async (record, doc) => {
-    if (!enableDocuments || !historyApiBase || !equipId || !record?.id || doc.pending) return;
+    if (!enableDocuments || !doc) return;
     try {
+      if (doc.staged && doc.approvalRequestId) {
+        await downloadApprovalStagedDocument(doc);
+        return;
+      }
+      if (doc.pending || !historyApiBase || !equipId || !record?.id) return;
+      // Pending create rows use id like pending-123 — only permanent history ids download from history API
+      if (String(record.id).startsWith('pending-')) return;
       await downloadHistoryDocument(historyApiBase, equipId, record.id, doc);
     } catch {
-      /* caller may toast */
+      toast.error('Could not download document.');
     }
   };
 
@@ -1142,7 +1167,7 @@ export default function EquipmentMaintenanceHistoryHub({
             {enableDocuments && (
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                  Documents (max {MAX_HISTORY_DOCUMENTS})
+                  Documents (max {MAX_HISTORY_DOCUMENTS}, {formatHistoryDocumentMaxSizeLabel()} each)
                 </label>
                 {/* Match photo thumb size: half-width column + 3-col grid (same as Before/After) */}
                 <div className="w-full sm:w-1/2">
@@ -1167,7 +1192,13 @@ export default function EquipmentMaintenanceHistoryHub({
               className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {saving ? <Spinner size="sm" /> : <MdSave className="w-4 h-4" />}
-                {isEditing ? 'Save' : 'Add'}
+                {saving
+                  ? (selectedRecord?.pendingStatus === 'needs_modification'
+                    ? 'Resubmitting…'
+                    : (isEditing ? 'Saving…' : 'Submitting…'))
+                  : (selectedRecord?.pendingStatus === 'needs_modification'
+                    ? 'Resubmit'
+                    : (isEditing ? 'Save' : 'Add'))}
               </button>
           </div>
         </form>

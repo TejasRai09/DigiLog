@@ -866,7 +866,7 @@ export default function DistilleryAnalyticsDashboard() {
     return total / sourceData.length;
   };
 
-  const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800';
+  const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-transparent text-slate-800';
   const cardClasses = isDarkMode ? 'border-slate-700 bg-slate-800 shadow-slate-900/50' : 'border-slate-200 bg-white shadow-sm';
   const textClasses = isDarkMode
     ? {

@@ -11,6 +11,7 @@ import ManagementDashboardImportProgressModal from '../components/ManagementDash
 import MillingDashboardUploadSection from '../components/MillingDashboardUploadSection';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import { clearPurchyQueryCache } from '../hooks/purchyQueryCache';
+import AppPageHeader from '../components/AppPageHeader';
 
 const PURCHY_CATEGORIES = new Set([
   'Purchy Analysis — Grower Details',
@@ -61,23 +62,24 @@ export default function DataIngestionCenter() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen">
       <div className="app-main">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Zuari Industries · DigiLog
-        </p>
-        <h1 className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">Data Ingestion Center</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-600">
-          Use the sections below to upload specific reference files for dashboards.
-        </p>
-
-        <Link
-          to="/dashboard"
-          className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
-        >
-          <MdArrowBack className="h-4 w-4" />
-          Back to Modules
-        </Link>
+        <AppPageHeader className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+            Zuari Industries · DigiLog
+          </p>
+          <h1 className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">Data Ingestion Center</h1>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-800">
+            Use the sections below to upload specific reference files for dashboards.
+          </p>
+          <Link
+            to="/dashboard"
+            className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
+          >
+            <MdArrowBack className="h-4 w-4" />
+            Back to Modules
+          </Link>
+        </AppPageHeader>
 
         {showPurchy && (
           <PurchyUploadSection onImportStarted={setPurchyImport} refreshToken={purchyRefresh} />
