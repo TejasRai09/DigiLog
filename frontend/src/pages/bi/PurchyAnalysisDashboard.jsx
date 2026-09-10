@@ -113,7 +113,7 @@ export default function PurchyAnalysisDashboard() {
   const dishonourKpis = dishonour.kpis;
   const dishonourDetail = dishonour.detail;
 
-  const pageBg = isDarkMode ? 'bg-slate-900' : 'bg-slate-100';
+  const pageBg = isDarkMode ? 'bg-slate-900' : 'bg-transparent text-slate-800';
 
   const loadError = filtersError || grower.error || dishonour.error;
 

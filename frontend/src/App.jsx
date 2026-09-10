@@ -6,6 +6,7 @@ import Spinner from './components/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import StagingBanner from './components/StagingBanner';
+import IndustryAppBackground from './components/IndustryAppBackground';
 
 /** Eager: shell / first paint only */
 import MarketingLanding from './pages/MarketingLanding';
@@ -97,8 +98,10 @@ const App = () => {
 
   return (
     <>
+      {user && <IndustryAppBackground />}
       {user && <Navbar />}
       <StagingBanner />
+      <div className={user ? 'relative z-10' : undefined}>
       <Suspense fallback={<Spinner fullScreen />}>
         <Routes>
           {/* Public */}
@@ -199,6 +202,7 @@ const App = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </div>
     </>
   );
 };

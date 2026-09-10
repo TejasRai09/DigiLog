@@ -42,8 +42,8 @@ function ResultLayout({ children }) {
 
   return (
     <div
-      className={`flex flex-col bg-slate-50 ${
-        showBrandHeader ? 'min-h-screen' : 'min-h-[calc(100vh-4rem)]'
+      className={`flex flex-col ${
+        showBrandHeader ? 'min-h-screen bg-slate-50' : 'min-h-[calc(100vh-4rem)]'
       }`}
     >
       {showBrandHeader && <AppBrandHeader />}

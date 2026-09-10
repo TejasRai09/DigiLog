@@ -10,6 +10,11 @@
   body {
     @apply bg-gray-50 text-gray-900 h-full;
   }
+  /* Logged-in shell uses IndustryAppBackground — let the photo show through */
+  html.has-industry-bg,
+  html.has-industry-bg body {
+    background-color: transparent;
+  }
 }
 
 @layer utilities {

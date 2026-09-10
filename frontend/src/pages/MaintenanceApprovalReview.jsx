@@ -8,7 +8,7 @@ import useAuth from '../hooks/useAuth';
 function ReviewLayout({ children }) {
   const { user } = useAuth();
   return (
-    <div className={`flex flex-col bg-slate-50 ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen'}`}>
+    <div className={`flex flex-col ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen bg-slate-50'}`}>
       {!user && <AppBrandHeader />}
       {children}
     </div>
