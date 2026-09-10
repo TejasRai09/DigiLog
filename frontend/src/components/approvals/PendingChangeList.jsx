@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import ChangeComparison from './ChangeComparison';
 import ApprovalActions from './ApprovalActions';
 import ApprovalMediaAttachments from './ApprovalMediaAttachments.jsx';
@@ -23,15 +24,15 @@ function submitterLabel(item) {
 function ReviewModal({ item, busy, busyAction, onClose, onApprove, onModify, onResolve }) {
   if (!item) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center">
       <div
-        className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+        className="my-auto flex max-h-[min(100dvh-2rem,100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
         role="dialog"
         aria-modal="true"
         aria-labelledby="approval-review-title"
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="min-w-0">
             <h3 id="approval-review-title" className="text-lg font-bold text-slate-900">
               Review maintenance history change
@@ -52,7 +53,7 @@ function ReviewModal({ item, busy, busyAction, onClose, onApprove, onModify, onR
           </button>
         </div>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="space-y-1 text-sm text-slate-600">
             <p>
               Equipment:{' '}
@@ -83,7 +84,7 @@ function ReviewModal({ item, busy, busyAction, onClose, onApprove, onModify, onR
           <ApprovalMediaAttachments item={item} />
         </div>
 
-        <div className="border-t border-slate-100 px-5 py-4">
+        <div className="shrink-0 border-t border-slate-100 px-5 py-4">
           <ApprovalActions
             item={item}
             busy={busy}
@@ -94,7 +95,8 @@ function ReviewModal({ item, busy, busyAction, onClose, onApprove, onModify, onR
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -198,13 +200,8 @@ export default function PendingChangeList({
   onApprove,
   onModify,
   onResolve,
-  statusFilter = '',
 }) {
   const [reviewItem, setReviewItem] = useState(null);
-  const showingApproved = statusFilter === 'approved';
-  const previous = showingApproved ? [] : items.filter((item) => item.group === 'previous');
-  const today = showingApproved ? [] : items.filter((item) => item.group !== 'previous');
-  const approvedRows = showingApproved ? items : [];
 
   const closeReview = () => setReviewItem(null);
 
@@ -224,48 +221,14 @@ export default function PendingChangeList({
   };
 
   return (
-    <div className="space-y-8">
-      {showingApproved ? (
-        <section className="space-y-3">
-          <h2 className="text-base font-bold text-slate-800 sm:text-lg">
-            Approved requests ({approvedRows.length})
-          </h2>
-          <ApprovalTable
-            rows={approvedRows}
-            selectedIds={selectedIds}
-            onToggle={onToggle}
-            onReview={setReviewItem}
-            startIndex={1}
-          />
-        </section>
-      ) : (
-        <>
-          <section className="space-y-3">
-            <h2 className="text-base font-bold text-slate-800 sm:text-lg">
-              Previous pending ({previous.length})
-            </h2>
-            <ApprovalTable
-              rows={previous}
-              selectedIds={selectedIds}
-              onToggle={onToggle}
-              onReview={setReviewItem}
-              startIndex={1}
-            />
-          </section>
-          <section className="space-y-3">
-            <h2 className="text-base font-bold text-slate-800 sm:text-lg">
-              New today ({today.length})
-            </h2>
-            <ApprovalTable
-              rows={today}
-              selectedIds={selectedIds}
-              onToggle={onToggle}
-              onReview={setReviewItem}
-              startIndex={previous.length + 1}
-            />
-          </section>
-        </>
-      )}
+    <div className="space-y-3">
+      <ApprovalTable
+        rows={items}
+        selectedIds={selectedIds}
+        onToggle={onToggle}
+        onReview={setReviewItem}
+        startIndex={1}
+      />
 
       <ReviewModal
         item={reviewItem}

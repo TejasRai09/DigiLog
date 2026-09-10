@@ -1,2 +1,4 @@
-/** Shared full-bleed industry photo used by BI Control Tower and the logged-in app shell. */
-export const INDUSTRY_APP_BG = '/images/bi/bi-industry-bg-day.jpg';
+/** Shared full-bleed plant photo used by the logged-in app shell (and BI where shared). */
+import industryAppBg from '../assets/image (2).jpg';
+
+export const INDUSTRY_APP_BG = industryAppBg;

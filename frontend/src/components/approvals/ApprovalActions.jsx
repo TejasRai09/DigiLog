@@ -9,6 +9,14 @@ export default function ApprovalActions({ item, busy, busyAction, onApprove, onM
     );
   }
 
+  if (item.status === 'needs_modification') {
+    return (
+      <p className="text-sm text-slate-500">
+        Sent for modification — waiting for the employee to revise and resubmit. Details above are read-only.
+      </p>
+    );
+  }
+
   if (item.status === 'conflict') {
     return (
       <div className="flex flex-wrap gap-2">
