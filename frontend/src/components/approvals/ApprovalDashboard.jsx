@@ -10,19 +10,18 @@ import BusyButton from './BusyButton.jsx';
 import useHodApprovalAccess from '../../hooks/useHodApprovalAccess';
 import { onRealtimeEvent, EVENT_NOTIFICATION_NEW } from '../../realtime/socket';
 
-const EMPTY_FILTERS = {
+const DEFAULT_FILTERS = {
   search: '',
-  domain: '',
   operation: '',
-  status: '',
+  status: 'today_pending',
   from: '',
   to: '',
 };
 
 export default function ApprovalDashboard() {
-  const { sugar, power, production, enabled, loading: accessLoading } = useHodApprovalAccess();
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [applied, setApplied] = useState(EMPTY_FILTERS);
+  const { enabled, loading: accessLoading } = useHodApprovalAccess();
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [applied, setApplied] = useState(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +93,7 @@ export default function ApprovalDashboard() {
     total: 0,
     totalRequests: 0,
     approvedRequests: 0,
+    needsModification: 0,
   };
   const totalPages = Math.max(1, Math.ceil((data?.total || 0) / (data?.limit || 20)));
 
@@ -205,7 +205,7 @@ export default function ApprovalDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Pending maintenance changes</h1>
         <p className="mt-1 text-base text-slate-500">
-          Primary HOD path is the daily digest email inbox (no login). This signed-in view is optional for bulk actions and version conflicts.
+          Review pending create, update, and delete requests for maintenance history. Approve them or send them back for modification.
         </p>
       </div>
 
@@ -227,16 +227,6 @@ export default function ApprovalDashboard() {
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
         />
         <select
-          value={filters.domain}
-          onChange={(e) => setFilters((f) => ({ ...f, domain: e.target.value }))}
-          className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
-        >
-          <option value="">All domains</option>
-          {sugar && <option value="sugar">Sugar House</option>}
-          {power && <option value="power">Power Plant</option>}
-          {production && <option value="production">Production House</option>}
-        </select>
-        <select
           value={filters.operation}
           onChange={(e) => setFilters((f) => ({ ...f, operation: e.target.value }))}
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
@@ -251,9 +241,11 @@ export default function ApprovalDashboard() {
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
         >
-          <option value="">Pending + resubmitted</option>
-          <option value="pending">Pending</option>
+          <option value="today_pending">Today's pending</option>
+          <option value="previous_pending">Previous pending</option>
+          <option value="total_pending">Total pending</option>
           <option value="resubmitted">Resubmitted</option>
+          <option value="needs_modification">Sent for modification</option>
           <option value="approved">Approved</option>
         </select>
         <input
@@ -281,9 +273,9 @@ export default function ApprovalDashboard() {
             type="button"
             disabled={busy || (filtering && loading)}
             onClick={() => {
-              setFilters(EMPTY_FILTERS);
+              setFilters(DEFAULT_FILTERS);
               setFiltering(true);
-              setApplied(EMPTY_FILTERS);
+              setApplied(DEFAULT_FILTERS);
               setPage(1);
             }}
             className="rounded-lg border border-slate-200 px-4 py-2.5 text-base font-semibold text-slate-600 disabled:opacity-50"
@@ -293,7 +285,7 @@ export default function ApprovalDashboard() {
         </div>
       </form>
 
-      {applied.status !== 'approved' && (
+      {applied.status !== 'approved' && applied.status !== 'needs_modification' && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 sm:text-base">
           <input
@@ -324,7 +316,6 @@ export default function ApprovalDashboard() {
           onApprove={approveOne}
           onModify={setModifyItem}
           onResolve={resolveConflict}
-          statusFilter={applied.status}
         />
       )}
 

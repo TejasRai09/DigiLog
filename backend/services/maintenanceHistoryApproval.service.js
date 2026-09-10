@@ -2417,12 +2417,43 @@ async function listPendingForHod(user, query = {}) {
 
   const listClauses = [...sharedClauses];
   const listParams = [...sharedParams];
-  if (status === STATUS.APPROVED) {
+  const todayIst = getIstDateParts().date;
+  const todayStartUtc = todayIst
+    ? new Date(`${todayIst}T00:00:00+05:30`).toISOString().slice(0, 19).replace('T', ' ')
+    : null;
+  const todayEndUtc = todayIst
+    ? new Date(`${todayIst}T23:59:59.999+05:30`).toISOString().slice(0, 19).replace('T', ' ')
+    : null;
+  const statusFilter = status || 'today_pending';
+
+  if (statusFilter === 'today_pending') {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+    if (todayStartUtc && todayEndUtc) {
+      listClauses.push('created_at >= ?');
+      listParams.push(todayStartUtc);
+      listClauses.push('created_at <= ?');
+      listParams.push(todayEndUtc);
+    }
+  } else if (statusFilter === 'previous_pending') {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+    if (todayStartUtc) {
+      listClauses.push('created_at < ?');
+      listParams.push(todayStartUtc);
+    }
+  } else if (statusFilter === STATUS.APPROVED) {
     listClauses.push('status = ?');
     listParams.push(STATUS.APPROVED);
-  } else if (status && HOD_QUEUE_STATUSES.includes(status)) {
+  } else if (statusFilter === STATUS.NEEDS_MODIFICATION) {
     listClauses.push('status = ?');
-    listParams.push(status);
+    listParams.push(STATUS.NEEDS_MODIFICATION);
+  } else if (statusFilter === 'total_pending' || statusFilter === STATUS.PENDING) {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+  } else if (HOD_QUEUE_STATUSES.includes(statusFilter)) {
+    listClauses.push('status = ?');
+    listParams.push(statusFilter);
   } else {
     listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
     listParams.push(...HOD_QUEUE_STATUSES);
@@ -2441,7 +2472,6 @@ async function listPendingForHod(user, query = {}) {
     `SELECT status, created_at FROM maintenance_history_approval_request WHERE ${pendingWhere}`,
     pendingParams,
   );
-  const todayIst = getIstDateParts().date;
   let previousPending = 0;
   let newToday = 0;
   let conflict = 0;
@@ -2456,21 +2486,23 @@ async function listPendingForHod(user, query = {}) {
   const [[kpiRow]] = await pool.query(
     `SELECT
        COUNT(*) AS totalRequests,
-       SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approvedRequests
+       SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approvedRequests,
+       SUM(CASE WHEN status = 'needs_modification' THEN 1 ELSE 0 END) AS needsModification
      FROM maintenance_history_approval_request
      WHERE ${sharedClauses.join(' AND ')}`,
     sharedParams,
   );
   const totalRequests = Number(kpiRow?.totalRequests) || 0;
   const approvedRequests = Number(kpiRow?.approvedRequests) || 0;
+  const needsModification = Number(kpiRow?.needsModification) || 0;
 
   const [[{ listTotal }]] = await pool.query(
     `SELECT COUNT(*) AS listTotal FROM maintenance_history_approval_request WHERE ${listWhere}`,
     listParams,
   );
 
-  const orderSql = status === STATUS.APPROVED
-    ? 'ORDER BY created_at DESC, id DESC'
+  const orderSql = statusFilter === STATUS.APPROVED || statusFilter === STATUS.NEEDS_MODIFICATION
+    ? 'ORDER BY COALESCE(resolved_at, created_at) DESC, id DESC'
     : "ORDER BY FIELD(status, 'conflict', 'resubmitted', 'pending'), created_at ASC, id ASC";
 
   const [rows] = await pool.query(
@@ -2501,6 +2533,7 @@ async function listPendingForHod(user, query = {}) {
       conflict,
       totalRequests,
       approvedRequests,
+      needsModification,
     },
     items,
   };

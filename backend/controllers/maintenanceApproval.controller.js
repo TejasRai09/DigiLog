@@ -27,6 +27,32 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
+/** Same plant photo as the logged-in app shell (`frontend/public/images/app-industry-bg.jpg`). */
+function industryBgUrl() {
+  const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
+  return `${publicBase}/images/app-industry-bg.jpg`;
+}
+
+function pageBackgroundCss() {
+  const bgUrl = industryBgUrl();
+  return `
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      color: #334155;
+      background-color: #f1f5f9;
+      background-image:
+        linear-gradient(to bottom, rgba(248,250,252,0.78), rgba(255,255,255,0.72), rgba(241,245,249,0.88)),
+        url("${escapeHtml(bgUrl)}");
+      background-size: cover;
+      background-position: center bottom;
+      background-attachment: fixed;
+      background-repeat: no-repeat;
+    }
+  `;
+}
+
 /** Entry / request created_at for HOD inbox & review UI (IST). */
 function formatEntryCreatedAt(value) {
   if (!value) return '—';
@@ -96,13 +122,7 @@ function renderHtmlPage({ title, message, tone = 'info' }) {
   <title>${safeTitle} · DigiLog</title>
   <style>
     * { box-sizing: border-box; }
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f8fafc;
-      margin: 0;
-      min-height: 100vh;
-      color: #334155;
-    }
+    ${pageBackgroundCss()}
     .app-header {
       position: sticky;
       top: 0;
@@ -312,7 +332,7 @@ function renderReviewPage(review) {
   <title>Review maintenance change · DigiLog</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; background:#f8fafc; margin:0; min-height:100vh; color:#334155; }
+    ${pageBackgroundCss()}
     ${sharedHeaderCss()}
     .page-body { max-width: 760px; margin: 0 auto; padding: 28px 16px 48px; }
     .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:28px; box-shadow:0 4px 24px rgba(15,23,42,.06); }
@@ -427,7 +447,7 @@ function renderInboxPage(inbox, options = {}) {
   <title>Pending approvals · DigiLog</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; background:#f8fafc; margin:0; min-height:100vh; color:#334155; }
+    ${pageBackgroundCss()}
     ${sharedHeaderCss()}
     .page-body { max-width: 1100px; margin: 0 auto; padding: 28px 16px 48px; }
     .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:28px; box-shadow:0 4px 24px rgba(15,23,42,.06); }
@@ -1199,7 +1219,7 @@ function renderModificationForm(request, token, errorMessage, equipmentName, equ
   <title>Send for modification · DigiLog</title>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; background:#f8fafc; margin:0; min-height:100vh; color:#334155; }
+    ${pageBackgroundCss()}
     ${sharedHeaderCss()}
     .page-body { max-width: 640px; margin: 0 auto; padding: 28px 16px 48px; }
     .card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:28px; box-shadow:0 4px 24px rgba(15,23,42,.06); }

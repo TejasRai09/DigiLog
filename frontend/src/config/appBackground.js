@@ -1,2 +1,2 @@
-/** Shared full-bleed industry photo used by BI Control Tower and the logged-in app shell. */
-export const INDUSTRY_APP_BG = '/images/bi/bi-industry-bg-day.jpg';
+/** Shared full-bleed plant photo (public URL — also used by no-login approval HTML). */
+export const INDUSTRY_APP_BG = '/images/app-industry-bg.jpg';

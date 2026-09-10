@@ -101,6 +101,7 @@ const App = () => {
       {user && <IndustryAppBackground />}
       {user && <Navbar />}
       <StagingBanner />
+      {/* z-10 keeps page content above the fixed industry bg; modals must portal to body */}
       <div className={user ? 'relative z-10' : undefined}>
       <Suspense fallback={<Spinner fullScreen />}>
         <Routes>

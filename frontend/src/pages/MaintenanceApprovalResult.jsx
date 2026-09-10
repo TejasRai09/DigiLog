@@ -4,6 +4,7 @@ import { MdCheck, MdError, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
 import AppBrandHeader from '../components/AppBrandHeader';
+import IndustryAppBackground from '../components/IndustryAppBackground';
 import useAuth from '../hooks/useAuth';
 
 function ResultIcon({ tone }) {
@@ -42,12 +43,13 @@ function ResultLayout({ children }) {
 
   return (
     <div
-      className={`flex flex-col ${
-        showBrandHeader ? 'min-h-screen bg-slate-50' : 'min-h-[calc(100vh-4rem)]'
+      className={`relative flex flex-col ${
+        showBrandHeader ? 'min-h-screen' : 'min-h-[calc(100vh-4rem)]'
       }`}
     >
+      {showBrandHeader && <IndustryAppBackground />}
       {showBrandHeader && <AppBrandHeader />}
-      {children}
+      <div className="relative z-10 flex flex-1 flex-col">{children}</div>
     </div>
   );
 }

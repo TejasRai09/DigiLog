@@ -47,6 +47,7 @@ import {
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
 import { downloadHistoryDocument, downloadApprovalStagedDocument } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
+import api from '../../api/axios';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
@@ -386,13 +387,23 @@ export default function EquipmentMaintenanceHistoryHub({
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxCaption, setLightboxCaption] = useState('');
   const [highlightedRequestId, setHighlightedRequestId] = useState(null);
+  const [highlightedHistoryId, setHighlightedHistoryId] = useState(null);
   const focusHandledRef = useRef(null);
   const isFocusHighlighted = (row) => {
     const focusId = Number(highlightedRequestId);
     const rowId = Number(row?.pendingRequestId);
-    return Number.isFinite(focusId) && focusId > 0
+    if (
+      Number.isFinite(focusId) && focusId > 0
       && Number.isFinite(rowId) && rowId > 0
-      && rowId === focusId;
+      && rowId === focusId
+    ) {
+      return true;
+    }
+    const histFocus = Number(highlightedHistoryId);
+    const histId = Number(row?.id);
+    return Number.isFinite(histFocus) && histFocus > 0
+      && Number.isFinite(histId) && histId > 0
+      && histId === histFocus;
   };
   const isApprovalHighlighted = (row) => Boolean(row?.pendingRequestId);
   const rowEmphasisClass = (row) => {
@@ -476,41 +487,97 @@ export default function EquipmentMaintenanceHistoryHub({
     const focusId = Number(focusApprovalRequestId);
     if (!focusId || Number.isNaN(focusId)) return;
     if (focusHandledRef.current === focusId) return;
-    if (!filteredRecords.length) return;
 
-    const idx = filteredRecords.findIndex(
-      (row) => Number(row.pendingRequestId) === focusId,
-    );
-    if (idx < 0) return;
+    let cancelled = false;
+    const timers = [];
 
-    focusHandledRef.current = focusId;
-    const page = Math.floor(idx / ITEMS_PER_PAGE) + 1;
-    setCurrentPage(page);
-    setHighlightedRequestId(focusId);
-    const row = filteredRecords[idx];
-    // Same path as notification "View / Edit": open the edit form for needs-modification.
-    if (row?.pendingStatus === 'needs_modification') {
-      openEdit(row);
-    }
-
-    const timer = window.setTimeout(() => {
-      const el = document.querySelector(`[data-approval-request-id="${focusId}"]`);
-      if (el?.scrollIntoView) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const finishFocus = (row, { openEditForm = false, openView = false } = {}) => {
+      if (cancelled) return;
+      focusHandledRef.current = focusId;
+      const list = filteredRecords.length ? filteredRecords : records;
+      const idx = list.findIndex((r) => Number(r.id) === Number(row?.id)
+        || Number(r.pendingRequestId) === focusId);
+      if (idx >= 0) {
+        setCurrentPage(Math.floor(idx / ITEMS_PER_PAGE) + 1);
       }
-      if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
-    }, 180);
+      setHighlightedRequestId(focusId);
+      if (row?.id) setHighlightedHistoryId(Number(row.id));
+      if (openEditForm && row) openEdit(row);
+      if (openView && row) {
+        setFormOpen(false);
+        openDetail(row);
+      }
+      timers.push(window.setTimeout(() => {
+        const el = document.querySelector(`[data-approval-request-id="${focusId}"]`)
+          || (row?.id ? document.querySelector(`[data-history-id="${row.id}"]`) : null);
+        if (el?.scrollIntoView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+      }, 180));
+      timers.push(window.setTimeout(() => {
+        setHighlightedRequestId((prev) => (Number(prev) === focusId ? null : prev));
+        setHighlightedHistoryId((prev) => (
+          row?.id && Number(prev) === Number(row.id) ? null : prev
+        ));
+      }, 8000));
+    };
 
-    const clearHighlight = window.setTimeout(() => {
-      setHighlightedRequestId((prev) => (Number(prev) === focusId ? null : prev));
-    }, 8000);
+    const run = async () => {
+      const pendingIdx = filteredRecords.findIndex(
+        (row) => Number(row.pendingRequestId) === focusId,
+      );
+      if (pendingIdx >= 0) {
+        const row = filteredRecords[pendingIdx];
+        finishFocus(row, {
+          openEditForm: row?.pendingStatus === 'needs_modification',
+        });
+        return;
+      }
+
+      try {
+        const { data } = await api.get(`/change-requests/${focusId}`);
+        if (cancelled) return;
+        const status = String(data?.status || '').toLowerCase();
+        const historyId = Number(data?.entityId);
+
+        if (status === 'approved') {
+          toast.success('Already approved.');
+          const live = historyId
+            ? (records.find((row) => Number(row.id) === historyId)
+              || filteredRecords.find((row) => Number(row.id) === historyId))
+            : null;
+          if (live) {
+            finishFocus(live, { openView: true });
+          } else {
+            focusHandledRef.current = focusId;
+            if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+          }
+          return;
+        }
+
+        if (status === 'needs_modification' || status === 'pending' || status === 'resubmitted') {
+          // Overlay may still be loading; retry when records update.
+          return;
+        }
+
+        focusHandledRef.current = focusId;
+        if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+      } catch {
+        if (cancelled) return;
+        focusHandledRef.current = focusId;
+        if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+      }
+    };
+
+    run();
 
     return () => {
-      window.clearTimeout(timer);
-      window.clearTimeout(clearHighlight);
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusApprovalRequestId, filteredRecords, onFocusHandled]);
+  }, [focusApprovalRequestId, filteredRecords, records, onFocusHandled]);
 
   const openAdd = () => {
     setIsEditing(false);
@@ -782,6 +849,7 @@ export default function EquipmentMaintenanceHistoryHub({
             {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
               <tr
                 key={row.id}
+                data-history-id={row.id}
                 data-approval-request-id={row.pendingRequestId || undefined}
                 className={`hover:bg-slate-50/50 transition-colors group cursor-pointer ${rowEmphasisClass(row)}`}
                 onClick={() => openDetail(row)}
@@ -846,6 +914,7 @@ export default function EquipmentMaintenanceHistoryHub({
       {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
         <div
           key={row.id}
+          data-history-id={row.id}
           data-approval-request-id={row.pendingRequestId || undefined}
           className={`bg-white rounded-2xl p-4 border shadow-sm space-y-3 ${mobileEmphasisClass(row)}`}
         >

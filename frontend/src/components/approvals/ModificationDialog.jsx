@@ -1,13 +1,14 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import BusyButton from './BusyButton.jsx';
 
 export default function ModificationDialog({ open, onClose, onSubmit, busy }) {
   const [comment, setComment] = useState('');
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+  return createPortal(
+    <div className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center">
+      <div className="my-auto w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
         <h3 className="text-lg font-bold text-slate-900">Send for modification</h3>
         <p className="mt-1 text-base text-slate-500">A comment is required so the employee knows what to change.</p>
         <textarea
@@ -38,6 +39,7 @@ export default function ModificationDialog({ open, onClose, onSubmit, busy }) {
           </BusyButton>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
