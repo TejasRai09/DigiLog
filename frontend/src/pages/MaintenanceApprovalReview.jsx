@@ -3,14 +3,16 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
 import AppBrandHeader from '../components/AppBrandHeader';
+import IndustryAppBackground from '../components/IndustryAppBackground';
 import useAuth from '../hooks/useAuth';
 
 function ReviewLayout({ children }) {
   const { user } = useAuth();
   return (
-    <div className={`flex flex-col ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen bg-slate-50'}`}>
+    <div className={`relative flex flex-col ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen'}`}>
+      {!user && <IndustryAppBackground />}
       {!user && <AppBrandHeader />}
-      {children}
+      <div className="relative z-10 flex flex-1 flex-col">{children}</div>
     </div>
   );
 }

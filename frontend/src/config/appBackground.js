@@ -1,4 +1,2 @@
-/** Shared full-bleed plant photo used by the logged-in app shell (and BI where shared). */
-import industryAppBg from '../assets/image (2).jpg';
-
-export const INDUSTRY_APP_BG = industryAppBg;
+/** Shared full-bleed plant photo (public URL — also used by no-login approval HTML). */
+export const INDUSTRY_APP_BG = '/images/app-industry-bg.jpg';
