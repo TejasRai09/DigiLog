@@ -110,20 +110,39 @@ export default function MaintenanceApprovalReview() {
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
                   <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Field</th>
-                  <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Previous</th>
-                  <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">New</th>
+                  {(review.action === 'create' || review.action === 'delete') ? (
+                    <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Value</th>
+                  ) : (
+                    <>
+                      <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Previous</th>
+                      <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">New</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {(review.diff || []).length ? review.diff.map((row) => (
                   <tr key={row.label}>
                     <td className="border border-slate-200 px-3 py-2 font-semibold text-slate-700">{row.label}</td>
-                    <td className="border border-slate-200 px-3 py-2 text-slate-500 whitespace-pre-wrap">{row.oldValue}</td>
-                    <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">{row.newValue}</td>
+                    {(review.action === 'create' || review.action === 'delete') ? (
+                      <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">
+                        {review.action === 'delete' ? row.oldValue : row.newValue}
+                      </td>
+                    ) : (
+                      <>
+                        <td className="border border-slate-200 px-3 py-2 text-slate-500 whitespace-pre-wrap">{row.oldValue}</td>
+                        <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">{row.newValue}</td>
+                      </>
+                    )}
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={3} className="border border-slate-200 px-3 py-4 text-slate-400">No field details available.</td>
+                    <td
+                      colSpan={(review.action === 'create' || review.action === 'delete') ? 2 : 3}
+                      className="border border-slate-200 px-3 py-4 text-slate-400"
+                    >
+                      No field details available.
+                    </td>
                   </tr>
                 )}
               </tbody>

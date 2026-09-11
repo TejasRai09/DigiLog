@@ -25,6 +25,7 @@ import useSugarHouseHierarchy from '../../hooks/useSugarHouseHierarchy';
 import useMaintenanceHistoryHodRefresh from '../../hooks/useMaintenanceHistoryHodRefresh';
 import { hierarchyBreadcrumbLabels } from '../../utils/hierarchyTreeUtils';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
+import { trackEquipmentPdfDownload } from '../../utils/trackActivity';
 import {
   powerNewDetailPath,
   sugarNewDetailPath,
@@ -546,6 +547,10 @@ const PowerEquipmentDetail = () => {
         specs: { rows: specs, equipmentDefaults, specSection: disciplineSpecFocus ? specSection : null },
         schedule: { rows: scheduleForView, equipmentOptions: scheduleEquipmentOptions },
         history: { rows: isNewHub ? historyForView : history, equipmentOptions: isNewHub ? equipmentOptions : [] },
+      });
+      trackEquipmentPdfDownload({
+        sections: selectedKeys,
+        equipmentName: eq?.name || eq?.tag_name || eq?.equip_no || null,
       });
       setPdfModalOpen(false);
     } catch (err) {

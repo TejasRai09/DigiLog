@@ -4,6 +4,7 @@ const {
   getApprovalSettings,
   updateApprovalSettings,
   validateDigestTime,
+  validateOptionalDigestTime,
   sendDigestForDomain,
   DOMAIN_TABLES,
 } = require('../services/maintenanceHistoryApproval.service');
@@ -46,7 +47,12 @@ const putMaintenanceHistoryApprovalSettings = async (req, res) => {
       const label = DOMAIN_LABEL[domain] || domain;
       if (cfg.digestTime != null && cfg.digestTime !== '' && !validateDigestTime(cfg.digestTime)) {
         return res.status(400).json({
-          message: `Daily digest time for ${label} must be HH:mm (24-hour, IST).`,
+          message: `Digest time 1 for ${label} must be HH:mm (24-hour, IST).`,
+        });
+      }
+      if (cfg.digestTime2 != null && cfg.digestTime2 !== '' && !validateOptionalDigestTime(cfg.digestTime2)) {
+        return res.status(400).json({
+          message: `Digest time 2 for ${label} must be HH:mm (24-hour, IST), or leave blank.`,
         });
       }
       if (cfg.enabled && cfg.hodUserId) {

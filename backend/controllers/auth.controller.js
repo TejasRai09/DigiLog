@@ -32,6 +32,33 @@ const enforceAdminPortalRules = (user, adminPortal) => {
 
 const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 
+/** Attach actor for Change Log (login has no JWT / req.user yet). */
+function attachAuditActor(req, actor = {}) {
+  if (!req || !actor) return;
+  const email = actor.email != null ? normalizeEmail(actor.email) : null;
+  req.auditActor = {
+    id: actor.id ?? null,
+    name: actor.name != null && String(actor.name).trim() ? String(actor.name).trim() : null,
+    email: email || null,
+    role: actor.role != null ? String(actor.role) : null,
+    department: actor.department != null ? String(actor.department) : null,
+  };
+}
+
+function attachAuditActorFromUserRow(req, user, emailFallback = null) {
+  if (user) {
+    attachAuditActor(req, {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+    });
+    return;
+  }
+  if (emailFallback) attachAuditActor(req, { email: emailFallback });
+}
+
 async function buildTokenResponse(row) {
   const user = toAuthUser(row);
   const dataUploadSections = await getUserDataUploadSections(user);
@@ -58,14 +85,21 @@ const login = async (req, res) => {
     if (!EMAIL_RE.test(email))
       return res.status(400).json({ message: 'Please enter a valid email address.' });
 
+    // Always record attempted email on Change Log (even before user lookup)
+    attachAuditActor(req, { email });
+
     const [rows] = await pool.query(
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
     const user = rows[0];
 
-    if (!user)
+    if (!user) {
       return res.status(401).json({ message: 'Invalid email or password.' });
+    }
+
+    // Known account — fill name/role even if password/portal check fails
+    attachAuditActorFromUserRow(req, user);
 
     if (user.auth_provider === 'outlook')
       return res.status(401).json({
@@ -110,6 +144,11 @@ const outlookLogin = async (req, res) => {
     if (!profile.email)
       return res.status(400).json({ message: 'Could not retrieve email from Microsoft.' });
 
+    attachAuditActor(req, {
+      email: profile.email,
+      name: profile.name || null,
+    });
+
     let [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [
       profile.email.toLowerCase(),
     ]);
@@ -118,6 +157,8 @@ const outlookLogin = async (req, res) => {
     if (!user) {
       return res.status(403).json({ message: NO_ACCESS_MSG });
     }
+
+    attachAuditActorFromUserRow(req, user);
 
     if (!user.microsoft_id) {
       await pool.query(
@@ -159,6 +200,13 @@ const googleLogin = async (req, res) => {
       return res.status(401).json({ message: 'Invalid Google sign-in. Please try again.' });
     }
 
+    if (profile?.email) {
+      attachAuditActor(req, {
+        email: profile.email,
+        name: profile.name || null,
+      });
+    }
+
     const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ?', [
       profile.email,
     ]);
@@ -167,6 +215,8 @@ const googleLogin = async (req, res) => {
     if (!user) {
       return res.status(403).json({ message: NO_ACCESS_MSG });
     }
+
+    attachAuditActorFromUserRow(req, user);
 
     if (!user.google_id) {
       await pool.query(

@@ -77,6 +77,22 @@ async function endSession(pool, sessionId, userId) {
 }
 
 async function expireStaleSessions(pool, staleMinutes = SESSION_STALE_MINUTES) {
+  const [staleRows] = await pool.query(
+    `SELECT session_id, user_id
+     FROM user_sessions
+     WHERE is_active = 1
+       AND COALESCE(last_heartbeat, login_at) < (NOW() - INTERVAL ? MINUTE)`,
+    [staleMinutes],
+  );
+
+  for (const row of staleRows || []) {
+    try {
+      await closeOpenActivitiesForSession(pool, row.session_id, row.user_id);
+    } catch {
+      /* best-effort — still expire the session */
+    }
+  }
+
   const [result] = await pool.query(
     `UPDATE user_sessions
      SET logout_at = COALESCE(last_heartbeat, login_at),
@@ -177,6 +193,12 @@ async function resolveActivityLabels(pool, payload) {
   if (nodeMatch) {
     const [, hub, nodeId, discipline] = nodeMatch;
     const table = hub === 'sugar-house-equipment-new' ? 'shn_hierarchy_node' : 'ppn_hierarchy_node';
+    const disciplineLabel = discipline === 'specs' ? 'Specs'
+      : discipline === 'schedule' ? 'OEM Schedule'
+      : discipline === 'history' ? 'Life History'
+      : discipline
+        ? discipline.charAt(0).toUpperCase() + discipline.slice(1)
+        : null;
     try {
       const [rows] = await pool.query(
         `SELECT name FROM ${table} WHERE id = ? LIMIT 1`,
@@ -184,9 +206,7 @@ async function resolveActivityLabels(pool, payload) {
       );
       if (rows[0]?.name) {
         out.card = rows[0].name;
-        out.form_or_dashboard = discipline
-          ? discipline.charAt(0).toUpperCase() + discipline.slice(1)
-          : out.form_or_dashboard;
+        if (disciplineLabel) out.form_or_dashboard = disciplineLabel;
         out.display_path = ['Dashboard', out.section, out.card, out.form_or_dashboard]
           .filter(Boolean)
           .join(' > ');
@@ -242,7 +262,14 @@ async function insertActivity(pool, req, payload) {
     ],
   );
 
-  if (eventType === 'page_view' || eventType === 'section_open' || eventType === 'form_open' || eventType === 'dashboard_open') {
+  if (eventType === 'page_view'
+    || eventType === 'section_open'
+    || eventType === 'card_open'
+    || eventType === 'form_open'
+    || eventType === 'dashboard_open'
+    || eventType === 'equipment_section_open'
+    || eventType === 'dashboard_tab'
+    || eventType === 'view_data') {
     await bumpPagesVisited(pool, sessionId);
   }
 

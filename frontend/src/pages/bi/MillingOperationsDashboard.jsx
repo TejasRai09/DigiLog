@@ -55,6 +55,8 @@ import {
   resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
   filterMillStoppages,
   filterMillSeasonCompareRows,
@@ -332,6 +334,16 @@ export default function MillingOperationsDashboard() {
   const [isSectionOpen, setIsSectionOpen] = useState(false);
   const sectionBtnRef = useRef(null);
   const [sectionMenuPos, setSectionMenuPos] = useState(null);
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/milling-operations'],
+    activeTab,
+    rangePreset,
+    comparisonType,
+    dateFrom: fromDate,
+    dateTo: toDate,
+    extraFilters: { selectedSections },
+  });
 
   useLayoutEffect(() => {
     if (!isSectionOpen) {

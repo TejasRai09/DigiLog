@@ -110,15 +110,18 @@ export async function saveHistoryWithDocuments({
   const alreadyStagedCount = (form.documents || []).filter((doc) => doc.staged).length;
 
   body.documents = serializeHistoryDocumentsForApi(savedDocs);
+  // Defer HOD in-app notify until after staged document uploads finish.
+  body.deferHodNotify = '1';
 
   let historyId = recordId;
   let response;
 
+  const deferParams = { deferHodNotify: '1' };
   if (mode === 'add') {
-    response = await api.post(`${apiBase}/${equipId}/history`, body);
+    response = await api.post(`${apiBase}/${equipId}/history`, body, { params: deferParams });
     historyId = response.data.id;
   } else {
-    response = await api.put(`${apiBase}/${equipId}/history/${historyId}`, body);
+    response = await api.put(`${apiBase}/${equipId}/history/${historyId}`, body, { params: deferParams });
   }
 
   if (response.status === 202 || response.data?.pending) {
@@ -149,6 +152,11 @@ export async function saveHistoryWithDocuments({
       err.pendingCreated = true;
       err.approvalRequestId = approvalRequestId;
       throw err;
+    }
+    try {
+      await api.post(`/change-requests/${approvalRequestId}/notify-hod`);
+    } catch (err) {
+      console.error('[historyDocuments] HOD notify failed:', err.response?.data?.message || err.message);
     }
     return { pending: true, approvalRequestId };
   }

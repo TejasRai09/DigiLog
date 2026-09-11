@@ -15,6 +15,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
   TrendingUp,
   TrendingDown,
@@ -256,6 +258,14 @@ export default function CentreMaturityDashboard() {
   const [dateTo, setDateTo] = useState('');
   const [rangePreset, setRangePreset] = useState('STD'); // MTD | STD | WTD | Custom
   const [comparisonType, setComparisonType] = useState('PP');
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/centre-maturity'],
+    rangePreset,
+    comparisonType,
+    dateFrom,
+    dateTo,
+  });
 
   // API Live Data State
   const [centers, setCenters] = useState([]);

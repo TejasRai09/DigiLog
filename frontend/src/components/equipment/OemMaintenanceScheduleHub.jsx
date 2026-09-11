@@ -17,6 +17,7 @@ import {
 } from '../../utils/equipmentScheduleModel';
 import EquipmentSectionShell from './EquipmentSectionShell';
 import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
+import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
 
 const ACTION_STEP_INPUT =
   'flex-1 w-full min-w-0 px-2 py-1 text-xs border border-slate-200 rounded resize-none leading-5 overflow-y-hidden';
@@ -99,6 +100,13 @@ export default function OemMaintenanceScheduleHub({
   const [bodyOpen, setBodyOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [intervalFilter, setIntervalFilter] = useState('ALL');
+  const sectionTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (!bodyOpen || sectionTrackedRef.current) return;
+    sectionTrackedRef.current = true;
+    trackEquipmentSectionOpen('schedule');
+  }, [bodyOpen]);
 
   useEffect(() => {
     const parsed = parseScheduleFromApi(apiSchedule);

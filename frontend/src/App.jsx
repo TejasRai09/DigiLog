@@ -65,11 +65,6 @@ const DistilleryOperations = lazy(() => import('./pages/forms/distillery/Distill
 const BrixYardSampling = lazy(() => import('./pages/forms/brix/BrixYardSampling'));
 const BrixFieldSampling = lazy(() => import('./pages/forms/brix/BrixFieldSampling'));
 
-const EquipmentList = lazy(() => import('./pages/equipment/EquipmentList'));
-const EquipmentDetail = lazy(() => import('./pages/equipment/EquipmentDetail'));
-
-const PowerLanding = lazy(() => import('./pages/power/PowerLanding'));
-const PowerList = lazy(() => import('./pages/power/PowerList'));
 const PowerEquipmentDetail = lazy(() => import('./pages/power/PowerEquipmentDetail'));
 const PowerPlantEquipmentNew = lazy(() => import('./pages/power/PowerPlantEquipmentNew'));
 const SugarHouseEquipmentNew = lazy(() => import('./pages/sugar/SugarHouseEquipmentNew'));
@@ -152,14 +147,14 @@ const App = () => {
             {/* Distillery */}
             <Route path="/forms/distillery_ops" element={<DistilleryOperations />} />
 
-            {/* Equipment History Cards */}
-            <Route path="/equipment" element={<EquipmentList />} />
-            <Route path="/equipment/:id" element={<EquipmentDetail />} />
+            {/* Equipment History Cards — Mill House hub retired */}
+            <Route path="/equipment" element={<Navigate to="/forms-hub" replace />} />
+            <Route path="/equipment/:id" element={<Navigate to="/forms-hub" replace />} />
 
-            {/* Power Plant Equipment History Cards */}
-            <Route path="/power" element={<PowerLanding />} />
-            <Route path="/power/:dept" element={<PowerList />} />
-            <Route path="/power/:dept/:id" element={<PowerEquipmentDetail />} />
+            {/* Power Plant Equipment History (old) retired — new hub stays below */}
+            <Route path="/power" element={<Navigate to="/forms-hub" replace />} />
+            <Route path="/power/:dept" element={<Navigate to="/forms-hub" replace />} />
+            <Route path="/power/:dept/:id" element={<Navigate to="/forms-hub" replace />} />
             <Route path="/power-plant-equipment-new" element={<PowerPlantEquipmentNew />} />
             <Route path="/power-plant-equipment-new/:id/:discipline?" element={<PowerEquipmentDetail />} />
 

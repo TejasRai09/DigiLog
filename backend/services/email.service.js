@@ -426,6 +426,52 @@ async function sendMaintenanceHistoryModificationEmail({
   });
 }
 
+async function sendMaintenanceHistoryModificationReminderEmail({
+  to,
+  submitterName,
+  domainLabel,
+  equipmentName,
+  actionLabel,
+  comment,
+  openUrl,
+}) {
+  const trimmedOpen = String(openUrl || '').trim();
+  let ctaUrl = trimmedOpen || loginUrl;
+  if (!trimmedOpen && publicBase) {
+    ctaUrl = `${publicBase}/?login=1`;
+  }
+  const safeCta = escapeHtml(ctaUrl);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#d97706;text-align:center;">Reminder: still needs modification</h2>
+      <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
+      <p>
+        This is a reminder that your maintenance history entry (${escapeHtml(String(actionLabel || '').toLowerCase())}) for
+        <strong>${escapeHtml(equipmentName)}</strong> in ${escapeHtml(domainLabel)} is still
+        <strong>waiting for you to revise and resubmit</strong>.
+      </p>
+      ${comment ? `<p style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;color:#92400e;">
+        <strong>HOD comment:</strong><br/>${escapeHtml(comment)}
+      </p>` : ''}
+      <p>Open DigiLog, update the entry, and resubmit for HOD review.</p>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${safeCta}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Open DigiLog
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">Or copy this link: <a href="${safeCta}" style="color:#2563eb;">${safeCta}</a></p>
+      <p style="color:#6b7280;font-size:12px;">You will receive this reminder every 2 days until you resubmit. This is an automated message. Do not reply.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] Reminder: maintenance history still needs modification — ${equipmentName}`,
+    html,
+  });
+}
+
 module.exports = {
   sendMail,
   sendAccountActivationEmail,
@@ -434,4 +480,5 @@ module.exports = {
   sendMaintenanceHistoryRejectedEmail,
   sendMaintenanceHistoryApprovedEmail,
   sendMaintenanceHistoryModificationEmail,
+  sendMaintenanceHistoryModificationReminderEmail,
 };

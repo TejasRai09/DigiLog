@@ -1,9 +1,17 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { MdExpandLess, MdExpandMore, MdRefresh } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import ConfigSectionPanel from './ConfigSectionPanel';
+import {
+  auditFilterBranches,
+  auditFilterCards,
+  auditFilterLeaves,
+  auditFilterRoots,
+  auditFilterScreens,
+  formsCardsFromApps,
+} from '../../../utils/auditFilterTree';
 
 const TABS = [
   { id: 'changes', label: 'Change Log' },
@@ -11,7 +19,7 @@ const TABS = [
   { id: 'sessions', label: 'Session Log' },
 ];
 
-const ACTIONS = ['', 'Create', 'Update', 'Delete'];
+const ACTIONS = ['', 'Create', 'Update', 'Delete', 'Login'];
 const RESULT_FILTERS = [
   { value: '', label: 'All results' },
   { value: '1', label: 'Success' },
@@ -23,17 +31,31 @@ const ACTIVE_FILTERS = [
   { value: '0', label: 'Ended' },
 ];
 
+/** Parse API DATETIME strings (MySQL UTC session + dateStrings) as UTC. */
+function parseAuditUtcDateTime(value) {
+  if (!value) return null;
+  const s = String(value).trim();
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(\.\d+)?$/.exec(s);
+  if (mysqlUtc) {
+    return new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}${mysqlUtc[3] || ''}Z`);
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 function formatTime(value) {
   if (!value) return '—';
-  const d = new Date(value.includes('T') ? value : value.replace(' ', 'T'));
-  if (Number.isNaN(d.getTime())) return value;
+  const d = parseAuditUtcDateTime(value);
+  if (!d) return String(value);
   return d.toLocaleString('en-GB', {
+    timeZone: 'Asia/Kolkata',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    hour12: false,
   });
 }
 
@@ -69,6 +91,7 @@ function actionClass(action) {
     case 'Create': return 'bg-emerald-50 text-emerald-800';
     case 'Update': return 'bg-sky-50 text-sky-800';
     case 'Delete': return 'bg-red-50 text-red-800';
+    case 'Login': return 'bg-violet-50 text-violet-800';
     default: return 'bg-gray-50 text-gray-700';
   }
 }
@@ -140,121 +163,122 @@ function ReadableBody({ body }) {
   );
 }
 
-const COL_COUNT = 12;
+const COL_COUNT = 11;
 
-function CascadeSelects({
-  source,
-  section,
-  card,
-  form,
-  onSection,
-  onCard,
-  onForm,
-  sectionLabel = 'Section',
-  cardLabel = 'Card',
-  formLabel = 'Form / Dashboard',
+/** Prefilled Area → Section → Detail → Card → Screen cascade. */
+function TreeCascadeSelects({
+  root, branch, leaf, card, screen,
+  onRoot, onBranch, onLeaf, onCard, onScreen,
+  formsCardLabels,
 }) {
-  const [sectionOpts, setSectionOpts] = useState([]);
-  const [cardOpts, setCardOpts] = useState([]);
-  const [formOpts, setFormOpts] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data } = await api.get('/admin/audit-filter-options', { params: { source } });
-        if (!cancelled) setSectionOpts(data.options || []);
-      } catch {
-        if (!cancelled) setSectionOpts([]);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [source]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!section) {
-      setCardOpts([]);
-      return undefined;
-    }
-    (async () => {
-      try {
-        const { data } = await api.get('/admin/audit-filter-options', {
-          params: { source, section },
-        });
-        if (!cancelled) setCardOpts(data.options || []);
-      } catch {
-        if (!cancelled) setCardOpts([]);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [source, section]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!section || !card) {
-      setFormOpts([]);
-      return undefined;
-    }
-    (async () => {
-      try {
-        const { data } = await api.get('/admin/audit-filter-options', {
-          params: { source, section, card },
-        });
-        if (!cancelled) setFormOpts(data.options || []);
-      } catch {
-        if (!cancelled) setFormOpts([]);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [source, section, card]);
+  const rootOpts = useMemo(() => auditFilterRoots(), []);
+  const branchOpts = useMemo(() => auditFilterBranches(root), [root]);
+  const leafOpts = useMemo(() => auditFilterLeaves(root, branch), [root, branch]);
+  const cardOpts = useMemo(
+    () => auditFilterCards(root, branch, leaf, formsCardLabels),
+    [root, branch, leaf, formsCardLabels],
+  );
+  const screenOpts = useMemo(
+    () => auditFilterScreens(root, branch, leaf, card),
+    [root, branch, leaf, card],
+  );
+  const leafDisabled = !root || !branch || leafOpts.length === 0;
+  const cardDisabled = !leaf || cardOpts.length === 0;
+  const screenDisabled = !card || screenOpts.length === 0;
 
   return (
     <>
       <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-44">
-        {sectionLabel}
+        Area
         <select
           className="input-field h-10"
-          value={section}
+          value={root}
           onChange={(e) => {
-            onSection(e.target.value);
+            onRoot(e.target.value);
+            onBranch('');
+            onLeaf('');
             onCard('');
-            onForm('');
+            onScreen('');
           }}
         >
           <option value="">All</option>
-          {sectionOpts.map((o) => (
+          {rootOpts.map((o) => (
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
       </label>
       <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-44">
-        {cardLabel}
+        Section
+        <select
+          className="input-field h-10"
+          value={branch}
+          disabled={!root}
+          onChange={(e) => {
+            onBranch(e.target.value);
+            onLeaf('');
+            onCard('');
+            onScreen('');
+          }}
+        >
+          <option value="">{root ? 'All' : 'Select area first'}</option>
+          {branchOpts.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-52">
+        Detail
+        <select
+          className="input-field h-10"
+          value={leaf}
+          disabled={leafDisabled}
+          onChange={(e) => {
+            onLeaf(e.target.value);
+            onCard('');
+            onScreen('');
+          }}
+        >
+          <option value="">
+            {!root || !branch ? 'Select section first' : leafOpts.length ? 'All' : 'No further detail'}
+          </option>
+          {leafOpts.map((o) => (
+            <option key={o} value={o}>{o}</option>
+          ))}
+        </select>
+      </label>
+      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-52">
+        Card
         <select
           className="input-field h-10"
           value={card}
-          disabled={!section}
+          disabled={cardDisabled}
           onChange={(e) => {
             onCard(e.target.value);
-            onForm('');
+            onScreen('');
           }}
         >
-          <option value="">All</option>
+          <option value="">
+            {!leaf ? 'Select detail first' : cardOpts.length ? 'All' : 'No further card'}
+          </option>
           {cardOpts.map((o) => (
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
       </label>
-      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-48">
-        {formLabel}
+      <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-44">
+        Screen
         <select
           className="input-field h-10"
-          value={form}
-          disabled={!section || !card}
-          onChange={(e) => onForm(e.target.value)}
+          value={screen}
+          disabled={screenDisabled}
+          onChange={(e) => onScreen(e.target.value)}
         >
-          <option value="">All</option>
-          {formOpts.map((o) => (
+          <option value="">
+            {leaf === 'Equipment specification cards' && !card
+              ? 'Select equipment card first'
+              : screenOpts.length ? 'All' : 'No further screen'}
+          </option>
+          {screenOpts.map((o) => (
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
@@ -276,31 +300,57 @@ export default function AuditLogSection() {
   const [active, setActive] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const [section, setSection] = useState('');
-  const [card, setCard] = useState('');
-  const [form, setForm] = useState('');
+  const [filterRoot, setFilterRoot] = useState('');
+  const [filterBranch, setFilterBranch] = useState('');
+  const [filterLeaf, setFilterLeaf] = useState('');
+  const [filterCard, setFilterCard] = useState('');
+  const [filterScreen, setFilterScreen] = useState('');
+  const [formsCardLabels, setFormsCardLabels] = useState(null);
   const [page, setPage] = useState(1);
   const [applied, setApplied] = useState({
     q: '', action: '', success: '', active: '', from: '', to: '',
-    section: '', card: '', form: '',
+    filterRoot: '', filterBranch: '', filterLeaf: '', filterCard: '', filterScreen: '',
   });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get('/admin/apps-all');
+        const apps = Array.isArray(data) ? data : (data.apps || data.data || []);
+        if (!cancelled) setFormsCardLabels(formsCardsFromApps(apps));
+      } catch {
+        if (!cancelled) setFormsCardLabels(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const configLeafIsAction = applied.filterRoot === 'Config'
+    && ['Create', 'Update', 'Delete'].includes(applied.filterLeaf);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const treeParams = {
+        filter_root: applied.filterRoot || undefined,
+        filter_branch: applied.filterBranch || undefined,
+        filter_leaf: applied.filterLeaf || undefined,
+        filter_card: applied.filterCard || undefined,
+        filter_screen: applied.filterScreen || undefined,
+      };
+
       if (tab === 'changes') {
         const { data } = await api.get('/admin/audit-logs', {
           params: {
             page,
             limit: 25,
             q: applied.q || undefined,
-            action: applied.action || undefined,
+            action: configLeafIsAction ? undefined : (applied.action || undefined),
             success: applied.success || undefined,
             from: applied.from || undefined,
             to: applied.to || undefined,
-            module: applied.section || undefined,
-            screen: applied.card || undefined,
-            resource_name: applied.form || undefined,
+            ...treeParams,
           },
         });
         setRows(data.data || []);
@@ -313,9 +363,7 @@ export default function AuditLogSection() {
             q: applied.q || undefined,
             from: applied.from || undefined,
             to: applied.to || undefined,
-            section: applied.section || undefined,
-            card: applied.card || undefined,
-            form_or_dashboard: applied.form || undefined,
+            ...treeParams,
           },
         });
         setRows(data.data || []);
@@ -329,6 +377,7 @@ export default function AuditLogSection() {
             from: applied.from || undefined,
             to: applied.to || undefined,
             active: applied.active || undefined,
+            ...treeParams,
           },
         });
         setRows(data.data || []);
@@ -340,7 +389,7 @@ export default function AuditLogSection() {
     } finally {
       setLoading(false);
     }
-  }, [page, applied, tab]);
+  }, [page, applied, tab, configLeafIsAction]);
 
   useEffect(() => {
     load();
@@ -349,7 +398,10 @@ export default function AuditLogSection() {
   const applyFilters = (e) => {
     e.preventDefault();
     setExpandedId(null);
-    setApplied({ q, action, success, active, from, to, section, card, form });
+    setApplied({
+      q, action, success, active, from, to,
+      filterRoot, filterBranch, filterLeaf, filterCard, filterScreen,
+    });
     setPage(1);
   };
 
@@ -406,7 +458,21 @@ export default function AuditLogSection() {
           />
         </label>
 
-        {tab === 'changes' ? (
+        <TreeCascadeSelects
+          root={filterRoot}
+          branch={filterBranch}
+          leaf={filterLeaf}
+          card={filterCard}
+          screen={filterScreen}
+          onRoot={setFilterRoot}
+          onBranch={setFilterBranch}
+          onLeaf={setFilterLeaf}
+          onCard={setFilterCard}
+          onScreen={setFilterScreen}
+          formsCardLabels={formsCardLabels}
+        />
+
+        {tab === 'changes' && filterRoot !== 'Config' ? (
           <>
             <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-36">
               Action
@@ -424,31 +490,18 @@ export default function AuditLogSection() {
                 ))}
               </select>
             </label>
-            <CascadeSelects
-              source="audit"
-              section={section}
-              card={card}
-              form={form}
-              onSection={setSection}
-              onCard={setCard}
-              onForm={setForm}
-              sectionLabel="Module"
-              cardLabel="Screen"
-              formLabel="Resource"
-            />
           </>
         ) : null}
 
-        {tab === 'activity' ? (
-          <CascadeSelects
-            source="activity"
-            section={section}
-            card={card}
-            form={form}
-            onSection={setSection}
-            onCard={setCard}
-            onForm={setForm}
-          />
+        {tab === 'changes' && filterRoot === 'Config' ? (
+          <label className="flex w-full flex-col gap-1 text-xs font-medium text-gray-600 sm:w-36">
+            Result
+            <select className="input-field h-10" value={success} onChange={(e) => setSuccess(e.target.value)}>
+              {RESULT_FILTERS.map((o) => (
+                <option key={o.value || 'all'} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
         ) : null}
 
         {tab === 'sessions' ? (
@@ -492,7 +545,6 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Description</th>
                 <th className="px-2 py-2 font-medium">Location</th>
                 <th className="px-2 py-2 font-medium">API Path</th>
-                <th className="px-2 py-2 font-medium">IP</th>
                 <th className="px-2 py-2 font-medium">Status</th>
                 <th className="px-2 py-2 font-medium">Result</th>
                 <th className="w-10 px-2 py-2 font-medium" />
@@ -525,9 +577,6 @@ export default function AuditLogSection() {
                       </td>
                       <td className="max-w-[12rem] truncate px-2 py-2.5 font-mono text-xs text-gray-600" title={row.path}>
                         {row.path}
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-gray-700" title={row.ip || ''}>
-                        {row.ip || '—'}
                       </td>
                       <td className={`px-2 py-2.5 font-semibold tabular-nums ${statusClass(row.status_code)}`}>
                         {row.status_code ?? '—'}
@@ -577,8 +626,7 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Card</th>
                 <th className="px-2 py-2 font-medium">Form / Dashboard</th>
                 <th className="px-2 py-2 font-medium">Path</th>
-                <th className="px-2 py-2 font-medium">IP</th>
-                <th className="px-2 py-2 font-medium">Dwell</th>
+                <th className="px-2 py-2 font-medium">Stay time</th>
               </tr>
             </thead>
             <tbody>
@@ -592,9 +640,6 @@ export default function AuditLogSection() {
                   <td className="px-2 py-2.5 text-gray-800">{row.form_or_dashboard || '—'}</td>
                   <td className="max-w-[18rem] px-2 py-2.5 text-gray-600" title={row.display_path || row.page_path}>
                     <div className="line-clamp-2 text-sm">{row.display_path || row.page_path || '—'}</div>
-                  </td>
-                  <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-gray-700" title={row.ip || ''}>
-                    {row.ip || '—'}
                   </td>
                   <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-gray-700">
                     {formatDwell(row.dwell_seconds)}
@@ -617,7 +662,6 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Logout</th>
                 <th className="px-2 py-2 font-medium">Duration</th>
                 <th className="px-2 py-2 font-medium">Pages</th>
-                <th className="px-2 py-2 font-medium">IP</th>
                 <th className="px-2 py-2 font-medium">Status</th>
               </tr>
             </thead>
@@ -636,9 +680,6 @@ export default function AuditLogSection() {
                       {formatDuration(row.duration_minutes)}
                     </td>
                     <td className="px-2 py-2.5 tabular-nums text-gray-700">{row.pages_visited ?? 0}</td>
-                    <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-gray-700" title={row.ip || ''}>
-                      {row.ip || '—'}
-                    </td>
                     <td className="px-2 py-2.5">
                       {online ? (
                         <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">Online</span>

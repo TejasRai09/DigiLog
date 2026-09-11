@@ -1,5 +1,12 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
+const {
+  auditFilterRoots,
+  auditFilterBranches,
+  auditFilterLeaves,
+  pushActivityTreeFilters,
+  pushSessionTreeFilters,
+} = require('../utils/auditFilterMap');
 
 function clampInt(v, min, max, fallback) {
   const n = Number.parseInt(v, 10);
@@ -16,6 +23,16 @@ function buildDateFilters(from, to, column, where, params) {
     where.push(`${column} <= ?`);
     params.push(to.length <= 10 ? `${to} 23:59:59` : to);
   }
+}
+
+function readTreeQuery(req) {
+  return {
+    root: String(req.query.filter_root || '').trim(),
+    branch: String(req.query.filter_branch || '').trim(),
+    leaf: String(req.query.filter_leaf || '').trim(),
+    card: String(req.query.filter_card || '').trim(),
+    screen: String(req.query.filter_screen || '').trim(),
+  };
 }
 
 /** GET /admin/activity-logs */
@@ -39,18 +56,24 @@ async function listActivityLogs(req, res) {
       params.push(like, like, like, like, like, like, like);
     }
 
-    if (req.query.section) {
-      where.push('section = ?');
-      params.push(String(req.query.section));
+    const tree = readTreeQuery(req);
+    if (tree.root) {
+      pushActivityTreeFilters(where, params, tree);
+    } else {
+      if (req.query.section) {
+        where.push('section = ?');
+        params.push(String(req.query.section));
+      }
+      if (req.query.card) {
+        where.push('card = ?');
+        params.push(String(req.query.card));
+      }
+      if (req.query.form_or_dashboard) {
+        where.push('form_or_dashboard = ?');
+        params.push(String(req.query.form_or_dashboard));
+      }
     }
-    if (req.query.card) {
-      where.push('card = ?');
-      params.push(String(req.query.card));
-    }
-    if (req.query.form_or_dashboard) {
-      where.push('form_or_dashboard = ?');
-      params.push(String(req.query.form_or_dashboard));
-    }
+
     if (req.query.event_type) {
       where.push('event_type = ?');
       params.push(String(req.query.event_type));
@@ -121,6 +144,11 @@ async function listSessions(req, res) {
 
     buildDateFilters(req.query.from, req.query.to, 'login_at', where, params);
 
+    const tree = readTreeQuery(req);
+    if (tree.root) {
+      pushSessionTreeFilters(where, params, tree);
+    }
+
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [[{ total }]] = await pool.query(
@@ -149,80 +177,22 @@ async function listSessions(req, res) {
   }
 }
 
-/** GET /admin/audit-filter-options — cascading filter values */
+/** GET /admin/audit-filter-options — static IA tree (not DISTINCT from logs) */
 async function listAuditFilterOptions(req, res) {
   try {
-    const source = String(req.query.source || 'activity'); // activity | audit
-    const section = String(req.query.section || '').trim();
-    const card = String(req.query.card || '').trim();
+    const section = String(req.query.section || req.query.filter_root || '').trim();
+    const card = String(req.query.card || req.query.filter_branch || '').trim();
 
-    if (source === 'audit') {
-      // Change-log cascade uses module / screen / resource_name
-      if (!section) {
-        const [rows] = await pool.query(
-          `SELECT DISTINCT module AS value
-           FROM audit_logs
-           WHERE module IS NOT NULL AND module <> ''
-           ORDER BY module ASC
-           LIMIT 200`,
-        );
-        return res.json({ level: 'section', options: rows.map((r) => r.value) });
-      }
-      if (!card) {
-        const [rows] = await pool.query(
-          `SELECT DISTINCT screen AS value
-           FROM audit_logs
-           WHERE module = ? AND screen IS NOT NULL AND screen <> ''
-           ORDER BY screen ASC
-           LIMIT 200`,
-          [section],
-        );
-        return res.json({ level: 'card', options: rows.map((r) => r.value) });
-      }
-      const [rows] = await pool.query(
-        `SELECT DISTINCT resource_name AS value
-         FROM audit_logs
-         WHERE module = ? AND screen = ?
-           AND resource_name IS NOT NULL AND resource_name <> ''
-         ORDER BY resource_name ASC
-         LIMIT 300`,
-        [section, card],
-      );
-      return res.json({ level: 'form_or_dashboard', options: rows.map((r) => r.value) });
-    }
-
-    // Activity cascade: section → card → form_or_dashboard
     if (!section) {
-      const [rows] = await pool.query(
-        `SELECT DISTINCT section AS value
-         FROM user_activity_logs
-         WHERE section IS NOT NULL AND section <> ''
-         ORDER BY section ASC
-         LIMIT 200`,
-      );
-      return res.json({ level: 'section', options: rows.map((r) => r.value) });
+      return res.json({ level: 'section', options: auditFilterRoots() });
     }
     if (!card) {
-      const [rows] = await pool.query(
-        `SELECT DISTINCT card AS value
-         FROM user_activity_logs
-         WHERE section = ? AND card IS NOT NULL AND card <> ''
-         ORDER BY card ASC
-         LIMIT 200`,
-        [section],
-      );
-      return res.json({ level: 'card', options: rows.map((r) => r.value) });
+      return res.json({ level: 'card', options: auditFilterBranches(section) });
     }
-    const [rows] = await pool.query(
-      `SELECT DISTINCT form_or_dashboard AS value
-       FROM user_activity_logs
-       WHERE section = ? AND card = ?
-         AND form_or_dashboard IS NOT NULL AND form_or_dashboard <> ''
-       ORDER BY form_or_dashboard ASC
-       LIMIT 300`,
-      [section, card],
-    );
-    return res.json({ level: 'form_or_dashboard', options: rows.map((r) => r.value) });
+    return res.json({
+      level: 'form_or_dashboard',
+      options: auditFilterLeaves(section, card),
+    });
   } catch (err) {
     return sendServerError(res, 'listAuditFilterOptions', err, MSG.SERVER);
   }

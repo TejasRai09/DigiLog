@@ -41,6 +41,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 
 const TABS = [
   { id: 'summary', label: 'Power Summary', icon: Activity },
@@ -97,6 +99,16 @@ export default function PowerHouseDashboard() {
   const [outageSection, setOutageSection] = useState('ALL');
   const [outageCategory, setOutageCategory] = useState('ALL');
   const [powerTariffRate, setPowerTariffRate] = useState(4.85);
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/power-house'],
+    activeTab: tab,
+    rangePreset,
+    comparisonType,
+    dateFrom: from,
+    dateTo: to,
+    extraFilters: { outageSection, outageCategory },
+  });
 
   const [comparePowerRows, setComparePowerRows] = useState([]);
   const [compareSteamRows, setCompareSteamRows] = useState([]);

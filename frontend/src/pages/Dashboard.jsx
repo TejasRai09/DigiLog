@@ -10,6 +10,7 @@ import useAuth from '../hooks/useAuth';
 import AppCard from '../components/AppCard';
 import Spinner from '../components/Spinner';
 import { BI_CONTROL_TOWER_APP_NAME } from '../config/biDashboardRoutes';
+import { isRetiredFormsHubApp } from '../config/retiredFormsHubApps';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -35,7 +36,9 @@ const Dashboard = () => {
     };
   }, []);
 
-  const formsHubApps = apps.filter((a) => a.name !== BI_CONTROL_TOWER_APP_NAME);
+  const formsHubApps = apps.filter(
+    (a) => a.name !== BI_CONTROL_TOWER_APP_NAME && !isRetiredFormsHubApp(a.name),
+  );
   const onlyBiAssigned = apps.length > 0 && formsHubApps.length === 0;
 
   return (

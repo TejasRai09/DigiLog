@@ -48,6 +48,7 @@ import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExc
 import { downloadHistoryDocument, downloadApprovalStagedDocument } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
 import api from '../../api/axios';
+import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
@@ -298,6 +299,13 @@ export default function EquipmentMaintenanceHistoryHub({
   focusApprovalRequestId = null,
   onFocusHandled = null,
 }) {
+  const sectionTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!open || sectionTrackedRef.current) return;
+    sectionTrackedRef.current = true;
+    trackEquipmentSectionOpen('history');
+  }, [open]);
+
   const { user } = useAuth();
   const canDelete = user?.role === 'admin' && typeof onDelete === 'function';
   const canEditRecord = (record) => (

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MdDomain, MdFactory, MdPrecisionManufacturing, MdSave, MdEmail } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -13,10 +13,12 @@ function ApprovalCard({
   enabled,
   hodUserId,
   digestTime,
+  digestTime2,
   employees,
   onToggle,
   onHodChange,
   onDigestTimeChange,
+  onDigestTime2Change,
   onResend,
   resending,
 }) {
@@ -61,19 +63,37 @@ function ApprovalCard({
         </select>
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-          Daily digest time (IST)
-        </label>
-        <input
-          type="time"
-          value={digestTime || '22:00'}
-          onChange={(e) => onDigestTimeChange(e.target.value || '22:00')}
-          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
-        />
-        <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          One email to the HOD at this time with pending maintenance changes. The email opens a
-          no-login approvals inbox where they can review each change and accept or send for modification.
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          Full digest times (IST)
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              Time 1
+            </label>
+            <input
+              type="time"
+              value={digestTime || '22:00'}
+              onChange={(e) => onDigestTimeChange(e.target.value || '22:00')}
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              Time 2 (optional)
+            </label>
+            <input
+              type="time"
+              value={digestTime2 || ''}
+              onChange={(e) => onDigestTime2Change(e.target.value || '')}
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+          Sends a full pending digest email to the HOD at each time (IST). Leave Time 2 blank to send only once per day.
+          The email opens a no-login approvals inbox.
         </p>
       </div>
 
@@ -103,7 +123,7 @@ function ApprovalCard({
   );
 }
 
-const EMPTY_DOMAIN = { enabled: false, hodUserId: null, digestTime: '22:00' };
+const EMPTY_DOMAIN = { enabled: false, hodUserId: null, digestTime: '22:00', digestTime2: '' };
 
 export default function MaintenanceHistoryApprovalSection() {
   const [loading, setLoading] = useState(true);
@@ -199,10 +219,12 @@ export default function MaintenanceHistoryApprovalSection() {
             enabled={sugar.enabled}
             hodUserId={sugar.hodUserId}
             digestTime={sugar.digestTime}
+            digestTime2={sugar.digestTime2}
             employees={employees}
             onToggle={(enabled) => setSugar((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setSugar((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setSugar((s) => ({ ...s, digestTime }))}
+            onDigestTime2Change={(digestTime2) => setSugar((s) => ({ ...s, digestTime2 }))}
             onResend={resend}
             resending={resending}
           />
@@ -214,10 +236,12 @@ export default function MaintenanceHistoryApprovalSection() {
             enabled={power.enabled}
             hodUserId={power.hodUserId}
             digestTime={power.digestTime}
+            digestTime2={power.digestTime2}
             employees={employees}
             onToggle={(enabled) => setPower((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setPower((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setPower((s) => ({ ...s, digestTime }))}
+            onDigestTime2Change={(digestTime2) => setPower((s) => ({ ...s, digestTime2 }))}
             onResend={resend}
             resending={resending}
           />
@@ -229,10 +253,12 @@ export default function MaintenanceHistoryApprovalSection() {
             enabled={production.enabled}
             hodUserId={production.hodUserId}
             digestTime={production.digestTime}
+            digestTime2={production.digestTime2}
             employees={employees}
             onToggle={(enabled) => setProduction((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setProduction((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setProduction((s) => ({ ...s, digestTime }))}
+            onDigestTime2Change={(digestTime2) => setProduction((s) => ({ ...s, digestTime2 }))}
             onResend={resend}
             resending={resending}
           />
