@@ -119,7 +119,7 @@ exports.listAuditLogs = async (req, res) => {
       `SELECT id, created_at, user_id, user_name, user_email, user_role, user_department,
               method, path, status_code, success, action_type, action_summary,
               module, module_key, resource_type, resource_id, resource_name,
-              display_path, screen, request_body
+              display_path, screen, request_body, ip
          FROM audit_logs
          ${whereSql}
          ORDER BY created_at DESC, id DESC
@@ -189,6 +189,7 @@ exports.listAuditLogs = async (req, res) => {
         display_path: displayPath,
         location: locationParts.join(' · '),
         request_body_readable: readable,
+        ip: row.ip || null,
       };
     }));
 
