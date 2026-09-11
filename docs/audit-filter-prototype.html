@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DigiLog — Audit & Activity (Filter Prototype)</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --slate: #1e293b;
+      --emerald-bg: #ecfdf5;
+      --emerald: #065f46;
+      --sky-bg: #f0f9ff;
+      --sky: #075985;
+      --red-bg: #fef2f2;
+      --red: #b91c1c;
+      --gray-bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    h1 { margin: 0; font-size: 1.35rem; font-weight: 700; color: var(--slate); }
+    .subtitle { margin: 0.35rem 0 0; font-size: 0.875rem; color: var(--muted); }
+    .badge {
+      display: inline-block;
+      margin-left: 0.5rem;
+      padding: 0.15rem 0.45rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: #fef3c7;
+      color: #92400e;
+      border-radius: 4px;
+      vertical-align: middle;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1.25rem 0 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      border: none;
+      border-radius: 6px;
+      padding: 0.4rem 0.85rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--gray-bg);
+      color: #334155;
+    }
+    .tab:hover { background: #e2e8f0; }
+    .tab.active { background: var(--slate); color: #fff; }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+    label.field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #475569;
+    }
+    .field input, .field select {
+      height: 2.5rem;
+      min-width: 9rem;
+      padding: 0 0.65rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      background: #fff;
+      color: var(--text);
+    }
+    .field input:disabled, .field select:disabled {
+      background: #f1f5f9;
+      color: #94a3b8;
+      cursor: not-allowed;
+    }
+    .field.search { flex: 1; min-width: 12rem; }
+    .field.search input { width: 100%; }
+    .btn {
+      height: 2.5rem;
+      padding: 0 1rem;
+      border-radius: 6px;
+      border: none;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: #1d4ed8; color: #fff; }
+    .btn-primary:hover { background: #1e40af; }
+    .btn-secondary {
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      color: #334155;
+    }
+    .btn-secondary:hover { background: #f8fafc; }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+      text-align: left;
+    }
+    thead th {
+      padding: 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 0.55rem 0.5rem;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    tbody tr:hover { background: #f8fafc; }
+    .mono { font-family: ui-monospace, Consolas, monospace; font-size: 0.75rem; color: #475569; }
+    .clamp { max-width: 18rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .clamp3 { max-width: 22rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .pill {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 0.1rem 0.4rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .pill-create { background: var(--emerald-bg); color: var(--emerald); }
+    .pill-update { background: var(--sky-bg); color: var(--sky); }
+    .pill-delete { background: var(--red-bg); color: var(--red); }
+    .pill-ok { background: var(--emerald-bg); color: var(--emerald); }
+    .pill-fail { background: var(--red-bg); color: var(--red); }
+    .pill-online { background: var(--emerald-bg); color: var(--emerald); }
+    .pill-ended { background: var(--gray-bg); color: #475569; }
+    .status-ok { color: var(--emerald); font-weight: 700; }
+    .status-fail { color: var(--red); font-weight: 700; }
+    .expand-btn {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 0.2rem;
+      border-radius: 4px;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .expand-btn:hover { background: var(--gray-bg); color: var(--text); }
+    .detail-row td {
+      background: #f8fafc;
+      padding: 0.85rem 1rem;
+      font-size: 0.8rem;
+      color: #334155;
+    }
+    .detail-row table { background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+    .detail-row th, .detail-row td { padding: 0.4rem 0.65rem; }
+    .empty {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+    .pager {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+      color: #475569;
+    }
+    .pager .btns { display: flex; gap: 0.5rem; }
+    .hint {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>Audit &amp; Activity <span class="badge">HTML prototype</span></h1>
+      <p class="subtitle" id="tabDescription">Who created, updated, or deleted plant / form / admin data.</p>
+
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab active" data-tab="changes">Change Log</button>
+        <button type="button" class="tab" data-tab="activity">Activity Log</button>
+        <button type="button" class="tab" data-tab="sessions">Session Log</button>
+      </div>
+
+      <form id="filterForm" class="filters" autocomplete="off">
+        <label class="field search">
+          Search
+          <input type="search" id="q" placeholder="Name, email, description…" />
+        </label>
+
+        <label class="field">
+          Area
+          <select id="root"></select>
+        </label>
+        <label class="field">
+          Section
+          <select id="branch" disabled></select>
+        </label>
+        <label class="field">
+          Detail
+          <select id="leaf" disabled></select>
+        </label>
+        <label class="field">
+          Card
+          <select id="card" disabled></select>
+        </label>
+        <label class="field">
+          Screen
+          <select id="screen" disabled></select>
+        </label>
+
+        <label class="field" id="resultField">
+          Result
+          <select id="result">
+            <option value="">All results</option>
+            <option value="1">Success</option>
+            <option value="0">Failed</option>
+          </select>
+        </label>
+
+        <label class="field" id="activeField" hidden>
+          Status
+          <select id="active">
+            <option value="">All sessions</option>
+            <option value="1">Online now</option>
+            <option value="0">Ended</option>
+          </select>
+        </label>
+
+        <label class="field">
+          From
+          <input type="date" id="from" />
+        </label>
+        <label class="field">
+          To
+          <input type="date" id="to" />
+        </label>
+
+        <button type="submit" class="btn btn-primary">Apply</button>
+        <button type="button" class="btn btn-secondary" id="resetBtn">Reset</button>
+      </form>
+
+      <div id="tableHost"></div>
+      <p class="hint">
+        Filters are prefilled from DigiLog navigation (not from list rows).
+        Section / Detail / Card / Screen stay disabled until you pick a parent.
+        Dummy data only — open this file in a browser to try the cascade.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    /* ========== Static filter tree (app IA) ========== */
+    const BI_DASHBOARDS = [
+      'Distillery Operations — Analytics',
+      'Milling Division Cockpit',
+      'Purchy Analysis',
+      'Brix Sampling Analytics',
+      'Centre Maturity Dashboard',
+      'Cane Performance Dashboard',
+      'Power House Dashboard',
+      'Management Dashboard',
+    ];
+
+    const CONFIG_TABS = [
+      'Employees',
+      'Employee Categories',
+      'Season Mapping',
+      'BI Dashboards',
+      'Audit & Activity',
+      'Maintenance History Approval',
+    ];
+
+    const CRUD = ['Create', 'Update', 'Delete'];
+
+    const FORMS_CARDS = [
+      'Mill House',
+      'Laboratory',
+      'Power House',
+      'Distillery',
+      'Brix Sampling',
+      'EHS — Environment Health & Safety',
+      'Production',
+    ];
+
+    const EQUIP_HUBS = [
+      'Sugar House Equipment',
+      'Power Plant Equipment',
+      'Production House Equipment',
+    ];
+
+    const EQUIP_SCREENS = ['Specs', 'OEM Schedule', 'Life History'];
+
+    const FILTER_TREE = {
+      Home: {
+        'Forms Hub': ['Forms cards', 'Equipment specification cards'],
+        'BI Control Tower': BI_DASHBOARDS,
+      },
+      Approvals: {
+        'Sugar House': ['Approved', 'Sent for modification'],
+        'Power Plant': ['Approved', 'Sent for modification'],
+        'Production House': ['Approved', 'Sent for modification'],
+      },
+      Config: Object.fromEntries(CONFIG_TABS.map((t) => [t, CRUD])),
+      'Data Upload': {
+        Purchy: [],
+        Management: [],
+        Milling: [],
+      },
+    };
+
+    function cardsFor(root, branch, leaf) {
+      if (root !== 'Home' || branch !== 'Forms Hub') return [];
+      if (leaf === 'Forms cards') return FORMS_CARDS;
+      if (leaf === 'Equipment specification cards') return EQUIP_HUBS;
+      return [];
+    }
+
+    function screensFor(root, branch, leaf, card) {
+      if (root !== 'Home' || branch !== 'Forms Hub') return [];
+      if (leaf !== 'Equipment specification cards') return [];
+      if (!card || !EQUIP_HUBS.includes(card)) return [];
+      return EQUIP_SCREENS;
+    }
+
+    const DESCRIPTIONS = {
+      changes: 'Who created, updated, or deleted plant / form / admin data.',
+      activity: 'Who opened which section, card, form, or dashboard — and how long they stayed.',
+      sessions: 'Login / logout times, session length, and who is online now.',
+    };
+
+    const USERS = [
+      { name: 'Ravi Sharma', email: 'ravi.sharma@zuari.in', role: 'employee', dept: 'Sugar House' },
+      { name: 'Priya Nair', email: 'priya.nair@zuari.in', role: 'employee', dept: 'Power Plant' },
+      { name: 'Amit Patel', email: 'amit.patel@zuari.in', role: 'hod', dept: 'Production' },
+      { name: 'Sneha Reddy', email: 'sneha.reddy@zuari.in', role: 'admin', dept: 'IT' },
+      { name: 'Vikram Singh', email: 'vikram.singh@zuari.in', role: 'employee', dept: 'Mill House' },
+      { name: 'Ananya Iyer', email: 'ananya.iyer@zuari.in', role: 'hod', dept: 'Sugar House' },
+      { name: 'Karthik Rao', email: 'karthik.rao@zuari.in', role: 'employee', dept: 'Distillery' },
+      { name: 'Meera Joshi', email: 'meera.joshi@zuari.in', role: 'admin', dept: 'Admin' },
+    ];
+
+    const IPS = [
+      '103.24.118.42', '49.36.210.15', '122.162.88.201', '14.139.245.67',
+      '152.58.22.90', '117.198.44.11', '27.7.155.203', '106.51.77.130',
+    ];
+
+    /* ========== Helpers ========== */
+    function pick(arr, i) { return arr[i % arr.length]; }
+    function pad(n) { return String(n).padStart(2, '0'); }
+
+    function isoAt(dayOffset, hour, minute, second) {
+      const d = new Date(2026, 8, 11); // Sep 11, 2026 local
+      d.setDate(d.getDate() + dayOffset);
+      d.setHours(hour, minute, second || 0, 0);
+      const y = d.getFullYear();
+      const m = pad(d.getMonth() + 1);
+      const day = pad(d.getDate());
+      return `${y}-${m}-${day}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+
+    function formatTime(value) {
+      if (!value) return '—';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+    }
+
+    function formatDuration(minutes) {
+      if (minutes == null) return '—';
+      const m = Number(minutes);
+      if (m < 60) return `${m} min`;
+      const h = Math.floor(m / 60);
+      const rem = m % 60;
+      return rem ? `${h}h ${rem}m` : `${h}h`;
+    }
+
+    function formatDwell(seconds) {
+      if (seconds == null) return '—';
+      const s = Number(seconds);
+      if (s < 60) return `${s}s`;
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      return rem ? `${m}m ${rem}s` : `${m}m`;
+    }
+
+    function actionClass(a) {
+      if (a === 'Create') return 'pill-create';
+      if (a === 'Update') return 'pill-update';
+      if (a === 'Delete') return 'pill-delete';
+      return '';
+    }
+
+    /* ========== Build ~100 dummy rows ========== */
+    const changeRows = [];
+    const activityRows = [];
+    const sessionRows = [];
+    let idSeq = 1;
+
+    function addChange(partial) {
+      const u = pick(USERS, idSeq);
+      const ok = partial.success !== false;
+      changeRows.push({
+        id: idSeq++,
+        created_at: partial.created_at,
+        user_name: partial.user_name || u.name,
+        user_email: partial.user_email || u.email,
+        user_role: partial.user_role || u.role,
+        action_type: partial.action_type,
+        description: partial.description,
+        location: partial.location,
+        path: partial.path,
+        ip: partial.ip || pick(IPS, idSeq),
+        status_code: ok ? (partial.status_code || 200) : (partial.status_code || 400),
+        success: ok,
+        details: partial.details || [
+          { field: 'Summary', value: partial.description },
+        ],
+        filterRoot: partial.filterRoot,
+        filterBranch: partial.filterBranch || '',
+        filterLeaf: partial.filterLeaf || '',
+        filterCard: partial.filterCard || '',
+        filterScreen: partial.filterScreen || '',
+      });
+    }
+
+    function addActivity(partial) {
+      const u = pick(USERS, idSeq);
+      activityRows.push({
+        id: idSeq++,
+        entered_at: partial.entered_at,
+        user_name: partial.user_name || u.name,
+        event_type: partial.event_type || 'page_view',
+        section: partial.section,
+        card: partial.card || '—',
+        form_or_dashboard: partial.form_or_dashboard || '—',
+        display_path: partial.display_path,
+        page_path: partial.page_path,
+        ip: partial.ip || pick(IPS, idSeq),
+        dwell_seconds: partial.dwell_seconds ?? 45,
+        filterRoot: partial.filterRoot,
+        filterBranch: partial.filterBranch || '',
+        filterLeaf: partial.filterLeaf || '',
+        filterCard: partial.filterCard || '',
+        filterScreen: partial.filterScreen || '',
+      });
+    }
+
+    function addSession(partial) {
+      const u = pick(USERS, idSeq);
+      const online = !!partial.is_active;
+      sessionRows.push({
+        id: idSeq++,
+        login_at: partial.login_at,
+        logout_at: online ? null : partial.logout_at,
+        user_name: partial.user_name || u.name,
+        user_email: partial.user_email || u.email,
+        user_role: partial.user_role || u.role,
+        user_department: partial.user_department || u.dept,
+        duration_minutes: online ? null : partial.duration_minutes,
+        pages_visited: partial.pages_visited ?? 8,
+        ip: partial.ip || pick(IPS, idSeq),
+        is_active: online,
+        filterRoot: partial.filterRoot,
+        filterBranch: partial.filterBranch || '',
+        filterLeaf: partial.filterLeaf || '',
+        filterCard: partial.filterCard || '',
+        filterScreen: partial.filterScreen || '',
+      });
+    }
+
+    // --- Home / Forms Hub / Forms cards ---
+    const formsByCard = [
+      { card: 'Mill House', name: 'Equipment Temperature', path: '/forms/mill_logbook1', api: '/api/forms/mill_logbook1/records' },
+      { card: 'Mill House', name: 'Mill Stoppages', path: '/forms/mill_stoppages', api: '/api/forms/mill_stoppages/records' },
+      { card: 'Laboratory', name: 'DS Logbook', path: '/forms/ds_logbook', api: '/api/forms/ds_logbook/records' },
+      { card: 'Power House', name: 'Power Generation', path: '/forms/ph_power', api: '/api/forms/ph_power/records' },
+      { card: 'Distillery', name: 'Distillery Operations', path: '/forms/distillery_ops', api: '/api/forms/distillery_ops/records' },
+      { card: 'Brix Sampling', name: 'Brix Yard Sampling', path: '/forms/brix_yard_sampling', api: '/api/forms/brix_yard_sampling/records' },
+      { card: 'EHS — Environment Health & Safety', name: 'Near Miss', path: '/forms/ehs_near_miss', api: '/api/forms/ehs_near_miss/records' },
+      { card: 'Production', name: 'Shift Chemist', path: '/forms/prod_shift_chemist', api: '/api/forms/prod_shift_chemist/records' },
+    ];
+    formsByCard.forEach((f, i) => {
+      addChange({
+        created_at: isoAt(-i, 9 + (i % 5), 10, 0),
+        action_type: i % 3 === 0 ? 'Create' : i % 3 === 1 ? 'Update' : 'Delete',
+        description: `${i % 3 === 0 ? 'Created' : i % 3 === 1 ? 'Updated' : 'Deleted'} record on ${f.name}`,
+        location: `Forms › ${f.card} › ${f.name}`,
+        path: f.api,
+        filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Forms cards',
+        filterCard: f.card, filterScreen: '',
+        success: i !== 4,
+      });
+      addActivity({
+        entered_at: isoAt(-i, 8 + (i % 4), 20, 0),
+        event_type: 'form_open',
+        section: 'Forms Hub',
+        card: f.card,
+        form_or_dashboard: f.name,
+        display_path: `Dashboard > Forms Hub > ${f.card} > ${f.name}`,
+        page_path: f.path,
+        dwell_seconds: 30 + i * 12,
+        filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Forms cards',
+        filterCard: f.card, filterScreen: '',
+      });
+    });
+
+    // --- Home / Forms Hub / Equipment specification cards → hub → screen ---
+    const equipMatrix = [];
+    EQUIP_HUBS.forEach((hub) => {
+      EQUIP_SCREENS.forEach((screen) => {
+        equipMatrix.push({ hub, screen });
+      });
+    });
+    const hubApi = {
+      'Sugar House Equipment': { api: '/api/sugar-new/equipment', path: '/sugar-house-equipment-new' },
+      'Power Plant Equipment': { api: '/api/power-new/equipment', path: '/power-plant-equipment-new' },
+      'Production House Equipment': { api: '/api/production-house/equipment', path: '/production-house-equipment' },
+    };
+    const screenSeg = {
+      Specs: { seg: 'specs', label: 'Specs' },
+      'OEM Schedule': { seg: 'schedule', label: 'OEM Schedule' },
+      'Life History': { seg: 'history', label: 'Life History' },
+    };
+    equipMatrix.forEach((e, i) => {
+      const hub = hubApi[e.hub];
+      const scr = screenSeg[e.screen];
+      const equipName = `${e.hub.split(' ')[0]}-Unit-${(i % 4) + 1}`;
+      addChange({
+        created_at: isoAt(-(i % 7), 11, 5 + (i % 40), 0),
+        action_type: i % 2 ? 'Update' : 'Create',
+        description: `${i % 2 ? 'Updated' : 'Created'} ${scr.label.toLowerCase()} for ${equipName}`,
+        location: `${e.hub} › ${equipName} › ${scr.label}`,
+        path: `${hub.api}/${10 + i}/${scr.seg}`,
+        filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards',
+        filterCard: e.hub, filterScreen: e.screen,
+      });
+      addActivity({
+        entered_at: isoAt(-(i % 7), 10, 15 + (i % 40), 0),
+        event_type: 'page_view',
+        section: e.hub,
+        card: equipName,
+        form_or_dashboard: scr.label,
+        display_path: `Dashboard > ${e.hub} > ${equipName} > ${scr.label}`,
+        page_path: `${hub.path}/${10 + i}/${scr.seg === 'schedule' ? 'mechanical' : scr.seg}`,
+        dwell_seconds: 90 + i * 5,
+        filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards',
+        filterCard: e.hub, filterScreen: e.screen,
+      });
+    });
+
+    // --- Home / BI Control Tower / each dashboard ---
+    const biPaths = {
+      'Distillery Operations — Analytics': '/bi/distillery-operations',
+      'Milling Division Cockpit': '/bi/milling-operations',
+      'Purchy Analysis': '/bi/purchy-analysis',
+      'Brix Sampling Analytics': '/bi/brix-sampling',
+      'Centre Maturity Dashboard': '/bi/centre-maturity',
+      'Cane Performance Dashboard': '/bi/cane-performance',
+      'Power House Dashboard': '/bi/power-house',
+      'Management Dashboard': '/bi/management-dashboard',
+    };
+    BI_DASHBOARDS.forEach((dash, i) => {
+      addActivity({
+        entered_at: isoAt(-i, 14, 10 + i * 3, 0),
+        event_type: 'dashboard_open',
+        section: 'BI Control Tower',
+        card: 'BI Dashboards',
+        form_or_dashboard: dash,
+        display_path: `Dashboard > BI Control Tower > ${dash}`,
+        page_path: biPaths[dash],
+        dwell_seconds: 120 + i * 15,
+        filterRoot: 'Home', filterBranch: 'BI Control Tower', filterLeaf: dash,
+      });
+      if (i % 2 === 0) {
+        addChange({
+          created_at: isoAt(-i, 15, 0 + i, 0),
+          action_type: 'Update',
+          description: `Updated BI setting related to ${dash}`,
+          location: `BI Control Tower › ${dash}`,
+          path: `/api/bi/settings/${dash.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-$/, '')}`,
+          filterRoot: 'Home', filterBranch: 'BI Control Tower', filterLeaf: dash,
+        });
+      }
+    });
+    addActivity({
+      entered_at: isoAt(0, 7, 5, 0),
+      event_type: 'section_open',
+      section: 'BI Control Tower',
+      card: '—',
+      form_or_dashboard: '—',
+      display_path: 'Dashboard > BI Control Tower',
+      page_path: '/bi',
+      dwell_seconds: 18,
+      filterRoot: 'Home', filterBranch: 'BI Control Tower', filterLeaf: '',
+    });
+
+    // --- Approvals / domain / status ---
+    const domains = [
+      { branch: 'Sugar House', domain: 'sugar', pathHint: 'sugar' },
+      { branch: 'Power Plant', domain: 'power', pathHint: 'power' },
+      { branch: 'Production House', domain: 'production', pathHint: 'production' },
+    ];
+    domains.forEach((d, di) => {
+      ['Approved', 'Sent for modification'].forEach((leaf, li) => {
+        addChange({
+          created_at: isoAt(-di - li, 16, 20 + di * 5 + li, 0),
+          action_type: 'Update',
+          description: leaf === 'Approved'
+            ? `Approved maintenance history change (${d.branch})`
+            : `Sent maintenance history for modification (${d.branch})`,
+          location: `Approvals › ${d.branch} › ${leaf}`,
+          path: `/api/change-requests/${100 + di * 10 + li}/${leaf === 'Approved' ? 'approve' : 'modify'}`,
+          filterRoot: 'Approvals', filterBranch: d.branch, filterLeaf: leaf,
+          user_role: 'hod',
+        });
+        addChange({
+          created_at: isoAt(-di - li - 1, 12, 40 + li, 0),
+          action_type: 'Create',
+          description: `Submitted history change request for ${d.branch} equipment`,
+          location: `Approvals › ${d.branch}`,
+          path: `/api/${d.pathHint}-new/equipment/${50 + di}/history`,
+          filterRoot: 'Approvals', filterBranch: d.branch, filterLeaf: leaf,
+          success: !(di === 2 && li === 1),
+        });
+      });
+      addActivity({
+        entered_at: isoAt(-di, 9, 0 + di * 7, 0),
+        event_type: 'page_view',
+        section: 'Approvals',
+        card: d.branch,
+        form_or_dashboard: 'Inbox',
+        display_path: `Dashboard > Approvals > ${d.branch}`,
+        page_path: '/maintenance/approvals',
+        dwell_seconds: 55 + di * 10,
+        filterRoot: 'Approvals', filterBranch: d.branch, filterLeaf: 'Approved',
+      });
+      addActivity({
+        entered_at: isoAt(-di - 1, 17, 30 + di, 0),
+        event_type: 'page_view',
+        section: 'Approvals',
+        card: d.branch,
+        form_or_dashboard: 'Sent for modification',
+        display_path: `Dashboard > Approvals > ${d.branch} > Sent for modification`,
+        page_path: '/maintenance/approvals',
+        dwell_seconds: 40 + di * 8,
+        filterRoot: 'Approvals', filterBranch: d.branch, filterLeaf: 'Sent for modification',
+      });
+    });
+
+    // --- Config / each tab / CRUD ---
+    CONFIG_TABS.forEach((tab, ti) => {
+      CRUD.forEach((action, ai) => {
+        const apiMap = {
+          Employees: '/api/admin/users',
+          'Employee Categories': '/api/admin/categories',
+          'Season Mapping': '/api/admin/season-mapping',
+          'BI Dashboards': '/api/admin/bi-settings',
+          'Audit & Activity': '/api/admin/audit-logs',
+          'Maintenance History Approval': '/api/admin/portal-settings/maintenance-history-approval',
+        };
+        addChange({
+          created_at: isoAt(-ti, 10 + ai, 5 + ti, ai * 10),
+          action_type: action,
+          description: `${action === 'Create' ? 'Created' : action === 'Update' ? 'Updated' : 'Deleted'} ${tab.toLowerCase()} setting`,
+          location: `Admin Config › ${tab}`,
+          path: `${apiMap[tab]}${action === 'Delete' ? '/9' : ''}`,
+          filterRoot: 'Config', filterBranch: tab, filterLeaf: action,
+          user_role: 'admin',
+          success: !(tab === 'Audit & Activity' && action === 'Delete'),
+          status_code: (tab === 'Audit & Activity' && action === 'Delete') ? 403 : 200,
+        });
+      });
+      if (ti % 2 === 0) {
+        addActivity({
+          entered_at: isoAt(-ti, 11, 0, 0),
+          event_type: 'section_open',
+          section: 'Admin Config',
+          card: tab,
+          form_or_dashboard: '—',
+          display_path: `Dashboard > Admin Config > ${tab}`,
+          page_path: `/admin/config?section=${tab.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+          dwell_seconds: 70 + ti * 5,
+          filterRoot: 'Config', filterBranch: tab, filterLeaf: 'Update',
+        });
+      }
+    });
+
+    // --- Data Upload / Purchy | Management | Milling ---
+    const uploads = [
+      { branch: 'Purchy', desc: 'Imported Purchy grower details workbook', api: '/api/data-upload/purchy/import', path: '/data-upload', card: 'Purchy Analysis' },
+      { branch: 'Purchy', desc: 'Imported Purchy staff mapping', api: '/api/data-upload/purchy/staff-mapping', path: '/data-upload', card: 'Purchy Analysis' },
+      { branch: 'Management', desc: 'Imported Management Dashboard DMR workbook', api: '/api/data-upload/management/dmr', path: '/data-upload', card: 'Management Dashboard' },
+      { branch: 'Management', desc: 'Imported centre indent & purchase', api: '/api/data-upload/management/indent', path: '/data-upload', card: 'Management Dashboard' },
+      { branch: 'Milling', desc: 'Uploaded milling reference file', api: '/api/data-upload/files', path: '/data-upload', card: 'Milling Dashboard' },
+      { branch: 'Milling', desc: 'Replaced milling season calendar CSV', api: '/api/data-upload/files/44', path: '/data-upload', card: 'Milling Dashboard' },
+    ];
+    uploads.forEach((u, i) => {
+      addChange({
+        created_at: isoAt(-i, 13, 20 + i * 2, 0),
+        action_type: i % 2 ? 'Update' : 'Create',
+        description: u.desc,
+        location: `Data Upload › ${u.branch}`,
+        path: u.api,
+        filterRoot: 'Data Upload', filterBranch: u.branch, filterLeaf: '',
+        success: i !== 5,
+      });
+      addActivity({
+        entered_at: isoAt(-i, 13, 0 + i, 0),
+        event_type: 'section_open',
+        section: 'Data Upload',
+        card: u.card,
+        form_or_dashboard: u.branch,
+        display_path: `Dashboard > Data Upload > ${u.branch}`,
+        page_path: u.path,
+        dwell_seconds: 50 + i * 9,
+        filterRoot: 'Data Upload', filterBranch: u.branch, filterLeaf: '',
+      });
+    });
+
+    // --- Sessions (~20) tagged across roots ---
+    const sessionTags = [
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Forms cards', filterCard: 'Mill House', filterScreen: '' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Forms cards', filterCard: 'Laboratory', filterScreen: '' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards', filterCard: 'Sugar House Equipment', filterScreen: 'Specs' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards', filterCard: 'Power Plant Equipment', filterScreen: 'OEM Schedule' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards', filterCard: 'Production House Equipment', filterScreen: 'Life History' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards', filterCard: 'Sugar House Equipment', filterScreen: 'Life History' },
+      { filterRoot: 'Home', filterBranch: 'BI Control Tower', filterLeaf: 'Purchy Analysis', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Home', filterBranch: 'BI Control Tower', filterLeaf: 'Management Dashboard', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Approvals', filterBranch: 'Sugar House', filterLeaf: 'Approved', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Approvals', filterBranch: 'Power Plant', filterLeaf: 'Sent for modification', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Approvals', filterBranch: 'Production House', filterLeaf: 'Approved', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Config', filterBranch: 'Employees', filterLeaf: 'Update', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Config', filterBranch: 'Maintenance History Approval', filterLeaf: 'Update', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Data Upload', filterBranch: 'Purchy', filterLeaf: '', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Data Upload', filterBranch: 'Management', filterLeaf: '', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Data Upload', filterBranch: 'Milling', filterLeaf: '', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Home', filterBranch: 'BI Control Tower', filterLeaf: 'Power House Dashboard', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Forms cards', filterCard: 'Distillery', filterScreen: '' },
+      { filterRoot: 'Config', filterBranch: 'Season Mapping', filterLeaf: 'Create', filterCard: '', filterScreen: '' },
+      { filterRoot: 'Home', filterBranch: 'Forms Hub', filterLeaf: 'Equipment specification cards', filterCard: 'Power Plant Equipment', filterScreen: 'Specs' },
+    ];
+    sessionTags.forEach((t, i) => {
+      const online = i < 4;
+      addSession({
+        login_at: isoAt(online ? 0 : -i, 8 + (i % 5), 10 + i, 0),
+        logout_at: online ? null : isoAt(-i, 12 + (i % 4), 30, 0),
+        duration_minutes: online ? null : 45 + i * 7,
+        pages_visited: 3 + (i % 12),
+        is_active: online,
+        filterRoot: t.filterRoot,
+        filterBranch: t.filterBranch,
+        filterLeaf: t.filterLeaf,
+        filterCard: t.filterCard,
+        filterScreen: t.filterScreen,
+      });
+    });
+
+    /* ========== UI state ========== */
+    const state = {
+      tab: 'changes',
+      page: 1,
+      limit: 25,
+      expandedId: null,
+      applied: { q: '', root: '', branch: '', leaf: '', card: '', screen: '', result: '', active: '', from: '', to: '' },
+    };
+
+    const rootEl = document.getElementById('root');
+    const branchEl = document.getElementById('branch');
+    const leafEl = document.getElementById('leaf');
+    const cardEl = document.getElementById('card');
+    const screenEl = document.getElementById('screen');
+
+    function fillSelect(el, options, placeholder) {
+      el.innerHTML = '';
+      const opt0 = document.createElement('option');
+      opt0.value = '';
+      opt0.textContent = placeholder;
+      el.appendChild(opt0);
+      options.forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o;
+        opt.textContent = o;
+        el.appendChild(opt);
+      });
+    }
+
+    function syncCardScreen() {
+      const root = rootEl.value;
+      const branch = branchEl.value;
+      const leaf = leafEl.value;
+      const cards = cardsFor(root, branch, leaf);
+      if (!leaf || cards.length === 0) {
+        fillSelect(cardEl, [], !leaf ? 'Select detail first' : 'No further card');
+        cardEl.disabled = true;
+        cardEl.value = '';
+      } else {
+        const prev = cardEl.value;
+        fillSelect(cardEl, cards, 'All cards');
+        cardEl.disabled = false;
+        if (cards.includes(prev)) cardEl.value = prev;
+      }
+      const screens = screensFor(root, branch, leaf, cardEl.value);
+      if (!cardEl.value || screens.length === 0) {
+        fillSelect(screenEl, [], leaf === 'Equipment specification cards'
+          ? 'Select equipment card first'
+          : 'No further screen');
+        screenEl.disabled = true;
+        screenEl.value = '';
+      } else {
+        const prevS = screenEl.value;
+        fillSelect(screenEl, screens, 'All screens');
+        screenEl.disabled = false;
+        if (screens.includes(prevS)) screenEl.value = prevS;
+      }
+    }
+
+    function refreshCascade() {
+      fillSelect(rootEl, Object.keys(FILTER_TREE), 'All areas');
+      const root = rootEl.value;
+      if (!root) {
+        fillSelect(branchEl, [], 'Select area first');
+        branchEl.disabled = true;
+        fillSelect(leafEl, [], 'Select section first');
+        leafEl.disabled = true;
+        syncCardScreen();
+        return;
+      }
+      const branches = Object.keys(FILTER_TREE[root] || {});
+      const prevB = branchEl.value;
+      fillSelect(branchEl, branches, 'All sections');
+      branchEl.disabled = false;
+      if (branches.includes(prevB)) branchEl.value = prevB;
+
+      const branch = branchEl.value;
+      const leaves = branch ? (FILTER_TREE[root][branch] || []) : [];
+      if (!branch || leaves.length === 0) {
+        fillSelect(leafEl, [], branch ? 'No further detail' : 'Select section first');
+        leafEl.disabled = true;
+        leafEl.value = '';
+      } else {
+        const prevL = leafEl.value;
+        fillSelect(leafEl, leaves, 'All details');
+        leafEl.disabled = false;
+        if (leaves.includes(prevL)) leafEl.value = prevL;
+      }
+      syncCardScreen();
+    }
+
+    rootEl.addEventListener('change', () => {
+      branchEl.value = '';
+      leafEl.value = '';
+      refreshCascade();
+    });
+    branchEl.addEventListener('change', () => {
+      leafEl.value = '';
+      refreshCascade();
+    });
+    leafEl.addEventListener('change', () => {
+      cardEl.value = '';
+      screenEl.value = '';
+      syncCardScreen();
+    });
+    cardEl.addEventListener('change', () => {
+      screenEl.value = '';
+      syncCardScreen();
+    });
+
+    function rowDate(row) {
+      return row.created_at || row.entered_at || row.login_at || '';
+    }
+
+    function matchesFilters(row) {
+      const a = state.applied;
+      if (a.root && row.filterRoot !== a.root) return false;
+      if (a.branch && row.filterBranch !== a.branch) return false;
+      if (a.leaf && row.filterLeaf !== a.leaf) return false;
+      if (a.card && row.filterCard !== a.card) return false;
+      if (a.screen && row.filterScreen !== a.screen) return false;
+
+      if (a.q) {
+        const q = a.q.toLowerCase();
+        const hay = [
+          row.user_name, row.user_email, row.description, row.location, row.path,
+          row.section, row.card, row.form_or_dashboard, row.display_path, row.page_path,
+          row.user_department, row.action_type, row.event_type,
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      if (state.tab === 'changes' && a.result !== '') {
+        const wantOk = a.result === '1';
+        if (!!row.success !== wantOk) return false;
+      }
+      if (state.tab === 'sessions' && a.active !== '') {
+        const wantOnline = a.active === '1';
+        if (!!row.is_active !== wantOnline) return false;
+      }
+
+      const ts = rowDate(row);
+      if (a.from) {
+        if (ts.slice(0, 10) < a.from) return false;
+      }
+      if (a.to) {
+        if (ts.slice(0, 10) > a.to) return false;
+      }
+      return true;
+    }
+
+    function currentRows() {
+      const src = state.tab === 'changes' ? changeRows
+        : state.tab === 'activity' ? activityRows
+        : sessionRows;
+      return src.filter(matchesFilters);
+    }
+
+    function renderPager(total, page, totalPages) {
+      return `
+        <div class="pager">
+          <span>${total} entr${total === 1 ? 'y' : 'ies'} · Page ${page} of ${totalPages}</span>
+          <div class="btns">
+            <button type="button" class="btn btn-secondary" id="prevPage" ${page <= 1 ? 'disabled' : ''}>Previous</button>
+            <button type="button" class="btn btn-secondary" id="nextPage" ${page >= totalPages ? 'disabled' : ''}>Next</button>
+          </div>
+        </div>`;
+    }
+
+    function renderChanges(rows) {
+      if (!rows.length) return '<p class="empty">No entries match these filters.</p>';
+      const start = (state.page - 1) * state.limit;
+      const pageRows = rows.slice(start, start + state.limit);
+      const totalPages = Math.max(1, Math.ceil(rows.length / state.limit));
+
+      let body = '';
+      pageRows.forEach((row) => {
+        const open = state.expandedId === row.id;
+        body += `<tr>
+          <td style="white-space:nowrap">${formatTime(row.created_at)}</td>
+          <td style="font-weight:600">${row.user_name}</td>
+          <td>${row.user_email}</td>
+          <td style="text-transform:capitalize">${row.user_role}</td>
+          <td><span class="pill ${actionClass(row.action_type)}">${row.action_type}</span></td>
+          <td><div class="clamp3" title="${row.description.replace(/"/g, '&quot;')}">${row.description}</div></td>
+          <td><div class="clamp" title="${row.location.replace(/"/g, '&quot;')}">${row.location}</div></td>
+          <td class="mono" title="${row.path}">${row.path}</td>
+          <td class="${row.success ? 'status-ok' : 'status-fail'}">${row.status_code}</td>
+          <td>${row.success
+            ? '<span class="pill pill-ok">OK</span>'
+            : '<span class="pill pill-fail">Fail</span>'}</td>
+          <td><button type="button" class="expand-btn" data-expand="${row.id}" aria-label="Toggle details">${open ? '▴' : '▾'}</button></td>
+        </tr>`;
+        if (open) {
+          const detailRows = (row.details || []).map((d) =>
+            `<tr><td style="font-weight:600;white-space:nowrap">${d.field}</td><td>${d.value}</td></tr>`
+          ).join('');
+          body += `<tr class="detail-row"><td colspan="11">
+            <p style="margin:0 0 0.5rem;font-weight:600">Request details</p>
+            <table><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>${detailRows}</tbody></table>
+            <p style="margin:0.5rem 0 0;color:#64748b;font-size:0.75rem">Filter tags: ${row.filterRoot} › ${row.filterBranch || '—'}${row.filterLeaf ? ` › ${row.filterLeaf}` : ''}</p>
+          </td></tr>`;
+        }
+      });
+
+      return `<div class="table-wrap"><table>
+        <thead><tr>
+          <th>Time</th><th>Name</th><th>Email</th><th>Role</th><th>Action</th>
+          <th>Description</th><th>Location</th><th>API Path</th><th>Status</th><th>Result</th><th></th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>${renderPager(rows.length, state.page, totalPages)}`;
+    }
+
+    function renderActivity(rows) {
+      if (!rows.length) return '<p class="empty">No entries match these filters.</p>';
+      const start = (state.page - 1) * state.limit;
+      const pageRows = rows.slice(start, start + state.limit);
+      const totalPages = Math.max(1, Math.ceil(rows.length / state.limit));
+
+      const body = pageRows.map((row) => `<tr>
+        <td style="white-space:nowrap">${formatTime(row.entered_at)}</td>
+        <td style="font-weight:600">${row.user_name}</td>
+        <td>${row.event_type}</td>
+        <td>${row.section}</td>
+        <td>${row.card}</td>
+        <td>${row.form_or_dashboard}</td>
+        <td><div class="clamp" title="${(row.display_path || row.page_path || '').replace(/"/g, '&quot;')}">${row.display_path || row.page_path || '—'}</div></td>
+        <td style="white-space:nowrap">${formatDwell(row.dwell_seconds)}</td>
+      </tr>`).join('');
+
+      return `<div class="table-wrap"><table>
+        <thead><tr>
+          <th>Entered</th><th>Name</th><th>Event</th><th>Section</th><th>Card</th>
+          <th>Form / Dashboard</th><th>Path</th><th>Stay time</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>${renderPager(rows.length, state.page, totalPages)}`;
+    }
+
+    function renderSessions(rows) {
+      if (!rows.length) return '<p class="empty">No entries match these filters.</p>';
+      const start = (state.page - 1) * state.limit;
+      const pageRows = rows.slice(start, start + state.limit);
+      const totalPages = Math.max(1, Math.ceil(rows.length / state.limit));
+
+      const body = pageRows.map((row) => `<tr>
+        <td style="white-space:nowrap">${formatTime(row.login_at)}</td>
+        <td style="font-weight:600">${row.user_name}</td>
+        <td>${row.user_email}</td>
+        <td style="text-transform:capitalize">${row.user_role}</td>
+        <td>${row.user_department}</td>
+        <td style="white-space:nowrap">${formatTime(row.logout_at)}</td>
+        <td style="white-space:nowrap">${formatDuration(row.duration_minutes)}</td>
+        <td>${row.pages_visited}</td>
+        <td>${row.is_active
+          ? '<span class="pill pill-online">Online</span>'
+          : '<span class="pill pill-ended">Ended</span>'}</td>
+      </tr>`).join('');
+
+      return `<div class="table-wrap"><table>
+        <thead><tr>
+          <th>Login</th><th>Name</th><th>Email</th><th>Role</th><th>Dept</th>
+          <th>Logout</th><th>Duration</th><th>Pages</th><th>Status</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table></div>${renderPager(rows.length, state.page, totalPages)}`;
+    }
+
+    function syncTabChrome() {
+      document.getElementById('tabDescription').textContent = DESCRIPTIONS[state.tab];
+      document.querySelectorAll('.tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === state.tab);
+      });
+      document.getElementById('resultField').hidden = state.tab !== 'changes';
+      document.getElementById('activeField').hidden = state.tab !== 'sessions';
+    }
+
+    function render() {
+      syncTabChrome();
+      const rows = currentRows();
+      const host = document.getElementById('tableHost');
+      if (state.tab === 'changes') host.innerHTML = renderChanges(rows);
+      else if (state.tab === 'activity') host.innerHTML = renderActivity(rows);
+      else host.innerHTML = renderSessions(rows);
+
+      const prev = document.getElementById('prevPage');
+      const next = document.getElementById('nextPage');
+      if (prev) prev.onclick = () => { state.page = Math.max(1, state.page - 1); render(); };
+      if (next) next.onclick = () => {
+        const totalPages = Math.max(1, Math.ceil(currentRows().length / state.limit));
+        state.page = Math.min(totalPages, state.page + 1);
+        render();
+      };
+
+      host.querySelectorAll('[data-expand]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-expand'));
+          state.expandedId = state.expandedId === id ? null : id;
+          render();
+        });
+      });
+    }
+
+    document.querySelectorAll('.tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        state.tab = btn.dataset.tab;
+        state.page = 1;
+        state.expandedId = null;
+        render();
+      });
+    });
+
+    document.getElementById('filterForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      state.applied = {
+        q: document.getElementById('q').value.trim(),
+        root: rootEl.value,
+        branch: branchEl.disabled ? '' : branchEl.value,
+        leaf: leafEl.disabled ? '' : leafEl.value,
+        card: cardEl.disabled ? '' : cardEl.value,
+        screen: screenEl.disabled ? '' : screenEl.value,
+        result: document.getElementById('result').value,
+        active: document.getElementById('active').value,
+        from: document.getElementById('from').value,
+        to: document.getElementById('to').value,
+      };
+      state.page = 1;
+      state.expandedId = null;
+      render();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.getElementById('q').value = '';
+      document.getElementById('result').value = '';
+      document.getElementById('active').value = '';
+      document.getElementById('from').value = '';
+      document.getElementById('to').value = '';
+      state.applied = { q: '', root: '', branch: '', leaf: '', card: '', screen: '', result: '', active: '', from: '', to: '' };
+      rootEl.value = '';
+      refreshCascade();
+      state.page = 1;
+      state.expandedId = null;
+      render();
+    });
+
+    // boot
+    refreshCascade();
+    console.info(
+      `[audit-filter-prototype] changes=${changeRows.length} activity=${activityRows.length} sessions=${sessionRows.length} total=${changeRows.length + activityRows.length + sessionRows.length}`
+    );
+    render();
+  </script>
+</body>
+</html>

@@ -2,6 +2,8 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import { DISTILLERY_CHART_PLOTS } from './distilleryBiChartPlots';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
+import { trackChartDownloadCsv } from '../../utils/trackActivity';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 
 const MODAL_CHART_HEIGHT = 420;
 
@@ -46,7 +48,12 @@ export default function DistilleryChartExpandModal({
     if (!plotConfig || !data?.length) return;
     const stamp = new Date().toISOString().slice(0, 10);
     downloadChartCsv(`distillery-${plotConfig.slug}-${stamp}`, data, plotConfig.csvColumns);
-  }, [plotConfig, data]);
+    trackChartDownloadCsv({
+      dashboardLabel: BI_DASHBOARDS['/bi/distillery-operations'],
+      chartId: plotConfig.slug || chartId,
+      chartTitle: title,
+    });
+  }, [plotConfig, data, chartId, title]);
 
   const handlePng = useCallback(async () => {
     if (!plotConfig || !chartPlotRef.current) return;

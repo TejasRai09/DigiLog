@@ -46,6 +46,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
 const fieldBrixTrendData = [
@@ -252,6 +254,15 @@ export default function BrixSamplingDashboard() {
   const dateFrom = activeDates.from;
   const dateTo = activeDates.to;
   const setActiveDates = activeTab === 'field' ? setFieldDates : setYardDates;
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/brix-sampling'],
+    activeTab,
+    rangePreset,
+    comparisonType,
+    dateFrom,
+    dateTo,
+  });
 
   const clampIso = (iso, minStr, maxStr) => {
     if (!iso) return iso;

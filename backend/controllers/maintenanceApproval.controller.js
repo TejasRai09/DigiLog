@@ -301,28 +301,52 @@ function photoGridHtml(label, srcs) {
   </div>`;
 }
 
-function renderReviewPage(review) {
-  const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
-  const acceptUrl = `${publicBase}/api/maintenance-approval/accept?token=${encodeURIComponent(review.acceptToken)}`;
-  const rejectUrl = `${publicBase}/api/maintenance-approval/reject?token=${encodeURIComponent(review.rejectToken)}`;
-  const expires = formatResolvedAt(review.tokenExpiresAt);
-  const rows = (review.diff || []).map((row) => `
+function renderDiffTable(diff, action) {
+  const rows = Array.isArray(diff) ? diff : [];
+  if (!rows.length) {
+    return '<p style="color:#64748b;margin-top:12px;">No field details available.</p>';
+  }
+  const singleColumn = action === 'create' || action === 'delete';
+  if (singleColumn) {
+    const body = rows.map((row) => {
+      const value = action === 'delete' ? row.oldValue : row.newValue;
+      return `
+    <tr>
+      <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:600;width:36%;">${escapeHtml(row.label)}</td>
+      <td style="padding:8px 10px;border:1px solid #e2e8f0;white-space:pre-wrap;">${escapeHtml(value)}</td>
+    </tr>`;
+    }).join('');
+    return `<table class="grid">
+        <thead><tr>
+          <th>Field</th>
+          <th>Value</th>
+        </tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+  }
+  const body = rows.map((row) => `
     <tr>
       <td style="padding:8px 10px;border:1px solid #e2e8f0;font-weight:600;width:32%;">${escapeHtml(row.label)}</td>
-      <td style="padding:8px 10px;border:1px solid #e2e8f0;color:#64748b;">${escapeHtml(row.oldValue)}</td>
-      <td style="padding:8px 10px;border:1px solid #e2e8f0;">${escapeHtml(row.newValue)}</td>
+      <td style="padding:8px 10px;border:1px solid #e2e8f0;color:#64748b;white-space:pre-wrap;">${escapeHtml(row.oldValue)}</td>
+      <td style="padding:8px 10px;border:1px solid #e2e8f0;white-space:pre-wrap;">${escapeHtml(row.newValue)}</td>
     </tr>
   `).join('');
-  const table = rows
-    ? `<table class="grid">
+  return `<table class="grid">
         <thead><tr>
           <th>Field</th>
           <th>Previous</th>
           <th>New</th>
         </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`
-    : '<p style="color:#64748b;margin-top:12px;">No field details available.</p>';
+        <tbody>${body}</tbody>
+      </table>`;
+}
+
+function renderReviewPage(review) {
+  const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
+  const acceptUrl = `${publicBase}/api/maintenance-approval/accept?token=${encodeURIComponent(review.acceptToken)}`;
+  const rejectUrl = `${publicBase}/api/maintenance-approval/reject?token=${encodeURIComponent(review.rejectToken)}`;
+  const expires = formatResolvedAt(review.tokenExpiresAt);
+  const table = renderDiffTable(review.diff, review.action);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -880,7 +904,16 @@ function renderInboxPage(inbox, options = {}) {
       function openModal() { backdrop.classList.add('open'); }
 
       function renderReview(data) {
+        var action = String(data.action || '').toLowerCase();
+        var singleColumn = action === 'create' || action === 'delete';
         var rows = (data.diff || []).map(function (row) {
+          if (singleColumn) {
+            var value = action === 'delete' ? row.oldValue : row.newValue;
+            return '<tr>' +
+              '<td data-label="Field" style="font-weight:600;width:36%;">' + esc(row.label) + '</td>' +
+              '<td data-label="Value" style="white-space:pre-wrap;">' + esc(value) + '</td>' +
+              '</tr>';
+          }
           return '<tr>' +
             '<td data-label="Field" style="font-weight:600;width:32%;">' + esc(row.label) + '</td>' +
             '<td data-label="Previous" style="color:#64748b;white-space:pre-wrap;">' + esc(row.oldValue) + '</td>' +
@@ -888,7 +921,9 @@ function renderInboxPage(inbox, options = {}) {
             '</tr>';
         }).join('');
         var table = rows
-          ? '<table class="grid fields"><thead><tr><th>Field</th><th>Previous</th><th>New</th></tr></thead><tbody>' + rows + '</tbody></table>'
+          ? (singleColumn
+            ? '<table class="grid fields"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>' + rows + '</tbody></table>'
+            : '<table class="grid fields"><thead><tr><th>Field</th><th>Previous</th><th>New</th></tr></thead><tbody>' + rows + '</tbody></table>')
           : '<p class="meta">No field details available.</p>';
         var submitter = data.submitterName + (data.submitterEmail ? ' (' + data.submitterEmail + ')' : '');
         modalBody.innerHTML =

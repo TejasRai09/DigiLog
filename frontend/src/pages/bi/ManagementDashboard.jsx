@@ -26,6 +26,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 
 const PRESETS = [
   { id: 'WTD', label: 'WTD' },
@@ -105,6 +107,14 @@ export default function ManagementDashboard() {
   const [pyData, setPyData] = useState(null);
   const [pyLoading, setPyLoading] = useState(false);
   const [seasonMapping, setSeasonMapping] = useState({});
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/management-dashboard'],
+    rangePreset: preset,
+    comparisonType: compareType,
+    dateFrom: from,
+    dateTo: to,
+  });
 
   const dateBounds = dashboardData?.dateBounds || MANAGEMENT_DATE_BOUNDS;
   const dma = dashboardData?.dma ?? 7;

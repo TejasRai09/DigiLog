@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
 import useAuth from '../hooks/useAuth';
+import { useAppName } from '../hooks/useAppName';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
 import {
   RecordActionsButton,
@@ -18,6 +19,7 @@ import {
 } from './FormRecordAdminModals';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 import { isSimpleOpenForm, openFormTarget } from '../utils/formTableNav';
+import { trackFormDataAction } from '../utils/trackActivity';
 import FormCardList from './FormCardList';
 
 const escapeCsvCell = (v) => {
@@ -29,7 +31,7 @@ const escapeCsvCell = (v) => {
 };
 
 const downloadCSV = (filename, rows, columns, formKey = null) => {
-  if (!rows.length) { toast.error('No data to download.'); return; }
+  if (!rows.length) { toast.error('No data to download.'); return false; }
   const headerLine = columns.map(headerLabel).map(escapeCsvCell).join(',');
   const dataLines = rows.map((row) =>
     columns.map(({ dbKey }) =>
@@ -45,10 +47,11 @@ const downloadCSV = (filename, rows, columns, formKey = null) => {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+  return true;
 };
 
 // ─── View Data Modal ──────────────────────────────────────────
-const ViewDataModal = ({ form, onClose }) => {
+const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
 
@@ -148,8 +151,18 @@ const ViewDataModal = ({ form, onClose }) => {
                     `/forms/${form.formKey}/records?page=1&limit=10000`
                   );
                   const cols = getDisplayColumns(form.formKey, res.records?.[0] ?? null);
-                  downloadCSV(`${form.formKey}.csv`, res.records, cols, form.formKey);
-                  toast.success('Downloaded!', { id: 'csv' });
+                  const ok = downloadCSV(`${form.formKey}.csv`, res.records, cols, form.formKey);
+                  if (ok) {
+                    trackFormDataAction({
+                      event_type: 'download_csv',
+                      form,
+                      appName,
+                      appId,
+                    });
+                    toast.success('Downloaded!', { id: 'csv' });
+                  } else {
+                    toast.dismiss('csv');
+                  }
                 } catch {
                   toast.error('Download failed.', { id: 'csv' });
                 }
@@ -331,7 +344,42 @@ const FormTable = ({
   returnTo = null,
 }) => {
   const navigate            = useNavigate();
+  const appName             = useAppName(appId);
   const [viewing, setViewing] = useState(null); // form object being viewed
+
+  const openViewData = (form) => {
+    trackFormDataAction({
+      event_type: 'view_data',
+      form,
+      appName: withoutGsmaLabel(appName) || null,
+      appId,
+    });
+    setViewing(form);
+  };
+
+  const downloadFormCsv = async (form) => {
+    const tid = toast.loading('Preparing CSV…');
+    try {
+      const { data } = await api.get(
+        `/forms/${form.formKey}/records?page=1&limit=10000`
+      );
+      const cols = getDisplayColumns(form.formKey, data.records?.[0] ?? null);
+      const ok = downloadCSV(`${form.formKey}.csv`, data.records, cols, form.formKey);
+      if (ok) {
+        trackFormDataAction({
+          event_type: 'download_csv',
+          form,
+          appName: withoutGsmaLabel(appName) || null,
+          appId,
+        });
+        toast.success('Downloaded!', { id: tid });
+      } else {
+        toast.dismiss(tid);
+      }
+    } catch {
+      toast.error('Download failed.', { id: tid });
+    }
+  };
 
   if (!forms || forms.length === 0) {
     return (
@@ -349,7 +397,8 @@ const FormTable = ({
           navigate={navigate}
           appId={appId}
           returnTo={returnTo}
-          onViewData={setViewing}
+          onViewData={openViewData}
+          onDownloadCsv={downloadFormCsv}
         />
       </div>
 
@@ -384,7 +433,7 @@ const FormTable = ({
                     {!isSimpleOpenForm(form) && (
                       <>
                         <button
-                          onClick={() => setViewing(form)}
+                          onClick={() => openViewData(form)}
                           className="btn-secondary py-1.5 text-xs"
                         >
                           <MdTableChart className="h-3.5 w-3.5" />
@@ -392,19 +441,7 @@ const FormTable = ({
                         </button>
 
                         <button
-                          onClick={async () => {
-                            const tid = toast.loading('Preparing CSV…');
-                            try {
-                              const { data } = await api.get(
-                                `/forms/${form.formKey}/records?page=1&limit=10000`
-                              );
-                              const cols = getDisplayColumns(form.formKey, data.records?.[0] ?? null);
-                              downloadCSV(`${form.formKey}.csv`, data.records, cols, form.formKey);
-                              toast.success('Downloaded!', { id: tid });
-                            } catch {
-                              toast.error('Download failed.', { id: tid });
-                            }
-                          }}
+                          onClick={() => downloadFormCsv(form)}
                           className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5
                                      bg-green-600 text-white text-xs font-medium rounded-lg
                                      hover:bg-green-700 transition-colors"
@@ -425,7 +462,12 @@ const FormTable = ({
 
       {/* View Data Modal */}
       {viewing && (
-        <ViewDataModal form={viewing} onClose={() => setViewing(null)} />
+        <ViewDataModal
+          form={viewing}
+          onClose={() => setViewing(null)}
+          appName={withoutGsmaLabel(appName) || null}
+          appId={appId}
+        />
       )}
     </>
   );

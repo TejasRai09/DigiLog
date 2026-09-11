@@ -30,6 +30,7 @@ const userNotificationRoutes = require('./routes/userNotification.routes');
 const { expireStaleSessions } = require('./utils/sessionActivity');
 const {
   runDigestSchedulerTick,
+  runEmployeeModificationReminderTick,
   ensureDigestSchema,
 } = require('./services/maintenanceHistoryApproval.service');
 const { attachRealtime } = require('./services/realtimeSocket.service');
@@ -51,21 +52,24 @@ setInterval(() => {
   });
 }, 60 * 1000);
 
-// Daily HOD maintenance history digest (IST, per-domain time in admin config)
-const runDigestTick = () => {
+// Daily HOD digest (IST times from admin config) + employee needs-modification reminders (09:00 IST)
+const runApprovalSchedulers = () => {
   runDigestSchedulerTick().catch((err) => {
     console.error('[maintenanceDigestScheduler]', err.message);
+  });
+  runEmployeeModificationReminderTick().catch((err) => {
+    console.error('[maintenanceEmployeeReminderScheduler]', err.message);
   });
 };
 ensureDigestSchema()
   .then(() => {
-    runDigestTick();
-    setInterval(runDigestTick, 60 * 1000);
+    runApprovalSchedulers();
+    setInterval(runApprovalSchedulers, 60 * 1000);
   })
   .catch((err) => {
     console.error('[maintenanceHistoryApproval] schema check failed:', err.message);
-    runDigestTick();
-    setInterval(runDigestTick, 60 * 1000);
+    runApprovalSchedulers();
+    setInterval(runApprovalSchedulers, 60 * 1000);
   });
 
 // ─── Global middleware ───────────────────────────────────────

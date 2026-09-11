@@ -51,15 +51,25 @@ export default function ActivityTracker() {
   const enteredAtRef = useRef(null);
   const startingRef = useRef(false);
 
-  // Ensure session exists when authenticated
+  // Ensure an *active* tracking session when authenticated
   useEffect(() => {
     if (loading || !user) return undefined;
     let cancelled = false;
 
     const ensure = async () => {
-      if (getStoredSessionId() || startingRef.current) return;
+      if (startingRef.current) return;
       startingRef.current = true;
       try {
+        const sid = getStoredSessionId();
+        if (sid) {
+          try {
+            await api.post('/auth/session/heartbeat', { session_id: sid });
+            return;
+          } catch {
+            setStoredSessionId(null);
+          }
+        }
+        if (cancelled) return;
         await startTrackingSession();
       } catch {
         /* ignore — tracking is best-effort */
@@ -73,7 +83,10 @@ export default function ActivityTracker() {
     const heartbeat = setInterval(() => {
       const sid = getStoredSessionId();
       if (!sid || cancelled) return;
-      api.post('/auth/session/heartbeat', { session_id: sid }).catch(() => {});
+      api.post('/auth/session/heartbeat', { session_id: sid }).catch((err) => {
+        const status = err?.response?.status;
+        if (status === 404 || status === 401) setStoredSessionId(null);
+      });
     }, HEARTBEAT_MS);
 
     const onUnload = () => {
@@ -129,10 +142,16 @@ export default function ActivityTracker() {
       }
     };
 
-    const enter = async () => {
+    const enter = async (attempt = 0) => {
       await exitPrevious();
       if (cancelled) return;
-      const sid = getStoredSessionId();
+      let sid = getStoredSessionId();
+      if (!sid && attempt < 8) {
+        setTimeout(() => {
+          if (!cancelled) enter(attempt + 1);
+        }, 75);
+        return;
+      }
       if (!sid) return;
       const meta = classifyPath(pathWithSearch);
       try {
@@ -150,7 +169,7 @@ export default function ActivityTracker() {
     };
 
     // Small delay so session/start can finish after login
-    const t = setTimeout(enter, 50);
+    const t = setTimeout(() => enter(0), 50);
 
     return () => {
       cancelled = true;

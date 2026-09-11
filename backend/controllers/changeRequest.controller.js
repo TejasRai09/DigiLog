@@ -13,6 +13,7 @@ const {
   listPendingForHod,
   loadConflictState,
   getDocumentForLoggedInUser,
+  notifyHodPendingAfterClientSubmit,
 } = require('../services/maintenanceHistoryApproval.service');
 const { sendServerError, MSG } = require('../utils/httpError');
 const path = require('path');
@@ -149,6 +150,19 @@ const resubmitChangeRequest = async (req, res) => {
   }
 };
 
+const notifyHodChangeRequest = async (req, res) => {
+  try {
+    const result = await notifyHodPendingAfterClientSubmit(req.params.id, req.user);
+    res.json({
+      message: result?.skipped ? 'HOD already notified.' : 'HOD notified.',
+      ...result,
+    });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
+    sendServerError(res, 'notifyHodChangeRequest:', err, MSG.SAVE);
+  }
+};
+
 const downloadApprovalDocument = async (req, res) => {
   const source = String(req.query.source || 'stored').trim();
   const name = String(req.query.name || '').trim();
@@ -181,5 +195,6 @@ module.exports = {
   getMyChangeRequests,
   getChangeRequestById,
   resubmitChangeRequest,
+  notifyHodChangeRequest,
   downloadApprovalDocument,
 };

@@ -8,6 +8,7 @@ const { canManageLockedCards } = require('../services/lockedCardManageAccess.ser
 const {
   isApprovalEnabled,
   createPendingRequest,
+  notifyHodInAppPending,
   overlayPendingHistory,
   assertPendingRequestForUser,
   listStagedDocuments,
@@ -116,10 +117,25 @@ async function queueProductionHistoryApproval(req, res, {
       reqUser: req.user,
       equipment,
     });
+
+    const deferHodNotify = String(
+      req.query?.deferHodNotify ?? req.body?.deferHodNotify ?? '',
+    ).trim() === '1';
+    if (!deferHodNotify) {
+      try {
+        if (pending.request) {
+          await notifyHodInAppPending(pending.request, { resubmitted: false });
+        }
+      } catch (err) {
+        console.error('[queueProductionHistoryApproval] hod notify failed:', err.message);
+      }
+    }
+
     res.status(202).json({
       message: 'Submitted for HOD approval.',
       pending: true,
       approvalRequestId: pending.id,
+      hodNotifyDeferred: deferHodNotify,
     });
     return true;
   } catch (err) {

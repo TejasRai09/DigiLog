@@ -539,6 +539,13 @@ function actionTypeFromMethod(method) {
   return ACTION_TYPES[m] || m || '—';
 }
 
+function isAuthLoginPath(rawPath) {
+  const p = String(rawPath || '').split('?')[0];
+  return p === '/api/auth/login'
+    || p === '/api/auth/outlook'
+    || p === '/api/auth/google';
+}
+
 function parseApiPath(rawPath) {
   const pathOnly = String(rawPath || '').split('?')[0];
   const parts = pathOnly.replace(/^\/api\/?/, '').split('/').filter(Boolean);
@@ -722,6 +729,7 @@ function buildChangeDescription({
   rawBody,
   parentLabel,
   hierarchyPath,
+  success = null,
 }) {
   const { parts } = parseApiPath(path || '');
   const moduleKey = parts[0] || '';
@@ -729,6 +737,16 @@ function buildChangeDescription({
   const action = actionType || actionTypeFromMethod(method);
   const equip = equipmentLabel(resourceName, displayPath);
   const body = rawBody && typeof rawBody === 'object' ? rawBody : null;
+
+  // ── Auth login (password / Microsoft / Google) ─────────────
+  if (moduleKey === 'auth' && ['login', 'outlook', 'google'].includes(parts[1])) {
+    const via = parts[1] === 'outlook' ? 'Microsoft'
+      : parts[1] === 'google' ? 'Google'
+      : 'email/password';
+    if (success === 1 || success === true) return `Logged in via ${via}`.slice(0, 255);
+    if (success === 0 || success === false) return `Login failed via ${via}`.slice(0, 255);
+    return `Sign-in attempt via ${via}`.slice(0, 255);
+  }
 
   // ── Hierarchy (Power / Sugar) ──────────────────────────────
   if (parts[1] === 'hierarchy') {
@@ -1150,7 +1168,7 @@ async function enrichAuditContext(pool, method, rawPath, statusCode, rawBody = n
   }
 
   return {
-    action_type: actionTypeFromMethod(method),
+    action_type: isAuthLoginPath(rawPath) ? 'Login' : actionTypeFromMethod(method),
     display_path: displayPath,
     ...meta,
     resource_name: resourceName,

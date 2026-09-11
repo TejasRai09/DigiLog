@@ -12,6 +12,7 @@ import { useAppName } from '../../hooks/useAppName';
 import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
 import useMaintenanceHistoryHodRefresh from '../../hooks/useMaintenanceHistoryHodRefresh';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
+import { trackEquipmentPdfDownload } from '../../utils/trackActivity';
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { saveHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
 import {
@@ -175,6 +176,10 @@ const ProductionHouseEquipmentDetail = () => {
         specs: { rows: specs, equipmentDefaults, specSection: 'mechanical' },
         schedule: { rows: [], equipmentOptions: [] },
         history: { rows: history, equipmentOptions },
+      });
+      trackEquipmentPdfDownload({
+        sections: selectedKeys,
+        equipmentName: eq?.name || eq?.equip_no || null,
       });
       setPdfModalOpen(false);
     } catch (err) {

@@ -6,6 +6,7 @@ const { validHistoryImageField } = require('../utils/historyImages');
 const {
   isApprovalEnabled,
   createPendingRequest,
+  notifyHodInAppPending,
   assertPendingRequestForUser,
   approvalStagingDir,
   listStagedDocuments,
@@ -265,10 +266,24 @@ function createPowerEquipmentController(tables) {
         equipment,
       });
 
+      const deferHodNotify = String(
+        req.query?.deferHodNotify ?? req.body?.deferHodNotify ?? '',
+      ).trim() === '1';
+      if (!deferHodNotify) {
+        try {
+          if (pending.request) {
+            await notifyHodInAppPending(pending.request, { resubmitted: false });
+          }
+        } catch (err) {
+          console.error('[queueHistoryApproval] hod notify failed:', err.message);
+        }
+      }
+
       res.status(202).json({
         message: 'Submitted for HOD approval.',
         pending: true,
         approvalRequestId: pending.id,
+        hodNotifyDeferred: deferHodNotify,
       });
       return true;
     } catch (err) {

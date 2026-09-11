@@ -20,6 +20,7 @@ const {
   sendMaintenanceHistoryDigestEmail,
   sendMaintenanceHistoryApprovedEmail,
   sendMaintenanceHistoryModificationEmail,
+  sendMaintenanceHistoryModificationReminderEmail,
 } = require('./email.service');
 const { createUserNotification } = require('./userNotification.service');
 const { CLIENT_ORIGIN } = require('../config/env');
@@ -32,25 +33,34 @@ const HOD_APPROVALS_PATH = '/maintenance/approvals';
 
 const DIGEST_TIMEZONE = 'Asia/Kolkata';
 const DEFAULT_DIGEST_TIME = '22:00';
+/** Employee needs-modification reminder: daily job at 09:00 IST, every 2 calendar days. */
+const EMPLOYEE_REMINDER_TIME_IST = '09:00';
+const EMPLOYEE_REMINDER_INTERVAL_DAYS = 2;
 
 const SETTINGS_KEYS = {
   sugar: {
     enabled: 'mh_approval_sugar_enabled',
     hodUserId: 'mh_approval_sugar_hod_user_id',
     digestTime: 'mh_approval_sugar_digest_time',
+    digestTime2: 'mh_approval_sugar_digest_time_2',
     digestLastSentDate: 'mh_approval_sugar_digest_last_sent_date',
+    digestLastSentSlots: 'mh_approval_sugar_digest_last_sent_slots',
   },
   power: {
     enabled: 'mh_approval_power_enabled',
     hodUserId: 'mh_approval_power_hod_user_id',
     digestTime: 'mh_approval_power_digest_time',
+    digestTime2: 'mh_approval_power_digest_time_2',
     digestLastSentDate: 'mh_approval_power_digest_last_sent_date',
+    digestLastSentSlots: 'mh_approval_power_digest_last_sent_slots',
   },
   production: {
     enabled: 'mh_approval_production_enabled',
     hodUserId: 'mh_approval_production_hod_user_id',
     digestTime: 'mh_approval_production_digest_time',
+    digestTime2: 'mh_approval_production_digest_time_2',
     digestLastSentDate: 'mh_approval_production_digest_last_sent_date',
+    digestLastSentSlots: 'mh_approval_production_digest_last_sent_slots',
   },
 };
 
@@ -245,14 +255,71 @@ function buildFieldDiff(action, previous, payload) {
 }
 
 function normalizeDigestTime(value) {
-  const raw = String(value || DEFAULT_DIGEST_TIME).trim();
+  const raw = String(value == null || value === '' ? DEFAULT_DIGEST_TIME : value).trim();
   const match = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(raw);
   if (!match) return null;
   return `${String(match[1]).padStart(2, '0')}:${match[2]}`;
 }
 
+/** Empty string = slot disabled. Non-empty must be valid HH:mm. */
+function normalizeOptionalDigestTime(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return normalizeDigestTime(raw);
+}
+
 function validateDigestTime(value) {
   return normalizeDigestTime(value) != null;
+}
+
+function validateOptionalDigestTime(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return true;
+  return normalizeDigestTime(raw) != null;
+}
+
+function configuredDigestTimes(domainSettings) {
+  const times = [];
+  const t1 = normalizeDigestTime(domainSettings?.digestTime) || DEFAULT_DIGEST_TIME;
+  const t2 = normalizeOptionalDigestTime(domainSettings?.digestTime2);
+  times.push(t1);
+  if (t2 && t2 !== t1) times.push(t2);
+  return times;
+}
+
+function parseDigestLastSentSlots(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return { ...raw };
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function slotAlreadySentToday(domainSettings, slot, istDate) {
+  const slots = parseDigestLastSentSlots(domainSettings?.digestLastSentSlots);
+  if (slots[slot] === istDate) return true;
+  // Legacy single-date marker: treat as first configured slot already sent today
+  if (domainSettings?.digestLastSentDate === istDate) {
+    const first = configuredDigestTimes(domainSettings)[0];
+    if (first && slot === first && !slots[slot]) return true;
+  }
+  return false;
+}
+
+async function markDigestSlotSent(domain, slot, istDate) {
+  const settings = await getApprovalSettings();
+  const slots = parseDigestLastSentSlots(settings[domain]?.digestLastSentSlots);
+  // Drop stale dates from other days
+  const next = {};
+  for (const [key, date] of Object.entries(slots)) {
+    if (date === istDate) next[key] = date;
+  }
+  next[slot] = istDate;
+  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentSlots, JSON.stringify(next));
+  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, istDate);
 }
 
 /** Reliable 24h IST clock (sv-SE). en-GB + hour12:false can stay 12-hour on Windows Node. */
@@ -474,7 +541,9 @@ async function getApprovalSettings() {
     k.enabled,
     k.hodUserId,
     k.digestTime,
+    k.digestTime2,
     k.digestLastSentDate,
+    k.digestLastSentSlots,
   ]);
   const map = await readPortalSettings(keys);
   const settings = {};
@@ -484,7 +553,9 @@ async function getApprovalSettings() {
       enabled: parseBool(map[k.enabled]),
       hodUserId: map[k.hodUserId] ? Number(map[k.hodUserId]) : null,
       digestTime: normalizeDigestTime(map[k.digestTime]) || DEFAULT_DIGEST_TIME,
+      digestTime2: normalizeOptionalDigestTime(map[k.digestTime2]),
       digestLastSentDate: map[k.digestLastSentDate] || '',
+      digestLastSentSlots: parseDigestLastSentSlots(map[k.digestLastSentSlots]),
     };
   }
   return settings;
@@ -497,35 +568,59 @@ async function updateApprovalSettings(body) {
   for (const domain of APPROVAL_DOMAINS) {
     const cfg = body?.[domain] || {};
     const digestTime = normalizeDigestTime(cfg.digestTime) || DEFAULT_DIGEST_TIME;
-    nextByDomain[domain] = digestTime;
+    const digestTime2 = normalizeOptionalDigestTime(cfg.digestTime2);
+    nextByDomain[domain] = { digestTime, digestTime2 };
     updates.push(
       [SETTINGS_KEYS[domain].enabled, cfg.enabled ? '1' : '0'],
       [SETTINGS_KEYS[domain].hodUserId, cfg.hodUserId ? String(cfg.hodUserId) : ''],
       [SETTINGS_KEYS[domain].digestTime, digestTime],
+      [SETTINGS_KEYS[domain].digestTime2, digestTime2],
     );
   }
   for (const [key, value] of updates) {
     await setPortalSetting(key, value);
   }
 
-  // If digest already ran today but admin moves the time to later than now (IST),
-  // clear today's "sent" marker so the scheduler can send again at the new time.
+  // If a digest slot already ran today but admin moves that slot later than now (IST),
+  // clear today's marker for that slot so the scheduler can send again.
   const ist = getIstDateParts();
   const nowMinutes = timeToMinutes(ist.time);
   for (const domain of APPROVAL_DOMAINS) {
-    const prevTime = normalizeDigestTime(current[domain]?.digestTime) || DEFAULT_DIGEST_TIME;
-    const nextTime = nextByDomain[domain];
-    if (prevTime === nextTime) continue;
-    if (current[domain]?.digestLastSentDate !== ist.date) continue;
-    const nextMinutes = timeToMinutes(nextTime);
-    if (nowMinutes == null || nextMinutes == null) continue;
-    if (nextMinutes <= nowMinutes) continue;
+    const prevTimes = configuredDigestTimes(current[domain]);
+    const nextTimes = configuredDigestTimes(nextByDomain[domain]);
+    const slots = parseDigestLastSentSlots(current[domain]?.digestLastSentSlots);
+    let changed = false;
+    const nextSlots = { ...slots };
 
-    await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, '');
-    console.log(
-      `[maintenanceHistoryApproval] ${domain} digest time changed ${prevTime} → ${nextTime} IST `
-      + `(after today's send); cleared last-sent so digest can run again at ${nextTime}`,
-    );
+    for (const prevTime of prevTimes) {
+      if (nextTimes.includes(prevTime)) continue;
+      if (nextSlots[prevTime] === ist.date) {
+        delete nextSlots[prevTime];
+        changed = true;
+      }
+    }
+    for (const nextTime of nextTimes) {
+      if (prevTimes.includes(nextTime)) continue;
+      const nextMinutes = timeToMinutes(nextTime);
+      if (nowMinutes == null || nextMinutes == null) continue;
+      if (nextMinutes <= nowMinutes) continue;
+      // New later slot today — ensure it is not blocked by legacy date marker alone
+      if (nextSlots[nextTime] === ist.date) {
+        delete nextSlots[nextTime];
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentSlots, JSON.stringify(nextSlots));
+      const stillToday = Object.values(nextSlots).some((d) => d === ist.date);
+      if (!stillToday && current[domain]?.digestLastSentDate === ist.date) {
+        await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, '');
+      }
+      console.log(
+        `[maintenanceHistoryApproval] ${domain} digest times updated; refreshed today's slot markers`,
+      );
+    }
   }
 
   return getApprovalSettings();
@@ -1234,13 +1329,15 @@ async function createPendingRequest({
   }
 
   const created = await getRequestById(result.insertId);
-  try {
-    await notifyHodInAppPending(created, { resubmitted: false });
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] hod notify failed:', err.message);
-  }
-
-  return { id: result.insertId, tokenAccept: tokens.tokenAccept, tokenReject: tokens.tokenReject };
+  // HOD in-app notify is deferred until the client finishes document uploads
+  // (see POST /change-requests/:id/notify-hod). Callers that do not defer
+  // should invoke notifyHodInAppPending themselves after createPendingRequest.
+  return {
+    id: result.insertId,
+    tokenAccept: tokens.tokenAccept,
+    tokenReject: tokens.tokenReject,
+    request: created,
+  };
 }
 
 async function fetchPendingForDigest(domain, _istDate) {
@@ -1357,14 +1454,25 @@ async function ensureDigestSchema() {
     'hod_notified_at',
     '`hod_notified_at` DATETIME NULL DEFAULT NULL',
   );
+  await addColumnIfMissing(
+    'maintenance_history_approval_request',
+    'employee_reminder_sent_at',
+    '`employee_reminder_sent_at` DATETIME NULL DEFAULT NULL',
+  );
 
   const keys = [
     [SETTINGS_KEYS.sugar.digestTime, DEFAULT_DIGEST_TIME],
     [SETTINGS_KEYS.power.digestTime, DEFAULT_DIGEST_TIME],
     [SETTINGS_KEYS.production.digestTime, DEFAULT_DIGEST_TIME],
+    [SETTINGS_KEYS.sugar.digestTime2, ''],
+    [SETTINGS_KEYS.power.digestTime2, ''],
+    [SETTINGS_KEYS.production.digestTime2, ''],
     [SETTINGS_KEYS.sugar.digestLastSentDate, ''],
     [SETTINGS_KEYS.power.digestLastSentDate, ''],
     [SETTINGS_KEYS.production.digestLastSentDate, ''],
+    [SETTINGS_KEYS.sugar.digestLastSentSlots, '{}'],
+    [SETTINGS_KEYS.power.digestLastSentSlots, '{}'],
+    [SETTINGS_KEYS.production.digestLastSentSlots, '{}'],
   ];
   for (const [key, value] of keys) {
     await pool.execute(
@@ -1433,13 +1541,15 @@ function splitDigestByIstDate(rows, istDate) {
 
 /**
  * @param {'sugar'|'power'} domain
- * @param {{ force?: boolean, mode?: 'all'|'new' }} [options]
+ * @param {{ force?: boolean, mode?: 'all'|'new', slot?: string }} [options]
  *   - force: bypass "already sent today" guard (admin/HOD resend)
  *   - mode 'new': only rows never included in a digest (hod_notified_at IS NULL)
+ *   - slot: HH:mm schedule slot being fired (tracks per-slot daily send)
  */
 async function sendDigestForDomain(domain, options = {}) {
   const force = Boolean(options.force);
   const mode = options.mode === 'new' ? 'new' : 'all';
+  const slot = normalizeOptionalDigestTime(options.slot);
 
   const settings = await getApprovalSettings();
   const domainSettings = settings[domain];
@@ -1448,8 +1558,14 @@ async function sendDigestForDomain(domain, options = {}) {
   }
 
   const ist = getIstDateParts();
-  if (!force && domainSettings.digestLastSentDate === ist.date) {
-    return { sent: false, reason: 'already-sent' };
+  if (!force) {
+    if (slot) {
+      if (slotAlreadySentToday(domainSettings, slot, ist.date)) {
+        return { sent: false, reason: 'already-sent' };
+      }
+    } else if (domainSettings.digestLastSentDate === ist.date) {
+      return { sent: false, reason: 'already-sent' };
+    }
   }
 
   let pendingRows = await fetchPendingForDigest(domain, ist.date);
@@ -1519,8 +1635,12 @@ async function sendDigestForDomain(domain, options = {}) {
     ids,
   );
 
-  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
-  return { sent: true, count: pendingRows.length, mode, force };
+  if (slot) {
+    await markDigestSlotSent(domain, slot, ist.date);
+  } else {
+    await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
+  }
+  return { sent: true, count: pendingRows.length, mode, force, slot: slot || null };
 }
 
 async function resendDigestByToken(token, options = {}) {
@@ -1612,29 +1732,163 @@ async function runDigestSchedulerTick() {
     const domainSettings = settings[domain];
     if (!domainSettings?.enabled) continue;
 
-    const digestMinutes = timeToMinutes(domainSettings.digestTime);
-    if (digestMinutes == null) continue;
+    const times = configuredDigestTimes(domainSettings);
+    if (!times.length) continue;
 
     try {
-      if (domainSettings.digestLastSentDate === ist.date) continue;
-
       const pending = await fetchPendingForDigest(domain, ist.date);
       if (!pending.length) continue;
 
-      if (nowMinutes < digestMinutes) {
-        console.log(
-          `[maintenanceHistoryApproval] ${pending.length} pending ${domain} item(s); waiting until ${domainSettings.digestTime} IST (now ${ist.time})`,
-        );
-        continue;
-      }
+      for (const slot of times) {
+        const digestMinutes = timeToMinutes(slot);
+        if (digestMinutes == null) continue;
+        if (slotAlreadySentToday(domainSettings, slot, ist.date)) continue;
 
-      const result = await sendDigestForDomain(domain);
-      if (result.sent) {
-        console.log(`[maintenanceHistoryApproval] digest sent for ${domain}: ${result.count} item(s) to HOD`);
+        if (nowMinutes < digestMinutes) {
+          console.log(
+            `[maintenanceHistoryApproval] ${pending.length} pending ${domain} item(s); waiting until ${slot} IST (now ${ist.time})`,
+          );
+          continue;
+        }
+
+        const result = await sendDigestForDomain(domain, { slot });
+        if (result.sent) {
+          console.log(
+            `[maintenanceHistoryApproval] digest sent for ${domain} at slot ${slot}: ${result.count} item(s) to HOD`,
+          );
+          // Refresh in-memory markers so a second slot in the same tick is not blocked incorrectly
+          domainSettings.digestLastSentSlots = {
+            ...parseDigestLastSentSlots(domainSettings.digestLastSentSlots),
+            [slot]: ist.date,
+          };
+          domainSettings.digestLastSentDate = ist.date;
+        }
       }
     } catch (err) {
       console.error(`[maintenanceHistoryApproval] digest failed for ${domain}:`, err.message);
     }
+  }
+}
+
+function istCalendarDaysBetween(earlierIstDate, laterIstDate) {
+  if (!earlierIstDate || !laterIstDate) return 0;
+  const a = new Date(`${earlierIstDate}T00:00:00+05:30`).getTime();
+  const b = new Date(`${laterIstDate}T00:00:00+05:30`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.floor((b - a) / (24 * 60 * 60 * 1000));
+}
+
+function isEmployeeModificationReminderDue(row, todayIstDate) {
+  const anchor = parseMysqlUtcDateTime(row.employee_reminder_sent_at)
+    || parseMysqlUtcDateTime(row.resolved_at);
+  if (!anchor) return false;
+  const anchorIst = getIstDateParts(anchor).date;
+  return istCalendarDaysBetween(anchorIst, todayIstDate) >= EMPLOYEE_REMINDER_INTERVAL_DAYS;
+}
+
+async function sendEmployeeModificationReminderForRequest(row) {
+  const email = String(row.requested_by_email || '').trim();
+  if (!email) return { sent: false, reason: 'no-email' };
+
+  await sendMaintenanceHistoryModificationReminderEmail({
+    to: email,
+    submitterName: row.requested_by_name || 'User',
+    domainLabel: DOMAIN_TABLES[row.domain]?.label || row.domain,
+    equipmentName: await equipmentDisplayNameFromRequest(row),
+    actionLabel: actionLabel(row.action),
+    comment: row.hod_comment || '',
+    openUrl: buildEmployeeModificationOpenUrl(row),
+  });
+
+  // Soft in-app ping (does not block email if this fails)
+  try {
+    const userId = Number(row.requested_by_user_id);
+    if (userId) {
+      const equipmentName = await equipmentDisplayNameFromRequest(row);
+      await createUserNotification({
+        userId,
+        type: NOTIF_TYPE_MH_NEEDS_MODIFICATION,
+        title: 'Reminder: maintenance history needs modification',
+        body: `${actionLabel(row.action)} for ${equipmentName} is still waiting for you to revise and resubmit.`,
+        linkUrl: buildApprovalDeepLinkPath(row, { includeApprovalQuery: true }),
+        ctaLabel: 'View / Edit',
+        refType: NOTIF_REF_APPROVAL,
+        refId: row.id,
+        meta: {
+          domain: row.domain,
+          action: row.action,
+          equipId: row.equip_id,
+          status: STATUS.NEEDS_MODIFICATION,
+          reminder: true,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] employee reminder in-app notify failed:', err.message);
+  }
+
+  await pool.execute(
+    `UPDATE maintenance_history_approval_request
+     SET employee_reminder_sent_at = NOW()
+     WHERE id = ? AND status = 'needs_modification'`,
+    [row.id],
+  );
+  return { sent: true };
+}
+
+/**
+ * Every day from 09:00 IST: email employees whose needs_modification requests
+ * are still open and at least 2 calendar days since HOD send / last reminder.
+ */
+async function runEmployeeModificationReminderTick() {
+  const ist = getIstDateParts();
+  const nowMinutes = timeToMinutes(ist.time);
+  const reminderMinutes = timeToMinutes(EMPLOYEE_REMINDER_TIME_IST);
+  if (nowMinutes == null || reminderMinutes == null) return;
+  if (nowMinutes < reminderMinutes) return;
+
+  let rows;
+  try {
+    const [result] = await pool.query(
+      `SELECT * FROM maintenance_history_approval_request
+       WHERE status = 'needs_modification'
+         AND requested_by_email IS NOT NULL
+         AND TRIM(requested_by_email) <> ''
+         AND resolved_at IS NOT NULL
+       ORDER BY resolved_at ASC, id ASC
+       LIMIT 200`,
+    );
+    rows = result;
+  } catch (err) {
+    if (err.code === 'ER_BAD_FIELD_ERROR') {
+      console.error(
+        '[maintenanceHistoryApproval] employee reminder skipped: apply mysql/migrate_maintenance_history_approval_employee_reminder.sql',
+      );
+      return;
+    }
+    throw err;
+  }
+
+  let sent = 0;
+  for (const row of rows) {
+    if (!isEmployeeModificationReminderDue(row, ist.date)) continue;
+    try {
+      const result = await sendEmployeeModificationReminderForRequest(row);
+      if (result.sent) {
+        sent += 1;
+        console.log(
+          `[maintenanceHistoryApproval] employee modification reminder sent for request #${row.id} → ${row.requested_by_email}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[maintenanceHistoryApproval] employee reminder failed for request #${row.id}:`,
+        err.message,
+      );
+    }
+  }
+  if (sent) {
+    console.log(`[maintenanceHistoryApproval] employee modification reminders sent: ${sent}`);
   }
 }
 
@@ -1903,7 +2157,24 @@ function buildEmployeeModificationOpenUrl(request) {
 
 async function notifyHodInAppPending(request, { resubmitted = false } = {}) {
   const userId = Number(request.hod_user_id);
-  if (!userId) return;
+  if (!userId) return null;
+
+  // Create/submit notify is deferred until uploads finish — avoid duplicate toasts
+  // if the client calls notify-hod more than once for the same pending request.
+  if (!resubmitted) {
+    try {
+      const [[existing]] = await pool.query(
+        `SELECT id FROM user_notification
+         WHERE user_id = ? AND type = ? AND ref_type = ? AND ref_id = ?
+         LIMIT 1`,
+        [userId, NOTIF_TYPE_MH_PENDING_HOD, NOTIF_REF_APPROVAL, Number(request.id)],
+      );
+      if (existing) return { skipped: true, reason: 'already-notified' };
+    } catch (err) {
+      console.error('[maintenanceHistoryApproval] notify dedupe check failed:', err.message);
+    }
+  }
+
   const equipmentName = await equipmentDisplayNameFromRequest(request);
   const parts = await equipmentDisplayPartsFromRequest(request);
   const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
@@ -1927,6 +2198,28 @@ async function notifyHodInAppPending(request, { resubmitted = false } = {}) {
       equipId: request.equip_id,
       status: resubmitted ? STATUS.RESUBMITTED : STATUS.PENDING,
     },
+  });
+  return { skipped: false };
+}
+
+/**
+ * Called by the employee client after create/update pending request + document
+ * uploads finish, so HOD toast/sound does not fire mid-upload.
+ */
+async function notifyHodPendingAfterClientSubmit(requestId, user) {
+  const request = await getRequestById(requestId);
+  if (Number(request.requested_by_user_id) !== Number(user?.id)) {
+    const err = new Error('Not allowed to notify for this request.');
+    err.status = 403;
+    throw err;
+  }
+  if (![STATUS.PENDING, STATUS.RESUBMITTED].includes(request.status)) {
+    const err = new Error('Request is not awaiting HOD review.');
+    err.status = 409;
+    throw err;
+  }
+  return notifyHodInAppPending(request, {
+    resubmitted: request.status === STATUS.RESUBMITTED,
   });
 }
 
@@ -2124,7 +2417,7 @@ async function sendForModification(request, comment, actor = {}) {
   await pool.execute(
     `UPDATE maintenance_history_approval_request
      SET status = 'needs_modification', hod_comment = ?, resolved_at = NOW(),
-         resolved_by = ?, reviewed_by_user_id = ?
+         resolved_by = ?, reviewed_by_user_id = ?, employee_reminder_sent_at = NULL
      WHERE id = ?`,
     [trimmed, actor.email || request.hod_email, actor.userId || null, request.id],
   );
@@ -2220,7 +2513,8 @@ async function resubmitRequest(request, payload, user) {
     `UPDATE maintenance_history_approval_request
      SET payload_json = ?, previous_json = ?, status = 'resubmitted',
          base_version = ?, token_accept = ?, token_reject = ?, token_expires_at = ?,
-         hod_notified_at = NULL, resolved_at = NULL, resolved_by = NULL
+         hod_notified_at = NULL, resolved_at = NULL, resolved_by = NULL,
+         employee_reminder_sent_at = NULL
      WHERE id = ?`,
     [
       JSON.stringify(payload || {}),
@@ -2673,6 +2967,8 @@ module.exports = {
   isApprovalEnabled,
   resolveHodUser,
   createPendingRequest,
+  notifyHodInAppPending,
+  notifyHodPendingAfterClientSubmit,
   getReviewByToken,
   getInboxByToken,
   getDocumentForReviewToken,
@@ -2686,8 +2982,10 @@ module.exports = {
   fetchPendingForDigest,
   sendDigestForDomain,
   runDigestSchedulerTick,
+  runEmployeeModificationReminderTick,
   ensureDigestSchema,
   validateDigestTime,
+  validateOptionalDigestTime,
   normalizeDigestTime,
   buildFieldDiff,
   actionLabel,
