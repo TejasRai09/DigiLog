@@ -24,12 +24,16 @@ import EquipmentSectionShell from './EquipmentSectionShell';
 import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
 import ToolbarFilterSelect from './ToolbarFilterSelect';
 import { resizeImage } from '../../utils/resizeImage';
+import toast from 'react-hot-toast';
 import {
   EMPTY_HISTORY_FORM,
   HISTORY_MAINTENANCE_TYPE_OPTIONS,
   HISTORY_SERVICE_OPTIONS,
   HISTORY_DOCUMENT_ACCEPT,
   MAX_HISTORY_DOCUMENTS,
+  MAX_HISTORY_DOCUMENT_BYTES,
+  formatHistoryDocumentMaxSizeLabel,
+  getOversizedHistoryDocumentError,
   equipmentKeysFromRecord,
   compareMaintenanceHistoryByDate,
   formatDateDisplay,
@@ -41,8 +45,10 @@ import {
   serviceLabel,
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
-import { downloadHistoryDocument } from '../../utils/historyDocuments';
+import { downloadHistoryDocument, downloadApprovalStagedDocument } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
+import api from '../../api/axios';
+import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
 
 const ITEMS_PER_PAGE = 8;
 const MAX_PHOTOS = 3;
@@ -196,6 +202,12 @@ function DocumentUploadGrid({ documents, onChange, inputRef }) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || documents.length >= MAX_HISTORY_DOCUMENTS) return;
+    if (file.size > MAX_HISTORY_DOCUMENT_BYTES) {
+      toast.error(
+        `"${file.name}" is too large (max ${formatHistoryDocumentMaxSizeLabel()}).`,
+      );
+      return;
+    }
     onChange([
       ...documents,
       {
@@ -287,6 +299,13 @@ export default function EquipmentMaintenanceHistoryHub({
   focusApprovalRequestId = null,
   onFocusHandled = null,
 }) {
+  const sectionTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!open || sectionTrackedRef.current) return;
+    sectionTrackedRef.current = true;
+    trackEquipmentSectionOpen('history');
+  }, [open]);
+
   const { user } = useAuth();
   const canDelete = user?.role === 'admin' && typeof onDelete === 'function';
   const canEditRecord = (record) => (
@@ -376,13 +395,23 @@ export default function EquipmentMaintenanceHistoryHub({
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxCaption, setLightboxCaption] = useState('');
   const [highlightedRequestId, setHighlightedRequestId] = useState(null);
+  const [highlightedHistoryId, setHighlightedHistoryId] = useState(null);
   const focusHandledRef = useRef(null);
   const isFocusHighlighted = (row) => {
     const focusId = Number(highlightedRequestId);
     const rowId = Number(row?.pendingRequestId);
-    return Number.isFinite(focusId) && focusId > 0
+    if (
+      Number.isFinite(focusId) && focusId > 0
       && Number.isFinite(rowId) && rowId > 0
-      && rowId === focusId;
+      && rowId === focusId
+    ) {
+      return true;
+    }
+    const histFocus = Number(highlightedHistoryId);
+    const histId = Number(row?.id);
+    return Number.isFinite(histFocus) && histFocus > 0
+      && Number.isFinite(histId) && histId > 0
+      && histId === histFocus;
   };
   const isApprovalHighlighted = (row) => Boolean(row?.pendingRequestId);
   const rowEmphasisClass = (row) => {
@@ -466,40 +495,97 @@ export default function EquipmentMaintenanceHistoryHub({
     const focusId = Number(focusApprovalRequestId);
     if (!focusId || Number.isNaN(focusId)) return;
     if (focusHandledRef.current === focusId) return;
-    if (!filteredRecords.length) return;
 
-    const idx = filteredRecords.findIndex(
-      (row) => Number(row.pendingRequestId) === focusId,
-    );
-    if (idx < 0) return;
+    let cancelled = false;
+    const timers = [];
 
-    const page = Math.floor(idx / ITEMS_PER_PAGE) + 1;
-    setCurrentPage(page);
-    setHighlightedRequestId(focusId);
-    const row = filteredRecords[idx];
-
-    const timer = window.setTimeout(() => {
+    const finishFocus = (row, { openEditForm = false, openView = false } = {}) => {
+      if (cancelled) return;
       focusHandledRef.current = focusId;
-      const el = document.querySelector(`[data-approval-request-id="${focusId}"]`);
-      if (el?.scrollIntoView) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const list = filteredRecords.length ? filteredRecords : records;
+      const idx = list.findIndex((r) => Number(r.id) === Number(row?.id)
+        || Number(r.pendingRequestId) === focusId);
+      if (idx >= 0) {
+        setCurrentPage(Math.floor(idx / ITEMS_PER_PAGE) + 1);
       }
-      if (row?.pendingStatus === 'needs_modification') {
-        openEdit(row);
+      setHighlightedRequestId(focusId);
+      if (row?.id) setHighlightedHistoryId(Number(row.id));
+      if (openEditForm && row) openEdit(row);
+      if (openView && row) {
+        setFormOpen(false);
+        openDetail(row);
       }
-      if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
-    }, 120);
+      timers.push(window.setTimeout(() => {
+        const el = document.querySelector(`[data-approval-request-id="${focusId}"]`)
+          || (row?.id ? document.querySelector(`[data-history-id="${row.id}"]`) : null);
+        if (el?.scrollIntoView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+      }, 180));
+      timers.push(window.setTimeout(() => {
+        setHighlightedRequestId((prev) => (Number(prev) === focusId ? null : prev));
+        setHighlightedHistoryId((prev) => (
+          row?.id && Number(prev) === Number(row.id) ? null : prev
+        ));
+      }, 8000));
+    };
 
-    const clearHighlight = window.setTimeout(() => {
-      setHighlightedRequestId((prev) => (Number(prev) === focusId ? null : prev));
-    }, 8000);
+    const run = async () => {
+      const pendingIdx = filteredRecords.findIndex(
+        (row) => Number(row.pendingRequestId) === focusId,
+      );
+      if (pendingIdx >= 0) {
+        const row = filteredRecords[pendingIdx];
+        finishFocus(row, {
+          openEditForm: row?.pendingStatus === 'needs_modification',
+        });
+        return;
+      }
+
+      try {
+        const { data } = await api.get(`/change-requests/${focusId}`);
+        if (cancelled) return;
+        const status = String(data?.status || '').toLowerCase();
+        const historyId = Number(data?.entityId);
+
+        if (status === 'approved') {
+          toast.success('Already approved.');
+          const live = historyId
+            ? (records.find((row) => Number(row.id) === historyId)
+              || filteredRecords.find((row) => Number(row.id) === historyId))
+            : null;
+          if (live) {
+            finishFocus(live, { openView: true });
+          } else {
+            focusHandledRef.current = focusId;
+            if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+          }
+          return;
+        }
+
+        if (status === 'needs_modification' || status === 'pending' || status === 'resubmitted') {
+          // Overlay may still be loading; retry when records update.
+          return;
+        }
+
+        focusHandledRef.current = focusId;
+        if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+      } catch {
+        if (cancelled) return;
+        focusHandledRef.current = focusId;
+        if (typeof onFocusHandled === 'function') onFocusHandled(focusId);
+      }
+    };
+
+    run();
 
     return () => {
-      window.clearTimeout(timer);
-      window.clearTimeout(clearHighlight);
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusApprovalRequestId, filteredRecords, onFocusHandled]);
+  }, [focusApprovalRequestId, filteredRecords, records, onFocusHandled]);
 
   const openAdd = () => {
     setIsEditing(false);
@@ -594,6 +680,13 @@ export default function EquipmentMaintenanceHistoryHub({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canSave) return;
+    if (enableDocuments) {
+      const oversized = getOversizedHistoryDocumentError(form.documents);
+      if (oversized) {
+        toast.error(oversized);
+        return;
+      }
+    }
     await onSave(form, isEditing ? 'edit' : 'add', selectedRecord?.id, selectedRecord);
     setFormOpen(false);
   };
@@ -608,11 +701,18 @@ export default function EquipmentMaintenanceHistoryHub({
   };
 
   const handleDownloadDocument = async (record, doc) => {
-    if (!enableDocuments || !historyApiBase || !equipId || !record?.id || doc.pending) return;
+    if (!enableDocuments || !doc) return;
     try {
+      if (doc.staged && doc.approvalRequestId) {
+        await downloadApprovalStagedDocument(doc);
+        return;
+      }
+      if (doc.pending || !historyApiBase || !equipId || !record?.id) return;
+      // Pending create rows use id like pending-123 — only permanent history ids download from history API
+      if (String(record.id).startsWith('pending-')) return;
       await downloadHistoryDocument(historyApiBase, equipId, record.id, doc);
     } catch {
-      /* caller may toast */
+      toast.error('Could not download document.');
     }
   };
 
@@ -757,6 +857,7 @@ export default function EquipmentMaintenanceHistoryHub({
             {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
               <tr
                 key={row.id}
+                data-history-id={row.id}
                 data-approval-request-id={row.pendingRequestId || undefined}
                 className={`hover:bg-slate-50/50 transition-colors group cursor-pointer ${rowEmphasisClass(row)}`}
                 onClick={() => openDetail(row)}
@@ -821,6 +922,7 @@ export default function EquipmentMaintenanceHistoryHub({
       {paginatedRecords.length > 0 ? paginatedRecords.map((row) => (
         <div
           key={row.id}
+          data-history-id={row.id}
           data-approval-request-id={row.pendingRequestId || undefined}
           className={`bg-white rounded-2xl p-4 border shadow-sm space-y-3 ${mobileEmphasisClass(row)}`}
         >
@@ -1142,7 +1244,7 @@ export default function EquipmentMaintenanceHistoryHub({
             {enableDocuments && (
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-                  Documents (max {MAX_HISTORY_DOCUMENTS})
+                  Documents (max {MAX_HISTORY_DOCUMENTS}, {formatHistoryDocumentMaxSizeLabel()} each)
                 </label>
                 {/* Match photo thumb size: half-width column + 3-col grid (same as Before/After) */}
                 <div className="w-full sm:w-1/2">
@@ -1167,7 +1269,13 @@ export default function EquipmentMaintenanceHistoryHub({
               className="px-5 py-2.5 bg-[#2563eb] hover:bg-blue-700 text-white font-bold rounded-lg text-xs flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {saving ? <Spinner size="sm" /> : <MdSave className="w-4 h-4" />}
-                {isEditing ? 'Save' : 'Add'}
+                {saving
+                  ? (selectedRecord?.pendingStatus === 'needs_modification'
+                    ? 'Resubmitting…'
+                    : (isEditing ? 'Saving…' : 'Submitting…'))
+                  : (selectedRecord?.pendingStatus === 'needs_modification'
+                    ? 'Resubmit'
+                    : (isEditing ? 'Save' : 'Add'))}
               </button>
           </div>
         </form>

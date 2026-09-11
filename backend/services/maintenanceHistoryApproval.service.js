@@ -20,6 +20,7 @@ const {
   sendMaintenanceHistoryDigestEmail,
   sendMaintenanceHistoryApprovedEmail,
   sendMaintenanceHistoryModificationEmail,
+  sendMaintenanceHistoryModificationReminderEmail,
 } = require('./email.service');
 const { createUserNotification } = require('./userNotification.service');
 const { CLIENT_ORIGIN } = require('../config/env');
@@ -27,29 +28,49 @@ const { CLIENT_ORIGIN } = require('../config/env');
 const NOTIF_REF_APPROVAL = 'maintenance_history_approval_request';
 const NOTIF_TYPE_MH_APPROVED = 'mh_approved';
 const NOTIF_TYPE_MH_NEEDS_MODIFICATION = 'mh_needs_modification';
+const NOTIF_TYPE_MH_PENDING_HOD = 'mh_pending_hod';
+const HOD_APPROVALS_PATH = '/maintenance/approvals';
 
 const DIGEST_TIMEZONE = 'Asia/Kolkata';
 const DEFAULT_DIGEST_TIME = '22:00';
+/** Employee needs-modification reminder: daily job at 09:00 IST, every 2 calendar days. */
+const EMPLOYEE_REMINDER_TIME_IST = '09:00';
+const EMPLOYEE_REMINDER_INTERVAL_DAYS = 2;
 
 const SETTINGS_KEYS = {
   sugar: {
     enabled: 'mh_approval_sugar_enabled',
     hodUserId: 'mh_approval_sugar_hod_user_id',
     digestTime: 'mh_approval_sugar_digest_time',
+    digestTime2: 'mh_approval_sugar_digest_time_2',
     digestLastSentDate: 'mh_approval_sugar_digest_last_sent_date',
+    digestLastSentSlots: 'mh_approval_sugar_digest_last_sent_slots',
   },
   power: {
     enabled: 'mh_approval_power_enabled',
     hodUserId: 'mh_approval_power_hod_user_id',
     digestTime: 'mh_approval_power_digest_time',
+    digestTime2: 'mh_approval_power_digest_time_2',
     digestLastSentDate: 'mh_approval_power_digest_last_sent_date',
+    digestLastSentSlots: 'mh_approval_power_digest_last_sent_slots',
+  },
+  production: {
+    enabled: 'mh_approval_production_enabled',
+    hodUserId: 'mh_approval_production_hod_user_id',
+    digestTime: 'mh_approval_production_digest_time',
+    digestTime2: 'mh_approval_production_digest_time_2',
+    digestLastSentDate: 'mh_approval_production_digest_last_sent_date',
+    digestLastSentSlots: 'mh_approval_production_digest_last_sent_slots',
   },
 };
 
 const DOMAIN_TABLES = {
   sugar: { equipment: 'shn_equipment', history: 'shn_history', label: 'Sugar House' },
   power: { equipment: 'ppn_equipment', history: 'ppn_history', label: 'Power Plant' },
+  production: { equipment: 'phn_equipment', history: 'phn_history', label: 'Production House' },
 };
+
+const APPROVAL_DOMAINS = Object.keys(DOMAIN_TABLES);
 
 const TOKEN_TTL_DAYS = 7;
 
@@ -108,7 +129,6 @@ const FIELD_LABELS = {
   rem: 'Remarks',
   section: 'Section',
   sub_section: 'Equipment',
-  equipment_refs: 'Equipment mapping',
 };
 
 function parseBool(v) {
@@ -235,14 +255,71 @@ function buildFieldDiff(action, previous, payload) {
 }
 
 function normalizeDigestTime(value) {
-  const raw = String(value || DEFAULT_DIGEST_TIME).trim();
+  const raw = String(value == null || value === '' ? DEFAULT_DIGEST_TIME : value).trim();
   const match = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(raw);
   if (!match) return null;
   return `${String(match[1]).padStart(2, '0')}:${match[2]}`;
 }
 
+/** Empty string = slot disabled. Non-empty must be valid HH:mm. */
+function normalizeOptionalDigestTime(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return normalizeDigestTime(raw);
+}
+
 function validateDigestTime(value) {
   return normalizeDigestTime(value) != null;
+}
+
+function validateOptionalDigestTime(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return true;
+  return normalizeDigestTime(raw) != null;
+}
+
+function configuredDigestTimes(domainSettings) {
+  const times = [];
+  const t1 = normalizeDigestTime(domainSettings?.digestTime) || DEFAULT_DIGEST_TIME;
+  const t2 = normalizeOptionalDigestTime(domainSettings?.digestTime2);
+  times.push(t1);
+  if (t2 && t2 !== t1) times.push(t2);
+  return times;
+}
+
+function parseDigestLastSentSlots(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) return { ...raw };
+  try {
+    const parsed = JSON.parse(String(raw));
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function slotAlreadySentToday(domainSettings, slot, istDate) {
+  const slots = parseDigestLastSentSlots(domainSettings?.digestLastSentSlots);
+  if (slots[slot] === istDate) return true;
+  // Legacy single-date marker: treat as first configured slot already sent today
+  if (domainSettings?.digestLastSentDate === istDate) {
+    const first = configuredDigestTimes(domainSettings)[0];
+    if (first && slot === first && !slots[slot]) return true;
+  }
+  return false;
+}
+
+async function markDigestSlotSent(domain, slot, istDate) {
+  const settings = await getApprovalSettings();
+  const slots = parseDigestLastSentSlots(settings[domain]?.digestLastSentSlots);
+  // Drop stale dates from other days
+  const next = {};
+  for (const [key, date] of Object.entries(slots)) {
+    if (date === istDate) next[key] = date;
+  }
+  next[slot] = istDate;
+  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentSlots, JSON.stringify(next));
+  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, istDate);
 }
 
 /** Reliable 24h IST clock (sv-SE). en-GB + hour12:false can stay 12-hour on Windows Node. */
@@ -258,6 +335,31 @@ function getIstDateParts(date = new Date()) {
   };
 }
 
+/**
+ * mysql2 dateStrings under session UTC → "YYYY-MM-DD HH:mm:ss" (no zone).
+ * Parse as UTC so IST day/time math is correct on an IST host.
+ */
+function parseMysqlUtcDateTime(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  const s = String(value).trim();
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(\.\d+)?$/.exec(s);
+  if (mysqlUtc) {
+    const d = new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}${mysqlUtc[3] || ''}Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** API-facing ISO UTC string for created/resolved timestamps. */
+function toApiUtcIso(value) {
+  const d = parseMysqlUtcDateTime(value);
+  return d ? d.toISOString() : null;
+}
+
 function timeToMinutes(hhmm) {
   const normalized = normalizeDigestTime(hhmm);
   if (!normalized) return null;
@@ -265,15 +367,146 @@ function timeToMinutes(hhmm) {
   return h * 60 + m;
 }
 
-function equipmentNameFromRequest(request) {
-  try {
-    const ctx = typeof request.equipment_context_json === 'string'
-      ? JSON.parse(request.equipment_context_json)
-      : request.equipment_context_json;
-    return ctx?.name || ctx?.equip_no || ctx?.tag_name || 'Equipment';
-  } catch {
-    return 'Equipment';
+const PATH_SEP = ' › ';
+
+const PRODUCTION_HOUSE_SECTION_LABELS = {
+  pan_crystallizer: 'Pan & Crystallizer',
+  evaporation: 'Evaporation',
+  clarification: 'Clarification',
+  centrifugal_drier: 'Centrifugal & Drier House',
+};
+
+async function walkHierarchyNodeLabels(nodeId, hierarchyTable) {
+  const labels = [];
+  let currentId = nodeId;
+  const guard = new Set();
+  while (currentId && !guard.has(String(currentId))) {
+    guard.add(String(currentId));
+    const [[row]] = await pool.query(
+      `SELECT id, parent_id, name FROM \`${hierarchyTable}\` WHERE id = ? LIMIT 1`,
+      [currentId],
+    );
+    if (!row) break;
+    labels.unshift(String(row.name || '').trim());
+    currentId = row.parent_id;
   }
+  return labels.filter(Boolean);
+}
+
+/**
+ * Full equipment path labels for HOD display (mail / inbox / logged-in approvals).
+ * Sugar/Power: hierarchy tree. Production: house section + equipment name.
+ */
+async function resolveHierarchyPathLabels(domain, equipId, equipment = null) {
+  const eid = Number(equipId);
+  if (!Number.isFinite(eid) || eid <= 0) return [];
+
+  if (domain === 'production') {
+    let eq = equipment;
+    if (!eq) {
+      const [[row]] = await pool.query(
+        'SELECT name, house_section, equip_no FROM phn_equipment WHERE id = ? LIMIT 1',
+        [eid],
+      );
+      eq = row || null;
+    }
+    const labels = ['Production House'];
+    const sectionLabel = PRODUCTION_HOUSE_SECTION_LABELS[eq?.house_section]
+      || String(eq?.house_section || '').trim();
+    if (sectionLabel) labels.push(sectionLabel);
+    const leaf = String(eq?.name || eq?.equip_no || '').trim();
+    if (leaf) labels.push(leaf);
+    return labels;
+  }
+
+  if (domain === 'sugar' || domain === 'power') {
+    const hierarchyTable = domain === 'sugar' ? 'shn_hierarchy_node' : 'ppn_hierarchy_node';
+    const equipCol = domain === 'sugar' ? 'shn_equip_id' : 'ppn_equip_id';
+    const [[node]] = await pool.query(
+      `SELECT id FROM \`${hierarchyTable}\`
+       WHERE ${equipCol} = ? AND is_active = 1
+       ORDER BY id ASC
+       LIMIT 1`,
+      [eid],
+    );
+    if (node?.id) {
+      const labels = await walkHierarchyNodeLabels(node.id, hierarchyTable);
+      if (labels.length) return labels;
+    }
+
+    let eq = equipment;
+    if (!eq) {
+      const table = DOMAIN_TABLES[domain]?.equipment;
+      if (table) {
+        const [[row]] = await pool.query(
+          `SELECT name, category, subcategory, equip_no, tag_name FROM \`${table}\` WHERE id = ? LIMIT 1`,
+          [eid],
+        );
+        eq = row || null;
+      }
+    }
+    const labels = [DOMAIN_TABLES[domain]?.label || (domain === 'sugar' ? 'Sugar House' : 'Power Plant')];
+    if (eq?.category) labels.push(String(eq.category).trim());
+    if (eq?.subcategory) labels.push(String(eq.subcategory).trim());
+    const leaf = String(eq?.name || eq?.equip_no || eq?.tag_name || '').trim();
+    if (leaf) labels.push(leaf);
+    return labels.filter(Boolean);
+  }
+
+  return [];
+}
+
+function formatHierarchyPath(labels = []) {
+  return labels.filter(Boolean).join(PATH_SEP);
+}
+
+function equipmentLeafNameFromContext(ctx = {}) {
+  return String(ctx?.name || ctx?.equip_no || ctx?.tag_name || '').trim() || 'Equipment';
+}
+
+/**
+ * Split leaf equipment name vs hierarchy path for HOD mail / inbox / approvals.
+ * Path uses stored or resolved hierarchy labels; drops the last label when it
+ * duplicates the equipment name.
+ */
+function splitEquipmentDisplay(ctx = {}, hierarchyLabels = []) {
+  const equipmentName = equipmentLeafNameFromContext(ctx);
+  let pathLabels = Array.isArray(hierarchyLabels)
+    ? hierarchyLabels.map((x) => String(x || '').trim()).filter(Boolean)
+    : [];
+  if (!pathLabels.length && ctx.hierarchyPath) {
+    pathLabels = String(ctx.hierarchyPath).split(PATH_SEP).map((x) => x.trim()).filter(Boolean);
+  }
+  if (pathLabels.length) {
+    const last = pathLabels[pathLabels.length - 1];
+    if (last && last.toLowerCase() === equipmentName.toLowerCase()) {
+      pathLabels = pathLabels.slice(0, -1);
+    }
+  }
+  return {
+    equipmentName,
+    equipmentPath: formatHierarchyPath(pathLabels),
+  };
+}
+
+async function equipmentDisplayPartsFromRequest(request) {
+  const ctx = parseJson(request.equipment_context_json, {}) || {};
+  let labels = Array.isArray(ctx.hierarchyLabels) ? ctx.hierarchyLabels : [];
+  if (!labels.length) {
+    try {
+      labels = await resolveHierarchyPathLabels(request.domain, request.equip_id, null);
+    } catch (err) {
+      console.error('[maintenanceHistoryApproval] hierarchy path resolve failed:', err.message);
+      labels = [];
+    }
+  }
+  return splitEquipmentDisplay(ctx, labels);
+}
+
+/** Leaf equipment name only (notifications / short labels). */
+async function equipmentDisplayNameFromRequest(request) {
+  const parts = await equipmentDisplayPartsFromRequest(request);
+  return parts.equipmentName;
 }
 
 async function setPortalSetting(key, value) {
@@ -308,63 +541,86 @@ async function getApprovalSettings() {
     k.enabled,
     k.hodUserId,
     k.digestTime,
+    k.digestTime2,
     k.digestLastSentDate,
+    k.digestLastSentSlots,
   ]);
   const map = await readPortalSettings(keys);
-  return {
-    sugar: {
-      enabled: parseBool(map[SETTINGS_KEYS.sugar.enabled]),
-      hodUserId: map[SETTINGS_KEYS.sugar.hodUserId] ? Number(map[SETTINGS_KEYS.sugar.hodUserId]) : null,
-      digestTime: normalizeDigestTime(map[SETTINGS_KEYS.sugar.digestTime]) || DEFAULT_DIGEST_TIME,
-      digestLastSentDate: map[SETTINGS_KEYS.sugar.digestLastSentDate] || '',
-    },
-    power: {
-      enabled: parseBool(map[SETTINGS_KEYS.power.enabled]),
-      hodUserId: map[SETTINGS_KEYS.power.hodUserId] ? Number(map[SETTINGS_KEYS.power.hodUserId]) : null,
-      digestTime: normalizeDigestTime(map[SETTINGS_KEYS.power.digestTime]) || DEFAULT_DIGEST_TIME,
-      digestLastSentDate: map[SETTINGS_KEYS.power.digestLastSentDate] || '',
-    },
-  };
+  const settings = {};
+  for (const domain of APPROVAL_DOMAINS) {
+    const k = SETTINGS_KEYS[domain];
+    settings[domain] = {
+      enabled: parseBool(map[k.enabled]),
+      hodUserId: map[k.hodUserId] ? Number(map[k.hodUserId]) : null,
+      digestTime: normalizeDigestTime(map[k.digestTime]) || DEFAULT_DIGEST_TIME,
+      digestTime2: normalizeOptionalDigestTime(map[k.digestTime2]),
+      digestLastSentDate: map[k.digestLastSentDate] || '',
+      digestLastSentSlots: parseDigestLastSentSlots(map[k.digestLastSentSlots]),
+    };
+  }
+  return settings;
 }
 
 async function updateApprovalSettings(body) {
   const current = await getApprovalSettings();
-  const sugarDigestTime = normalizeDigestTime(body.sugar?.digestTime) || DEFAULT_DIGEST_TIME;
-  const powerDigestTime = normalizeDigestTime(body.power?.digestTime) || DEFAULT_DIGEST_TIME;
-  const updates = [
-    [SETTINGS_KEYS.sugar.enabled, body.sugar?.enabled ? '1' : '0'],
-    [SETTINGS_KEYS.power.enabled, body.power?.enabled ? '1' : '0'],
-    [SETTINGS_KEYS.sugar.hodUserId, body.sugar?.hodUserId ? String(body.sugar.hodUserId) : ''],
-    [SETTINGS_KEYS.power.hodUserId, body.power?.hodUserId ? String(body.power.hodUserId) : ''],
-    [SETTINGS_KEYS.sugar.digestTime, sugarDigestTime],
-    [SETTINGS_KEYS.power.digestTime, powerDigestTime],
-  ];
+  const nextByDomain = {};
+  const updates = [];
+  for (const domain of APPROVAL_DOMAINS) {
+    const cfg = body?.[domain] || {};
+    const digestTime = normalizeDigestTime(cfg.digestTime) || DEFAULT_DIGEST_TIME;
+    const digestTime2 = normalizeOptionalDigestTime(cfg.digestTime2);
+    nextByDomain[domain] = { digestTime, digestTime2 };
+    updates.push(
+      [SETTINGS_KEYS[domain].enabled, cfg.enabled ? '1' : '0'],
+      [SETTINGS_KEYS[domain].hodUserId, cfg.hodUserId ? String(cfg.hodUserId) : ''],
+      [SETTINGS_KEYS[domain].digestTime, digestTime],
+      [SETTINGS_KEYS[domain].digestTime2, digestTime2],
+    );
+  }
   for (const [key, value] of updates) {
     await setPortalSetting(key, value);
   }
 
-  // If digest already ran today but admin moves the time to later than now (IST),
-  // clear today's "sent" marker so the scheduler can send again at the new time.
+  // If a digest slot already ran today but admin moves that slot later than now (IST),
+  // clear today's marker for that slot so the scheduler can send again.
   const ist = getIstDateParts();
   const nowMinutes = timeToMinutes(ist.time);
-  const nextByDomain = {
-    sugar: sugarDigestTime,
-    power: powerDigestTime,
-  };
-  for (const domain of ['sugar', 'power']) {
-    const prevTime = normalizeDigestTime(current[domain]?.digestTime) || DEFAULT_DIGEST_TIME;
-    const nextTime = nextByDomain[domain];
-    if (prevTime === nextTime) continue;
-    if (current[domain]?.digestLastSentDate !== ist.date) continue;
-    const nextMinutes = timeToMinutes(nextTime);
-    if (nowMinutes == null || nextMinutes == null) continue;
-    if (nextMinutes <= nowMinutes) continue;
+  for (const domain of APPROVAL_DOMAINS) {
+    const prevTimes = configuredDigestTimes(current[domain]);
+    const nextTimes = configuredDigestTimes(nextByDomain[domain]);
+    const slots = parseDigestLastSentSlots(current[domain]?.digestLastSentSlots);
+    let changed = false;
+    const nextSlots = { ...slots };
 
-    await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, '');
-    console.log(
-      `[maintenanceHistoryApproval] ${domain} digest time changed ${prevTime} → ${nextTime} IST `
-      + `(after today's send); cleared last-sent so digest can run again at ${nextTime}`,
-    );
+    for (const prevTime of prevTimes) {
+      if (nextTimes.includes(prevTime)) continue;
+      if (nextSlots[prevTime] === ist.date) {
+        delete nextSlots[prevTime];
+        changed = true;
+      }
+    }
+    for (const nextTime of nextTimes) {
+      if (prevTimes.includes(nextTime)) continue;
+      const nextMinutes = timeToMinutes(nextTime);
+      if (nowMinutes == null || nextMinutes == null) continue;
+      if (nextMinutes <= nowMinutes) continue;
+      // New later slot today — ensure it is not blocked by legacy date marker alone
+      if (nextSlots[nextTime] === ist.date) {
+        delete nextSlots[nextTime];
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentSlots, JSON.stringify(nextSlots));
+      const stillToday = Object.values(nextSlots).some((d) => d === ist.date);
+      if (!stillToday && current[domain]?.digestLastSentDate === ist.date) {
+        await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, '');
+      }
+      console.log(
+        `[maintenanceHistoryApproval] ${domain} digest times updated; refreshed today's slot markers`,
+      );
+    }
   }
 
   return getApprovalSettings();
@@ -403,7 +659,14 @@ function listStagedDocuments(requestId) {
   const dir = approvalStagingDir(requestId);
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
-    .filter((filename) => !filename.endsWith('.meta.json'))
+    .filter((filename) => {
+      if (!filename || filename.endsWith('.meta.json') || filename.startsWith('.')) return false;
+      try {
+        return fs.statSync(path.join(dir, filename)).isFile();
+      } catch {
+        return false;
+      }
+    })
     .map((filename) => {
       const metaPath = path.join(dir, `${filename}.meta.json`);
       let meta = {};
@@ -431,6 +694,29 @@ function cleanupStagingDir(requestId) {
   const dir = approvalStagingDir(requestId);
   if (!fs.existsSync(dir)) return;
   fs.rmSync(dir, { recursive: true, force: true });
+}
+
+/** Remove one staged file (+ meta) for an approval request. Returns true if removed. */
+function deleteStagedDocument(requestId, fileName) {
+  const safeName = path.basename(String(fileName || '').trim());
+  if (!safeName || safeName !== String(fileName || '').trim() || safeName.endsWith('.meta.json')) {
+    const err = new Error('Invalid document name.');
+    err.status = 400;
+    throw err;
+  }
+  const staged = listStagedDocuments(requestId);
+  const match = staged.find((f) => f.filename === safeName);
+  if (!match) {
+    const err = new Error('Document not found.');
+    err.status = 404;
+    throw err;
+  }
+  const dir = approvalStagingDir(requestId);
+  const abs = path.join(dir, safeName);
+  const metaPath = path.join(dir, `${safeName}.meta.json`);
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
+  return true;
 }
 
 async function moveStagedDocumentsToHistory(domain, equipId, historyId, requestId) {
@@ -669,11 +955,17 @@ function documentViewUrl(acceptToken, source, name) {
   return `/api/maintenance-approval/document?${params.toString()}`;
 }
 
-function buildReviewDocuments(request, acceptToken) {
-  const payload = parseJson(request.payload_json, {});
-  const previous = parseJson(request.previous_json, null);
-  const docSource = request.action === 'delete' ? previous : payload;
-  const stored = parseHistoryDocuments(docSource?.documents).map((doc) => {
+/** Authenticated HOD / owner document URL (Bearer required — open via API client). */
+function documentAuthViewUrl(requestId, source, name) {
+  const params = new URLSearchParams({
+    source: source === 'staged' ? 'staged' : 'stored',
+    name: String(name || ''),
+  });
+  return `/api/approvals/${encodeURIComponent(requestId)}/documents?${params.toString()}`;
+}
+
+function mapStoredDocsForReview(docs, makeUrl) {
+  return (docs || []).map((doc) => {
     const name = path.basename(doc.storageKey);
     return {
       source: 'stored',
@@ -681,9 +973,88 @@ function buildReviewDocuments(request, acceptToken) {
       displayName: doc.displayName,
       mimeType: doc.mimeType || 'application/octet-stream',
       size: Number(doc.size) || 0,
-      url: documentViewUrl(acceptToken, 'stored', name),
+      url: makeUrl('stored', name),
     };
   });
+}
+
+/** After approve, docs live on the history row — payload may still be empty. */
+async function findLikelyCreatedHistoryId(request) {
+  if (request.action !== 'create' || request.status !== STATUS.APPROVED) return null;
+  const tables = DOMAIN_TABLES[request.domain];
+  if (!tables?.history) return null;
+  const payload = parseJson(request.payload_json, {}) || {};
+  try {
+    const [[row]] = await pool.query(
+      `SELECT id FROM \`${tables.history}\`
+       WHERE equip_id = ?
+         AND documents IS NOT NULL
+         AND JSON_LENGTH(documents) > 0
+         AND (date_start <=> ?)
+         AND (obs <=> ?)
+         AND (act <=> ?)
+         AND (rem <=> ?)
+       ORDER BY id DESC
+       LIMIT 1`,
+      [
+        request.equip_id,
+        payload.date_start || null,
+        payload.obs || null,
+        payload.act || null,
+        payload.rem || null,
+      ],
+    );
+    return row?.id ? Number(row.id) : null;
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] find created history id failed:', err.message);
+    return null;
+  }
+}
+
+async function loadHistoryDocumentsForRequest(request) {
+  let historyId = Number(request.history_id) || 0;
+  if (!historyId) {
+    historyId = (await findLikelyCreatedHistoryId(request)) || 0;
+    // Lazy backfill so approved Review keeps working after create approvals.
+    if (historyId) {
+      try {
+        await pool.execute(
+          `UPDATE maintenance_history_approval_request
+           SET history_id = COALESCE(history_id, ?)
+           WHERE id = ?`,
+          [historyId, request.id],
+        );
+        request.history_id = historyId;
+      } catch {
+        /* non-fatal */
+      }
+    }
+  }
+  if (!historyId || request.action === 'delete') return [];
+  const tables = DOMAIN_TABLES[request.domain];
+  if (!tables?.history) return [];
+  try {
+    const [[row]] = await pool.query(
+      `SELECT documents FROM \`${tables.history}\` WHERE id = ? AND equip_id = ? LIMIT 1`,
+      [historyId, request.equip_id],
+    );
+    return parseHistoryDocuments(row?.documents);
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] load history documents failed:', err.message);
+    return [];
+  }
+}
+
+async function buildReviewDocuments(request, { acceptToken = null, useAuthUrl = false } = {}) {
+  const payload = parseJson(request.payload_json, {});
+  const previous = parseJson(request.previous_json, null);
+  const docSource = request.action === 'delete' ? previous : payload;
+  const makeUrl = (source, name) => (
+    useAuthUrl
+      ? documentAuthViewUrl(request.id, source, name)
+      : documentViewUrl(acceptToken, source, name)
+  );
+  let stored = mapStoredDocsForReview(parseHistoryDocuments(docSource?.documents), makeUrl);
   const staged = request.action === 'delete'
     ? []
     : listStagedDocuments(request.id).map((file) => ({
@@ -692,13 +1063,24 @@ function buildReviewDocuments(request, acceptToken) {
       displayName: file.displayName,
       mimeType: file.mimeType || 'application/octet-stream',
       size: Number(file.size) || 0,
-      url: documentViewUrl(acceptToken, 'staged', file.filename),
+      url: makeUrl('staged', file.filename),
     }));
+
+  // Approved creates/updates move staged files into history and clear staging;
+  // fall back to the live history row when payload still has no document keys.
+  if (
+    !stored.length
+    && !staged.length
+    && request.action !== 'delete'
+    && (request.history_id || request.status === STATUS.APPROVED)
+  ) {
+    stored = mapStoredDocsForReview(await loadHistoryDocumentsForRequest(request), makeUrl);
+  }
+
   return [...stored, ...staged];
 }
 
-async function getDocumentForReviewToken(token, source, name) {
-  const review = await getReviewByToken(token);
+async function resolveDocumentFileForRequest(request, source, name) {
   const safeName = path.basename(String(name || '').replace(/\\/g, '/'));
   if (!safeName || safeName === '.' || safeName === '..') {
     const err = new Error('Invalid document name.');
@@ -708,7 +1090,7 @@ async function getDocumentForReviewToken(token, source, name) {
   const src = source === 'staged' ? 'staged' : 'stored';
 
   if (src === 'staged') {
-    const file = listStagedDocuments(review.request.id).find((f) => f.filename === safeName);
+    const file = listStagedDocuments(request.id).find((f) => f.filename === safeName);
     if (!file || !fs.existsSync(file.absPath)) {
       const err = new Error('Document not found.');
       err.status = 404;
@@ -721,11 +1103,18 @@ async function getDocumentForReviewToken(token, source, name) {
     };
   }
 
-  const payload = parseJson(review.request.payload_json, {});
-  const previous = parseJson(review.request.previous_json, null);
-  const docSource = review.request.action === 'delete' ? previous : payload;
-  const document = parseHistoryDocuments(docSource?.documents)
+  const payload = parseJson(request.payload_json, {});
+  const previous = parseJson(request.previous_json, null);
+  const docSource = request.action === 'delete' ? previous : payload;
+  let document = parseHistoryDocuments(docSource?.documents)
     .find((doc) => path.basename(doc.storageKey) === safeName);
+
+  if (!document && request.action !== 'delete'
+    && (request.history_id || request.status === STATUS.APPROVED)) {
+    document = (await loadHistoryDocumentsForRequest(request))
+      .find((doc) => path.basename(doc.storageKey) === safeName);
+  }
+
   if (!document) {
     const err = new Error('Document not found.');
     err.status = 404;
@@ -744,6 +1133,17 @@ async function getDocumentForReviewToken(token, source, name) {
   };
 }
 
+async function getDocumentForReviewToken(token, source, name) {
+  const review = await getReviewByToken(token);
+  return resolveDocumentFileForRequest(review.request, source, name);
+}
+
+async function getDocumentForLoggedInUser(user, requestId, source, name) {
+  const request = await getRequestById(requestId);
+  await assertCanViewRequest(user, request);
+  return resolveDocumentFileForRequest(request, source, name);
+}
+
 async function getReviewByToken(token) {
   let request = await getRequestByToken(token, 'accept');
   if (!request) {
@@ -758,12 +1158,14 @@ async function getReviewByToken(token) {
   const photoSource = request.action === 'delete' ? previous : payload;
   const acceptToken = request.token_accept;
 
+  const display = await equipmentDisplayPartsFromRequest(request);
   return {
     status: request.status,
     alreadyResolved: !ACTIVE_QUEUE_STATUSES.includes(request.status),
     tokenExpired: Boolean(request.tokenExpired),
     request,
-    equipmentName: equipmentNameFromRequest(request),
+    equipmentName: display.equipmentName,
+    equipmentPath: display.equipmentPath,
     domain: request.domain,
     domainLabel: DOMAIN_TABLES[request.domain]?.label || '',
     action: request.action,
@@ -779,7 +1181,7 @@ async function getReviewByToken(token) {
     resolvedAt: request.resolved_at || null,
     photosBefore: imageSources(photoSource?.img_before),
     photosAfter: imageSources(photoSource?.img_after),
-    documents: buildReviewDocuments(request, acceptToken),
+    documents: await buildReviewDocuments(request, { acceptToken }),
   };
 }
 
@@ -791,13 +1193,17 @@ async function getInboxByToken(token) {
      ORDER BY created_at ASC, id ASC`,
     [review.request.domain, review.request.hod_email],
   );
+  const entries = [];
+  for (const row of rows) {
+    entries.push(await buildDigestEntry(row));
+  }
   return {
     status: review.status,
     alreadyResolved: review.alreadyResolved && !rows.length,
     domain: review.domain,
     domainLabel: review.domainLabel,
     hodEmail: review.request.hod_email,
-    entries: rows.map(buildDigestEntry),
+    entries,
   };
 }
 
@@ -856,11 +1262,22 @@ async function createPendingRequest({
   }
 
   const tokens = newTokenPair();
+  const hierarchyLabels = await resolveHierarchyPathLabels(domain, equipId, equipment);
+  const display = splitEquipmentDisplay({
+    name: equipment?.name || '',
+    equip_no: equipment?.equip_no || equipment?.tag_name || '',
+    tag_name: equipment?.tag_name || '',
+  }, hierarchyLabels);
   const equipmentContext = {
     name: equipment?.name || '',
     equip_no: equipment?.equip_no || equipment?.tag_name || '',
     tag_name: equipment?.tag_name || '',
     dept: equipment?.dept || '',
+    house_section: equipment?.house_section || '',
+    category: equipment?.category || '',
+    subcategory: equipment?.subcategory || '',
+    hierarchyLabels,
+    hierarchyPath: display.equipmentPath,
   };
 
   const previousSnapshot = previousRow ? snapshotFromRow(previousRow) : null;
@@ -894,6 +1311,10 @@ async function createPendingRequest({
     ],
   );
 
+  // After DB clear + AUTO_INCREMENT reset, new ids can reuse folders that still
+  // hold orphaned staged files — wipe so uploads start from an empty quota.
+  cleanupStagingDir(result.insertId);
+
   try {
     await insertAudit({
       requestId: result.insertId,
@@ -907,7 +1328,16 @@ async function createPendingRequest({
     console.error('[maintenanceHistoryApproval] audit create failed:', err.message);
   }
 
-  return { id: result.insertId, tokenAccept: tokens.tokenAccept, tokenReject: tokens.tokenReject };
+  const created = await getRequestById(result.insertId);
+  // HOD in-app notify is deferred until the client finishes document uploads
+  // (see POST /change-requests/:id/notify-hod). Callers that do not defer
+  // should invoke notifyHodInAppPending themselves after createPendingRequest.
+  return {
+    id: result.insertId,
+    tokenAccept: tokens.tokenAccept,
+    tokenReject: tokens.tokenReject,
+    request: created,
+  };
 }
 
 async function fetchPendingForDigest(domain, _istDate) {
@@ -966,6 +1396,24 @@ async function ensureWorkflowSchema() {
   );
   await addColumnIfMissing('shn_history', 'version', '`version` INT NOT NULL DEFAULT 1');
   await addColumnIfMissing('ppn_history', 'version', '`version` INT NOT NULL DEFAULT 1');
+  await addColumnIfMissing('phn_history', 'version', '`version` INT NOT NULL DEFAULT 1');
+  await addColumnIfMissing('phn_history', 'documents', '`documents` JSON DEFAULT NULL');
+  await addColumnIfMissing('phn_history', 'equipment_refs', '`equipment_refs` JSON DEFAULT NULL');
+
+  const [[domainCol]] = await pool.query(
+    `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE()
+       AND TABLE_NAME = 'maintenance_history_approval_request'
+       AND COLUMN_NAME = 'domain'`,
+  );
+  const domainType = String(domainCol?.COLUMN_TYPE || '');
+  if (domainType && !domainType.includes('production')) {
+    await pool.execute(
+      `ALTER TABLE maintenance_history_approval_request
+       MODIFY COLUMN domain ENUM('sugar','power','production') NOT NULL`,
+    );
+    console.log('[maintenanceHistoryApproval] expanded domain enum to include production');
+  }
 
   const [[statusCol]] = await pool.query(
     `SELECT COLUMN_TYPE FROM information_schema.COLUMNS
@@ -1006,12 +1454,25 @@ async function ensureDigestSchema() {
     'hod_notified_at',
     '`hod_notified_at` DATETIME NULL DEFAULT NULL',
   );
+  await addColumnIfMissing(
+    'maintenance_history_approval_request',
+    'employee_reminder_sent_at',
+    '`employee_reminder_sent_at` DATETIME NULL DEFAULT NULL',
+  );
 
   const keys = [
     [SETTINGS_KEYS.sugar.digestTime, DEFAULT_DIGEST_TIME],
     [SETTINGS_KEYS.power.digestTime, DEFAULT_DIGEST_TIME],
+    [SETTINGS_KEYS.production.digestTime, DEFAULT_DIGEST_TIME],
+    [SETTINGS_KEYS.sugar.digestTime2, ''],
+    [SETTINGS_KEYS.power.digestTime2, ''],
+    [SETTINGS_KEYS.production.digestTime2, ''],
     [SETTINGS_KEYS.sugar.digestLastSentDate, ''],
     [SETTINGS_KEYS.power.digestLastSentDate, ''],
+    [SETTINGS_KEYS.production.digestLastSentDate, ''],
+    [SETTINGS_KEYS.sugar.digestLastSentSlots, '{}'],
+    [SETTINGS_KEYS.power.digestLastSentSlots, '{}'],
+    [SETTINGS_KEYS.production.digestLastSentSlots, '{}'],
   ];
   for (const [key, value] of keys) {
     await pool.execute(
@@ -1035,7 +1496,7 @@ async function countNotifiedOnIstDate(domain, istDate) {
        WHERE domain = ? AND hod_notified_at IS NOT NULL`,
       [domain],
     );
-    return rows.filter((row) => getIstDateParts(new Date(row.hod_notified_at)).date === istDate).length;
+    return rows.filter((row) => getIstDateParts(parseMysqlUtcDateTime(row.hod_notified_at) || new Date(0)).date === istDate).length;
   } catch (err) {
     if (String(err.message || '').includes('hod_notified_at')) {
       const wrap = new Error(
@@ -1048,13 +1509,15 @@ async function countNotifiedOnIstDate(domain, istDate) {
   }
 }
 
-function buildDigestEntry(request) {
+async function buildDigestEntry(request) {
   const payload = parseJson(request.payload_json, {});
   const previous = parseJson(request.previous_json, null);
   const diff = buildFieldDiff(request.action, previous, payload);
+  const display = await equipmentDisplayPartsFromRequest(request);
   return {
     id: request.id,
-    equipmentName: equipmentNameFromRequest(request),
+    equipmentName: display.equipmentName,
+    equipmentPath: display.equipmentPath,
     actionLabel: actionLabel(request.action),
     submitterName: request.requested_by_name || 'A user',
     submitterEmail: request.requested_by_email || '',
@@ -1069,7 +1532,7 @@ function splitDigestByIstDate(rows, istDate) {
   const previous = [];
   const today = [];
   for (const row of rows) {
-    const created = getIstDateParts(new Date(row.created_at)).date;
+    const created = getIstDateParts(parseMysqlUtcDateTime(row.created_at) || new Date(0)).date;
     if (created === istDate) today.push(row);
     else previous.push(row);
   }
@@ -1078,13 +1541,15 @@ function splitDigestByIstDate(rows, istDate) {
 
 /**
  * @param {'sugar'|'power'} domain
- * @param {{ force?: boolean, mode?: 'all'|'new' }} [options]
+ * @param {{ force?: boolean, mode?: 'all'|'new', slot?: string }} [options]
  *   - force: bypass "already sent today" guard (admin/HOD resend)
  *   - mode 'new': only rows never included in a digest (hod_notified_at IS NULL)
+ *   - slot: HH:mm schedule slot being fired (tracks per-slot daily send)
  */
 async function sendDigestForDomain(domain, options = {}) {
   const force = Boolean(options.force);
   const mode = options.mode === 'new' ? 'new' : 'all';
+  const slot = normalizeOptionalDigestTime(options.slot);
 
   const settings = await getApprovalSettings();
   const domainSettings = settings[domain];
@@ -1093,8 +1558,14 @@ async function sendDigestForDomain(domain, options = {}) {
   }
 
   const ist = getIstDateParts();
-  if (!force && domainSettings.digestLastSentDate === ist.date) {
-    return { sent: false, reason: 'already-sent' };
+  if (!force) {
+    if (slot) {
+      if (slotAlreadySentToday(domainSettings, slot, ist.date)) {
+        return { sent: false, reason: 'already-sent' };
+      }
+    } else if (domainSettings.digestLastSentDate === ist.date) {
+      return { sent: false, reason: 'already-sent' };
+    }
   }
 
   let pendingRows = await fetchPendingForDigest(domain, ist.date);
@@ -1138,7 +1609,10 @@ async function sendDigestForDomain(domain, options = {}) {
     });
   }
 
-  const entries = refreshed.map(buildDigestEntry);
+  const entries = [];
+  for (const row of refreshed) {
+    entries.push(await buildDigestEntry(row));
+  }
   await sendMaintenanceHistoryDigestEmail({
     to: hod.email,
     hodName: hod.name,
@@ -1161,8 +1635,12 @@ async function sendDigestForDomain(domain, options = {}) {
     ids,
   );
 
-  await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
-  return { sent: true, count: pendingRows.length, mode, force };
+  if (slot) {
+    await markDigestSlotSent(domain, slot, ist.date);
+  } else {
+    await setPortalSetting(SETTINGS_KEYS[domain].digestLastSentDate, ist.date);
+  }
+  return { sent: true, count: pendingRows.length, mode, force, slot: slot || null };
 }
 
 async function resendDigestByToken(token, options = {}) {
@@ -1216,7 +1694,7 @@ async function bulkApproveByInboxToken(seedToken, ids) {
         status: result.status,
         alreadyResolved: Boolean(result.alreadyResolved),
         conflict: conflict || null,
-        equipmentName: equipmentNameFromRequest(result.request),
+        equipmentName: await equipmentDisplayNameFromRequest(result.request),
         message: conflict
           ? 'Version conflict — open Review for this row.'
           : null,
@@ -1250,33 +1728,167 @@ async function runDigestSchedulerTick() {
     return;
   }
 
-  for (const domain of ['sugar', 'power']) {
+  for (const domain of APPROVAL_DOMAINS) {
     const domainSettings = settings[domain];
     if (!domainSettings?.enabled) continue;
 
-    const digestMinutes = timeToMinutes(domainSettings.digestTime);
-    if (digestMinutes == null) continue;
+    const times = configuredDigestTimes(domainSettings);
+    if (!times.length) continue;
 
     try {
-      if (domainSettings.digestLastSentDate === ist.date) continue;
-
       const pending = await fetchPendingForDigest(domain, ist.date);
       if (!pending.length) continue;
 
-      if (nowMinutes < digestMinutes) {
-        console.log(
-          `[maintenanceHistoryApproval] ${pending.length} pending ${domain} item(s); waiting until ${domainSettings.digestTime} IST (now ${ist.time})`,
-        );
-        continue;
-      }
+      for (const slot of times) {
+        const digestMinutes = timeToMinutes(slot);
+        if (digestMinutes == null) continue;
+        if (slotAlreadySentToday(domainSettings, slot, ist.date)) continue;
 
-      const result = await sendDigestForDomain(domain);
-      if (result.sent) {
-        console.log(`[maintenanceHistoryApproval] digest sent for ${domain}: ${result.count} item(s) to HOD`);
+        if (nowMinutes < digestMinutes) {
+          console.log(
+            `[maintenanceHistoryApproval] ${pending.length} pending ${domain} item(s); waiting until ${slot} IST (now ${ist.time})`,
+          );
+          continue;
+        }
+
+        const result = await sendDigestForDomain(domain, { slot });
+        if (result.sent) {
+          console.log(
+            `[maintenanceHistoryApproval] digest sent for ${domain} at slot ${slot}: ${result.count} item(s) to HOD`,
+          );
+          // Refresh in-memory markers so a second slot in the same tick is not blocked incorrectly
+          domainSettings.digestLastSentSlots = {
+            ...parseDigestLastSentSlots(domainSettings.digestLastSentSlots),
+            [slot]: ist.date,
+          };
+          domainSettings.digestLastSentDate = ist.date;
+        }
       }
     } catch (err) {
       console.error(`[maintenanceHistoryApproval] digest failed for ${domain}:`, err.message);
     }
+  }
+}
+
+function istCalendarDaysBetween(earlierIstDate, laterIstDate) {
+  if (!earlierIstDate || !laterIstDate) return 0;
+  const a = new Date(`${earlierIstDate}T00:00:00+05:30`).getTime();
+  const b = new Date(`${laterIstDate}T00:00:00+05:30`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.floor((b - a) / (24 * 60 * 60 * 1000));
+}
+
+function isEmployeeModificationReminderDue(row, todayIstDate) {
+  const anchor = parseMysqlUtcDateTime(row.employee_reminder_sent_at)
+    || parseMysqlUtcDateTime(row.resolved_at);
+  if (!anchor) return false;
+  const anchorIst = getIstDateParts(anchor).date;
+  return istCalendarDaysBetween(anchorIst, todayIstDate) >= EMPLOYEE_REMINDER_INTERVAL_DAYS;
+}
+
+async function sendEmployeeModificationReminderForRequest(row) {
+  const email = String(row.requested_by_email || '').trim();
+  if (!email) return { sent: false, reason: 'no-email' };
+
+  await sendMaintenanceHistoryModificationReminderEmail({
+    to: email,
+    submitterName: row.requested_by_name || 'User',
+    domainLabel: DOMAIN_TABLES[row.domain]?.label || row.domain,
+    equipmentName: await equipmentDisplayNameFromRequest(row),
+    actionLabel: actionLabel(row.action),
+    comment: row.hod_comment || '',
+    openUrl: buildEmployeeModificationOpenUrl(row),
+  });
+
+  // Soft in-app ping (does not block email if this fails)
+  try {
+    const userId = Number(row.requested_by_user_id);
+    if (userId) {
+      const equipmentName = await equipmentDisplayNameFromRequest(row);
+      await createUserNotification({
+        userId,
+        type: NOTIF_TYPE_MH_NEEDS_MODIFICATION,
+        title: 'Reminder: maintenance history needs modification',
+        body: `${actionLabel(row.action)} for ${equipmentName} is still waiting for you to revise and resubmit.`,
+        linkUrl: buildApprovalDeepLinkPath(row, { includeApprovalQuery: true }),
+        ctaLabel: 'View / Edit',
+        refType: NOTIF_REF_APPROVAL,
+        refId: row.id,
+        meta: {
+          domain: row.domain,
+          action: row.action,
+          equipId: row.equip_id,
+          status: STATUS.NEEDS_MODIFICATION,
+          reminder: true,
+        },
+      });
+    }
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] employee reminder in-app notify failed:', err.message);
+  }
+
+  await pool.execute(
+    `UPDATE maintenance_history_approval_request
+     SET employee_reminder_sent_at = NOW()
+     WHERE id = ? AND status = 'needs_modification'`,
+    [row.id],
+  );
+  return { sent: true };
+}
+
+/**
+ * Every day from 09:00 IST: email employees whose needs_modification requests
+ * are still open and at least 2 calendar days since HOD send / last reminder.
+ */
+async function runEmployeeModificationReminderTick() {
+  const ist = getIstDateParts();
+  const nowMinutes = timeToMinutes(ist.time);
+  const reminderMinutes = timeToMinutes(EMPLOYEE_REMINDER_TIME_IST);
+  if (nowMinutes == null || reminderMinutes == null) return;
+  if (nowMinutes < reminderMinutes) return;
+
+  let rows;
+  try {
+    const [result] = await pool.query(
+      `SELECT * FROM maintenance_history_approval_request
+       WHERE status = 'needs_modification'
+         AND requested_by_email IS NOT NULL
+         AND TRIM(requested_by_email) <> ''
+         AND resolved_at IS NOT NULL
+       ORDER BY resolved_at ASC, id ASC
+       LIMIT 200`,
+    );
+    rows = result;
+  } catch (err) {
+    if (err.code === 'ER_BAD_FIELD_ERROR') {
+      console.error(
+        '[maintenanceHistoryApproval] employee reminder skipped: apply mysql/migrate_maintenance_history_approval_employee_reminder.sql',
+      );
+      return;
+    }
+    throw err;
+  }
+
+  let sent = 0;
+  for (const row of rows) {
+    if (!isEmployeeModificationReminderDue(row, ist.date)) continue;
+    try {
+      const result = await sendEmployeeModificationReminderForRequest(row);
+      if (result.sent) {
+        sent += 1;
+        console.log(
+          `[maintenanceHistoryApproval] employee modification reminder sent for request #${row.id} → ${row.requested_by_email}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        `[maintenanceHistoryApproval] employee reminder failed for request #${row.id}:`,
+        err.message,
+      );
+    }
+  }
+  if (sent) {
+    console.log(`[maintenanceHistoryApproval] employee modification reminders sent: ${sent}`);
   }
 }
 
@@ -1360,15 +1972,16 @@ async function loadConflictState(request, conn) {
 }
 
 function requestCreatedIstDate(request) {
-  return getIstDateParts(new Date(request.created_at)).date;
+  return getIstDateParts(parseMysqlUtcDateTime(request.created_at) || new Date(0)).date;
 }
 
-function serializeApprovalRequest(request, extra = {}) {
+async function serializeApprovalRequest(request, extra = {}) {
   const payload = parseJson(request.payload_json, {});
   const previous = parseJson(request.previous_json, null);
   const createdIst = requestCreatedIstDate(request);
   const todayIst = getIstDateParts().date;
   const photoSource = request.action === 'delete' ? previous : payload;
+  const display = await equipmentDisplayPartsFromRequest(request);
   return {
     id: request.id,
     module: request.module || 'maintenance',
@@ -1379,7 +1992,8 @@ function serializeApprovalRequest(request, extra = {}) {
     operationLabel: actionLabel(request.action),
     entityId: request.history_id,
     equipId: request.equip_id,
-    equipmentName: equipmentNameFromRequest(request),
+    equipmentName: display.equipmentName,
+    equipmentPath: display.equipmentPath,
     previousData: previous,
     requestedData: payload,
     changedFields: buildFieldDiff(request.action, previous, payload),
@@ -1390,25 +2004,29 @@ function serializeApprovalRequest(request, extra = {}) {
     },
     status: request.status,
     hodComment: request.hod_comment || '',
-    requestedAt: request.created_at,
-    reviewedAt: request.resolved_at,
+    requestedAt: toApiUtcIso(request.created_at),
+    reviewedAt: toApiUtcIso(request.resolved_at),
     reviewedBy: request.reviewed_by_user_id,
     baseVersion: request.base_version,
     notificationCount: request.notification_count,
-    lastNotificationAt: request.hod_notified_at,
+    lastNotificationAt: toApiUtcIso(request.hod_notified_at),
     group: createdIst && createdIst === todayIst ? 'today' : 'previous',
     photosBefore: imageSources(photoSource?.img_before),
     photosAfter: imageSources(photoSource?.img_after),
+    documents: await buildReviewDocuments(request, { useAuthUrl: true }),
     ...extra,
   };
 }
 
 async function getHodAccess(userId) {
   const settings = await getApprovalSettings();
-  return {
-    sugar: Boolean(settings.sugar.enabled && Number(settings.sugar.hodUserId) === Number(userId)),
-    power: Boolean(settings.power.enabled && Number(settings.power.hodUserId) === Number(userId)),
-  };
+  const access = {};
+  for (const domain of APPROVAL_DOMAINS) {
+    access[domain] = Boolean(
+      settings[domain].enabled && Number(settings[domain].hodUserId) === Number(userId),
+    );
+  }
+  return access;
 }
 
 async function assertHodForRequest(user, request) {
@@ -1448,30 +2066,48 @@ async function applyPendingRequestDb(request, conn) {
 
 async function applyPendingRequestFiles(request, historyId) {
   const payload = parseJson(request.payload_json, {});
+  let nextPayload = payload;
+
   if (request.action === 'create' || request.action === 'update') {
     const targetId = historyId || request.history_id;
-    if (!targetId) return;
-    const withDocs = await mergeStagedDocumentsIntoPayload(
-      request.domain,
-      request.equip_id,
-      targetId,
-      request.id,
-      payload,
-    );
-    if (withDocs.documents !== payload.documents) {
-      await applyHistoryUpdate(request.domain, request.equip_id, targetId, withDocs);
+    if (targetId) {
+      nextPayload = await mergeStagedDocumentsIntoPayload(
+        request.domain,
+        request.equip_id,
+        targetId,
+        request.id,
+        payload,
+      );
+      if (nextPayload.documents !== payload.documents) {
+        await applyHistoryUpdate(request.domain, request.equip_id, targetId, nextPayload);
+      }
     }
-    return;
+  } else {
+    cleanupStagingDir(request.id);
   }
-  cleanupStagingDir(request.id);
+
+  // Keep payload_json + history_id in sync so approved Review still shows documents
+  // after staging is cleared.
+  const docsChanged = JSON.stringify(nextPayload?.documents ?? null)
+    !== JSON.stringify(payload?.documents ?? null);
+  const needHistoryId = Boolean(historyId) && !request.history_id;
+  if (docsChanged || needHistoryId) {
+    await pool.execute(
+      `UPDATE maintenance_history_approval_request
+       SET payload_json = ?, history_id = COALESCE(history_id, ?)
+       WHERE id = ?`,
+      [JSON.stringify(nextPayload || {}), historyId || null, request.id],
+    );
+  }
 }
 
-async function markRequestApproved(conn, request, actor) {
+async function markRequestApproved(conn, request, actor, historyId = null) {
   await db(conn).execute(
     `UPDATE maintenance_history_approval_request
-     SET status = 'approved', resolved_at = NOW(), resolved_by = ?, reviewed_by_user_id = ?
+     SET status = 'approved', resolved_at = NOW(), resolved_by = ?, reviewed_by_user_id = ?,
+         history_id = COALESCE(history_id, ?)
      WHERE id = ?`,
-    [actor.email || request.hod_email, actor.userId || null, request.id],
+    [actor.email || request.hod_email, actor.userId || null, historyId || null, request.id],
   );
 }
 
@@ -1483,30 +2119,114 @@ function buildApprovalDeepLinkPath(request, { includeApprovalQuery = true } = {}
 
   const payload = parseJson(request.payload_json, {});
   const previous = parseJson(request.previous_json, {});
+  const ctx = parseJson(request.equipment_context_json, {}) || {};
   const section = String(
     payload.section
     || previous.section
     || payload.equipment_refs?.[0]?.section
     || previous.equipment_refs?.[0]?.section
+    || ctx.dept
     || '',
   ).trim().toLowerCase();
   const basePath = request.domain === 'sugar'
     ? `/sugar-house-equipment-new/${equipId}`
-    : `/power-plant-equipment-new/${equipId}`;
-  const pathPrefix = section
+    : request.domain === 'production'
+      ? `/production-house-equipment/${equipId}`
+      : `/power-plant-equipment-new/${equipId}`;
+  // Production House has no discipline segment in the URL
+  const pathPrefix = (section && request.domain !== 'production')
     ? `${basePath}/${encodeURIComponent(section)}`
     : basePath;
   if (includeApprovalQuery && requestId) {
+    // Same query the in-app "View / Edit" notification uses (opens history + edit form)
     return `${pathPrefix}?approvalRequestId=${encodeURIComponent(requestId)}`;
   }
   return pathPrefix;
 }
 
+/** Absolute URL for emails — identical destination to the in-app notification CTA. */
+function buildEmployeeModificationOpenUrl(request) {
+  const relativePath = buildApprovalDeepLinkPath(request, { includeApprovalQuery: true });
+  const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
+  if (!relativePath) {
+    return publicBase ? `${publicBase}/?login=1` : '';
+  }
+  if (!publicBase) return relativePath;
+  return `${publicBase}${relativePath}`;
+}
+
+async function notifyHodInAppPending(request, { resubmitted = false } = {}) {
+  const userId = Number(request.hod_user_id);
+  if (!userId) return null;
+
+  // Create/submit notify is deferred until uploads finish — avoid duplicate toasts
+  // if the client calls notify-hod more than once for the same pending request.
+  if (!resubmitted) {
+    try {
+      const [[existing]] = await pool.query(
+        `SELECT id FROM user_notification
+         WHERE user_id = ? AND type = ? AND ref_type = ? AND ref_id = ?
+         LIMIT 1`,
+        [userId, NOTIF_TYPE_MH_PENDING_HOD, NOTIF_REF_APPROVAL, Number(request.id)],
+      );
+      if (existing) return { skipped: true, reason: 'already-notified' };
+    } catch (err) {
+      console.error('[maintenanceHistoryApproval] notify dedupe check failed:', err.message);
+    }
+  }
+
+  const equipmentName = await equipmentDisplayNameFromRequest(request);
+  const parts = await equipmentDisplayPartsFromRequest(request);
+  const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
+  const op = actionLabel(request.action);
+  const submitter = request.requested_by_name || request.requested_by_email || 'A user';
+  const pathBit = parts.equipmentPath ? ` — ${parts.equipmentPath}` : '';
+  await createUserNotification({
+    userId,
+    type: NOTIF_TYPE_MH_PENDING_HOD,
+    title: resubmitted
+      ? 'Maintenance history resubmitted for approval'
+      : 'Maintenance history awaiting approval',
+    body: `${submitter} ${resubmitted ? 'resubmitted' : 'submitted'} ${op.toLowerCase()} for ${equipmentName}${pathBit}${domainLabel ? ` (${domainLabel})` : ''}.`,
+    linkUrl: HOD_APPROVALS_PATH,
+    ctaLabel: 'Open approvals',
+    refType: NOTIF_REF_APPROVAL,
+    refId: request.id,
+    meta: {
+      domain: request.domain,
+      action: request.action,
+      equipId: request.equip_id,
+      status: resubmitted ? STATUS.RESUBMITTED : STATUS.PENDING,
+    },
+  });
+  return { skipped: false };
+}
+
+/**
+ * Called by the employee client after create/update pending request + document
+ * uploads finish, so HOD toast/sound does not fire mid-upload.
+ */
+async function notifyHodPendingAfterClientSubmit(requestId, user) {
+  const request = await getRequestById(requestId);
+  if (Number(request.requested_by_user_id) !== Number(user?.id)) {
+    const err = new Error('Not allowed to notify for this request.');
+    err.status = 403;
+    throw err;
+  }
+  if (![STATUS.PENDING, STATUS.RESUBMITTED].includes(request.status)) {
+    const err = new Error('Request is not awaiting HOD review.');
+    err.status = 409;
+    throw err;
+  }
+  return notifyHodInAppPending(request, {
+    resubmitted: request.status === STATUS.RESUBMITTED,
+  });
+}
+
 async function notifySubmitterInAppApproved(request) {
   const userId = Number(request.requested_by_user_id);
   if (!userId) return;
-  const ctx = parseJson(request.equipment_context_json, {});
-  const equipmentName = ctx.name || ctx.equip_no || 'Equipment';
+  const equipmentName = await equipmentDisplayNameFromRequest(request);
   const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
   const op = actionLabel(request.action);
   await createUserNotification({
@@ -1530,8 +2250,7 @@ async function notifySubmitterInAppApproved(request) {
 async function notifySubmitterInAppNeedsModification(request, comment) {
   const userId = Number(request.requested_by_user_id);
   if (!userId) return;
-  const ctx = parseJson(request.equipment_context_json, {});
-  const equipmentName = ctx.name || ctx.equip_no || 'Equipment';
+  const equipmentName = await equipmentDisplayNameFromRequest(request);
   const domainLabel = DOMAIN_TABLES[request.domain]?.label || '';
   const op = actionLabel(request.action);
   const commentText = String(comment || '').trim();
@@ -1559,12 +2278,11 @@ async function notifyApproved(request) {
   await notifySubmitterInAppApproved(request);
   if (!request.requested_by_email) return;
   try {
-    const ctx = parseJson(request.equipment_context_json, {});
     await sendMaintenanceHistoryApprovedEmail({
       to: request.requested_by_email,
       submitterName: request.requested_by_name || 'User',
       domainLabel: DOMAIN_TABLES[request.domain].label,
-      equipmentName: ctx.name || ctx.equip_no || 'Equipment',
+      equipmentName: await equipmentDisplayNameFromRequest(request),
       actionLabel: actionLabel(request.action),
     });
   } catch (err) {
@@ -1576,18 +2294,14 @@ async function notifyNeedsModification(request, comment) {
   await notifySubmitterInAppNeedsModification(request, comment);
   if (!request.requested_by_email) return;
   try {
-    const ctx = parseJson(request.equipment_context_json, {});
-    const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
-    const relativePath = buildApprovalDeepLinkPath(request, { includeApprovalQuery: true });
-    const openUrl = publicBase && relativePath ? `${publicBase}${relativePath}` : '';
     await sendMaintenanceHistoryModificationEmail({
       to: request.requested_by_email,
       submitterName: request.requested_by_name || 'User',
       domainLabel: DOMAIN_TABLES[request.domain].label,
-      equipmentName: ctx.name || ctx.equip_no || 'Equipment',
+      equipmentName: await equipmentDisplayNameFromRequest(request),
       actionLabel: actionLabel(request.action),
       comment,
-      openUrl,
+      openUrl: buildEmployeeModificationOpenUrl(request),
     });
   } catch (err) {
     console.error('[maintenanceHistoryApproval] modification notify failed:', err.message);
@@ -1654,7 +2368,7 @@ async function approveRequest(request, actor = {}, { force = false } = {}) {
   try {
     await conn.beginTransaction();
     historyId = await applyPendingRequestDb(request, conn);
-    await markRequestApproved(conn, request, actor);
+    await markRequestApproved(conn, request, actor, historyId);
     await insertAudit({
       conn,
       requestId: request.id,
@@ -1703,7 +2417,7 @@ async function sendForModification(request, comment, actor = {}) {
   await pool.execute(
     `UPDATE maintenance_history_approval_request
      SET status = 'needs_modification', hod_comment = ?, resolved_at = NOW(),
-         resolved_by = ?, reviewed_by_user_id = ?
+         resolved_by = ?, reviewed_by_user_id = ?, employee_reminder_sent_at = NULL
      WHERE id = ?`,
     [trimmed, actor.email || request.hod_email, actor.userId || null, request.id],
   );
@@ -1799,7 +2513,8 @@ async function resubmitRequest(request, payload, user) {
     `UPDATE maintenance_history_approval_request
      SET payload_json = ?, previous_json = ?, status = 'resubmitted',
          base_version = ?, token_accept = ?, token_reject = ?, token_expires_at = ?,
-         hod_notified_at = NULL, resolved_at = NULL, resolved_by = NULL
+         hod_notified_at = NULL, resolved_at = NULL, resolved_by = NULL,
+         employee_reminder_sent_at = NULL
      WHERE id = ?`,
     [
       JSON.stringify(payload || {}),
@@ -1825,7 +2540,14 @@ async function resubmitRequest(request, payload, user) {
     console.error('[maintenanceHistoryApproval] resubmit audit failed:', err.message);
   }
 
-  return getRequestById(request.id);
+  const updated = await getRequestById(request.id);
+  try {
+    await notifyHodInAppPending(updated, { resubmitted: true });
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] hod resubmit notify failed:', err.message);
+  }
+
+  return updated;
 }
 
 async function resolveConflict(request, resolution, actor) {
@@ -1923,17 +2645,21 @@ async function listMyRequests(userId, query = {}) {
      LIMIT ${limit} OFFSET ${offset}`,
     params,
   );
+  const items = [];
+  for (const row of rows) {
+    items.push(await serializeApprovalRequest(row));
+  }
   return {
     page,
     limit,
     total,
-    items: rows.map((row) => serializeApprovalRequest(row)),
+    items,
   };
 }
 
 async function listPendingForHod(user, query = {}) {
   const access = await getHodAccess(user.id);
-  const domains = ['sugar', 'power'].filter((d) => access[d]);
+  const domains = APPROVAL_DOMAINS.filter((d) => access[d]);
   if (!domains.length) {
     const err = new Error('You are not the assigned HOD for maintenance history approval.');
     err.status = 403;
@@ -1951,68 +2677,134 @@ async function listPendingForHod(user, query = {}) {
   const from = String(query.from || '').trim();
   const to = String(query.to || '').trim();
 
-  const clauses = [];
-  const params = [];
+  const sharedClauses = [];
+  const sharedParams = [];
 
   if (domain && domains.includes(domain)) {
-    clauses.push('domain = ?');
-    params.push(domain);
+    sharedClauses.push('domain = ?');
+    sharedParams.push(domain);
   } else {
-    clauses.push(`domain IN (${domains.map(() => '?').join(', ')})`);
-    params.push(...domains);
-  }
-
-  if (status && HOD_QUEUE_STATUSES.includes(status)) {
-    clauses.push('status = ?');
-    params.push(status);
-  } else {
-    clauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
-    params.push(...HOD_QUEUE_STATUSES);
+    sharedClauses.push(`domain IN (${domains.map(() => '?').join(', ')})`);
+    sharedParams.push(...domains);
   }
 
   if (employee) {
-    clauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR requested_by_user_id = ?)');
-    params.push(`%${employee}%`, `%${employee}%`, employee);
+    sharedClauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR requested_by_user_id = ?)');
+    sharedParams.push(`%${employee}%`, `%${employee}%`, employee);
   }
   if (operation && ['create', 'update', 'delete'].includes(operation)) {
-    clauses.push('action = ?');
-    params.push(operation);
+    sharedClauses.push('action = ?');
+    sharedParams.push(operation);
   }
   if (from) {
-    clauses.push('created_at >= ?');
-    params.push(`${from} 00:00:00`);
+    sharedClauses.push('created_at >= ?');
+    sharedParams.push(`${from} 00:00:00`);
   }
   if (to) {
-    clauses.push('created_at <= ?');
-    params.push(`${to} 23:59:59`);
+    sharedClauses.push('created_at <= ?');
+    sharedParams.push(`${to} 23:59:59`);
   }
   if (search) {
-    clauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR equipment_context_json LIKE ?)');
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    sharedClauses.push('(requested_by_name LIKE ? OR requested_by_email LIKE ? OR equipment_context_json LIKE ?)');
+    sharedParams.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
 
-  const where = clauses.join(' AND ');
-  const [countRows] = await pool.query(
-    `SELECT status, created_at FROM maintenance_history_approval_request WHERE ${where}`,
-    params,
-  );
+  const listClauses = [...sharedClauses];
+  const listParams = [...sharedParams];
   const todayIst = getIstDateParts().date;
+  const todayStartUtc = todayIst
+    ? new Date(`${todayIst}T00:00:00+05:30`).toISOString().slice(0, 19).replace('T', ' ')
+    : null;
+  const todayEndUtc = todayIst
+    ? new Date(`${todayIst}T23:59:59.999+05:30`).toISOString().slice(0, 19).replace('T', ' ')
+    : null;
+  const statusFilter = status || 'today_pending';
+
+  if (statusFilter === 'today_pending') {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+    if (todayStartUtc && todayEndUtc) {
+      listClauses.push('created_at >= ?');
+      listParams.push(todayStartUtc);
+      listClauses.push('created_at <= ?');
+      listParams.push(todayEndUtc);
+    }
+  } else if (statusFilter === 'previous_pending') {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+    if (todayStartUtc) {
+      listClauses.push('created_at < ?');
+      listParams.push(todayStartUtc);
+    }
+  } else if (statusFilter === STATUS.APPROVED) {
+    listClauses.push('status = ?');
+    listParams.push(STATUS.APPROVED);
+  } else if (statusFilter === STATUS.NEEDS_MODIFICATION) {
+    listClauses.push('status = ?');
+    listParams.push(STATUS.NEEDS_MODIFICATION);
+  } else if (statusFilter === 'total_pending' || statusFilter === STATUS.PENDING) {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+  } else if (HOD_QUEUE_STATUSES.includes(statusFilter)) {
+    listClauses.push('status = ?');
+    listParams.push(statusFilter);
+  } else {
+    listClauses.push(`status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`);
+    listParams.push(...HOD_QUEUE_STATUSES);
+  }
+
+  const listWhere = listClauses.join(' AND ');
+
+  // Pending KPI cards always from pending queue (ignore approved status filter)
+  const pendingClauses = [
+    ...sharedClauses,
+    `status IN (${HOD_QUEUE_STATUSES.map(() => '?').join(', ')})`,
+  ];
+  const pendingParams = [...sharedParams, ...HOD_QUEUE_STATUSES];
+  const pendingWhere = pendingClauses.join(' AND ');
+  const [pendingRows] = await pool.query(
+    `SELECT status, created_at FROM maintenance_history_approval_request WHERE ${pendingWhere}`,
+    pendingParams,
+  );
   let previousPending = 0;
   let newToday = 0;
   let conflict = 0;
-  for (const row of countRows) {
+  for (const row of pendingRows) {
     if (row.status === STATUS.CONFLICT) conflict += 1;
-    const created = getIstDateParts(new Date(row.created_at)).date;
+    const created = getIstDateParts(parseMysqlUtcDateTime(row.created_at) || new Date(0)).date;
     if (created === todayIst) newToday += 1;
     else previousPending += 1;
   }
 
+  // Lifetime / period KPIs (not limited to pending queue status)
+  const [[kpiRow]] = await pool.query(
+    `SELECT
+       COUNT(*) AS totalRequests,
+       SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) AS approvedRequests,
+       SUM(CASE WHEN status = 'needs_modification' THEN 1 ELSE 0 END) AS needsModification
+     FROM maintenance_history_approval_request
+     WHERE ${sharedClauses.join(' AND ')}`,
+    sharedParams,
+  );
+  const totalRequests = Number(kpiRow?.totalRequests) || 0;
+  const approvedRequests = Number(kpiRow?.approvedRequests) || 0;
+  const needsModification = Number(kpiRow?.needsModification) || 0;
+
+  const [[{ listTotal }]] = await pool.query(
+    `SELECT COUNT(*) AS listTotal FROM maintenance_history_approval_request WHERE ${listWhere}`,
+    listParams,
+  );
+
+  const orderSql = statusFilter === STATUS.APPROVED || statusFilter === STATUS.NEEDS_MODIFICATION
+    ? 'ORDER BY COALESCE(resolved_at, created_at) DESC, id DESC'
+    : "ORDER BY FIELD(status, 'conflict', 'resubmitted', 'pending'), created_at ASC, id ASC";
+
   const [rows] = await pool.query(
     `SELECT * FROM maintenance_history_approval_request
-     WHERE ${where}
-     ORDER BY FIELD(status, 'conflict', 'resubmitted', 'pending'), created_at ASC, id ASC
+     WHERE ${listWhere}
+     ${orderSql}
      LIMIT ${limit} OFFSET ${offset}`,
-    params,
+    listParams,
   );
 
   const items = [];
@@ -2021,18 +2813,21 @@ async function listPendingForHod(user, query = {}) {
     if (row.status === STATUS.CONFLICT) {
       extra = { conflict: await loadConflictState(row) };
     }
-    items.push(serializeApprovalRequest(row, extra));
+    items.push(await serializeApprovalRequest(row, extra));
   }
 
   return {
     page,
     limit,
-    total: countRows.length,
+    total: Number(listTotal) || 0,
     summary: {
       previousPending,
       newToday,
-      total: countRows.length,
+      total: pendingRows.length,
       conflict,
+      totalRequests,
+      approvedRequests,
+      needsModification,
     },
     items,
   };
@@ -2055,6 +2850,35 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
     return records;
   }
 
+  /** Staged approval uploads + any stored keys already in payload/history. */
+  function documentsForPendingRequest(request, fallbackDocs) {
+    const payload = parseJson(request.payload_json, {}) || {};
+    const previous = parseJson(request.previous_json, null);
+    const baseRaw = request.action === 'delete'
+      ? (previous?.documents ?? fallbackDocs)
+      : (payload.documents ?? fallbackDocs);
+    const base = parseHistoryDocuments(baseRaw);
+    const staged = listStagedDocuments(request.id).map((file) => ({
+      storageKey: `staged:${request.id}:${file.filename}`,
+      displayName: file.displayName || file.originalName || file.filename,
+      originalName: file.originalName || file.displayName || file.filename,
+      mimeType: file.mimeType || 'application/octet-stream',
+      size: Number(file.size) || 0,
+      pending: false,
+      staged: true,
+      approvalRequestId: Number(request.id),
+      stagedFileName: file.filename,
+    }));
+    const seen = new Set(base.map((d) => d.storageKey));
+    const merged = [...base];
+    for (const doc of staged) {
+      if (seen.has(doc.storageKey)) continue;
+      seen.add(doc.storageKey);
+      merged.push(doc);
+    }
+    return merged.slice(0, MAX_HISTORY_DOCUMENTS);
+  }
+
   const stamped = (records || []).map((rec) => {
     const match = rows.find((r) => (
       r.history_id
@@ -2062,8 +2886,20 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
       && (r.action === 'update' || r.action === 'delete')
     ));
     if (!match) return rec;
+    const payload = parseJson(match.payload_json, {}) || {};
+    // For pending updates, surface requested payload fields + staged docs on the row
+    // so view/edit match what HOD sees (not only the last approved history row).
+    const overlaid = match.action === 'update'
+      ? {
+        ...rec,
+        ...payload,
+        id: rec.id,
+        created_at: rec.created_at,
+      }
+      : { ...rec };
     return {
-      ...rec,
+      ...overlaid,
+      documents: documentsForPendingRequest(match, overlaid.documents ?? rec.documents),
       pendingRequestId: match.id,
       pendingStatus: match.status,
       pendingAction: match.action,
@@ -2074,11 +2910,12 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
   const virtual = rows
     .filter((r) => r.action === 'create')
     .map((r) => {
-      const payload = parseJson(r.payload_json, {});
+      const payload = parseJson(r.payload_json, {}) || {};
       return {
         ...payload,
         id: `pending-${r.id}`,
         created_at: r.created_at || r.updated_at || null,
+        documents: documentsForPendingRequest(r, payload.documents),
         pendingRequestId: r.id,
         pendingStatus: r.status,
         pendingAction: 'create',
@@ -2103,7 +2940,7 @@ async function assertPendingRequestForUser(requestId, equipId, domain, userId) {
     throw err;
   }
   if (userId && row.requested_by_user_id && row.requested_by_user_id !== userId) {
-    const err = new Error('Not allowed to upload documents for this request.');
+    const err = new Error('Not allowed to modify documents for this request.');
     err.status = 403;
     throw err;
   }
@@ -2130,24 +2967,32 @@ module.exports = {
   isApprovalEnabled,
   resolveHodUser,
   createPendingRequest,
+  notifyHodInAppPending,
+  notifyHodPendingAfterClientSubmit,
   getReviewByToken,
   getInboxByToken,
   getDocumentForReviewToken,
+  getDocumentForLoggedInUser,
   approveByToken,
   rejectByToken,
   bulkApproveByInboxToken,
+  equipmentDisplayNameFromRequest,
+  equipmentDisplayPartsFromRequest,
   resendDigestByToken,
   fetchPendingForDigest,
   sendDigestForDomain,
   runDigestSchedulerTick,
+  runEmployeeModificationReminderTick,
   ensureDigestSchema,
   validateDigestTime,
+  validateOptionalDigestTime,
   normalizeDigestTime,
   buildFieldDiff,
   actionLabel,
   snapshotFromRow,
   approvalStagingDir,
   listStagedDocuments,
+  deleteStagedDocument,
   assertPendingRequestForUser,
   cleanupStagingDir,
   getHodAccess,

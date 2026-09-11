@@ -27,6 +27,7 @@ import {
   INITIAL_VISIBLE_SUB_GROUP_SLOTS,
 } from '../../utils/equipmentSpecModel';
 import { downloadSpecTemplate, parseSpecWorkbook } from '../../utils/equipmentSpecExcel';
+import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
 
 function isPlaceholderValue(val) {
   const v = String(val || '').trim().toLowerCase();
@@ -78,6 +79,13 @@ export default function EquipmentSpecificationHub({
 
   const uploadRef = useRef(null);
   const draggedSlot = useRef(null);
+  const sectionTrackedRef = useRef(false);
+
+  useEffect(() => {
+    if (!bodyOpen || sectionTrackedRef.current) return;
+    sectionTrackedRef.current = true;
+    trackEquipmentSectionOpen('specs');
+  }, [bodyOpen]);
   const draggedParam = useRef(null);
 
   useEffect(() => {

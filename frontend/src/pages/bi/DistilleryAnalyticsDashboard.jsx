@@ -33,6 +33,8 @@ import {
   resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
   YEAR_TYPE_OPTIONS,
   DEFAULT_YEAR_TYPE,
@@ -507,6 +509,15 @@ export default function DistilleryAnalyticsDashboard() {
 
   const availableModes = ['B Heavy', 'C Heavy', 'Syrup', 'Mixed'];
   const [selectedModes, setSelectedModes] = useState(availableModes);
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/distillery-operations'],
+    rangePreset,
+    comparisonType,
+    dateFrom: fromDate,
+    dateTo: toDate,
+    extraFilters: { yearType, selectedModes },
+  });
   const [isModeOpen, setIsModeOpen] = useState(false);
 
   const toggleMode = (mode) => {
@@ -866,7 +877,7 @@ export default function DistilleryAnalyticsDashboard() {
     return total / sourceData.length;
   };
 
-  const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800';
+  const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-transparent text-slate-800';
   const cardClasses = isDarkMode ? 'border-slate-700 bg-slate-800 shadow-slate-900/50' : 'border-slate-200 bg-white shadow-sm';
   const textClasses = isDarkMode
     ? {

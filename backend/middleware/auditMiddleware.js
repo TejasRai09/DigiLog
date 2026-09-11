@@ -32,7 +32,7 @@ async function auditMiddleware(req, res, next) {
     try {
       if (shouldSkipAudit(req.method, pathOnly)) return;
 
-      const user = req.user || null;
+      const user = req.auditActor || req.user || null;
       const pathStored = String(path).slice(0, 500);
       const ua = String(req.headers['user-agent'] || '').slice(0, 500) || null;
       const method = String(req.method || '').toUpperCase().slice(0, 10);
@@ -56,6 +56,7 @@ async function auditMiddleware(req, res, next) {
             rawBody: req.body,
             parentLabel: ctx.parent_label,
             hierarchyPath: ctx.hierarchy_path,
+            success: ctx.success,
           });
 
           await pool.query(

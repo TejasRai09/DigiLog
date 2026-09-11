@@ -6,31 +6,33 @@ import ApprovalSummary from './ApprovalSummary';
 import PendingChangeList from './PendingChangeList';
 import BulkApprovalActions from './BulkApprovalActions';
 import ModificationDialog from './ModificationDialog';
+import BusyButton from './BusyButton.jsx';
 import useHodApprovalAccess from '../../hooks/useHodApprovalAccess';
+import { onRealtimeEvent, EVENT_NOTIFICATION_NEW } from '../../realtime/socket';
 
-const EMPTY_FILTERS = {
+const DEFAULT_FILTERS = {
   search: '',
-  domain: '',
   operation: '',
-  status: '',
-  employee: '',
+  status: 'today_pending',
   from: '',
   to: '',
 };
 
 export default function ApprovalDashboard() {
-  const { sugar, power, enabled, loading: accessLoading } = useHodApprovalAccess();
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [applied, setApplied] = useState(EMPTY_FILTERS);
+  const { enabled, loading: accessLoading } = useHodApprovalAccess();
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [applied, setApplied] = useState(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState(null);
+  const [filtering, setFiltering] = useState(false);
   const [selectedIds, setSelectedIds] = useState([]);
   const [modifyItem, setModifyItem] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) setLoading(true);
     try {
       const params = { page, limit: 20 };
       Object.entries(applied).forEach(([key, value]) => {
@@ -38,13 +40,19 @@ export default function ApprovalDashboard() {
       });
       const { data: payload } = await api.get('/approvals/pending', { params });
       setData(payload);
-      setSelectedIds([]);
+      if (!quiet) setSelectedIds([]);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to load pending approvals.');
+      if (!quiet) {
+        toast.error(err.response?.data?.message || 'Failed to load pending approvals.');
+      }
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   }, [applied, page]);
+
+  useEffect(() => {
+    if (!loading) setFiltering(false);
+  }, [loading]);
 
   useEffect(() => {
     if (!enabled) {
@@ -54,8 +62,39 @@ export default function ApprovalDashboard() {
     load();
   }, [enabled, load]);
 
+  // Live refresh when employee submits/resubmits (Socket.IO notification)
+  useEffect(() => {
+    if (!enabled) return undefined;
+    return onRealtimeEvent(EVENT_NOTIFICATION_NEW, (payload) => {
+      if (payload?.type === 'mh_pending_hod') {
+        load({ quiet: true });
+      }
+    });
+  }, [enabled, load]);
+
+  // Backup refresh when HOD returns to the tab
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load({ quiet: true });
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [enabled, load]);
+
   const items = data?.items || [];
-  const summary = data?.summary || { previousPending: 0, newToday: 0, total: 0 };
+  const summary = data?.summary || {
+    previousPending: 0,
+    newToday: 0,
+    total: 0,
+    totalRequests: 0,
+    approvedRequests: 0,
+    needsModification: 0,
+  };
   const totalPages = Math.max(1, Math.ceil((data?.total || 0) / (data?.limit || 20)));
 
   const toggle = (id) => {
@@ -71,24 +110,30 @@ export default function ApprovalDashboard() {
 
   const approveOne = async (item) => {
     setBusy(true);
+    setBusyAction('approve');
     try {
       const { data: result } = await api.post(`/approvals/${item.id}/approve`);
       if (result.status === 'conflict') {
         toast.error('Version conflict — review expected vs current values.');
-      } else {
-        toast.success(result.alreadyResolved ? 'Already approved.' : 'Approved.');
+        await load();
+        return true;
       }
+      toast.success(result.alreadyResolved ? 'Already approved.' : 'Approved.');
       await load();
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Approve failed.');
+      return false;
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
   const approveSelected = async () => {
     if (!selectedIds.length) return;
     setBusy(true);
+    setBusyAction('bulk');
     try {
       const { data: result } = await api.post('/approvals/bulk-approve', { ids: selectedIds });
       const failed = (result.results || []).filter((row) => !row.ok);
@@ -102,12 +147,14 @@ export default function ApprovalDashboard() {
       toast.error(err.response?.data?.message || 'Bulk approve failed.');
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
   const submitModification = async (comment) => {
     if (!modifyItem) return;
     setBusy(true);
+    setBusyAction('modify');
     try {
       await api.post(`/approvals/${modifyItem.id}/send-for-modification`, { comment });
       toast.success('Sent for modification.');
@@ -117,19 +164,24 @@ export default function ApprovalDashboard() {
       toast.error(err.response?.data?.message || 'Could not send for modification.');
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
   const resolveConflict = async (item, resolution) => {
     setBusy(true);
+    setBusyAction(resolution === 'apply' ? 'resolve-apply' : 'resolve-discard');
     try {
       await api.post(`/approvals/${item.id}/resolve-conflict`, { resolution });
       toast.success(resolution === 'apply' ? 'Conflict applied.' : 'Conflict discarded.');
       await load();
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not resolve conflict.');
+      return false;
     } finally {
       setBusy(false);
+      setBusyAction(null);
     }
   };
 
@@ -142,7 +194,7 @@ export default function ApprovalDashboard() {
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-slate-800">Approvals</h1>
         <p className="mt-2 text-base text-slate-500">
-          You are not the assigned HOD for Sugar House or Power Plant maintenance history.
+          You are not the assigned HOD for Sugar House, Power Plant, or Production House maintenance history.
         </p>
       </div>
     );
@@ -153,7 +205,7 @@ export default function ApprovalDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Pending maintenance changes</h1>
         <p className="mt-1 text-base text-slate-500">
-          Primary HOD path is the daily digest email inbox (no login). This signed-in view is optional for bulk actions and version conflicts.
+          Review pending create, update, and delete requests for maintenance history. Approve them or send them back for modification.
         </p>
       </div>
 
@@ -163,6 +215,7 @@ export default function ApprovalDashboard() {
         className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(e) => {
           e.preventDefault();
+          setFiltering(true);
           setPage(1);
           setApplied({ ...filters });
         }}
@@ -173,15 +226,6 @@ export default function ApprovalDashboard() {
           placeholder="Search employee or equipment"
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
         />
-        <select
-          value={filters.domain}
-          onChange={(e) => setFilters((f) => ({ ...f, domain: e.target.value }))}
-          className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
-        >
-          <option value="">All domains</option>
-          {sugar && <option value="sugar">Sugar House</option>}
-          {power && <option value="power">Power Plant</option>}
-        </select>
         <select
           value={filters.operation}
           onChange={(e) => setFilters((f) => ({ ...f, operation: e.target.value }))}
@@ -197,17 +241,13 @@ export default function ApprovalDashboard() {
           onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
         >
-          <option value="">Pending + resubmitted + conflict</option>
-          <option value="pending">Pending</option>
+          <option value="today_pending">Today's pending</option>
+          <option value="previous_pending">Previous pending</option>
+          <option value="total_pending">Total pending</option>
           <option value="resubmitted">Resubmitted</option>
-          <option value="conflict">Conflict</option>
+          <option value="needs_modification">Sent for modification</option>
+          <option value="approved">Approved</option>
         </select>
-        <input
-          value={filters.employee}
-          onChange={(e) => setFilters((f) => ({ ...f, employee: e.target.value }))}
-          placeholder="Employee"
-          className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
-        />
         <input
           type="date"
           value={filters.from}
@@ -221,23 +261,31 @@ export default function ApprovalDashboard() {
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
         />
         <div className="flex gap-2">
-          <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2.5 text-base font-bold text-white">
+          <BusyButton
+            type="submit"
+            busy={filtering && loading}
+            busyLabel="Filtering…"
+            className="rounded-lg bg-blue-600 px-4 py-2.5 text-base font-bold text-white disabled:opacity-50"
+          >
             Filter
-          </button>
+          </BusyButton>
           <button
             type="button"
+            disabled={busy || (filtering && loading)}
             onClick={() => {
-              setFilters(EMPTY_FILTERS);
-              setApplied(EMPTY_FILTERS);
+              setFilters(DEFAULT_FILTERS);
+              setFiltering(true);
+              setApplied(DEFAULT_FILTERS);
               setPage(1);
             }}
-            className="rounded-lg border border-slate-200 px-4 py-2.5 text-base font-semibold text-slate-600"
+            className="rounded-lg border border-slate-200 px-4 py-2.5 text-base font-semibold text-slate-600 disabled:opacity-50"
           >
             Reset
           </button>
         </div>
       </form>
 
+      {applied.status !== 'approved' && applied.status !== 'needs_modification' && (
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-600 sm:text-base">
           <input
@@ -250,10 +298,11 @@ export default function ApprovalDashboard() {
         </label>
         <BulkApprovalActions
           selectedCount={selectedIds.length}
-          busy={busy}
+          busy={busy && busyAction === 'bulk'}
           onApproveSelected={approveSelected}
         />
       </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Spinner size="lg" /></div>
@@ -263,6 +312,7 @@ export default function ApprovalDashboard() {
           selectedIds={selectedIds}
           onToggle={toggle}
           busy={busy}
+          busyAction={busyAction}
           onApprove={approveOne}
           onModify={setModifyItem}
           onResolve={resolveConflict}
@@ -293,9 +343,9 @@ export default function ApprovalDashboard() {
 
       <ModificationDialog
         open={Boolean(modifyItem)}
-        onClose={() => setModifyItem(null)}
+        onClose={() => !busy && setModifyItem(null)}
         onSubmit={submitModification}
-        busy={busy}
+        busy={busy && busyAction === 'modify'}
       />
     </div>
   );

@@ -55,6 +55,8 @@ import {
   resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
   filterMillStoppages,
   filterMillSeasonCompareRows,
@@ -332,6 +334,16 @@ export default function MillingOperationsDashboard() {
   const [isSectionOpen, setIsSectionOpen] = useState(false);
   const sectionBtnRef = useRef(null);
   const [sectionMenuPos, setSectionMenuPos] = useState(null);
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/milling-operations'],
+    activeTab,
+    rangePreset,
+    comparisonType,
+    dateFrom: fromDate,
+    dateTo: toDate,
+    extraFilters: { selectedSections },
+  });
 
   useLayoutEffect(() => {
     if (!isSectionOpen) {
@@ -642,7 +654,7 @@ export default function MillingOperationsDashboard() {
     strokeDasharray: '3 3',
   };
 
-  const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-800';
+  const appClasses = isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-transparent text-slate-800';
   const headerClasses = isDarkMode ? 'text-slate-100' : 'text-slate-900';
   const subheadClasses = isDarkMode ? 'text-slate-400' : 'text-slate-500';
   const cardClasses = isDarkMode ? 'border-slate-700 bg-slate-800 shadow-slate-900/50' : 'border-slate-200 bg-white shadow-sm';

@@ -24,11 +24,36 @@ export function StatusBadge({ status }) {
   );
 }
 
+/**
+ * Parse API datetimes from mysql2 (`dateStrings: true`, session UTC).
+ * Bare "YYYY-MM-DD HH:mm:ss" must be treated as UTC — otherwise browsers
+ * interpret them as local and IST clocks show ~5h30m early.
+ */
+export function parseApiDateTime(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(\.\d+)?$/.exec(s);
+  if (mysqlUtc) {
+    const d = new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}${mysqlUtc[3] || ''}Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
 export function formatSubmittedAt(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
+  const d = parseApiDateTime(value);
+  if (!d) return value ? String(value) : '—';
   return d.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
     day: 'numeric',
     month: 'short',
     year: 'numeric',

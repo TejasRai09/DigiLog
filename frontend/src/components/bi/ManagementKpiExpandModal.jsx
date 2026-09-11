@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
+import { trackChartDownloadCsv } from '../../utils/trackActivity';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import { ManagementKpiExpandedChart } from './ManagementKpiCell';
 import { formatCompact, formatNum } from '../../utils/powerHouseMeasures';
 
@@ -48,6 +50,11 @@ export default function ManagementKpiExpandModal({
       columns.push({ key: 'value', label: kpi.title });
     }
     downloadChartCsv(`management-${kpi.id}-${stamp}`, series, columns);
+    trackChartDownloadCsv({
+      dashboardLabel: BI_DASHBOARDS['/bi/management-dashboard'],
+      chartId: kpi.id,
+      chartTitle: kpi.title,
+    });
   }, [series, kpi]);
 
   const handlePng = useCallback(async () => {

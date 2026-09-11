@@ -44,8 +44,13 @@ export default function FormCardList({
   appId = null,
   returnTo = null,
   onViewData,
+  onDownloadCsv = null,
 }) {
   const downloadFormCsv = async (form) => {
+    if (typeof onDownloadCsv === 'function') {
+      await onDownloadCsv(form);
+      return;
+    }
     const tid = toast.loading('Preparing CSV…');
     try {
       const { data } = await api.get(`/forms/${form.formKey}/records?page=1&limit=10000`);

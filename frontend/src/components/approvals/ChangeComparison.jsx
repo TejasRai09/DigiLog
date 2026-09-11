@@ -4,20 +4,34 @@ function displayCell(value) {
   return String(value);
 }
 
+function resolveRows(item) {
+  const rows = item?.changedFields || [];
+  if (rows.length) return rows;
+  if (item?.operation === 'create') {
+    return Object.entries(item.requestedData || {}).map(([field, newValue]) => ({
+      label: field,
+      oldValue: '—',
+      newValue: displayCell(newValue),
+    }));
+  }
+  return [];
+}
+
+function singleValue(row, operation) {
+  if (operation === 'delete') return displayCell(row.oldValue);
+  return displayCell(row.newValue);
+}
+
 export default function ChangeComparison({ item }) {
   const operation = item?.operation;
-  const rows = item?.changedFields || [];
+  const rows = resolveRows(item);
+  const singleColumn = operation === 'create' || operation === 'delete';
 
   if (operation === 'create') {
     return (
       <div>
         <p className="mb-2 text-sm font-bold uppercase tracking-wide text-emerald-700">+ New maintenance history entry</p>
-        <FieldTable rows={rows.length ? rows : Object.entries(item.requestedData || {}).map(([field, newValue]) => ({
-          label: field,
-          oldValue: '—',
-          newValue: displayCell(newValue),
-        }))}
-        />
+        <FieldTable rows={rows} mode="single" operation={operation} valueHeader="Value" />
       </div>
     );
   }
@@ -27,7 +41,7 @@ export default function ChangeComparison({ item }) {
       <div>
         <p className="mb-2 text-sm font-bold uppercase tracking-wide text-rose-700">Delete request</p>
         <p className="mb-2 text-sm text-slate-500">This approved record will be removed after HOD approval.</p>
-        <FieldTable rows={rows} />
+        <FieldTable rows={rows} mode="single" operation={operation} valueHeader="Value" />
       </div>
     );
   }
@@ -35,15 +49,41 @@ export default function ChangeComparison({ item }) {
   return (
     <div>
       <p className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Changed fields only</p>
-      <FieldTable rows={rows} />
+      <FieldTable rows={rows} mode="compare" />
     </div>
   );
 }
 
-function FieldTable({ rows }) {
+function FieldTable({ rows, mode = 'compare', operation = 'update', valueHeader = 'Value' }) {
   if (!rows?.length) {
     return <p className="text-base text-slate-400">No field details available.</p>;
   }
+
+  if (mode === 'single') {
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left text-sm sm:text-base">
+          <thead>
+            <tr>
+              <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Field</th>
+              <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">{valueHeader}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label || row.field}>
+                <td className="border border-slate-200 px-3 py-2 font-semibold text-slate-700">{row.label || row.field}</td>
+                <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">
+                  {singleValue(row, operation)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left text-sm sm:text-base">
@@ -58,8 +98,8 @@ function FieldTable({ rows }) {
           {rows.map((row) => (
             <tr key={row.label || row.field}>
               <td className="border border-slate-200 px-3 py-2 font-semibold text-slate-700">{row.label || row.field}</td>
-              <td className="border border-slate-200 px-3 py-2 text-slate-500 whitespace-pre-wrap">{row.oldValue ?? displayCell(row.oldValue)}</td>
-              <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">{row.newValue ?? displayCell(row.newValue)}</td>
+              <td className="border border-slate-200 px-3 py-2 text-slate-500 whitespace-pre-wrap">{displayCell(row.oldValue)}</td>
+              <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">{displayCell(row.newValue)}</td>
             </tr>
           ))}
         </tbody>

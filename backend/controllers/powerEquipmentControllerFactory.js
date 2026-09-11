@@ -6,9 +6,11 @@ const { validHistoryImageField } = require('../utils/historyImages');
 const {
   isApprovalEnabled,
   createPendingRequest,
+  notifyHodInAppPending,
   assertPendingRequestForUser,
   approvalStagingDir,
   listStagedDocuments,
+  deleteStagedDocument,
   overlayPendingHistory,
 } = require('../services/maintenanceHistoryApproval.service');
 const {
@@ -264,10 +266,24 @@ function createPowerEquipmentController(tables) {
         equipment,
       });
 
+      const deferHodNotify = String(
+        req.query?.deferHodNotify ?? req.body?.deferHodNotify ?? '',
+      ).trim() === '1';
+      if (!deferHodNotify) {
+        try {
+          if (pending.request) {
+            await notifyHodInAppPending(pending.request, { resubmitted: false });
+          }
+        } catch (err) {
+          console.error('[queueHistoryApproval] hod notify failed:', err.message);
+        }
+      }
+
       res.status(202).json({
         message: 'Submitted for HOD approval.',
         pending: true,
         approvalRequestId: pending.id,
+        hodNotifyDeferred: deferHodNotify,
       });
       return true;
     } catch (err) {
@@ -1019,8 +1035,13 @@ function createPowerEquipmentController(tables) {
       await assertPendingRequestForUser(Number(requestId), Number(id), approvalDomain, req.user?.id);
 
       const staged = listStagedDocuments(requestId);
-      if (staged.length >= MAX_APPROVAL_STAGED_DOCS) {
+      // Safety net only — primary limit is enforced in multer destination before write.
+      const currentName = path.basename(req.file.filename || req.file.path || '');
+      const otherStaged = staged.filter((f) => f.filename !== currentName);
+      if (otherStaged.length >= MAX_APPROVAL_STAGED_DOCS) {
         fs.unlink(req.file.path, () => {});
+        const metaPath = path.join(approvalStagingDir(requestId), `${currentName}.meta.json`);
+        fs.unlink(metaPath, () => {});
         return res.status(400).json({ message: `Maximum ${MAX_APPROVAL_STAGED_DOCS} documents allowed.` });
       }
 
@@ -1052,6 +1073,24 @@ function createPowerEquipmentController(tables) {
     }
   };
 
+  const deleteApprovalDocument = async (req, res) => {
+    if (!approvalDomain) {
+      return res.status(404).json({ message: 'Not found.' });
+    }
+    try {
+      const { id, requestId, fileName } = req.params;
+      await assertPendingRequestForUser(Number(requestId), Number(id), approvalDomain, req.user?.id);
+      deleteStagedDocument(Number(requestId), decodeURIComponent(String(fileName || '')));
+      return res.json({ ok: true });
+    } catch (err) {
+      const status = err.status || 500;
+      if (status < 500) {
+        return res.status(status).json({ message: err.message });
+      }
+      sendServerError(res, `${logPrefix}.deleteApprovalDocument:`, err, MSG.DELETE);
+    }
+  };
+
   return {
     lookupEquipment,
     listEquipment,
@@ -1072,6 +1111,7 @@ function createPowerEquipmentController(tables) {
     uploadHistoryDocument,
     uploadApprovalDocumentMiddleware,
     uploadApprovalDocument,
+    deleteApprovalDocument,
     downloadHistoryDocument,
   };
 }

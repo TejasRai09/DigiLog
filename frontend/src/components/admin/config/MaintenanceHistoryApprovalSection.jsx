@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MdDomain, MdFactory, MdSave, MdEmail } from 'react-icons/md';
+import { MdDomain, MdFactory, MdPrecisionManufacturing, MdSave, MdEmail } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../Spinner';
@@ -13,10 +13,12 @@ function ApprovalCard({
   enabled,
   hodUserId,
   digestTime,
+  digestTime2,
   employees,
   onToggle,
   onHodChange,
   onDigestTimeChange,
+  onDigestTime2Change,
   onResend,
   resending,
 }) {
@@ -61,19 +63,37 @@ function ApprovalCard({
         </select>
       </div>
 
-      <div>
-        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">
-          Daily digest time (IST)
-        </label>
-        <input
-          type="time"
-          value={digestTime || '22:00'}
-          onChange={(e) => onDigestTimeChange(e.target.value || '22:00')}
-          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
-        />
-        <p className="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          One email to the HOD at this time with pending maintenance changes. The email opens a
-          no-login approvals inbox where they can review each change and accept or send for modification.
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+          Full digest times (IST)
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              Time 1
+            </label>
+            <input
+              type="time"
+              value={digestTime || '22:00'}
+              onChange={(e) => onDigestTimeChange(e.target.value || '22:00')}
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+              Time 2 (optional)
+            </label>
+            <input
+              type="time"
+              value={digestTime2 || ''}
+              onChange={(e) => onDigestTime2Change(e.target.value || '')}
+              className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+          Sends a full pending digest email to the HOD at each time (IST). Leave Time 2 blank to send only once per day.
+          The email opens a no-login approvals inbox.
         </p>
       </div>
 
@@ -86,7 +106,7 @@ function ApprovalCard({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
           >
             {resending === `${domain}:all` ? <Spinner size="sm" /> : <MdEmail className="w-3.5 h-3.5" />}
-            Resend full digest
+            {resending === `${domain}:all` ? 'Sending…' : 'Resend full digest'}
           </button>
           <button
             type="button"
@@ -95,7 +115,7 @@ function ApprovalCard({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 disabled:opacity-50"
           >
             {resending === `${domain}:new` ? <Spinner size="sm" /> : <MdEmail className="w-3.5 h-3.5" />}
-            Email new pending only
+            {resending === `${domain}:new` ? 'Sending…' : 'Email new pending only'}
           </button>
         </div>
       )}
@@ -103,13 +123,16 @@ function ApprovalCard({
   );
 }
 
+const EMPTY_DOMAIN = { enabled: false, hodUserId: null, digestTime: '22:00', digestTime2: '' };
+
 export default function MaintenanceHistoryApprovalSection() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resending, setResending] = useState('');
   const [employees, setEmployees] = useState([]);
-  const [sugar, setSugar] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
-  const [power, setPower] = useState({ enabled: false, hodUserId: null, digestTime: '22:00' });
+  const [sugar, setSugar] = useState(EMPTY_DOMAIN);
+  const [power, setPower] = useState(EMPTY_DOMAIN);
+  const [production, setProduction] = useState(EMPTY_DOMAIN);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,8 +141,9 @@ export default function MaintenanceHistoryApprovalSection() {
         const { data } = await api.get('/admin/maintenance-history-approval-settings');
         if (cancelled) return;
         setEmployees(data.employees || []);
-        setSugar(data.sugar || { enabled: false, hodUserId: null, digestTime: '22:00' });
-        setPower(data.power || { enabled: false, hodUserId: null, digestTime: '22:00' });
+        setSugar(data.sugar || EMPTY_DOMAIN);
+        setPower(data.power || EMPTY_DOMAIN);
+        setProduction(data.production || EMPTY_DOMAIN);
       } catch {
         if (!cancelled) toast.error('Failed to load maintenance history approval settings.');
       } finally {
@@ -132,9 +156,14 @@ export default function MaintenanceHistoryApprovalSection() {
   const save = async () => {
     setSaving(true);
     try {
-      const { data } = await api.put('/admin/maintenance-history-approval-settings', { sugar, power });
+      const { data } = await api.put('/admin/maintenance-history-approval-settings', {
+        sugar,
+        power,
+        production,
+      });
       setSugar(data.sugar);
       setPower(data.power);
+      setProduction(data.production);
       toast.success('Maintenance history approval settings saved.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save settings.');
@@ -163,7 +192,7 @@ export default function MaintenanceHistoryApprovalSection() {
   return (
     <ConfigSectionPanel
       title="Maintenance History Approval"
-      description="When enabled, maintenance history add/edit/delete on Sugar House and Power Plant equipment cards is held pending until the configured HOD reviews them from the daily digest email inbox — no DigiLog login required."
+      description="When enabled, maintenance history add/edit/delete on Sugar House, Power Plant, and Production House equipment cards is held pending until the configured HOD reviews them from the daily digest email inbox — no DigiLog login required."
       actions={
         loading ? <Spinner size="sm" /> : (
           <button
@@ -173,7 +202,7 @@ export default function MaintenanceHistoryApprovalSection() {
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg disabled:opacity-50"
           >
             {saving ? <Spinner size="sm" /> : <MdSave className="w-3.5 h-3.5" />}
-            Save
+            {saving ? 'Saving…' : 'Save'}
           </button>
         )
       }
@@ -190,25 +219,46 @@ export default function MaintenanceHistoryApprovalSection() {
             enabled={sugar.enabled}
             hodUserId={sugar.hodUserId}
             digestTime={sugar.digestTime}
+            digestTime2={sugar.digestTime2}
             employees={employees}
             onToggle={(enabled) => setSugar((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setSugar((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setSugar((s) => ({ ...s, digestTime }))}
+            onDigestTime2Change={(digestTime2) => setSugar((s) => ({ ...s, digestTime2 }))}
             onResend={resend}
             resending={resending}
           />
           <ApprovalCard
             title="Power Plant"
-            description="Equipment cards under Power Plant Equipment History."
+            description="Equipment cards under Power Plant Equipment History (new)."
             icon={MdFactory}
             domain="power"
             enabled={power.enabled}
             hodUserId={power.hodUserId}
             digestTime={power.digestTime}
+            digestTime2={power.digestTime2}
             employees={employees}
             onToggle={(enabled) => setPower((s) => ({ ...s, enabled }))}
             onHodChange={(hodUserId) => setPower((s) => ({ ...s, hodUserId }))}
             onDigestTimeChange={(digestTime) => setPower((s) => ({ ...s, digestTime }))}
+            onDigestTime2Change={(digestTime2) => setPower((s) => ({ ...s, digestTime2 }))}
+            onResend={resend}
+            resending={resending}
+          />
+          <ApprovalCard
+            title="Production House"
+            description="Equipment cards under Production House Equipment History."
+            icon={MdPrecisionManufacturing}
+            domain="production"
+            enabled={production.enabled}
+            hodUserId={production.hodUserId}
+            digestTime={production.digestTime}
+            digestTime2={production.digestTime2}
+            employees={employees}
+            onToggle={(enabled) => setProduction((s) => ({ ...s, enabled }))}
+            onHodChange={(hodUserId) => setProduction((s) => ({ ...s, hodUserId }))}
+            onDigestTimeChange={(digestTime) => setProduction((s) => ({ ...s, digestTime }))}
+            onDigestTime2Change={(digestTime2) => setProduction((s) => ({ ...s, digestTime2 }))}
             onResend={resend}
             resending={resending}
           />

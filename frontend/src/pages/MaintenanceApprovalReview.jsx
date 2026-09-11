@@ -3,14 +3,16 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
 import AppBrandHeader from '../components/AppBrandHeader';
+import IndustryAppBackground from '../components/IndustryAppBackground';
 import useAuth from '../hooks/useAuth';
 
 function ReviewLayout({ children }) {
   const { user } = useAuth();
   return (
-    <div className={`flex flex-col bg-slate-50 ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen'}`}>
+    <div className={`relative flex flex-col ${user ? 'min-h-[calc(100vh-4rem)]' : 'min-h-screen'}`}>
+      {!user && <IndustryAppBackground />}
       {!user && <AppBrandHeader />}
-      {children}
+      <div className="relative z-10 flex flex-1 flex-col">{children}</div>
     </div>
   );
 }
@@ -90,7 +92,10 @@ export default function MaintenanceApprovalReview() {
             {review.domainLabel} · {review.actionLabel}
           </p>
           <p className="mt-2 text-sm text-slate-600">
-            Equipment: <span className="font-semibold text-slate-800">{review.equipmentName}</span>
+            Equipment: <span className="break-words font-semibold text-slate-800">{review.equipmentName}</span>
+          </p>
+          <p className="text-sm text-slate-600">
+            Path: <span className="break-words font-semibold text-slate-800">{review.equipmentPath || '—'}</span>
           </p>
           <p className="text-sm text-slate-600">
             Submitted by {review.submitterName}
@@ -105,20 +110,39 @@ export default function MaintenanceApprovalReview() {
               <thead>
                 <tr className="bg-slate-50 text-slate-500">
                   <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Field</th>
-                  <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Previous</th>
-                  <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">New</th>
+                  {(review.action === 'create' || review.action === 'delete') ? (
+                    <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Value</th>
+                  ) : (
+                    <>
+                      <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">Previous</th>
+                      <th className="border border-blue-800 bg-blue-700 px-3 py-2 font-semibold text-white">New</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {(review.diff || []).length ? review.diff.map((row) => (
                   <tr key={row.label}>
                     <td className="border border-slate-200 px-3 py-2 font-semibold text-slate-700">{row.label}</td>
-                    <td className="border border-slate-200 px-3 py-2 text-slate-500 whitespace-pre-wrap">{row.oldValue}</td>
-                    <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">{row.newValue}</td>
+                    {(review.action === 'create' || review.action === 'delete') ? (
+                      <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">
+                        {review.action === 'delete' ? row.oldValue : row.newValue}
+                      </td>
+                    ) : (
+                      <>
+                        <td className="border border-slate-200 px-3 py-2 text-slate-500 whitespace-pre-wrap">{row.oldValue}</td>
+                        <td className="border border-slate-200 px-3 py-2 text-slate-800 whitespace-pre-wrap">{row.newValue}</td>
+                      </>
+                    )}
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={3} className="border border-slate-200 px-3 py-4 text-slate-400">No field details available.</td>
+                    <td
+                      colSpan={(review.action === 'create' || review.action === 'delete') ? 2 : 3}
+                      className="border border-slate-200 px-3 py-4 text-slate-400"
+                    >
+                      No field details available.
+                    </td>
                   </tr>
                 )}
               </tbody>

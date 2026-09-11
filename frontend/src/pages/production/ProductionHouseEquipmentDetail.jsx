@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { MdDelete, MdPictureAsPdf, MdSave } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -10,9 +10,11 @@ import EquipmentMaintenanceHistoryHub from '../../components/equipment/Equipment
 import { buildProductionHouseEquipmentTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
+import useMaintenanceHistoryHodRefresh from '../../hooks/useMaintenanceHistoryHodRefresh';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
+import { trackEquipmentPdfDownload } from '../../utils/trackActivity';
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
-import { historyRecordToApi } from '../../utils/equipmentHistoryModel';
+import { saveHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
 import {
   isProductionHouseSection,
   productionHouseSectionLabel,
@@ -33,9 +35,11 @@ const ProductionHouseEquipmentDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const appId = location.state?.appId;
   const appName = useAppName(appId);
   const equipId = /^\d+$/.test(String(id || '')) ? String(id) : null;
+  const focusApprovalRequestId = searchParams.get('approvalRequestId');
 
   const { canManage } = useLockedCardManageAccess();
   const canManageProduction = canManage('production');
@@ -63,6 +67,18 @@ const ProductionHouseEquipmentDetail = () => {
     }
   }, [equipId, id, navigate, location.state]);
 
+  useEffect(() => {
+    if (!focusApprovalRequestId) return;
+    setHistOpen(true);
+  }, [focusApprovalRequestId]);
+
+  const clearFocusApprovalRequest = useCallback(() => {
+    if (!searchParams.has('approvalRequestId')) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('approvalRequestId');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
   const loadHistory = useCallback(async () => {
     if (!equipId) return;
     const { data } = await api.get(`${API_BASE}/${equipId}/history`, {
@@ -71,6 +87,12 @@ const ProductionHouseEquipmentDetail = () => {
     setHistory(data.records);
     setHistTotal(data.total);
   }, [equipId]);
+
+  useMaintenanceHistoryHodRefresh({
+    equipId,
+    domain: 'production',
+    reload: loadHistory,
+  });
 
   const load = useCallback(async () => {
     if (!equipId) return;
@@ -86,11 +108,8 @@ const ProductionHouseEquipmentDetail = () => {
         capacity: equipment?.capacity || '',
       });
       setSpecs(formatProductionHouseSpecRows(data.specs));
-      setHistory(data.history);
-      setHistTotal(data.histTotal);
-      if (data.histTotal > (data.history?.length || 0)) {
-        await loadHistory();
-      }
+      // Prefer /history so pending approval overlays are applied
+      await loadHistory();
     } catch {
       toast.error('Failed to load equipment.');
     } finally {
@@ -158,6 +177,10 @@ const ProductionHouseEquipmentDetail = () => {
         schedule: { rows: [], equipmentOptions: [] },
         history: { rows: history, equipmentOptions },
       });
+      trackEquipmentPdfDownload({
+        sections: selectedKeys,
+        equipmentName: eq?.name || eq?.equip_no || null,
+      });
       setPdfModalOpen(false);
     } catch (err) {
       toast.error(err?.message || 'Could not generate PDF.');
@@ -224,21 +247,46 @@ const ProductionHouseEquipmentDetail = () => {
     }
   };
 
-  const saveMaintenanceRecord = async (form, mode, recordId) => {
+  const saveMaintenanceRecord = async (form, mode, recordId, record) => {
     if (!equipId) return;
     setSaving(true);
     try {
-      const body = historyRecordToApi(form);
-      if (mode === 'add') {
-        await api.post(`${API_BASE}/${equipId}/history`, body);
-        toast.success('Record added.');
-      } else {
-        await api.put(`${API_BASE}/${equipId}/history/${recordId}`, body);
-        toast.success('Record updated.');
+      if (record?.pendingStatus === 'needs_modification' && record.pendingRequestId) {
+        await resubmitHistoryWithDocuments({
+          apiBase: API_BASE,
+          equipId,
+          form,
+          approvalRequestId: record.pendingRequestId,
+          previousDocuments: record.documents || [],
+        });
+        toast.success('Resubmitted for HOD approval.');
+        await loadHistory();
+        return;
       }
+
+      const result = await saveHistoryWithDocuments({
+        apiBase: API_BASE,
+        equipId,
+        form,
+        mode,
+        recordId,
+      });
+      if (result?.pending) {
+        toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
+        await loadHistory();
+        return;
+      }
+      toast.success(mode === 'add' ? 'Record added.' : 'Record updated.');
       await loadHistory();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Save failed.');
+      toast.error(err.response?.data?.message || err.message || 'Save failed.');
+      if (err.pendingCreated) {
+        try {
+          await loadHistory();
+        } catch {
+          /* ignore */
+        }
+      }
       throw err;
     } finally {
       setSaving(false);
@@ -249,7 +297,12 @@ const ProductionHouseEquipmentDetail = () => {
     if (!equipId) return;
     setSaving(true);
     try {
-      await api.delete(`${API_BASE}/${equipId}/history/${hid}`);
+      const response = await api.delete(`${API_BASE}/${equipId}/history/${hid}`);
+      if (response.status === 202 || response.data?.pending) {
+        toast.success('Delete requested. The record stays until the HOD approves.');
+        await loadHistory();
+        return;
+      }
       toast.success('Record deleted.');
       await loadHistory();
     } catch (err) {
@@ -390,6 +443,11 @@ const ProductionHouseEquipmentDetail = () => {
         equipmentOptions={equipmentOptions}
         defaultEquipmentKeys={equipmentOptions.map((opt) => opt.key)}
         observationRequired={false}
+        enableDocuments
+        historyApiBase={API_BASE}
+        equipId={eq?.id || equipId}
+        focusApprovalRequestId={focusApprovalRequestId}
+        onFocusHandled={clearFocusApprovalRequest}
       />
 
       {pdfModalOpen && (

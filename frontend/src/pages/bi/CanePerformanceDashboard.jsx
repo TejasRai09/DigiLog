@@ -26,6 +26,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from "../../utils/biCockpitDateFilters";
+import useTrackBiInteraction from "../../hooks/useTrackBiInteraction";
+import { BI_DASHBOARDS } from "../../utils/activityPath";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
@@ -1433,6 +1435,16 @@ export default function CanePerformanceDashboard(){
   const[dbMaxDate, setDbMaxDate] = useState(null);
   const dateRangeSeeded = useRef(false);
 
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS["/bi/cane-performance"],
+    activeTab: tab,
+    rangePreset,
+    comparisonType,
+    dateFrom: fromDate,
+    dateTo: toDate,
+    extraFilters: { modeFilter, centerFilter, challanFilter },
+  });
+
   const centerTabs = ["center-purchase","vehicle-handling","vehicle-holding","vehicle-holding2","truck-transit"];
 
   const toInputDate = (v) => {
@@ -1829,7 +1841,7 @@ export default function CanePerformanceDashboard(){
     };
   }, [prior]);
 
-  const bg=dm?"bg-slate-950 text-slate-100":"bg-slate-50 text-slate-800";
+  const bg=dm?"bg-slate-950 text-slate-100":"bg-transparent text-slate-800";
   const hdr=dm?"bg-slate-900 border-slate-800":"bg-white border-slate-200/80";
 
   return(

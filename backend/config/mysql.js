@@ -18,10 +18,39 @@ const pool = mysql.createPool({
   // Recycle idle connections so the pool survives DB-side idle timeouts / NAT drops.
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
+  // With `uri`, mysql2 often ignores `timezone` and keeps SYSTEM (IST here).
   timezone: '+00:00',
   /* Keep DATE/DATETIME as strings so JSON/API does not emit 2026-03-01T00:00:00.000Z */
   dateStrings: true,
 });
+
+/**
+ * Force UTC on every checkout. Must patch the core (callback) pool — promise
+ * `pool.query` / `pool.execute` do not go through promise `getConnection`.
+ */
+const corePool = pool.pool;
+const rawCoreGetConnection = corePool.getConnection.bind(corePool);
+corePool.getConnection = function getConnectionWithUtcSession(cb) {
+  rawCoreGetConnection((err, conn) => {
+    if (err) {
+      cb(err);
+      return;
+    }
+    if (conn.__digilogUtcTz) {
+      cb(null, conn);
+      return;
+    }
+    conn.query("SET time_zone = '+00:00'", (setErr) => {
+      if (setErr) {
+        conn.release();
+        cb(setErr);
+        return;
+      }
+      conn.__digilogUtcTz = true;
+      cb(null, conn);
+    });
+  });
+};
 
 const testMysqlConnection = async () => {
   try {

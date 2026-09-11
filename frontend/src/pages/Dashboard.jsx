@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MdApps, MdRefresh } from 'react-icons/md';
+import { MdApps } from 'react-icons/md';
 import AppBreadcrumb from '../components/AppBreadcrumb';
+import AppPageHeader from '../components/AppPageHeader';
 import { buildFormsHubTrail } from '../utils/breadcrumbTrail';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -9,6 +10,7 @@ import useAuth from '../hooks/useAuth';
 import AppCard from '../components/AppCard';
 import Spinner from '../components/Spinner';
 import { BI_CONTROL_TOWER_APP_NAME } from '../config/biDashboardRoutes';
+import { isRetiredFormsHubApp } from '../config/retiredFormsHubApps';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,65 +18,63 @@ const Dashboard = () => {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchApps = async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get('/apps');
-      setApps(data);
-    } catch {
-      toast.error('Failed to load apps.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchApps();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const { data } = await api.get('/apps');
+        if (!cancelled) setApps(data);
+      } catch {
+        if (!cancelled) toast.error('Failed to load apps.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const formsHubApps = apps.filter((a) => a.name !== BI_CONTROL_TOWER_APP_NAME);
+  const formsHubApps = apps.filter(
+    (a) => a.name !== BI_CONTROL_TOWER_APP_NAME && !isRetiredFormsHubApp(a.name),
+  );
   const onlyBiAssigned = apps.length > 0 && formsHubApps.length === 0;
 
   return (
     <main className="app-main">
       <AppBreadcrumb items={buildFormsHubTrail()} />
 
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <p className="text-sm text-gray-500">
-            Centralized access to digital operational forms.
-          </p>
-          {user?.name && (
-            <p className="mt-1 text-xs text-gray-400">Signed in as {user.name}</p>
-          )}
-        </div>
-        <button type="button" onClick={fetchApps} className="btn-secondary">
-          <MdRefresh className="h-4 w-4" />
-          Refresh
-        </button>
-      </div>
+      <AppPageHeader className="mb-8">
+        <p className="text-sm font-semibold text-slate-800">
+          Centralized access to digital operational forms.
+        </p>
+        {user?.name && (
+          <p className="mt-1 text-xs font-medium text-slate-700">Signed in as {user.name}</p>
+        )}
+      </AppPageHeader>
 
       {loading ? (
         <div className="flex justify-center py-24">
           <Spinner size="lg" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {formsHubApps.map((app) => (
             <AppCard key={app._id ?? app.id} app={app} />
           ))}
           {formsHubApps.length === 0 && !onlyBiAssigned && (
-            <div className="col-span-full card flex flex-col items-center justify-center py-24 text-center">
-              <MdApps className="h-12 w-12 text-gray-300 mb-3" />
-              <p className="text-gray-500 font-medium">No applications assigned</p>
-              <p className="text-sm text-gray-400 mt-1">Contact your admin to get access.</p>
+            <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-white/60 bg-white/50 py-24 text-center shadow-sm backdrop-blur-md">
+              <MdApps className="mb-3 h-12 w-12 text-gray-300" />
+              <p className="font-medium text-gray-500">No applications assigned</p>
+              <p className="mt-1 text-sm text-gray-400">Contact your admin to get access.</p>
             </div>
           )}
           {onlyBiAssigned && (
-            <div className="col-span-full card flex flex-col items-center justify-center py-24 text-center">
-              <MdApps className="h-12 w-12 text-gray-300 mb-3" />
-              <p className="text-gray-500 font-medium">No operational forms assigned here</p>
-              <p className="text-sm text-gray-400 mt-1 max-w-md">
+            <div className="col-span-full flex flex-col items-center justify-center rounded-2xl border border-white/60 bg-white/50 py-24 text-center shadow-sm backdrop-blur-md">
+              <MdApps className="mb-3 h-12 w-12 text-gray-300" />
+              <p className="font-medium text-gray-500">No operational forms assigned here</p>
+              <p className="mt-1 max-w-md text-sm text-gray-400">
                 BI Control Tower is not listed in Forms Hub. Use{' '}
                 <button
                   type="button"

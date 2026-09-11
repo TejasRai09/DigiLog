@@ -303,6 +303,13 @@ const seed = async () => {
     console.log(`  ✅  App: ${a.name} (id=${row.id})`);
   }
 
+  // Retire Mill House + Power Plant (old) hubs from Forms Hub (keep rows for history/mappings)
+  await pool.query(
+    `UPDATE apps SET is_active = 0
+     WHERE name IN ('Mill House Equipment History', 'Power Plant Equipment History (old)')`,
+  );
+  console.log('  ✅  Deactivated: Mill House Equipment History, Power Plant Equipment History (old)');
+
   // 3. Forms
   for (const f of formDefs) {
     const appId = appIdMap[f.app];

@@ -11,6 +11,8 @@ import {
   Legend,
 } from 'recharts';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
+import { trackChartDownloadCsv } from '../../utils/trackActivity';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import MillPairedChartTooltip, { MILL_CHART_TOOLTIP_PROPS, MillTooltipAnchor } from './MillPairedChartTooltip';
 
 function ExpandChartTooltip({ lines, ...props }) {
@@ -70,6 +72,11 @@ export default function MillChartExpandModal({
       ...lines.map((l) => ({ key: l.variable, label: l.label })),
     ];
     downloadChartCsv(`milling-${slug}-${stamp}`, chartData, columns);
+    trackChartDownloadCsv({
+      dashboardLabel: BI_DASHBOARDS['/bi/milling-operations'],
+      chartId: slug,
+      chartTitle: title,
+    });
   }, [chartData, lines, title]);
 
   /* ── PNG ── */

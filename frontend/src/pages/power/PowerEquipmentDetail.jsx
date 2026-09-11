@@ -17,13 +17,15 @@ const EquipmentPdfExportModal = lazy(() => import('../../components/equipment/Eq
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
-import { saveHistoryWithDocuments } from '../../utils/historyDocuments';
+import { saveHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
 import { POWER_LIFE_HISTORY_FIELDS } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
 import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
 import useSugarHouseHierarchy from '../../hooks/useSugarHouseHierarchy';
+import useMaintenanceHistoryHodRefresh from '../../hooks/useMaintenanceHistoryHodRefresh';
 import { hierarchyBreadcrumbLabels } from '../../utils/hierarchyTreeUtils';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
+import { trackEquipmentPdfDownload } from '../../utils/trackActivity';
 import {
   powerNewDetailPath,
   sugarNewDetailPath,
@@ -42,6 +44,7 @@ const PowerEquipmentDetail = () => {
   const isSugarNewHub = location.pathname.startsWith('/sugar-house-equipment-new');
   const isNewHub = isPowerNewHub || isSugarNewHub;
   const apiBase = isSugarNewHub ? '/sugar-new' : (isPowerNewHub ? '/power-new' : '/power');
+  const approvalDomain = isSugarNewHub ? 'sugar' : 'power';
   const defaultDept = isSugarNewHub ? 'sugar_house' : (isPowerNewHub ? 'plant' : 'electrical');
   const appId = location.state?.appId;
   const fromHierarchy = Boolean(location.state?.fromHierarchy);
@@ -159,7 +162,7 @@ const PowerEquipmentDetail = () => {
     setSearchParams(next, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const loadHistory = async (equipId) => {
+  const loadHistory = useCallback(async (equipId) => {
     const eid = equipId ?? equipIdRef.current;
     if (eid === 'new') return;
     try {
@@ -173,7 +176,13 @@ const PowerEquipmentDetail = () => {
     } catch {
       toast.error('Failed to load history.');
     }
-  };
+  }, [apiBase, isNewHub, specSection]);
+
+  useMaintenanceHistoryHodRefresh({
+    equipId: isNewDraft ? null : id,
+    domain: approvalDomain,
+    reload: () => loadHistory(id),
+  });
 
   const loadSchedule = async (equipId) => {
     const eid = equipId ?? equipIdRef.current;
@@ -343,8 +352,13 @@ const PowerEquipmentDetail = () => {
     try {
       const equipId = await resolveEquipmentId();
       if (record?.pendingStatus === 'needs_modification' && record.pendingRequestId) {
-        const body = historyRecordToApi(form);
-        await api.put(`/change-requests/${record.pendingRequestId}/resubmit`, body);
+        await resubmitHistoryWithDocuments({
+          apiBase,
+          equipId,
+          form,
+          approvalRequestId: record.pendingRequestId,
+          previousDocuments: record.documents || [],
+        });
         toast.success('Resubmitted for HOD approval.');
         await loadHistory(equipId);
         return;
@@ -373,7 +387,14 @@ const PowerEquipmentDetail = () => {
       toast.success(mode === 'add' ? 'Record added.' : 'Record updated.');
       await loadHistory(equipId);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Save failed.');
+      toast.error(err.response?.data?.message || err.message || 'Save failed.');
+      if (err.pendingCreated) {
+        try {
+          await loadHistory(await resolveEquipmentId());
+        } catch {
+          /* ignore */
+        }
+      }
       throw err;
     } finally {
       setSaving(false);
@@ -526,6 +547,10 @@ const PowerEquipmentDetail = () => {
         specs: { rows: specs, equipmentDefaults, specSection: disciplineSpecFocus ? specSection : null },
         schedule: { rows: scheduleForView, equipmentOptions: scheduleEquipmentOptions },
         history: { rows: isNewHub ? historyForView : history, equipmentOptions: isNewHub ? equipmentOptions : [] },
+      });
+      trackEquipmentPdfDownload({
+        sections: selectedKeys,
+        equipmentName: eq?.name || eq?.tag_name || eq?.equip_no || null,
       });
       setPdfModalOpen(false);
     } catch (err) {

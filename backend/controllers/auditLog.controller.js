@@ -5,11 +5,13 @@ const {
   parseStoredAuditBody,
   buildChangeDescription,
 } = require('../utils/auditLog');
+const { pushAuditLogTreeFilters } = require('../utils/auditFilterMap');
 
 const ACTION_TO_METHODS = {
   Create: ['POST'],
   Update: ['PUT', 'PATCH'],
   Delete: ['DELETE'],
+  Login: null, // filtered by action_type, not HTTP method
 };
 
 /** Best-effort rebuild of original keys from stored readable audit body. */
@@ -52,6 +54,11 @@ exports.listAuditLogs = async (req, res) => {
     const moduleFilter = typeof req.query.module === 'string' ? req.query.module.trim() : '';
     const screenFilter = typeof req.query.screen === 'string' ? req.query.screen.trim() : '';
     const resourceNameFilter = typeof req.query.resource_name === 'string' ? req.query.resource_name.trim() : '';
+    const filterRoot = typeof req.query.filter_root === 'string' ? req.query.filter_root.trim() : '';
+    const filterBranch = typeof req.query.filter_branch === 'string' ? req.query.filter_branch.trim() : '';
+    const filterLeaf = typeof req.query.filter_leaf === 'string' ? req.query.filter_leaf.trim() : '';
+    const filterCard = typeof req.query.filter_card === 'string' ? req.query.filter_card.trim() : '';
+    const filterScreen = typeof req.query.filter_screen === 'string' ? req.query.filter_screen.trim() : '';
 
     const where = [];
     const params = [];
@@ -65,11 +72,20 @@ exports.listAuditLogs = async (req, res) => {
       params.push(like, like, like, like, like, like, like);
     }
 
-    const methodsFromAction = ACTION_TO_METHODS[action];
-    if (methodsFromAction) {
+    // Tree leaf Create/Update/Delete for Config takes precedence over standalone action
+    const treeAction = filterRoot === 'Config' && ['Create', 'Update', 'Delete'].includes(filterLeaf)
+      ? filterLeaf
+      : '';
+    const effectiveAction = treeAction || action;
+
+    const methodsFromAction = ACTION_TO_METHODS[effectiveAction];
+    if (effectiveAction === 'Login') {
+      where.push('action_type = ?');
+      params.push('Login');
+    } else if (methodsFromAction && !treeAction) {
       where.push(`(action_type = ? OR (action_type IS NULL AND method IN (${methodsFromAction.map(() => '?').join(',')})))`);
-      params.push(action, ...methodsFromAction);
-    } else if (methodRaw && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(methodRaw)) {
+      params.push(effectiveAction, ...methodsFromAction);
+    } else if (!treeAction && methodRaw && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(methodRaw)) {
       where.push('method = ?');
       params.push(methodRaw);
     }
@@ -85,17 +101,27 @@ exports.listAuditLogs = async (req, res) => {
       where.push('(success = 0 OR (success IS NULL AND (status_code < 200 OR status_code >= 400)))');
     }
 
-    if (moduleFilter) {
-      where.push('module = ?');
-      params.push(moduleFilter);
-    }
-    if (screenFilter) {
-      where.push('screen = ?');
-      params.push(screenFilter);
-    }
-    if (resourceNameFilter) {
-      where.push('resource_name = ?');
-      params.push(resourceNameFilter);
+    if (filterRoot) {
+      pushAuditLogTreeFilters(where, params, {
+        root: filterRoot,
+        branch: filterBranch,
+        leaf: filterLeaf,
+        card: filterCard,
+        screen: filterScreen,
+      });
+    } else {
+      if (moduleFilter) {
+        where.push('module = ?');
+        params.push(moduleFilter);
+      }
+      if (screenFilter) {
+        where.push('screen = ?');
+        params.push(screenFilter);
+      }
+      if (resourceNameFilter) {
+        where.push('resource_name = ?');
+        params.push(resourceNameFilter);
+      }
     }
 
     if (from) {
@@ -119,7 +145,7 @@ exports.listAuditLogs = async (req, res) => {
       `SELECT id, created_at, user_id, user_name, user_email, user_role, user_department,
               method, path, status_code, success, action_type, action_summary,
               module, module_key, resource_type, resource_id, resource_name,
-              display_path, screen, request_body
+              display_path, screen, request_body, ip
          FROM audit_logs
          ${whereSql}
          ORDER BY created_at DESC, id DESC
@@ -155,7 +181,10 @@ exports.listAuditLogs = async (req, res) => {
       const resourceName = row.resource_name || enriched?.resource_name || bodyHint?.name || null;
       const resourceType = row.resource_type || enriched?.resource_type || null;
 
-      const description = buildChangeDescription({
+      const storedSummary = row.action_summary && String(row.action_summary).trim()
+        ? String(row.action_summary).trim()
+        : null;
+      const description = storedSummary || buildChangeDescription({
         method: row.method,
         path: row.path,
         actionType,
@@ -167,10 +196,8 @@ exports.listAuditLogs = async (req, res) => {
         rawBody: bodyHint,
         parentLabel: enriched?.parent_label || null,
         hierarchyPath: enriched?.hierarchy_path || null,
+        success: success == null ? null : (success ? 1 : 0),
       });
-
-      const locationParts = [displayPath].filter(Boolean);
-      if (row.user_department) locationParts.push(row.user_department);
 
       return {
         id: row.id,
@@ -187,8 +214,9 @@ exports.listAuditLogs = async (req, res) => {
         action_type: actionType,
         description,
         display_path: displayPath,
-        location: locationParts.join(' · '),
+        location: displayPath || row.path || '—',
         request_body_readable: readable,
+        ip: row.ip || null,
       };
     }));
 

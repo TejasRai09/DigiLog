@@ -1,17 +1,28 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useSearchParams } from 'react-router-dom';
 import useAuth from './hooks/useAuth';
 
 import Spinner from './components/Spinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 import StagingBanner from './components/StagingBanner';
+import IndustryAppBackground from './components/IndustryAppBackground';
 
 /** Eager: shell / first paint only */
 import MarketingLanding from './pages/MarketingLanding';
 import AdminLogin from './pages/admin/AdminLogin';
 import HomeLanding from './pages/HomeLanding';
 import NotFound from './pages/NotFound';
+
+/** Logged-in users at `/` go to dashboard, unless `next` is a same-origin deep link (email CTA). */
+function LoggedInHomeRedirect() {
+  const [searchParams] = useSearchParams();
+  const next = String(searchParams.get('next') || '').trim();
+  if (next.startsWith('/') && !next.startsWith('//')) {
+    return <Navigate to={next} replace />;
+  }
+  return <Navigate to="/dashboard" replace />;
+}
 
 /** Lazy: heavy pages stay out of the main bundle (and ease Lightsail Vite builds) */
 const MarketingDashboard = lazy(() => import('./pages/MarketingDashboard'));
@@ -54,11 +65,6 @@ const DistilleryOperations = lazy(() => import('./pages/forms/distillery/Distill
 const BrixYardSampling = lazy(() => import('./pages/forms/brix/BrixYardSampling'));
 const BrixFieldSampling = lazy(() => import('./pages/forms/brix/BrixFieldSampling'));
 
-const EquipmentList = lazy(() => import('./pages/equipment/EquipmentList'));
-const EquipmentDetail = lazy(() => import('./pages/equipment/EquipmentDetail'));
-
-const PowerLanding = lazy(() => import('./pages/power/PowerLanding'));
-const PowerList = lazy(() => import('./pages/power/PowerList'));
 const PowerEquipmentDetail = lazy(() => import('./pages/power/PowerEquipmentDetail'));
 const PowerPlantEquipmentNew = lazy(() => import('./pages/power/PowerPlantEquipmentNew'));
 const SugarHouseEquipmentNew = lazy(() => import('./pages/sugar/SugarHouseEquipmentNew'));
@@ -87,15 +93,18 @@ const App = () => {
 
   return (
     <>
+      {user && <IndustryAppBackground />}
       {user && <Navbar />}
       <StagingBanner />
+      {/* z-10 keeps page content above the fixed industry bg; modals must portal to body */}
+      <div className={user ? 'relative z-10' : undefined}>
       <Suspense fallback={<Spinner fullScreen />}>
         <Routes>
           {/* Public */}
           <Route path="/login" element={<Navigate to="/?login=1" replace />} />
           <Route path="/dashbaord" element={<Navigate to="/dashboard" replace />} />
           <Route path="/operations-desk" element={<MarketingDashboard />} />
-          <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <MarketingLanding />} />
+          <Route path="/" element={user ? <LoggedInHomeRedirect /> : <MarketingLanding />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/maintenance-approval/review" element={<MaintenanceApprovalReview />} />
           <Route path="/maintenance-approval/accept" element={<MaintenanceApprovalResult mode="accept" />} />
@@ -138,14 +147,14 @@ const App = () => {
             {/* Distillery */}
             <Route path="/forms/distillery_ops" element={<DistilleryOperations />} />
 
-            {/* Equipment History Cards */}
-            <Route path="/equipment" element={<EquipmentList />} />
-            <Route path="/equipment/:id" element={<EquipmentDetail />} />
+            {/* Equipment History Cards — Mill House hub retired */}
+            <Route path="/equipment" element={<Navigate to="/forms-hub" replace />} />
+            <Route path="/equipment/:id" element={<Navigate to="/forms-hub" replace />} />
 
-            {/* Power Plant Equipment History Cards */}
-            <Route path="/power" element={<PowerLanding />} />
-            <Route path="/power/:dept" element={<PowerList />} />
-            <Route path="/power/:dept/:id" element={<PowerEquipmentDetail />} />
+            {/* Power Plant Equipment History (old) retired — new hub stays below */}
+            <Route path="/power" element={<Navigate to="/forms-hub" replace />} />
+            <Route path="/power/:dept" element={<Navigate to="/forms-hub" replace />} />
+            <Route path="/power/:dept/:id" element={<Navigate to="/forms-hub" replace />} />
             <Route path="/power-plant-equipment-new" element={<PowerPlantEquipmentNew />} />
             <Route path="/power-plant-equipment-new/:id/:discipline?" element={<PowerEquipmentDetail />} />
 
@@ -189,6 +198,7 @@ const App = () => {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </div>
     </>
   );
 };

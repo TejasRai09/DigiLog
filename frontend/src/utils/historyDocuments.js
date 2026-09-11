@@ -1,6 +1,7 @@
 import api from '../api/axios';
 import {
   MAX_HISTORY_DOCUMENTS,
+  getOversizedHistoryDocumentError,
   historyRecordToApi,
   serializeHistoryDocumentsForApi,
 } from './equipmentHistoryModel';
@@ -32,6 +33,14 @@ export async function uploadApprovalHistoryDocument(apiBase, equipId, approvalRe
   return data.document;
 }
 
+export async function deleteApprovalStagedDocument(apiBase, equipId, approvalRequestId, stagedFileName) {
+  const name = String(stagedFileName || '').trim();
+  if (!name) throw new Error('Invalid document.');
+  await api.delete(
+    `${apiBase}/${equipId}/history-approval/${approvalRequestId}/documents/${encodeURIComponent(name)}`,
+  );
+}
+
 export async function downloadHistoryDocument(apiBase, equipId, historyId, doc, fallbackName = 'document') {
   const fileName = documentFileName(doc.storageKey);
   if (!fileName) throw new Error('Invalid document.');
@@ -50,6 +59,31 @@ export async function downloadHistoryDocument(apiBase, equipId, historyId, doc, 
   URL.revokeObjectURL(url);
 }
 
+/** Download a document still staged on a pending approval request. */
+export async function downloadApprovalStagedDocument(doc, fallbackName = 'document') {
+  const requestId = Number(doc.approvalRequestId);
+  const name = String(doc.stagedFileName || '').trim();
+  if (!requestId || !name) throw new Error('Invalid staged document.');
+  const response = await api.get(`/approvals/${requestId}/documents`, {
+    params: { source: 'staged', name, disposition: 'attachment' },
+    responseType: 'blob',
+  });
+  const blob = response.data;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = doc.displayName || fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Saves history first, then uploads pending documents.
+ * Validates document size BEFORE creating/queuing the history row so a failed
+ * upload cannot leave an orphaned DB row or approval request.
+ */
 export async function saveHistoryWithDocuments({
   apiBase,
   equipId,
@@ -57,35 +91,72 @@ export async function saveHistoryWithDocuments({
   mode,
   recordId,
 }) {
+  const oversized = getOversizedHistoryDocumentError(form?.documents);
+  if (oversized) {
+    const err = new Error(oversized);
+    err.status = 400;
+    throw err;
+  }
+
   const body = historyRecordToApi(form);
-  const savedDocs = (form.documents || []).filter((doc) => !doc.pending && doc.storageKey);
+  const savedDocs = (form.documents || []).filter((doc) => (
+    doc
+    && !doc.pending
+    && !doc.staged
+    && doc.storageKey
+    && !String(doc.storageKey).startsWith('staged:')
+  ));
   const pendingDocs = (form.documents || []).filter((doc) => doc.pending && doc.file);
+  const alreadyStagedCount = (form.documents || []).filter((doc) => doc.staged).length;
 
   body.documents = serializeHistoryDocumentsForApi(savedDocs);
+  // Defer HOD in-app notify until after staged document uploads finish.
+  body.deferHodNotify = '1';
 
   let historyId = recordId;
   let response;
 
+  const deferParams = { deferHodNotify: '1' };
   if (mode === 'add') {
-    response = await api.post(`${apiBase}/${equipId}/history`, body);
+    response = await api.post(`${apiBase}/${equipId}/history`, body, { params: deferParams });
     historyId = response.data.id;
   } else {
-    response = await api.put(`${apiBase}/${equipId}/history/${historyId}`, body);
+    response = await api.put(`${apiBase}/${equipId}/history/${historyId}`, body, { params: deferParams });
   }
 
   if (response.status === 202 || response.data?.pending) {
     const approvalRequestId = response.data.approvalRequestId;
+    const uploadErrors = [];
     let uploadedCount = 0;
     for (const doc of pendingDocs) {
-      if (savedDocs.length + uploadedCount >= MAX_HISTORY_DOCUMENTS) break;
-      await uploadApprovalHistoryDocument(
-        apiBase,
-        equipId,
-        approvalRequestId,
-        doc.file,
-        doc.displayName,
+      if (savedDocs.length + alreadyStagedCount + uploadedCount >= MAX_HISTORY_DOCUMENTS) break;
+      try {
+        await uploadApprovalHistoryDocument(
+          apiBase,
+          equipId,
+          approvalRequestId,
+          doc.file,
+          doc.displayName,
+        );
+        uploadedCount += 1;
+      } catch (err) {
+        uploadErrors.push(err.response?.data?.message || err.message || 'Upload failed');
+      }
+    }
+    if (uploadErrors.length) {
+      const err = new Error(
+        pendingDocs.length > 1 && uploadedCount > 0
+          ? `Sent for approval, but only ${uploadedCount} of ${pendingDocs.length} documents uploaded (${uploadErrors[0]}).`
+          : `Sent for approval, but document upload failed: ${uploadErrors[0]}`,
       );
-      uploadedCount += 1;
+      err.pendingCreated = true;
+      err.approvalRequestId = approvalRequestId;
+      throw err;
+    }
+    try {
+      await api.post(`/change-requests/${approvalRequestId}/notify-hod`);
+    } catch (err) {
+      console.error('[historyDocuments] HOD notify failed:', err.response?.data?.message || err.message);
     }
     return { pending: true, approvalRequestId };
   }
@@ -98,6 +169,86 @@ export async function saveHistoryWithDocuments({
   }
 
   return historyId;
+}
+
+/**
+ * Resubmit a needs_modification request and sync staged documents
+ * (delete removed staged files, upload newly added files) before flipping status.
+ */
+export async function resubmitHistoryWithDocuments({
+  apiBase,
+  equipId,
+  form,
+  approvalRequestId,
+  previousDocuments = [],
+}) {
+  const oversized = getOversizedHistoryDocumentError(form?.documents);
+  if (oversized) {
+    const err = new Error(oversized);
+    err.status = 400;
+    throw err;
+  }
+
+  const keepStagedNames = new Set(
+    (form.documents || [])
+      .filter((doc) => doc?.staged && doc.stagedFileName)
+      .map((doc) => String(doc.stagedFileName)),
+  );
+  const previousStaged = (previousDocuments || []).filter(
+    (doc) => doc?.staged && doc.stagedFileName,
+  );
+
+  const deleteErrors = [];
+  for (const doc of previousStaged) {
+    const name = String(doc.stagedFileName);
+    if (keepStagedNames.has(name)) continue;
+    try {
+      await deleteApprovalStagedDocument(apiBase, equipId, approvalRequestId, name);
+    } catch (err) {
+      deleteErrors.push(err.response?.data?.message || err.message || 'Delete failed');
+    }
+  }
+  if (deleteErrors.length) {
+    throw new Error(`Could not remove document(s): ${deleteErrors[0]}`);
+  }
+
+  const savedDocs = (form.documents || []).filter((doc) => (
+    doc
+    && !doc.pending
+    && !doc.staged
+    && doc.storageKey
+    && !String(doc.storageKey).startsWith('staged:')
+  ));
+  const pendingDocs = (form.documents || []).filter((doc) => doc.pending && doc.file);
+  let uploadedCount = 0;
+  const uploadErrors = [];
+  for (const doc of pendingDocs) {
+    if (savedDocs.length + keepStagedNames.size + uploadedCount >= MAX_HISTORY_DOCUMENTS) break;
+    try {
+      await uploadApprovalHistoryDocument(
+        apiBase,
+        equipId,
+        approvalRequestId,
+        doc.file,
+        doc.displayName,
+      );
+      uploadedCount += 1;
+    } catch (err) {
+      uploadErrors.push(err.response?.data?.message || err.message || 'Upload failed');
+    }
+  }
+  if (uploadErrors.length) {
+    throw new Error(
+      pendingDocs.length > 1 && uploadedCount > 0
+        ? `Only ${uploadedCount} of ${pendingDocs.length} new documents uploaded (${uploadErrors[0]}).`
+        : `Document upload failed: ${uploadErrors[0]}`,
+    );
+  }
+
+  const body = historyRecordToApi(form);
+  body.documents = serializeHistoryDocumentsForApi(savedDocs);
+  await api.put(`/change-requests/${approvalRequestId}/resubmit`, body);
+  return { pending: true, approvalRequestId, resubmitted: true };
 }
 
 export { documentFileName };

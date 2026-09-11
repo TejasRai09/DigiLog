@@ -1,5 +1,6 @@
 import { useFormMeta } from '../hooks/useFormMeta';
 import FormPageBreadcrumb from './FormPageBreadcrumb';
+import AppPageHeader from './AppPageHeader';
 
 /**
  * Form page title from catalog (GET /api/forms/:formKey) with optional fallback.
@@ -35,16 +36,16 @@ const FormPageHeader = ({
         />
       )}
       {showTitleBlock && (
-        <div className={className}>
+        <AppPageHeader className={className}>
           {showTitle && (
             <h1 className="page-title">{loading && !name ? fallbackTitle || '…' : title}</h1>
           )}
           {showDescription && desc && (
-            <p className={`text-sm text-gray-500 max-w-2xl ${showTitle ? 'mt-1' : ''}`}>
+            <p className={`max-w-2xl text-sm font-medium text-slate-700 ${showTitle ? 'mt-1' : ''}`}>
               {desc}
             </p>
           )}
-        </div>
+        </AppPageHeader>
       )}
     </>
   );

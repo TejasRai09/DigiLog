@@ -1,20 +1,21 @@
 import { MdSettings } from 'react-icons/md';
 import { ADMIN_CONFIG_SECTIONS } from './config/adminConfigSections';
+import AppPageHeader from '../AppPageHeader';
 
 export default function AdminConfigLayout({ activeSectionId, onSectionChange, children }) {
   return (
     <main className="app-main">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <AppPageHeader className="mb-6">
         <div className="flex items-center gap-2">
           <MdSettings className="h-6 w-6 text-blue-600" />
           <div>
             <h1 className="page-title">Config</h1>
-            <p className="mt-0.5 text-sm text-gray-500">
+            <p className="mt-0.5 text-sm font-medium text-slate-700">
               Employees, categories, BI settings, and other portal configuration.
             </p>
           </div>
         </div>
-      </div>
+      </AppPageHeader>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)] xl:grid-cols-[260px_minmax(0,1fr)]">
         <nav

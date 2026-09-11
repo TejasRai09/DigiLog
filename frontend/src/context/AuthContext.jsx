@@ -2,7 +2,8 @@ import { createContext, useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { msalInstance, loginRequest } from '../msalConfig';
 import api from '../api/axios';
-import { endTrackingSession, startTrackingSession, setStoredSessionId } from '../components/ActivityTracker';
+import { endTrackingSession, startTrackingSession, setStoredSessionId, getStoredSessionId } from '../components/ActivityTracker';
+import { connectRealtime, disconnectRealtime } from '../realtime/socket';
 
 const SSO_DENIED_FALLBACK =
   'You do not have access to use this application. Please contact the administrator.';
@@ -19,6 +20,7 @@ async function afterLogin() {
   } catch {
     /* tracking is best-effort */
   }
+  connectRealtime();
 }
 
 export const AuthProvider = ({ children }) => {
@@ -33,9 +35,27 @@ export const AuthProvider = ({ children }) => {
       try {
         const { data } = await api.get('/auth/me');
         setUser(data.user);
+        connectRealtime();
+        // Refresh tracking session if missing or expired (JWT restore path)
+        try {
+          const sid = getStoredSessionId();
+          if (sid) {
+            try {
+              await api.post('/auth/session/heartbeat', { session_id: sid });
+            } catch {
+              setStoredSessionId(null);
+              await startTrackingSession();
+            }
+          } else {
+            await startTrackingSession();
+          }
+        } catch {
+          /* tracking is best-effort */
+        }
       } catch {
         localStorage.removeItem('token');
         setStoredSessionId(null);
+        disconnectRealtime();
       } finally {
         setLoading(false);
       }
@@ -117,6 +137,7 @@ export const AuthProvider = ({ children }) => {
     await endTrackingSession();
     localStorage.removeItem('token');
     setUser(null);
+    disconnectRealtime();
     if (msalInstance && msalInstance.getAllAccounts().length > 0) {
       msalInstance.logoutRedirect({ account: msalInstance.getAllAccounts()[0] });
     }

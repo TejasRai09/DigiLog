@@ -15,6 +15,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
   TrendingUp,
   TrendingDown,
@@ -257,6 +259,14 @@ export default function CentreMaturityDashboard() {
   const [rangePreset, setRangePreset] = useState('STD'); // MTD | STD | WTD | Custom
   const [comparisonType, setComparisonType] = useState('PP');
 
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/centre-maturity'],
+    rangePreset,
+    comparisonType,
+    dateFrom,
+    dateTo,
+  });
+
   // API Live Data State
   const [centers, setCenters] = useState([]);
   const [seasonKpi, setSeasonKpi] = useState({
@@ -485,7 +495,7 @@ export default function CentreMaturityDashboard() {
   return (
     <div className={`min-h-screen transition-colors duration-300 ${darkMode
         ? 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white'
-        : 'bg-gradient-to-br from-slate-50 via-white to-slate-100 text-slate-900'}`}>
+        : 'bg-transparent text-slate-900'}`}>
 
       <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

@@ -1,8 +1,32 @@
 const { pool } = require('../config/mysql');
+const fs = require('fs');
+const path = require('path');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { formatProductionHouseSpecValue } = require('../utils/productionHouseSpecValue');
 const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
+const {
+  isApprovalEnabled,
+  createPendingRequest,
+  notifyHodInAppPending,
+  overlayPendingHistory,
+  assertPendingRequestForUser,
+  listStagedDocuments,
+  deleteStagedDocument,
+  approvalStagingDir,
+} = require('../services/maintenanceHistoryApproval.service');
+const {
+  MAX_HISTORY_DOCUMENTS,
+  parseHistoryDocuments,
+  serializeHistoryDocumentsColumn,
+  historyDocumentStorageKey,
+  resolveHistoryDocumentAbsPath,
+} = require('../utils/historyDocuments');
+const { createHistoryDocumentUploadMiddleware } = require('../middleware/historyDocumentUpload');
+const {
+  createApprovalDocumentUploadMiddleware,
+  MAX_HISTORY_DOCUMENTS: MAX_APPROVAL_STAGED_DOCS,
+} = require('../middleware/approvalDocumentUpload');
 
 const HOUSE_SECTIONS = new Set([
   'pan_crystallizer',
@@ -12,6 +36,11 @@ const HOUSE_SECTIONS = new Set([
 ]);
 
 const SPEC_SECTION = 'mechanical';
+const APPROVAL_DOMAIN = 'production';
+const HIST = 'phn_history';
+
+const uploadHistoryDocumentMiddleware = createHistoryDocumentUploadMiddleware(HIST);
+const uploadApprovalDocumentMiddleware = createApprovalDocumentUploadMiddleware();
 
 function serializeEquipment(eq) {
   if (!eq) return eq;
@@ -40,6 +69,82 @@ function historyScopeFromBody(body = {}, eq) {
     || eq?.name
     || null;
   return { section, sub_section };
+}
+
+function historyPayloadFromBody(body, eq) {
+  const { section, sub_section } = historyScopeFromBody(body, eq);
+  return {
+    season: body.season,
+    year: body.year,
+    date_start: body.date_start,
+    date_finish: body.date_finish,
+    obs: body.obs,
+    act: body.act,
+    cost: body.cost,
+    svc: body.svc,
+    maintenance_type: body.maintenance_type,
+    provider: body.provider,
+    resp: body.resp,
+    rem: body.rem,
+    img_before: body.img_before,
+    img_after: body.img_after,
+    documents: body.documents,
+    section,
+    sub_section,
+    equipment_refs: [{ section, sub_section }],
+  };
+}
+
+async function queueProductionHistoryApproval(req, res, {
+  action,
+  equipId,
+  historyId,
+  payload,
+  previousRow,
+  equipment,
+}) {
+  const enabled = await isApprovalEnabled(APPROVAL_DOMAIN);
+  if (!enabled) return false;
+
+  try {
+    const pending = await createPendingRequest({
+      domain: APPROVAL_DOMAIN,
+      action,
+      equipId,
+      historyId,
+      payload,
+      previousRow,
+      reqUser: req.user,
+      equipment,
+    });
+
+    const deferHodNotify = String(
+      req.query?.deferHodNotify ?? req.body?.deferHodNotify ?? '',
+    ).trim() === '1';
+    if (!deferHodNotify) {
+      try {
+        if (pending.request) {
+          await notifyHodInAppPending(pending.request, { resubmitted: false });
+        }
+      } catch (err) {
+        console.error('[queueProductionHistoryApproval] hod notify failed:', err.message);
+      }
+    }
+
+    res.status(202).json({
+      message: 'Submitted for HOD approval.',
+      pending: true,
+      approvalRequestId: pending.id,
+      hodNotifyDeferred: deferHodNotify,
+    });
+    return true;
+  } catch (err) {
+    if (err.status) {
+      res.status(err.status).json({ message: err.message });
+      return true;
+    }
+    throw err;
+  }
 }
 
 const getEq = async (id) => {
@@ -131,12 +236,19 @@ const getEquipment = async (req, res) => {
        LIMIT 200`,
       [eq.id]
     );
+    const scoped = scopeHistoryRows(history, eq);
+    const withPending = await overlayPendingHistory(
+      APPROVAL_DOMAIN,
+      eq.id,
+      req.user?.id,
+      scoped,
+    );
 
     res.json({
       equipment: serializeEquipment(eq),
       specs,
       schedule: [],
-      history: scopeHistoryRows(history, eq),
+      history: withPending,
       histTotal: total,
     });
   } catch (err) {
@@ -234,7 +346,14 @@ const getHistory = async (req, res) => {
        LIMIT ${limit} OFFSET ${offset}`,
       [id]
     );
-    res.json({ total, page, limit, records: scopeHistoryRows(records, eq) });
+    const scoped = scopeHistoryRows(records, eq);
+    const withPending = await overlayPendingHistory(
+      APPROVAL_DOMAIN,
+      id,
+      req.user?.id,
+      scoped,
+    );
+    res.json({ total, page, limit, records: withPending });
   } catch (err) {
     sendServerError(res, 'getHistory:', err, MSG.LOAD);
   }
@@ -246,11 +365,18 @@ const addHistory = async (req, res) => {
     const eq = await getEq(id);
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
-    const {
-      season, year, date_start, date_finish, obs, act, cost, svc,
-      maintenance_type, provider, resp, rem, img_before, img_after,
-    } = req.body;
-    const { section, sub_section } = historyScopeFromBody(req.body, eq);
+    const payload = historyPayloadFromBody(req.body, eq);
+    const queued = await queueProductionHistoryApproval(req, res, {
+      action: 'create',
+      equipId: id,
+      historyId: null,
+      payload,
+      previousRow: null,
+      equipment: eq,
+    });
+    if (queued) return;
+
+    const { section, sub_section } = payload;
     const [result] = await pool.execute(
       `INSERT INTO phn_history
          (equip_id, section, sub_section, season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after)
@@ -259,11 +385,11 @@ const addHistory = async (req, res) => {
         id,
         section,
         sub_section,
-        season || null, year || null,
-        date_start || null, date_finish || null,
-        obs || null, act || null, cost || null,
-        svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
-        validHistoryImageField(img_before), validHistoryImageField(img_after),
+        payload.season || null, payload.year || null,
+        payload.date_start || null, payload.date_finish || null,
+        payload.obs || null, payload.act || null, payload.cost || null,
+        payload.svc || null, payload.maintenance_type || null, payload.provider || null, payload.resp || null, payload.rem || null,
+        validHistoryImageField(payload.img_before), validHistoryImageField(payload.img_after),
       ]
     );
     res.status(201).json({ message: 'Record added.', id: result.insertId });
@@ -278,11 +404,24 @@ const updateHistory = async (req, res) => {
     const eq = await getEq(id);
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
-    const {
-      season, year, date_start, date_finish, obs, act, cost, svc,
-      maintenance_type, provider, resp, rem, img_before, img_after,
-    } = req.body;
-    const { section, sub_section } = historyScopeFromBody(req.body, eq);
+    const [[existingRow]] = await pool.execute(
+      'SELECT * FROM phn_history WHERE id=? AND equip_id=? LIMIT 1',
+      [hid, id],
+    );
+    if (!existingRow) return res.status(404).json({ message: 'Record not found.' });
+
+    const payload = historyPayloadFromBody(req.body, eq);
+    const queued = await queueProductionHistoryApproval(req, res, {
+      action: 'update',
+      equipId: id,
+      historyId: Number(hid),
+      payload,
+      previousRow: existingRow,
+      equipment: eq,
+    });
+    if (queued) return;
+
+    const { section, sub_section } = payload;
     const [result] = await pool.execute(
       `UPDATE phn_history
        SET section=?, sub_section=?, season=?, year=?, date_start=?, date_finish=?,
@@ -292,11 +431,11 @@ const updateHistory = async (req, res) => {
       [
         section,
         sub_section,
-        season || null, year || null,
-        date_start || null, date_finish || null,
-        obs || null, act || null, cost || null,
-        svc || null, maintenance_type || null, provider || null, resp || null, rem || null,
-        validHistoryImageField(img_before), validHistoryImageField(img_after),
+        payload.season || null, payload.year || null,
+        payload.date_start || null, payload.date_finish || null,
+        payload.obs || null, payload.act || null, payload.cost || null,
+        payload.svc || null, payload.maintenance_type || null, payload.provider || null, payload.resp || null, payload.rem || null,
+        validHistoryImageField(payload.img_before), validHistoryImageField(payload.img_after),
         hid, id,
       ]
     );
@@ -312,6 +451,25 @@ const updateHistory = async (req, res) => {
 const deleteHistory = async (req, res) => {
   try {
     const { id, hid } = req.params;
+    const eq = await getEq(id);
+    if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
+
+    const [[existingRow]] = await pool.execute(
+      'SELECT * FROM phn_history WHERE id=? AND equip_id=? LIMIT 1',
+      [hid, id],
+    );
+    if (!existingRow) return res.status(404).json({ message: 'Record not found.' });
+
+    const queued = await queueProductionHistoryApproval(req, res, {
+      action: 'delete',
+      equipId: id,
+      historyId: Number(hid),
+      payload: {},
+      previousRow: existingRow,
+      equipment: eq,
+    });
+    if (queued) return;
+
     const [result] = await pool.execute(
       'DELETE FROM phn_history WHERE id=? AND equip_id=?',
       [hid, id]
@@ -322,6 +480,147 @@ const deleteHistory = async (req, res) => {
     res.json({ message: 'Record deleted.' });
   } catch (err) {
     sendServerError(res, 'deleteHistory:', err, MSG.DELETE);
+  }
+};
+
+const uploadHistoryDocument = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Document file is required (field name: document).' });
+  }
+
+  try {
+    const { id, hid } = req.params;
+    const [[existingRow]] = await pool.execute(
+      'SELECT documents FROM phn_history WHERE id=? AND equip_id=? LIMIT 1',
+      [hid, id],
+    );
+    if (!existingRow) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(404).json({ message: 'Record not found.' });
+    }
+
+    const docs = parseHistoryDocuments(existingRow.documents);
+    if (docs.length >= MAX_HISTORY_DOCUMENTS) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ message: `Maximum ${MAX_HISTORY_DOCUMENTS} documents allowed.` });
+    }
+
+    const displayName = String(req.body.displayName || req.file.originalname || 'Document').trim()
+      || req.file.originalname;
+    const document = {
+      storageKey: historyDocumentStorageKey(HIST, id, hid, req.file.filename),
+      displayName,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    };
+    docs.push(document);
+
+    await pool.execute(
+      'UPDATE phn_history SET documents=? WHERE id=? AND equip_id=?',
+      [serializeHistoryDocumentsColumn(docs), hid, id],
+    );
+    res.status(201).json({ document });
+  } catch (err) {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    sendServerError(res, 'uploadHistoryDocument:', err, MSG.UPLOAD);
+  }
+};
+
+const downloadHistoryDocument = async (req, res) => {
+  try {
+    const { id, hid, fileName } = req.params;
+    const safeName = path.basename(String(fileName || ''));
+    if (!safeName) {
+      return res.status(400).json({ message: 'Invalid document name.' });
+    }
+
+    const [[existingRow]] = await pool.execute(
+      'SELECT documents FROM phn_history WHERE id=? AND equip_id=? LIMIT 1',
+      [hid, id],
+    );
+    if (!existingRow) {
+      return res.status(404).json({ message: 'Document not found.' });
+    }
+
+    const docs = parseHistoryDocuments(existingRow.documents);
+    const document = docs.find((doc) => path.basename(doc.storageKey) === safeName);
+    if (!document) {
+      return res.status(404).json({ message: 'Document not found.' });
+    }
+
+    const absPath = resolveHistoryDocumentAbsPath(document.storageKey);
+    if (!absPath || !fs.existsSync(absPath)) {
+      return res.status(404).json({ message: 'Document file not found.' });
+    }
+
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.download(absPath, document.displayName);
+  } catch (err) {
+    sendServerError(res, 'downloadHistoryDocument:', err, MSG.LOAD);
+  }
+};
+
+const uploadApprovalDocument = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: 'Document file is required (field name: document).' });
+  }
+
+  try {
+    const { id, requestId } = req.params;
+    await assertPendingRequestForUser(Number(requestId), Number(id), APPROVAL_DOMAIN, req.user?.id);
+
+    const staged = listStagedDocuments(requestId);
+    // Safety net only — primary limit is enforced in multer destination before write.
+    const currentName = path.basename(req.file.filename || req.file.path || '');
+    const otherStaged = staged.filter((f) => f.filename !== currentName);
+    if (otherStaged.length >= MAX_APPROVAL_STAGED_DOCS) {
+      fs.unlink(req.file.path, () => {});
+      const metaPath = path.join(approvalStagingDir(requestId), `${currentName}.meta.json`);
+      fs.unlink(metaPath, () => {});
+      return res.status(400).json({ message: `Maximum ${MAX_APPROVAL_STAGED_DOCS} documents allowed.` });
+    }
+
+    const displayName = String(req.body.displayName || req.file.originalname || 'Document').trim()
+      || req.file.originalname;
+    const metaPath = path.join(approvalStagingDir(requestId), `${path.basename(req.file.filename)}.meta.json`);
+    fs.writeFileSync(metaPath, JSON.stringify({
+      displayName,
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+    }));
+
+    res.status(201).json({
+      document: {
+        displayName,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        size: req.file.size,
+        pending: true,
+      },
+    });
+  } catch (err) {
+    if (req.file?.path) fs.unlink(req.file.path, () => {});
+    const status = err.status || 500;
+    if (status < 500) {
+      return res.status(status).json({ message: err.message });
+    }
+    sendServerError(res, 'uploadApprovalDocument:', err, MSG.UPLOAD);
+  }
+};
+
+const deleteApprovalDocument = async (req, res) => {
+  try {
+    const { id, requestId, fileName } = req.params;
+    await assertPendingRequestForUser(Number(requestId), Number(id), APPROVAL_DOMAIN, req.user?.id);
+    deleteStagedDocument(Number(requestId), decodeURIComponent(String(fileName || '')));
+    return res.json({ ok: true });
+  } catch (err) {
+    const status = err.status || 500;
+    if (status < 500) {
+      return res.status(status).json({ message: err.message });
+    }
+    sendServerError(res, 'deleteApprovalDocument:', err, MSG.DELETE);
   }
 };
 
@@ -336,4 +635,10 @@ module.exports = {
   addHistory,
   updateHistory,
   deleteHistory,
+  uploadHistoryDocumentMiddleware,
+  uploadHistoryDocument,
+  uploadApprovalDocumentMiddleware,
+  uploadApprovalDocument,
+  deleteApprovalDocument,
+  downloadHistoryDocument,
 };

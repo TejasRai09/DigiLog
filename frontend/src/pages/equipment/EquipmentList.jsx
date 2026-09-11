@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import AppPageHeader from '../../components/AppPageHeader';
 import { buildEquipmentListTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import { MdSearch, MdArrowForward } from 'react-icons/md';
@@ -49,9 +50,9 @@ const EquipmentList = () => {
   return (
     <main className="app-main">
       <AppBreadcrumb items={buildEquipmentListTrail({ appId, appName })} />
-      <div className="mb-6">
-        <p className="text-sm text-gray-500">{total} equipment records</p>
-      </div>
+      <AppPageHeader className="mb-6">
+        <p className="text-sm font-semibold text-slate-800">{total} equipment records</p>
+      </AppPageHeader>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-6">
         <input

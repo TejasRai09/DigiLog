@@ -1,27 +1,28 @@
 import { Link } from 'react-router-dom';
 import { MdChevronRight, MdHome } from 'react-icons/md';
 import { withoutGsmaLabel } from '../utils/displayLabels';
+import AppPageHeader from './AppPageHeader';
 
 /**
  * Horizontal breadcrumb trail. Last item is the current page (not linked) unless `linkWhenLast`.
  * @param {{ label: string, to?: string, state?: object, linkWhenLast?: boolean }[]} items
  */
-const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
+const AppBreadcrumb = ({ items, className = 'mb-6', bleed = true }) => {
   if (!items?.length) return null;
 
-  return (
-    <nav aria-label="Breadcrumb" className={className}>
-      <ol className="flex flex-wrap items-center gap-1 text-sm text-gray-600">
+  const trail = (
+    <nav aria-label="Breadcrumb">
+      <ol className="flex flex-wrap items-center gap-1 text-sm">
         {items.map((item, index) => {
           const isLast = index === items.length - 1;
           const label = withoutGsmaLabel(item.label) || '…';
           const showLink = Boolean(item.to) && (!isLast || item.linkWhenLast);
 
           return (
-            <li key={`${label}-${index}`} className="flex items-center gap-1 min-w-0">
+            <li key={`${label}-${index}`} className="flex min-w-0 items-center gap-1">
               {index > 0 && (
                 <MdChevronRight
-                  className="h-5 w-5 shrink-0 text-gray-800"
+                  className="h-5 w-5 shrink-0 text-slate-700"
                   aria-hidden
                 />
               )}
@@ -29,10 +30,10 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
                 <Link
                   to={item.to}
                   state={item.state}
-                  className={`hover:text-gray-900 transition-colors truncate max-w-[10rem] sm:max-w-xs md:max-w-none ${
+                  className={`truncate max-w-[10rem] transition-colors hover:text-slate-950 sm:max-w-xs md:max-w-none ${
                     isLast
-                      ? 'text-base font-semibold text-gray-900'
-                      : 'text-sm font-medium text-gray-600'
+                      ? 'text-base font-bold text-slate-900'
+                      : 'text-sm font-semibold text-slate-800'
                   }`}
                   aria-current={isLast ? 'page' : undefined}
                 >
@@ -49,8 +50,8 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
                 <span
                   className={`truncate max-w-[12rem] sm:max-w-xs md:max-w-none ${
                     isLast
-                      ? 'text-base font-semibold text-gray-900'
-                      : 'text-sm font-medium text-gray-600'
+                      ? 'text-base font-bold text-slate-900'
+                      : 'text-sm font-semibold text-slate-800'
                   }`}
                   aria-current={isLast ? 'page' : undefined}
                 >
@@ -63,6 +64,12 @@ const AppBreadcrumb = ({ items, className = 'mb-6' }) => {
       </ol>
     </nav>
   );
+
+  if (!bleed) {
+    return <div className={className}>{trail}</div>;
+  }
+
+  return <AppPageHeader className={className}>{trail}</AppPageHeader>;
 };
 
 export default AppBreadcrumb;

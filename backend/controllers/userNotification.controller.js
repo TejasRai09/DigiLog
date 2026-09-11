@@ -3,6 +3,7 @@ const {
   getUnreadCount,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
 } = require('../services/userNotification.service');
 const { sendServerError, MSG } = require('../utils/httpError');
 
@@ -43,9 +44,20 @@ const markAllMyNotificationsRead = async (req, res) => {
   }
 };
 
+const deleteMyNotification = async (req, res) => {
+  try {
+    await deleteNotification(req.user.id, Number(req.params.id));
+    res.json({ message: 'Notification removed.' });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
+    sendServerError(res, 'deleteMyNotification:', err, MSG.SAVE);
+  }
+};
+
 module.exports = {
   listMyNotifications,
   getMyUnreadNotificationCount,
   markMyNotificationRead,
   markAllMyNotificationsRead,
+  deleteMyNotification,
 };

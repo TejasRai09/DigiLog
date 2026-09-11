@@ -3,6 +3,8 @@
  * Keep labels business-friendly (matches Admin_Audit_Log_Business_Overview).
  */
 
+import { CONFIG_SECTION_ID_TO_LABEL } from './auditFilterTree';
+
 const BI_DASHBOARDS = {
   '/bi/distillery-operations': 'Distillery Operations — Analytics',
   '/bi/milling-operations': 'Milling Division Cockpit',
@@ -34,6 +36,12 @@ export function classifyPath(pathname) {
   const path = raw.split('?')[0] || '/';
   const query = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
   const parts = path.split('/').filter(Boolean);
+  let queryParams = null;
+  try {
+    queryParams = query ? new URLSearchParams(query) : null;
+  } catch {
+    queryParams = null;
+  }
 
   let section = 'Dashboard';
   let card = null;
@@ -43,17 +51,37 @@ export function classifyPath(pathname) {
 
   if (path === '/' || path === '/dashboard') {
     section = 'Dashboard';
+  } else if (path.startsWith('/maintenance/approvals')) {
+    section = 'Approvals';
+    crumbs.push('Approvals');
+    event_type = 'page_view';
+    const domain = queryParams?.get('domain') || queryParams?.get('dept');
+    if (domain) {
+      const map = {
+        sugar: 'Sugar House',
+        power: 'Power Plant',
+        production: 'Production House',
+      };
+      card = map[String(domain).toLowerCase()] || titleFromSlug(domain);
+      crumbs.push(card);
+    }
+    const status = queryParams?.get('status');
+    if (status === 'approved') {
+      form_or_dashboard = 'Approved';
+      crumbs.push(form_or_dashboard);
+    } else if (status === 'needs_modification' || status === 'modification') {
+      form_or_dashboard = 'Sent for modification';
+      crumbs.push(form_or_dashboard);
+    }
   } else if (path.startsWith('/forms-hub')) {
     section = 'Forms Hub';
     crumbs.push('Forms Hub');
     event_type = 'section_open';
   } else if (path.startsWith('/apps/')) {
-    // Card name is resolved server-side from the apps catalog.
     section = 'Forms Hub';
     crumbs.push('Forms Hub');
     event_type = 'card_open';
   } else if (path.startsWith('/forms/')) {
-    // Card / form names are resolved server-side from the forms + apps catalog.
     section = 'Forms Hub';
     crumbs.push('Forms Hub');
     const formKey = parts.slice(1).join('/');
@@ -74,7 +102,6 @@ export function classifyPath(pathname) {
       crumbs.push(form_or_dashboard);
     }
   } else if (path.startsWith('/power-plant-equipment-new') || path.startsWith('/power')) {
-    // Equipment / node names are resolved server-side from the hierarchy tables.
     section = 'Power Plant Equipment';
     crumbs.push('Power Plant Equipment');
     event_type = parts.length <= 1 ? 'section_open' : 'page_view';
@@ -83,7 +110,13 @@ export function classifyPath(pathname) {
       crumbs.push(card);
     }
     const discipline = path.startsWith('/power-plant-equipment-new') ? parts[2] : null;
-    if (discipline) {
+    if (discipline === 'specs' || discipline === 'schedule' || discipline === 'history') {
+      form_or_dashboard = discipline === 'specs' ? 'Specs'
+        : discipline === 'schedule' ? 'OEM Schedule'
+        : 'Life History';
+      crumbs.push(form_or_dashboard);
+      event_type = 'equipment_section_open';
+    } else if (discipline) {
       form_or_dashboard = titleFromSlug(discipline);
       crumbs.push(form_or_dashboard);
     }
@@ -91,7 +124,13 @@ export function classifyPath(pathname) {
     section = 'Sugar House Equipment';
     crumbs.push('Sugar House Equipment');
     event_type = parts.length <= 1 ? 'section_open' : 'page_view';
-    if (parts[2]) {
+    if (parts[2] === 'specs' || parts[2] === 'schedule' || parts[2] === 'history') {
+      form_or_dashboard = parts[2] === 'specs' ? 'Specs'
+        : parts[2] === 'schedule' ? 'OEM Schedule'
+        : 'Life History';
+      crumbs.push(form_or_dashboard);
+      event_type = 'equipment_section_open';
+    } else if (parts[2]) {
       form_or_dashboard = titleFromSlug(parts[2]);
       crumbs.push(form_or_dashboard);
     }
@@ -100,27 +139,41 @@ export function classifyPath(pathname) {
     crumbs.push('Production House Equipment');
     event_type = parts.length <= 1 ? 'section_open' : 'page_view';
     if (parts[1] && /^\d+$/.test(parts[1])) {
-      form_or_dashboard = `Equipment #${parts[1]}`;
+      card = `Equipment #${parts[1]}`;
+      crumbs.push(card);
+    }
+    if (parts[2] === 'specs' || parts[2] === 'schedule' || parts[2] === 'history') {
+      form_or_dashboard = parts[2] === 'specs' ? 'Specs'
+        : parts[2] === 'schedule' ? 'OEM Schedule'
+        : 'Life History';
       crumbs.push(form_or_dashboard);
+      event_type = 'equipment_section_open';
+    } else if (parts[1] && /^\d+$/.test(parts[1]) && !parts[2]) {
+      form_or_dashboard = `Equipment #${parts[1]}`;
     }
   } else if (path.startsWith('/equipment')) {
     section = 'Mill House Equipment';
     crumbs.push('Mill House Equipment');
-    event_type = 'section_open';
+    event_type = parts.length <= 1 ? 'section_open' : 'page_view';
+    if (parts[1] && /^\d+$/.test(parts[1])) {
+      card = `Equipment #${parts[1]}`;
+      crumbs.push(card);
+    }
+    if (parts[2] === 'specs' || parts[2] === 'schedule' || parts[2] === 'history') {
+      form_or_dashboard = parts[2] === 'specs' ? 'Specs'
+        : parts[2] === 'schedule' ? 'OEM Schedule'
+        : 'Life History';
+      crumbs.push(form_or_dashboard);
+      event_type = 'equipment_section_open';
+    }
   } else if (path.startsWith('/admin')) {
     section = 'Admin Config';
     crumbs.push('Admin Config');
     event_type = path.includes('config') ? 'section_open' : 'page_view';
-    if (query.includes('section=')) {
-      try {
-        const sectionParam = new URLSearchParams(query).get('section');
-        if (sectionParam) {
-          card = titleFromSlug(sectionParam);
-          crumbs.push(card);
-        }
-      } catch {
-        /* ignore */
-      }
+    if (queryParams?.get('section')) {
+      const sectionParam = queryParams.get('section');
+      card = CONFIG_SECTION_ID_TO_LABEL[sectionParam] || titleFromSlug(sectionParam);
+      crumbs.push(card);
     } else if (parts[1]) {
       card = titleFromSlug(parts[1]);
       crumbs.push(card);
@@ -129,6 +182,17 @@ export function classifyPath(pathname) {
     section = 'Data Upload';
     crumbs.push('Data Upload');
     event_type = 'section_open';
+    const area = queryParams?.get('area') || queryParams?.get('section');
+    if (area) {
+      const map = {
+        purchy: 'Purchy',
+        management: 'Management',
+        milling: 'Milling',
+      };
+      card = map[String(area).toLowerCase()] || titleFromSlug(area);
+      form_or_dashboard = card;
+      crumbs.push(card);
+    }
   } else if (path.startsWith('/ehs')) {
     section = 'Forms Hub';
     card = 'EHS';

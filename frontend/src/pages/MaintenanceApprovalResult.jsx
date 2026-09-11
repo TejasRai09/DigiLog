@@ -4,6 +4,7 @@ import { MdCheck, MdError, MdWarning } from 'react-icons/md';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
 import AppBrandHeader from '../components/AppBrandHeader';
+import IndustryAppBackground from '../components/IndustryAppBackground';
 import useAuth from '../hooks/useAuth';
 
 function ResultIcon({ tone }) {
@@ -42,12 +43,13 @@ function ResultLayout({ children }) {
 
   return (
     <div
-      className={`flex flex-col bg-slate-50 ${
+      className={`relative flex flex-col ${
         showBrandHeader ? 'min-h-screen' : 'min-h-[calc(100vh-4rem)]'
       }`}
     >
+      {showBrandHeader && <IndustryAppBackground />}
       {showBrandHeader && <AppBrandHeader />}
-      {children}
+      <div className="relative z-10 flex flex-1 flex-col">{children}</div>
     </div>
   );
 }
@@ -151,8 +153,9 @@ export default function MaintenanceApprovalResult({ mode }) {
             <button
               type="submit"
               disabled={submitting || !comment.trim()}
-              className="mt-4 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              className="mt-4 inline-flex items-center justify-center gap-2 rounded-lg bg-amber-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
             >
+              {submitting ? <Spinner size="sm" /> : null}
               {submitting ? 'Sending…' : 'Send for modification'}
             </button>
           </form>

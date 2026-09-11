@@ -46,6 +46,8 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
 const fieldBrixTrendData = [
@@ -252,6 +254,15 @@ export default function BrixSamplingDashboard() {
   const dateFrom = activeDates.from;
   const dateTo = activeDates.to;
   const setActiveDates = activeTab === 'field' ? setFieldDates : setYardDates;
+
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/brix-sampling'],
+    activeTab,
+    rangePreset,
+    comparisonType,
+    dateFrom,
+    dateTo,
+  });
 
   const clampIso = (iso, minStr, maxStr) => {
     if (!iso) return iso;
@@ -589,7 +600,7 @@ export default function BrixSamplingDashboard() {
   );
 
   return (
-    <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-800'
+    <div className={`h-[calc(100vh-4rem)] max-h-[calc(100vh-4rem)] overflow-hidden flex flex-col ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800'
       } transition-colors duration-200 font-sans`}>
 
       <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">

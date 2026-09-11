@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../Spinner';
 import { BI_CONTROL_TOWER_APP_NAME } from '../../config/biDashboardRoutes';
+import { isRetiredFormsHubApp } from '../../config/retiredFormsHubApps';
 import { withoutGsmaLabel } from '../../utils/displayLabels';
 
 /**
@@ -40,7 +41,11 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
           const raw = Array.isArray(data) ? data : [];
           const filtered = isDashboardVariant
             ? raw.filter((a) => a.name === BI_CONTROL_TOWER_APP_NAME)
-            : raw.filter((a) => a.name !== BI_CONTROL_TOWER_APP_NAME);
+            : raw.filter((a) => (
+              a.name !== BI_CONTROL_TOWER_APP_NAME
+              && a.isActive !== false
+              && !isRetiredFormsHubApp(a.name)
+            ));
           setAppsWithForms(filtered);
         }
       } catch {

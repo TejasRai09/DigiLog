@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { MdSearch, MdArrowForward } from 'react-icons/md';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import AppPageHeader from '../../components/AppPageHeader';
 import { buildPowerDeptTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import toast from 'react-hot-toast';
@@ -66,9 +67,9 @@ const PowerList = () => {
     <main className="app-main">
       <AppBreadcrumb items={buildPowerDeptTrail({ appId, appName, dept })} />
 
-      <div className="mb-6">
-        <p className="text-sm text-gray-500">{total} equipment records</p>
-      </div>
+      <AppPageHeader className="mb-6">
+        <p className="text-sm font-semibold text-slate-800">{total} equipment records</p>
+      </AppPageHeader>
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-6">
         <input

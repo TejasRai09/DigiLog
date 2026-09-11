@@ -15,6 +15,8 @@ import PurchyFailureDateDrilldownTab from '../../components/bi/purchy/PurchyFail
 import {
   resolveFilterOptions,
 } from '../../utils/purchyStaticFilters';
+import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
+import { BI_DASHBOARDS } from '../../utils/activityPath';
 
 const TABS = [
   { id: 'grower', label: 'Grower Performance' },
@@ -90,6 +92,12 @@ export default function PurchyAnalysisDashboard() {
     error: filtersError,
   } = usePurchyFilters({ enabled: true });
 
+  useTrackBiInteraction({
+    dashboardLabel: BI_DASHBOARDS['/bi/purchy-analysis'],
+    activeTab,
+    extraFilters: filters,
+  });
+
   const [debouncedParams, setDebouncedParams] = useState(queryParams);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedParams(queryParams), 300);
@@ -113,7 +121,7 @@ export default function PurchyAnalysisDashboard() {
   const dishonourKpis = dishonour.kpis;
   const dishonourDetail = dishonour.detail;
 
-  const pageBg = isDarkMode ? 'bg-slate-900' : 'bg-slate-100';
+  const pageBg = isDarkMode ? 'bg-slate-900' : 'bg-transparent text-slate-800';
 
   const loadError = filtersError || grower.error || dishonour.error;
 

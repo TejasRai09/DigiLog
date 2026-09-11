@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import useAuth from '../hooks/useAuth';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
+import AppPageHeader from '../components/AppPageHeader';
 import { HOMEPAGE_CARD_KEYS } from '../config/homepageCards';
 
 const HomeLanding = () => {
@@ -46,24 +47,26 @@ const HomeLanding = () => {
     'relative flex shrink-0 flex-col justify-center bg-gradient-to-b from-white via-white to-slate-50/70 px-5 py-5 pb-6 sm:px-8 sm:py-7 sm:pb-8 md:min-h-0 md:shrink md:flex-[1] md:basis-0 lg:px-10';
 
   return (
-    <main className="page-shell min-h-[calc(100vh-4rem)] bg-slate-50/60 lg:py-16">
-      <div className="mb-10 sm:mb-12 lg:mb-14 max-w-3xl">
-        <Link
-          to="/"
-          className="inline-block rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
-        >
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700/90 mb-2 hover:text-violet-700">
-            Zuari Industries · DigiLog
+    <main className="page-shell min-h-[calc(100vh-4rem)] lg:py-16">
+      <AppPageHeader className="mb-10 sm:mb-12 lg:mb-14">
+        <div className="max-w-3xl">
+          <Link
+            to="/"
+            className="inline-block rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+          >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800 hover:text-violet-800">
+              Zuari Industries · DigiLog
+            </p>
+          </Link>
+          <h1 className="page-title text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+            Hello{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+          </h1>
+          <p className="mt-2.5 text-sm font-medium leading-relaxed text-slate-800 sm:text-base">
+            Pick a destination. Forms Hub opens your assigned operational logbooks and modules; BI Control
+            Tower lists analytics dashboards you are assigned.
           </p>
-        </Link>
-        <h1 className="page-title text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
-          Hello{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
-        </h1>
-        <p className="mt-2.5 text-sm sm:text-base text-slate-600 leading-relaxed">
-          Pick a destination. Forms Hub opens your assigned operational logbooks and modules; BI Control
-          Tower lists analytics dashboards you are assigned.
-        </p>
-      </div>
+        </div>
+      </AppPageHeader>
 
       {cardKeys === null ? (
         <div className="flex justify-center py-24">
