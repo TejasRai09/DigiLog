@@ -140,7 +140,7 @@ function ReadableBody({ body }) {
   );
 }
 
-const COL_COUNT = 11;
+const COL_COUNT = 12;
 
 function CascadeSelects({
   source,
@@ -492,6 +492,7 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Description</th>
                 <th className="px-2 py-2 font-medium">Location</th>
                 <th className="px-2 py-2 font-medium">API Path</th>
+                <th className="px-2 py-2 font-medium">IP</th>
                 <th className="px-2 py-2 font-medium">Status</th>
                 <th className="px-2 py-2 font-medium">Result</th>
                 <th className="w-10 px-2 py-2 font-medium" />
@@ -524,6 +525,9 @@ export default function AuditLogSection() {
                       </td>
                       <td className="max-w-[12rem] truncate px-2 py-2.5 font-mono text-xs text-gray-600" title={row.path}>
                         {row.path}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-gray-700" title={row.ip || ''}>
+                        {row.ip || '—'}
                       </td>
                       <td className={`px-2 py-2.5 font-semibold tabular-nums ${statusClass(row.status_code)}`}>
                         {row.status_code ?? '—'}
@@ -573,6 +577,7 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Card</th>
                 <th className="px-2 py-2 font-medium">Form / Dashboard</th>
                 <th className="px-2 py-2 font-medium">Path</th>
+                <th className="px-2 py-2 font-medium">IP</th>
                 <th className="px-2 py-2 font-medium">Dwell</th>
               </tr>
             </thead>
@@ -587,6 +592,9 @@ export default function AuditLogSection() {
                   <td className="px-2 py-2.5 text-gray-800">{row.form_or_dashboard || '—'}</td>
                   <td className="max-w-[18rem] px-2 py-2.5 text-gray-600" title={row.display_path || row.page_path}>
                     <div className="line-clamp-2 text-sm">{row.display_path || row.page_path || '—'}</div>
+                  </td>
+                  <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-gray-700" title={row.ip || ''}>
+                    {row.ip || '—'}
                   </td>
                   <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-gray-700">
                     {formatDwell(row.dwell_seconds)}
@@ -609,6 +617,7 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Logout</th>
                 <th className="px-2 py-2 font-medium">Duration</th>
                 <th className="px-2 py-2 font-medium">Pages</th>
+                <th className="px-2 py-2 font-medium">IP</th>
                 <th className="px-2 py-2 font-medium">Status</th>
               </tr>
             </thead>
@@ -627,6 +636,9 @@ export default function AuditLogSection() {
                       {formatDuration(row.duration_minutes)}
                     </td>
                     <td className="px-2 py-2.5 tabular-nums text-gray-700">{row.pages_visited ?? 0}</td>
+                    <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-gray-700" title={row.ip || ''}>
+                      {row.ip || '—'}
+                    </td>
                     <td className="px-2 py-2.5">
                       {online ? (
                         <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-800">Online</span>
