@@ -1187,22 +1187,26 @@ async function getReviewByToken(token) {
 
 async function getInboxByToken(token) {
   const review = await getReviewByToken(token);
-  const [rows] = await pool.query(
-    `SELECT * FROM maintenance_history_approval_request
-     WHERE domain = ? AND hod_email = ? AND status IN ('pending', 'resubmitted')
-     ORDER BY created_at ASC, id ASC`,
-    [review.request.domain, review.request.hod_email],
-  );
+  const domain = review.request.domain;
+  // Same rule as the digest email: every pending/resubmitted row for this department.
+  const rows = await fetchPendingForDigest(domain);
   const entries = [];
   for (const row of rows) {
     entries.push(await buildDigestEntry(row));
+  }
+  let hodEmail = review.request.hod_email;
+  try {
+    const hod = await resolveHodUser(domain);
+    hodEmail = hod.email;
+  } catch {
+    /* keep the email frozen on the token row */
   }
   return {
     status: review.status,
     alreadyResolved: review.alreadyResolved && !rows.length,
     domain: review.domain,
     domainLabel: review.domainLabel,
-    hodEmail: review.request.hod_email,
+    hodEmail,
     entries,
   };
 }
@@ -1589,6 +1593,14 @@ async function sendDigestForDomain(domain, options = {}) {
     : pendingRows;
   const { previous, today } = splitDigestByIstDate(allPending, ist.date);
   const hod = await resolveHodUser(domain);
+
+  await pool.execute(
+    `UPDATE maintenance_history_approval_request
+     SET hod_user_id = ?, hod_email = ?
+     WHERE domain = ?
+       AND status IN ('pending', 'resubmitted')`,
+    [hod.id, hod.email, domain],
+  );
 
   const refreshed = [];
   for (const row of pendingRows) {
