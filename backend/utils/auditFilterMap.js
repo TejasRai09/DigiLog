@@ -65,38 +65,38 @@ const EQUIP_HUB_FILTER = {
   'Sugar House Equipment': {
     sections: ['Sugar House Equipment'],
     modules: ['Sugar House Equipment'],
-    pathLike: ['%/sugar-new%', '%/sugar-house%', '%sugar%'],
-    pageLike: ['%/sugar-house-equipment%', '%/sugar%'],
+    pathLike: ['/api/sugar-new%', '/api/sugar-house%'],
+    pageLike: ['/sugar-house-equipment%', '/sugar-house%'],
   },
   'Power Plant Equipment': {
     sections: ['Power Plant Equipment'],
     modules: ['Power Plant Equipment', 'Power Plant Equipment (Legacy)'],
-    pathLike: ['%/power-new%', '%/power/%', '%power%'],
-    pageLike: ['%/power-plant-equipment%', '%/power/%', '%/power'],
+    pathLike: ['/api/power-new%', '/api/power/%', '/api/power', '/api/power?%'],
+    pageLike: ['/power-plant-equipment%', '/power/%', '/power'],
   },
   'Production House Equipment': {
     sections: ['Production House Equipment'],
     modules: ['Production House Equipment'],
-    pathLike: ['%/production-house%', '%production%'],
-    pageLike: ['%/production-house-equipment%', '%/production%'],
+    pathLike: ['/api/production-house%'],
+    pageLike: ['/production-house-equipment%', '/production-house%'],
   },
 };
 
 const EQUIP_SCREEN_FILTER = {
   Specs: {
     labels: ['Specs', 'Equipment Specification', 'specifications'],
-    pathLike: ['%/specs%', '%/specs'],
-    pageLike: ['%/specs%', '%specs%'],
+    pathLike: ['%/specs', '%/specs/%', '%/specs?%'],
+    pageLike: ['%/specs', '%/specs/%', '%/specs?%'],
   },
   'OEM Schedule': {
-    labels: ['OEM Schedule', 'Schedule'],
-    pathLike: ['%/schedule%', '%/schedule'],
-    pageLike: ['%/schedule%', '%schedule%', '%mechanical%'],
+    labels: ['OEM Schedule', 'OEM Maintenance Schedule', 'Schedule'],
+    pathLike: ['%/schedule', '%/schedule/%', '%/schedule?%'],
+    pageLike: ['%/schedule', '%/schedule/%', '%/schedule?%'],
   },
   'Life History': {
-    labels: ['Life History', 'Maintenance History', 'History'],
-    pathLike: ['%/history%', '%/history'],
-    pageLike: ['%/history%', '%history%'],
+    labels: ['Life History', 'Maintenance History', 'Equipment Maintenance History', 'History'],
+    pathLike: ['%/history', '%/history/%', '%/history?%'],
+    pageLike: ['%/history', '%/history/%', '%/history?%'],
   },
 };
 
@@ -184,6 +184,8 @@ function pushActivityTreeFilters(where, params, { root, branch, leaf, card, scre
             ...hub.pageLike,
             ...hub.sections.map((x) => `%${x}%`),
           );
+          where.push(`${col('section')} <> 'BI Control Tower'`);
+          where.push(`${col('page_path')} NOT LIKE '/bi%'`);
         } else {
           where.push(`${col('section')} IN (${EQUIP_SECTIONS.map(() => '?').join(',')})`);
           params.push(...EQUIP_SECTIONS);
@@ -359,6 +361,8 @@ function pushAuditLogTreeFilters(where, params, { root, branch, leaf, card, scre
             ...hub.pathLike,
             ...hub.sections.map((x) => `%${x}%`),
           );
+          where.push(`(module IS NULL OR module <> 'BI Control Tower')`);
+          where.push(`path NOT LIKE '/api/bi%'`);
         } else {
           where.push(`(
             module IN (${EQUIP_MODULES.map(() => '?').join(',')})

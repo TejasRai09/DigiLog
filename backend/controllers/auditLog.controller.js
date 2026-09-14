@@ -4,8 +4,10 @@ const {
   enrichAuditContext,
   parseStoredAuditBody,
   buildChangeDescription,
+  isAuthLoginPath,
 } = require('../utils/auditLog');
 const { pushAuditLogTreeFilters } = require('../utils/auditFilterMap');
+const { pushIstDayRange } = require('../utils/istDayRange');
 
 const ACTION_TO_METHODS = {
   Create: ['POST'],
@@ -79,11 +81,21 @@ exports.listAuditLogs = async (req, res) => {
     const effectiveAction = treeAction || action;
 
     const methodsFromAction = ACTION_TO_METHODS[effectiveAction];
+    const authLoginPathSql = `(
+      path LIKE '/api/auth/login%'
+      OR path LIKE '/api/auth/outlook%'
+      OR path LIKE '/api/auth/google%'
+    )`;
     if (effectiveAction === 'Login') {
-      where.push('action_type = ?');
+      where.push(`(action_type = ? OR ${authLoginPathSql})`);
       params.push('Login');
     } else if (methodsFromAction && !treeAction) {
-      where.push(`(action_type = ? OR (action_type IS NULL AND method IN (${methodsFromAction.map(() => '?').join(',')})))`);
+      const methodSql = `action_type = ? OR (action_type IS NULL AND method IN (${methodsFromAction.map(() => '?').join(',')}))`;
+      if (effectiveAction === 'Create') {
+        where.push(`((${methodSql}) AND NOT ${authLoginPathSql})`);
+      } else {
+        where.push(`(${methodSql})`);
+      }
       params.push(effectiveAction, ...methodsFromAction);
     } else if (!treeAction && methodRaw && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(methodRaw)) {
       where.push('method = ?');
@@ -124,15 +136,7 @@ exports.listAuditLogs = async (req, res) => {
       }
     }
 
-    if (from) {
-      where.push('created_at >= ?');
-      params.push(from.length <= 10 ? `${from} 00:00:00` : from);
-    }
-
-    if (to) {
-      where.push('created_at <= ?');
-      params.push(to.length <= 10 ? `${to} 23:59:59` : to);
-    }
+    pushIstDayRange(where, params, 'created_at', from, to);
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -175,7 +179,9 @@ exports.listAuditLogs = async (req, res) => {
         ? !!row.success
         : (statusCode != null ? statusCode >= 200 && statusCode < 400 : null);
 
-      const actionType = row.action_type || enriched?.action_type || actionTypeFromMethod(row.method);
+      const actionType = isAuthLoginPath(row.path)
+        ? 'Login'
+        : (row.action_type || enriched?.action_type || actionTypeFromMethod(row.method));
       const displayPath = row.display_path || enriched?.display_path || row.path;
       const screen = row.screen || enriched?.screen || null;
       const resourceName = row.resource_name || enriched?.resource_name || bodyHint?.name || null;
