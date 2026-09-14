@@ -1,5 +1,6 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
+const { pushIstDayRange } = require('../utils/istDayRange');
 const {
   auditFilterRoots,
   auditFilterBranches,
@@ -12,17 +13,6 @@ function clampInt(v, min, max, fallback) {
   const n = Number.parseInt(v, 10);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, n));
-}
-
-function buildDateFilters(from, to, column, where, params) {
-  if (from) {
-    where.push(`${column} >= ?`);
-    params.push(from.length <= 10 ? `${from} 00:00:00` : from);
-  }
-  if (to) {
-    where.push(`${column} <= ?`);
-    params.push(to.length <= 10 ? `${to} 23:59:59` : to);
-  }
 }
 
 function readTreeQuery(req) {
@@ -83,7 +73,7 @@ async function listActivityLogs(req, res) {
       params.push(Number(req.query.user_id));
     }
 
-    buildDateFilters(req.query.from, req.query.to, 'entered_at', where, params);
+    pushIstDayRange(where, params, 'entered_at', req.query.from, req.query.to);
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -142,7 +132,7 @@ async function listSessions(req, res) {
       params.push(Number(req.query.user_id));
     }
 
-    buildDateFilters(req.query.from, req.query.to, 'login_at', where, params);
+    pushIstDayRange(where, params, 'login_at', req.query.from, req.query.to);
 
     const tree = readTreeQuery(req);
     if (tree.root) {

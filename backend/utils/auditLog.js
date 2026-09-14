@@ -1244,6 +1244,7 @@ module.exports = {
   enrichAuditContext,
   extractResourceMeta,
   actionTypeFromMethod,
+  isAuthLoginPath,
   shouldSkipAudit,
   clientIp,
   parseStoredAuditBody,
