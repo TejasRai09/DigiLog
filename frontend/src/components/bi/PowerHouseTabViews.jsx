@@ -5,6 +5,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   LabelList,
   Legend,
   Line,
@@ -96,7 +97,7 @@ function gridStroke(dm) {
 /* ═══════════════════════════════════════════════════════════════════
    GENERATION — matches PBI: OpDays header, 4 TG rows, right sidebar
    ═══════════════════════════════════════════════════════════════════ */
-export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLabel, daily, dm }) {
+export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLabel, daily, dm, onExpand }) {
   const p = powerKpis || {};
   const cp = comparePowerKpis || {};
   const rows = [
@@ -124,17 +125,31 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
                 <MetricLine label="PLF (%)" value={r.plf != null ? formatNum(r.plf, 1) : '—'} dm={dm} emphasize />
                 <MetricLine label="Power Gen." value={r.gen} dm={dm} emphasize />
               </BandCard>
-              <BandCard title={`${r.title.replace('Total ', '')} — Gen & PLF`} dm={dm} className="h-full" bodyClassName="overflow-visible">
-                <ResponsiveContainer width="100%" height="100%" minHeight={56}>
-                  <AreaChart data={daily} margin={{ top: 2, right: 8, left: 4, bottom: 0 }}>
+              <BandCard
+                title={`${r.title.replace('Total ', '')} — Gen & PLF`}
+                dm={dm}
+                className="h-full min-h-0"
+                bodyClassName="overflow-visible"
+                onExpand={() => onExpand?.({
+                  title: `${r.title.replace('Total ', '')} — Gen & PLF`,
+                  kind: 'composed',
+                  data: daily,
+                  series: [
+                    { key: r.genKey, name: 'Gen', color: r.color, type: 'area', yAxisId: 'l' },
+                    { key: r.plfKey, name: 'PLF %', color: '#ef4444', type: 'line', yAxisId: 'r' },
+                  ],
+                })}
+              >
+                <ResponsiveContainer width="100%" height="100%" minHeight={48}>
+                  <ComposedChart data={daily} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
-                    <XAxis dataKey="label" hide />
-                    <YAxis yAxisId="l" tick={{ fontSize: 8, fill: axisStroke(dm) }} width={32} />
-                    <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                    <YAxis yAxisId="l" tick={{ fontSize: 10, fill: axisStroke(dm) }} width={36} />
+                    <YAxis yAxisId="r" orientation="right" tick={{ fontSize: 10, fill: axisStroke(dm) }} width={32} />
                     <Tooltip content={<ChartTip dm={dm} />} />
                     <Area yAxisId="l" type="monotone" dataKey={r.genKey} name="Gen" stroke={r.color} fill={`${r.color}33`} strokeWidth={1.5} />
                     <Line yAxisId="r" type="monotone" dataKey={r.plfKey} name="PLF %" stroke="#ef4444" dot={false} strokeWidth={1.25} />
-                  </AreaChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </BandCard>
             </div>
@@ -142,14 +157,30 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
         </div>
 
         <div className="lg:col-span-4 min-h-0 grid gap-1.5" style={{ gridTemplateRows: '1.2fr auto auto 1fr' }}>
-          <BandCard title="Power Generation — TG wise break-up" dm={dm} bodyClassName="overflow-visible">
-            <ResponsiveContainer width="100%" height="100%" minHeight={80}>
-              <AreaChart data={daily} stackOffset="expand" margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+          <BandCard
+            title="Power Generation — TG wise break-up"
+            dm={dm}
+            className="min-h-0"
+            bodyClassName="overflow-visible"
+            onExpand={() => onExpand?.({
+              title: 'Power Generation — TG wise break-up',
+              kind: 'area-percent',
+              data: daily,
+              series: [
+                { key: 'PowerGen30', name: '30', color: TG_COLORS.g30 },
+                { key: 'PowerGen3New', name: '3N', color: TG_COLORS.g3n },
+                { key: 'PowerGen3Old', name: '3O', color: TG_COLORS.g3o },
+                { key: 'PowerGen4MW', name: '4', color: TG_COLORS.g4 },
+              ],
+            })}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={70}>
+              <AreaChart data={daily} stackOffset="expand" margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
-                <XAxis dataKey="label" tick={{ fontSize: 8, fill: axisStroke(dm) }} interval="preserveStartEnd" height={14} />
-                <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                <YAxis tick={{ fontSize: 10, fill: axisStroke(dm) }} width={32} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
                 <Tooltip content={<ChartTip dm={dm} />} />
-                <Legend wrapperStyle={{ fontSize: 9 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Area type="monotone" stackId="1" dataKey="PowerGen30" name="30" stroke={TG_COLORS.g30} fill={TG_COLORS.g30} />
                 <Area type="monotone" stackId="1" dataKey="PowerGen3New" name="3N" stroke={TG_COLORS.g3n} fill={TG_COLORS.g3n} />
                 <Area type="monotone" stackId="1" dataKey="PowerGen3Old" name="3O" stroke={TG_COLORS.g3o} fill={TG_COLORS.g3o} />
@@ -174,9 +205,20 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
 
           <div className="grid grid-cols-2 gap-1.5">
             <KPICard compact label="Import Instances" value={p.Import_Instances} compareValue={cp.Import_Instances} compareLabel={comparisonLabel} dm={dm} color="amber" icon={Plug} info="Count of days with grid import." />
-            <BandCard title="Total Import" dm={dm} bodyClassName="p-1.5 flex flex-col gap-1">
+            <BandCard
+              title="Total Import"
+              dm={dm}
+              className="min-h-0"
+              bodyClassName="p-1.5 flex flex-col gap-1"
+              onExpand={() => onExpand?.({
+                title: 'Total Import',
+                kind: 'line',
+                data: daily,
+                series: [{ key: 'Imp_Grid', name: 'Import', color: '#ef4444' }],
+              })}
+            >
               <p className="text-lg font-black tabular-nums text-red-600">{formatCompact(p.Total_Import)}</p>
-              <div className="flex-1 min-h-[36px]">
+              <div className="min-h-[36px] flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={daily} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                     <Line type="monotone" dataKey="Imp_Grid" stroke="#ef4444" dot={false} strokeWidth={1.5} />
@@ -206,7 +248,7 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
 /* ═══════════════════════════════════════════════════════════════════
    CONSUMPTION — donuts left, KPI+trend rows right (PBI aligned)
    ═══════════════════════════════════════════════════════════════════ */
-export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLabel, daily, consumptionPie, externalPie, dm }) {
+export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLabel, daily, consumptionPie, externalPie, dm, onExpand }) {
   const p = powerKpis || {};
   const cp = comparePowerKpis || {};
   const trendRows = [
@@ -227,8 +269,18 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
         <div className="lg:col-span-3 min-h-0 grid gap-1.5" style={{ gridTemplateRows: '1fr 1fr' }}>
-          <BandCard title="External & Internal — Breakup" dm={dm} bodyClassName="overflow-visible">
-            <ResponsiveContainer width="100%" height="100%" minHeight={120}>
+          <BandCard
+            title="External & Internal — Breakup"
+            dm={dm}
+            className="min-h-0"
+            bodyClassName="overflow-visible"
+            onExpand={() => onExpand?.({
+              title: 'External & Internal — Breakup',
+              kind: 'pie',
+              data: externalPie,
+            })}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={70}>
               <PieChart>
                 <Pie data={externalPie} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="74%" paddingAngle={2}>
                   {(externalPie || []).map((d) => (
@@ -236,12 +288,22 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
                   ))}
                 </Pie>
                 <Tooltip formatter={(v) => formatCompact(v)} />
-                <Legend wrapperStyle={{ fontSize: 9 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
           </BandCard>
-          <BandCard title="Internal Consumption — Breakup" dm={dm} bodyClassName="overflow-visible">
-            <ResponsiveContainer width="100%" height="100%" minHeight={120}>
+          <BandCard
+            title="Internal Consumption — Breakup"
+            dm={dm}
+            className="min-h-0"
+            bodyClassName="overflow-visible"
+            onExpand={() => onExpand?.({
+              title: 'Internal Consumption — Breakup',
+              kind: 'pie',
+              data: consumptionPie,
+            })}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={70}>
               <PieChart>
                 <Pie data={consumptionPie} dataKey="value" nameKey="name" innerRadius="48%" outerRadius="74%" paddingAngle={2}>
                   {(consumptionPie || []).map((d) => (
@@ -249,7 +311,7 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
                   ))}
                 </Pie>
                 <Tooltip formatter={(v) => formatCompact(v)} />
-                <Legend wrapperStyle={{ fontSize: 9 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
             </ResponsiveContainer>
           </BandCard>
@@ -259,12 +321,22 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
           {trendRows.map((r) => (
             <div key={r.key} className="min-h-0 grid grid-cols-[11.5rem_minmax(0,1fr)] gap-1.5">
               <KPICard compact label={r.label} value={r.value} dm={dm} color="blue" icon={Plug} />
-              <BandCard title={`${r.label} — Day wise trend`} dm={dm}>
+              <BandCard
+                title={`${r.label} — Day wise trend`}
+                dm={dm}
+                className="min-h-0"
+                onExpand={() => onExpand?.({
+                  title: `${r.label} — Day wise trend`,
+                  kind: 'area',
+                  data: daily,
+                  series: [{ key: r.key, name: r.label, color: r.color }],
+                })}
+              >
                 <ResponsiveContainer width="100%" height="100%" minHeight={48}>
-                  <AreaChart data={daily} margin={{ top: 2, right: 6, left: 0, bottom: 0 }}>
+                  <AreaChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
-                    <XAxis dataKey="label" hide />
-                    <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={32} tickFormatter={(v) => formatCompact(v, 0)} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                    <YAxis tick={{ fontSize: 10, fill: axisStroke(dm) }} width={36} tickFormatter={(v) => formatCompact(v, 0)} />
                     <Tooltip content={<ChartTip dm={dm} />} />
                     <Area type="monotone" dataKey={r.key} name={r.label} stroke={r.color} fill={`${r.color}33`} strokeWidth={1.5} />
                   </AreaChart>
@@ -282,7 +354,7 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
 /* ═══════════════════════════════════════════════════════════════════
    STEAM SUMMARY — 150 / 70 / 35 aligned rows (PBI)
    ═══════════════════════════════════════════════════════════════════ */
-export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel, daily, dm }) {
+export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel, daily, dm, onExpand }) {
   const s = steamKpis || {};
   const cs = compareSteamKpis || {};
   const bands = [
@@ -352,14 +424,28 @@ export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel,
               <MetricLine label="Steam to Bagasse" value={b.sb != null ? formatNum(b.sb, 2) : '—'} dm={dm} />
             </BandCard>
 
-            <BandCard title={`Steam Generation & Bagasse — ${b.tph}`} dm={dm} className="lg:col-span-5 h-full" bodyClassName="overflow-visible">
+            <BandCard
+              title={`Steam Generation & Bagasse — ${b.tph}`}
+              dm={dm}
+              className="h-full min-h-0 lg:col-span-5"
+              bodyClassName="overflow-visible"
+              onExpand={() => onExpand?.({
+                title: `Steam Generation & Bagasse — ${b.tph}`,
+                kind: 'area',
+                data: daily,
+                series: [
+                  { key: b.genKey, name: 'Steam Gen', color: '#3b82f6' },
+                  { key: b.bagKey, name: 'Bagasse', color: '#10b981' },
+                ],
+              })}
+            >
               <ResponsiveContainer width="100%" height="100%" minHeight={70}>
-                <AreaChart data={daily} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
+                <AreaChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
-                  <XAxis dataKey="label" tick={{ fontSize: 8, fill: axisStroke(dm) }} interval="preserveStartEnd" height={14} />
-                  <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={32} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                  <YAxis tick={{ fontSize: 10, fill: axisStroke(dm) }} width={36} />
                   <Tooltip content={<ChartTip dm={dm} />} />
-                  <Legend wrapperStyle={{ fontSize: 9 }} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
                   <Area type="monotone" dataKey={b.genKey} name="Steam Gen" stroke="#3b82f6" fill="#3b82f655" />
                   <Area type="monotone" dataKey={b.bagKey} name="Bagasse" stroke="#10b981" fill="#10b98144" />
                 </AreaChart>
@@ -378,14 +464,25 @@ export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel,
                   <MetricLine key={lab} label={lab} value={val} dm={dm} />
                 ))}
               </BandCard>
-              <BandCard title={`Steam to Turbine from ${b.tph}`} dm={dm} className="h-full" bodyClassName="overflow-visible">
+              <BandCard
+                title={`Steam to Turbine from ${b.tph}`}
+                dm={dm}
+                className="h-full min-h-0"
+                bodyClassName="overflow-visible"
+                onExpand={() => onExpand?.({
+                  title: `Steam to Turbine from ${b.tph}`,
+                  kind: 'area',
+                  data: daily,
+                  series: b.tgKeys.map((k) => ({ key: k.key, name: k.name, color: k.color })),
+                })}
+              >
                 <ResponsiveContainer width="100%" height="100%" minHeight={70}>
-                  <AreaChart data={daily} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                  <AreaChart data={daily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
-                    <XAxis dataKey="label" hide />
-                    <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                    <YAxis tick={{ fontSize: 10, fill: axisStroke(dm) }} width={32} />
                     <Tooltip content={<ChartTip dm={dm} />} />
-                    <Legend wrapperStyle={{ fontSize: 9 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
                     {b.tgKeys.map((k) => (
                       <Area key={k.key} type="monotone" dataKey={k.key} name={k.name} stroke={k.color} fill={`${k.color}44`} />
                     ))}
@@ -404,7 +501,7 @@ export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel,
 /* ═══════════════════════════════════════════════════════════════════
    STEAM CONSUMPTION — process rows 150/70/35 + right KPI grid
    ═══════════════════════════════════════════════════════════════════ */
-export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLabel, daily, dm }) {
+export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLabel, daily, dm, onExpand }) {
   const s = steamKpis || {};
   const cs = compareSteamKpis || {};
   const processRows = [
@@ -480,34 +577,60 @@ export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLa
                     ))}
                   </div>
                 </div>
-                <div className="min-h-0 min-w-0 rounded-lg border overflow-hidden" style={{ borderColor: dm ? '#334155' : '#e2e8f0' }}>
-                  <ResponsiveContainer width="100%" height="100%" minHeight={56}>
-                    <LineChart data={daily} margin={{ top: 4, right: 8, left: 4, bottom: 0 }}>
+                <BandCard
+                  title={`Steam to Process — ${row.tag} TPH`}
+                  dm={dm}
+                  className="h-full min-h-0"
+                  bodyClassName="overflow-visible"
+                  onExpand={() => onExpand?.({
+                    title: `Steam to Process — ${row.tag} TPH`,
+                    kind: 'line',
+                    data: daily,
+                    series: row.keys.map((k) => ({ key: k.key, name: k.name, color: k.color })),
+                  })}
+                >
+                  <ResponsiveContainer width="100%" height="100%" minHeight={48}>
+                    <LineChart data={daily} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} vertical={false} />
-                      <XAxis dataKey="label" hide />
-                      <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={36} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                      <YAxis tick={{ fontSize: 10, fill: axisStroke(dm) }} width={36} />
                       <Tooltip content={<ChartTip dm={dm} />} />
-                      <Legend wrapperStyle={{ fontSize: 9 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
                       {row.keys.map((k) => (
                         <Line key={k.key} type="monotone" dataKey={k.key} name={k.name} stroke={k.color} dot={false} strokeWidth={1.5} />
                       ))}
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
+                </BandCard>
               </div>
             ))}
           </div>
         </BandCard>
 
         <div className="lg:col-span-5 min-h-0 flex flex-col gap-1.5">
-          <BandCard title="Steam to Process Trend" dm={dm} className="flex-[1.1] min-h-0" bodyClassName="overflow-visible">
-            <ResponsiveContainer width="100%" height="100%" minHeight={90}>
-              <AreaChart data={daily} stackOffset="expand" margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
+          <BandCard
+            title="Steam to Process Trend"
+            dm={dm}
+            className="flex-[1.1] min-h-0"
+            bodyClassName="overflow-visible"
+            onExpand={() => onExpand?.({
+              title: 'Steam to Process Trend',
+              kind: 'area-percent',
+              data: daily,
+              series: [
+                { key: 'SugarShare', name: 'Sugar', color: '#3b82f6' },
+                { key: 'MillShare', name: 'Mill', color: '#2563eb' },
+                { key: 'DistShare', name: 'Dist', color: '#60a5fa' },
+              ],
+            })}
+          >
+            <ResponsiveContainer width="100%" height="100%" minHeight={70}>
+              <AreaChart data={daily} stackOffset="expand" margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
-                <XAxis dataKey="label" tick={{ fontSize: 8, fill: axisStroke(dm) }} interval="preserveStartEnd" height={14} />
-                <YAxis tick={{ fontSize: 8, fill: axisStroke(dm) }} width={28} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval="preserveStartEnd" height={18} />
+                <YAxis tick={{ fontSize: 10, fill: axisStroke(dm) }} width={32} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
                 <Tooltip content={<ChartTip dm={dm} />} />
-                <Legend wrapperStyle={{ fontSize: 9 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Area type="monotone" stackId="1" dataKey="SugarShare" name="Sugar" stroke="#3b82f6" fill="#3b82f6" />
                 <Area type="monotone" stackId="1" dataKey="MillShare" name="Mill" stroke="#3b82f6" fill="#3b82f6" />
                 <Area type="monotone" stackId="1" dataKey="DistShare" name="Dist" stroke="#60a5fa" fill="#60a5fa" />
@@ -553,6 +676,7 @@ export function PowerOutageView({
   filteredStoppages,
   outageDaily,
   outageBySection,
+  onExpand,
 }) {
   const o = outageKpis || {};
   const co = compareOutageKpis || {};
@@ -610,25 +734,47 @@ export function PowerOutageView({
         className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5"
         style={{ gridTemplateRows: 'minmax(0,1.15fr) minmax(0,1fr) minmax(0,0.95fr)' }}
       >
-        <BandCard title="Outage Duration (Hrs) — Daily Trend" dm={dm} className="lg:col-span-7 min-h-0 h-full">
-          <ResponsiveContainer width="100%" height="100%" minHeight={100}>
-            <LineChart data={outageDaily} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <BandCard
+          title="Outage Duration (Hrs) — Daily Trend"
+          dm={dm}
+          className="lg:col-span-7 min-h-0 h-full"
+          onExpand={() => onExpand?.({
+            title: 'Outage Duration (Hrs) — Daily Trend',
+            kind: 'line',
+            data: outageDaily,
+            series: [{ key: 'duration', name: 'Hours', color: '#3b82f6' }],
+          })}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={70}>
+            <LineChart data={outageDaily} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
-              <XAxis dataKey="label" tick={{ fontSize: 9, fill: axisStroke(dm) }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 9, fill: axisStroke(dm) }} width={36} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: axisStroke(dm) }} interval="preserveStartEnd" />
+              <YAxis tick={{ fontSize: 11, fill: axisStroke(dm) }} width={36} />
               <Tooltip content={<ChartTip dm={dm} />} />
               <Line type="monotone" dataKey="duration" name="Hours" stroke="#3b82f6" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </BandCard>
-        <BandCard title="Sub-Section — Boiler" dm={dm} className="lg:col-span-5 min-h-0 h-full">
-          <ResponsiveContainer width="100%" height="100%" minHeight={100}>
+        <BandCard
+          title="Sub-Section — Boiler"
+          dm={dm}
+          className="lg:col-span-5 min-h-0 h-full"
+          onExpand={() => onExpand?.({
+            title: 'Sub-Section — Boiler',
+            kind: 'bar-h',
+            stacked: true,
+            data: boilerStack,
+            xKey: 'name',
+            series: boilerSeries.map((sec, i) => ({ key: sec, name: sec, color: CHART_COLORS[i % CHART_COLORS.length] })),
+          })}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={70}>
             <BarChart data={boilerStack} layout="vertical" margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
-              <XAxis type="number" tick={{ fontSize: 8, fill: axisStroke(dm) }} />
-              <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 8, fill: axisStroke(dm) }} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: axisStroke(dm) }} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: axisStroke(dm) }} />
               <Tooltip content={<ChartTip dm={dm} />} />
-              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
               {boilerSeries.map((sec, i) => (
                 <Bar key={sec} dataKey={sec} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
               ))}
@@ -636,15 +782,26 @@ export function PowerOutageView({
           </ResponsiveContainer>
         </BandCard>
 
-        <BandCard title="Total Outage (Hours) — Section Wise" dm={dm} className="lg:col-span-7 min-h-0 h-full">
-          <ResponsiveContainer width="100%" height="100%" minHeight={100}>
+        <BandCard
+          title="Total Outage (Hours) — Section Wise"
+          dm={dm}
+          className="lg:col-span-7 min-h-0 h-full"
+          onExpand={() => onExpand?.({
+            title: 'Total Outage (Hours) — Section Wise',
+            kind: 'bar',
+            data: outageBySection,
+            xKey: 'name',
+            series: [{ key: 'duration', name: 'Hours', color: '#3b82f6' }],
+          })}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={80}>
             <BarChart data={outageBySection} margin={{ top: 16, right: 8, left: 0, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
-              <XAxis dataKey="name" tick={{ fontSize: 8, fill: axisStroke(dm) }} interval={0} angle={-25} textAnchor="end" height={40} />
-              <YAxis tick={{ fontSize: 9, fill: axisStroke(dm) }} width={36} />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: axisStroke(dm) }} interval={0} angle={-25} textAnchor="end" height={48} />
+              <YAxis tick={{ fontSize: 11, fill: axisStroke(dm) }} width={36} />
               <Tooltip content={<ChartTip dm={dm} />} />
               <Bar dataKey="duration" name="Hours" fill="#3b82f6" radius={[3, 3, 0, 0]}>
-                <LabelList dataKey="duration" position="top" formatter={(v) => formatNum(v, 0)} style={{ fontSize: 9, fontWeight: 700 }} />
+                <LabelList dataKey="duration" position="top" formatter={(v) => formatNum(v, 0)} style={{ fontSize: 10, fontWeight: 700 }} />
                 {(outageBySection || []).map((d, i) => (
                   <Cell key={i} fill={d.duration < 0 ? '#94a3b8' : CHART_COLORS[i % CHART_COLORS.length]} />
                 ))}
@@ -652,14 +809,26 @@ export function PowerOutageView({
             </BarChart>
           </ResponsiveContainer>
         </BandCard>
-        <BandCard title="Sub-Section — Turbine" dm={dm} className="lg:col-span-5 min-h-0 h-full">
-          <ResponsiveContainer width="100%" height="100%" minHeight={100}>
+        <BandCard
+          title="Sub-Section — Turbine"
+          dm={dm}
+          className="lg:col-span-5 min-h-0 h-full"
+          onExpand={() => onExpand?.({
+            title: 'Sub-Section — Turbine',
+            kind: 'bar-h',
+            stacked: true,
+            data: turbineStack,
+            xKey: 'name',
+            series: turbineSeries.map((sec, i) => ({ key: sec, name: sec, color: CHART_COLORS[i % CHART_COLORS.length] })),
+          })}
+        >
+          <ResponsiveContainer width="100%" height="100%" minHeight={80}>
             <BarChart data={turbineStack} layout="vertical" margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke(dm)} />
-              <XAxis type="number" tick={{ fontSize: 8, fill: axisStroke(dm) }} />
-              <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 8, fill: axisStroke(dm) }} />
+              <XAxis type="number" tick={{ fontSize: 10, fill: axisStroke(dm) }} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: axisStroke(dm) }} />
               <Tooltip content={<ChartTip dm={dm} />} />
-              <Legend wrapperStyle={{ fontSize: 9 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
               {turbineSeries.map((sec, i) => (
                 <Bar key={sec} dataKey={sec} stackId="a" fill={CHART_COLORS[i % CHART_COLORS.length]} />
               ))}

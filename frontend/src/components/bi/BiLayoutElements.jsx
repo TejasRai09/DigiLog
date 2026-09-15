@@ -51,12 +51,14 @@ export function BiKeyMetricBox({ value, title, subtitle, isDarkMode, tooltip, co
   );
 }
 
-export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact = false, alignEnd = false }) {
+export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact = false, alignEnd = false, nowrap = false }) {
   return (
     <div className={`flex min-w-0 flex-col px-0.5 ${alignEnd ? 'ml-auto w-auto max-w-full' : 'w-full'} ${compact ? 'gap-0 py-0' : 'gap-2 py-1 lg:py-1.5'}`}>
         <div
-          className={`distillery-filter-bar relative z-20 flex min-w-0 max-w-full flex-wrap items-center overflow-visible border shadow-sm backdrop-blur-md ${
-            alignEnd ? 'ml-auto w-auto justify-end' : 'w-full lg:w-auto'
+          className={`distillery-filter-bar relative z-20 flex min-w-0 max-w-full items-center overflow-visible border shadow-sm backdrop-blur-md ${
+            alignEnd ? 'ml-auto w-auto justify-end' : 'w-full'
+          } ${
+            nowrap ? 'distillery-filter-bar--nowrap flex-nowrap overflow-x-auto' : 'flex-wrap'
           } ${
             compact
               ? 'gap-1 rounded-lg p-1 sm:gap-1.5'

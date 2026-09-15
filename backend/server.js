@@ -88,22 +88,12 @@ app.use(auditMiddleware);
 // Uploads (avatars, data-ingestion) are served only via authenticated API routes.
 
 // ─── Rate limiting ───────────────────────────────────────────
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Too many requests, please try again later.' },
-});
-
 // Strict limiter for password-based login only (brute-force protection)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   message: { message: 'Too many login attempts, please try again later.' },
 });
-
-app.use(globalLimiter);
 
 // ─── Routes ──────────────────────────────────────────────────
 app.use('/api/auth/login', loginLimiter);

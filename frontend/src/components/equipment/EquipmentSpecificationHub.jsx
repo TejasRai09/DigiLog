@@ -419,7 +419,13 @@ export default function EquipmentSpecificationHub({
       ...subGroupMeta,
       [sectionId]: {
         ...(subGroupMeta[sectionId] || {}),
-        [subName]: normalizeSubGroupMetaEntry(entry, equipmentDefaults),
+        [subName]: normalizeSubGroupMetaEntry(
+          {
+            ...(subGroupMeta[sectionId]?.[subName] || {}),
+            ...entry,
+          },
+          equipmentDefaults,
+        ),
       },
     };
     setSubGroupMeta(nextMeta);
