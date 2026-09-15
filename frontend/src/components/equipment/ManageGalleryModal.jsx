@@ -26,6 +26,7 @@ export default function ManageGalleryModal({
   saving = false,
 }) {
   const fileRef = useRef(null);
+  const openSessionRef = useRef(false);
   const [draftImages, setDraftImages] = useState(() => normalizeDraftImages(initialImages));
   const [pendingFileName, setPendingFileName] = useState('');
   const [pendingPreview, setPendingPreview] = useState(null);
@@ -33,7 +34,12 @@ export default function ManageGalleryModal({
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      openSessionRef.current = false;
+      return;
+    }
+    if (openSessionRef.current) return;
+    openSessionRef.current = true;
     setDraftImages(normalizeDraftImages(initialImages));
     setPendingFileName('');
     setPendingPreview(null);
@@ -80,17 +86,13 @@ export default function ManageGalleryModal({
       return;
     }
 
-    const emptyIndex = draftImages.findIndex((img) => !img.src);
-    if (emptyIndex === -1) {
-      setFormError(`Maximum ${SUBGROUP_GALLERY_SIZE} images allowed.`);
-      return;
-    }
-
-    setDraftImages((prev) =>
-      prev.map((img, i) =>
+    setDraftImages((prev) => {
+      const emptyIndex = prev.findIndex((img) => !img.src);
+      if (emptyIndex === -1) return prev;
+      return prev.map((img, i) =>
         i === emptyIndex ? { src: pendingPreview, caption: caption.trim() } : img
-      )
-    );
+      );
+    });
     resetPending();
   };
 
@@ -101,12 +103,13 @@ export default function ManageGalleryModal({
   };
 
   const handleApply = () => {
-    const galleryError = validateSubGroupGalleryImages(draftImages);
+    const packed = normalizeDraftImages(draftImages.filter((img) => img.src));
+    const galleryError = validateSubGroupGalleryImages(packed);
     if (galleryError) {
       setFormError(galleryError);
       return;
     }
-    onApply(draftImages);
+    onApply(packed);
   };
 
   const handleClose = () => {
