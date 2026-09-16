@@ -7,6 +7,7 @@ import {
 } from 'react-icons/md';
 import FormPageHeader from '../FormPageHeader';
 import Spinner from '../Spinner';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 
 const CollapseContext = createContext(false);
 
@@ -21,6 +22,7 @@ export function PowerFormPage({
   formKey,
   fallbackTitle,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   return (
     <main className="min-h-screen bg-slate-50/90 pb-12">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -39,15 +41,17 @@ export function PowerFormPage({
               <MdRefresh className="h-4 w-4" />
               Reset
             </button>
-            <button
-              type="submit"
-              form={formId}
-              disabled={submitting}
-              className="btn-primary gap-2 px-6"
-            >
-              {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-              {submitting ? 'Submitting…' : submitLabel}
-            </button>
+            {!viewOnly && (
+              <button
+                type="submit"
+                form={formId}
+                disabled={submitting}
+                className="btn-primary gap-2 px-6 forms-hub-write-action"
+              >
+                {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
+                {submitting ? 'Submitting…' : submitLabel}
+              </button>
+            )}
           </div>
         </div>
         {children}

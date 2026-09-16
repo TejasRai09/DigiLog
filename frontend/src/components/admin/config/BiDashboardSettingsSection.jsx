@@ -4,28 +4,95 @@ import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../Spinner';
 import ConfigSectionPanel from './ConfigSectionPanel';
+import { APP_CONSTANT_DEFAULTS } from '../../../hooks/useAppConstants';
+
+function tripleFrom(src, fallback = APP_CONSTANT_DEFAULTS) {
+  const y = typeof src?.theoreticalYield === 'number' && src.theoreticalYield > 0
+    ? src.theoreticalYield : fallback.theoreticalYield;
+  const t = typeof src?.powerTariffRate === 'number' && src.powerTariffRate > 0
+    ? src.powerTariffRate : fallback.powerTariffRate;
+  const b = typeof src?.brixThreshold === 'number' && src.brixThreshold > 0
+    ? src.brixThreshold : fallback.brixThreshold;
+  return { theoreticalYield: y, powerTariffRate: t, brixThreshold: b };
+}
+
+function toFieldStrings(triple) {
+  return {
+    theoreticalYield: String(triple.theoreticalYield),
+    powerTariffRate: String(triple.powerTariffRate),
+    brixThreshold: String(triple.brixThreshold),
+  };
+}
 
 /**
- * BI Dashboards config: calculation constants only.
+ * BI Dashboards config: calculation constants per sugar season.
  * Compare season chips come from Config → Season Mapping (all seasons except current).
  */
 export default function BiDashboardSettingsSection() {
   const [loading, setLoading] = useState(true);
-  const [theoreticalYield, setTheoreticalYield] = useState('64.4');
-  const [powerTariffRate, setPowerTariffRate] = useState('4.85');
-  const [brixThreshold, setBrixThreshold] = useState('18');
+  const [seasons, setSeasons] = useState([]);
+  const [selectedSeason, setSelectedSeason] = useState('');
+  const [defaults, setDefaults] = useState(APP_CONSTANT_DEFAULTS);
+  const [valuesBySeason, setValuesBySeason] = useState({});
+  const [theoreticalYield, setTheoreticalYield] = useState(String(APP_CONSTANT_DEFAULTS.theoreticalYield));
+  const [powerTariffRate, setPowerTariffRate] = useState(String(APP_CONSTANT_DEFAULTS.powerTariffRate));
+  const [brixThreshold, setBrixThreshold] = useState(String(APP_CONSTANT_DEFAULTS.brixThreshold));
   const [constantsError, setConstantsError] = useState({});
   const [savingConstants, setSavingConstants] = useState(false);
+
+  const applyTripleToFields = (triple) => {
+    const fields = toFieldStrings(triple);
+    setTheoreticalYield(fields.theoreticalYield);
+    setPowerTariffRate(fields.powerTariffRate);
+    setBrixThreshold(fields.brixThreshold);
+  };
+
+  const valuesForSeason = (label, bySeason, fallback) => (
+    tripleFrom(label && bySeason?.[label], fallback)
+  );
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await api.get('/admin/bi-settings');
-        if (cancelled || !data) return;
-        if (typeof data.theoreticalYield === 'number') setTheoreticalYield(String(data.theoreticalYield));
-        if (typeof data.powerTariffRate === 'number') setPowerTariffRate(String(data.powerTariffRate));
-        if (typeof data.brixThreshold === 'number') setBrixThreshold(String(data.brixThreshold));
+        const [{ data }, seasonsRes] = await Promise.all([
+          api.get('/admin/bi-settings'),
+          api.get('/admin/season-mapping').catch(() => ({ data: [] })),
+        ]);
+        if (cancelled) return;
+
+        const fallback = tripleFrom(data?.defaults || data, APP_CONSTANT_DEFAULTS);
+        setDefaults(fallback);
+
+        const seasonRows = Array.isArray(seasonsRes?.data) ? seasonsRes.data : [];
+        const newestFirst = [...seasonRows].sort((a, b) => {
+          const as = String(a.start_date || '').slice(0, 10);
+          const bs = String(b.start_date || '').slice(0, 10);
+          return bs.localeCompare(as);
+        });
+        setSeasons(newestFirst);
+
+        const bySeason = {};
+        newestFirst.forEach((s) => {
+          const label = s.season_label;
+          bySeason[label] = valuesForSeason(label, data?.constantsBySeason, fallback);
+        });
+        setValuesBySeason(bySeason);
+
+        const today = new Date().toISOString().slice(0, 10);
+        const current = newestFirst.find((s) => {
+          const start = String(s.start_date || '').slice(0, 10);
+          const end = String(s.end_date || '').slice(0, 10);
+          return start && end && today >= start && today <= end;
+        });
+        const initialLabel = current?.season_label || newestFirst[0]?.season_label || '';
+        setSelectedSeason(initialLabel);
+
+        if (initialLabel) {
+          applyTripleToFields(bySeason[initialLabel] || fallback);
+        } else {
+          applyTripleToFields(fallback);
+        }
       } catch {
         if (!cancelled) toast.error('Failed to load BI dashboard settings.');
       } finally {
@@ -36,6 +103,31 @@ export default function BiDashboardSettingsSection() {
       cancelled = true;
     };
   }, []);
+
+  const isCurrentSeason = (row) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const start = String(row.start_date || '').slice(0, 10);
+    const end = String(row.end_date || '').slice(0, 10);
+    return Boolean(start && end && today >= start && today <= end);
+  };
+
+  const selectedRow = seasons.find((s) => s.season_label === selectedSeason) || null;
+  const hasSeasons = seasons.length > 0;
+
+  const onSeasonChange = (nextLabel) => {
+    const draft = {
+      theoreticalYield: parseFloat(theoreticalYield) || defaults.theoreticalYield,
+      powerTariffRate: parseFloat(powerTariffRate) || defaults.powerTariffRate,
+      brixThreshold: parseFloat(brixThreshold) || defaults.brixThreshold,
+    };
+    const nextMap = selectedSeason
+      ? { ...valuesBySeason, [selectedSeason]: draft }
+      : valuesBySeason;
+    setValuesBySeason(nextMap);
+    setSelectedSeason(nextLabel);
+    applyTripleToFields(valuesForSeason(nextLabel, nextMap, defaults));
+    setConstantsError({});
+  };
 
   const saveConstants = async () => {
     const yVal = parseFloat(theoreticalYield);
@@ -51,18 +143,26 @@ export default function BiDashboardSettingsSection() {
     }
     setSavingConstants(true);
     try {
-      const { data } = await api.put('/admin/bi-settings', {
+      const body = {
         theoreticalYield: yVal,
         powerTariffRate: tVal,
         brixThreshold: bVal,
-      });
-      if (typeof data.theoreticalYield === 'number') setTheoreticalYield(String(data.theoreticalYield));
-      if (typeof data.powerTariffRate === 'number') setPowerTariffRate(String(data.powerTariffRate));
-      if (typeof data.brixThreshold === 'number') setBrixThreshold(String(data.brixThreshold));
+      };
+      if (hasSeasons && selectedSeason) body.seasonLabel = selectedSeason;
+      const { data } = await api.put('/admin/bi-settings', body);
+      const saved = tripleFrom(data, { theoreticalYield: yVal, powerTariffRate: tVal, brixThreshold: bVal });
+      applyTripleToFields(saved);
+      if (hasSeasons && selectedSeason) {
+        setValuesBySeason((prev) => ({ ...prev, [selectedSeason]: saved }));
+      } else {
+        setDefaults(saved);
+      }
       try {
         sessionStorage.removeItem('app_constants_cache');
       } catch (_) { /* ignore */ }
-      toast.success('Calculation constants saved.');
+      toast.success(hasSeasons && selectedSeason
+        ? `Constants saved for ${selectedSeason}.`
+        : 'Calculation constants saved.');
       setConstantsError({});
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save constants.');
@@ -74,7 +174,7 @@ export default function BiDashboardSettingsSection() {
   return (
     <ConfigSectionPanel
       title="BI Dashboards"
-      description="Calculation constants for Distillery, Power House, and Brix Sampling. Compare seasons are managed under Season Mapping — every mapped season (except the current one) appears in Compare."
+      description="Calculation constants for Distillery, Power House, and Brix Sampling, set per sugar season. Dashboards use the season of the selected To date (Compare uses the same numbers). Compare seasons are managed under Season Mapping."
       actions={
         loading ? (
           <Spinner size="sm" />
@@ -104,10 +204,38 @@ export default function BiDashboardSettingsSection() {
                 Calculation Constants
               </h4>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Business constants used in live dashboard calculations. Changes take effect on the next page load.
+                {hasSeasons
+                  ? 'Pick a sugar season, then save its constants. Unsaved seasons keep the global defaults until first save.'
+                  : 'Business constants used in live dashboard calculations. Add seasons under Season Mapping to configure them per campaign.'}
               </p>
             </div>
           </div>
+
+          {hasSeasons && (
+            <div className="space-y-1.5 max-w-md">
+              <label htmlFor="admin-bi-season" className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Sugar Season
+              </label>
+              <select
+                id="admin-bi-season"
+                value={selectedSeason}
+                disabled={loading || savingConstants}
+                onChange={(e) => onSeasonChange(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+              >
+                {seasons.map((s) => (
+                  <option key={s.season_label} value={s.season_label}>
+                    {s.season_label}{isCurrentSeason(s) ? ' (Current)' : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedRow && (
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                  {String(selectedRow.start_date || '').slice(0, 10)} – {String(selectedRow.end_date || '').slice(0, 10)}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">

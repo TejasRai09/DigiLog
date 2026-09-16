@@ -7,6 +7,7 @@ import api from '../../../api/axios';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 import BackToFormsHub from '../../../components/BackToFormsHub';
+import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
 
 const INITIAL = {
   Date: '',
@@ -110,6 +111,7 @@ const BrixYardSampling = () => {
       
       <h1 className="page-title mb-1">GSMA Yard Brix Sampling Form 23-24</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Yard Area Brix measurement and Analysis Form - HOD Lab</p>
+      <FormsHubViewOnlyBanner />
       
       <div className="bg-yellow-50 text-yellow-800 text-xs px-4 py-3 rounded-lg border border-yellow-200 mb-6">
         When you submit this form, it will not automatically collect your details like name and email address unless you provide it yourself. Fields marked with <span className="text-red-500">*</span> are required.
@@ -263,7 +265,7 @@ const BrixYardSampling = () => {
         </div>
 
         <div className="pt-4 pb-12 flex justify-end">
-          <button type="button" onClick={openReview} className="btn-primary w-full sm:w-auto">
+          <button type="button" onClick={openReview} className="btn-primary w-full sm:w-auto forms-hub-write-action">
             Review & Submit <MdSave className="w-5 h-5 ml-1" />
           </button>
         </div>

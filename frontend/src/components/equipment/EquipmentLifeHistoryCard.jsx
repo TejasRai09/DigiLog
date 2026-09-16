@@ -7,6 +7,7 @@ import {
 } from 'react-icons/md';
 import EquipmentSectionShell from './EquipmentSectionShell';
 import { resizeImage } from '../../utils/resizeImage';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 
 const DEFAULT_FIELDS = [
   { key: 'equip_no', label: 'Tag / Equipment No.', mono: true },
@@ -138,6 +139,7 @@ export default function EquipmentLifeHistoryCard({
   onSave,
   fields = DEFAULT_FIELDS,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   const [collapsed, setCollapsed] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState({});
@@ -286,7 +288,7 @@ export default function EquipmentLifeHistoryCard({
           )}
         </div>
 
-        {!isEditing && (
+        {!isEditing && !viewOnly && (
           <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
             <span className="text-[11px] text-slate-400 flex items-center gap-1 truncate">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />

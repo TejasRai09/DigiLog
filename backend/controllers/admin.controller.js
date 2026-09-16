@@ -14,6 +14,7 @@ const mapUser = (r) => ({
   department:   r.department != null && r.department !== '' ? r.department : null,
   role:         r.role,
   isActive:     !!r.is_active,
+  formsHubViewOnly: r.role === 'employee' && !!r.forms_hub_view_only,
   authProvider: r.auth_provider,
   mailSent:     !!r.mail_sent,
   createdAt:    r.created_at,
@@ -161,7 +162,7 @@ const sendMailBulk = async (req, res) => {
 // PUT /api/admin/users/:id
 const updateUser = async (req, res) => {
   try {
-    const { name, role, isActive, department } = req.body;
+    const { name, role, isActive, department, formsHubViewOnly } = req.body;
     const fields = [];
     const vals   = [];
 
@@ -174,6 +175,13 @@ const updateUser = async (req, res) => {
     }
     if (role      !== undefined) { fields.push('role = ?');      vals.push(role); }
     if (isActive  !== undefined) { fields.push('is_active = ?'); vals.push(isActive ? 1 : 0); }
+    if (role === 'admin') {
+      fields.push('forms_hub_view_only = ?');
+      vals.push(0);
+    } else if (formsHubViewOnly !== undefined) {
+      fields.push('forms_hub_view_only = ?');
+      vals.push(formsHubViewOnly ? 1 : 0);
+    }
 
     if (!fields.length) return res.status(400).json({ message: 'Nothing to update.' });
 

@@ -1,6 +1,7 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
+const { isFormsHubViewOnly, VIEW_ONLY_MESSAGE } = require('../utils/formsHubViewOnly');
 
 // ─── Form configuration ──────────────────────────────────────
 // pattern:
@@ -446,6 +447,10 @@ const sanitisePayload = (rawBody) => {
 
 // ─── POST /api/forms/:formKey ─────────────────────────────────
 const submitForm = async (req, res) => {
+  if (isFormsHubViewOnly(req.user)) {
+    return res.status(403).json({ message: VIEW_ONLY_MESSAGE });
+  }
+
   const { formKey } = req.params;
   const config = FORM_CONFIG[formKey];
 
@@ -559,6 +564,10 @@ const getRecords = async (req, res) => {
 // ─── POST /api/forms/:formKey/batch ──────────────────────────
 // Accepts { rows: [...] } — inserts multiple rows at once (pan, decanter, clarification).
 const submitBatch = async (req, res) => {
+  if (isFormsHubViewOnly(req.user)) {
+    return res.status(403).json({ message: VIEW_ONLY_MESSAGE });
+  }
+
   const { formKey } = req.params;
   const config = FORM_CONFIG[formKey];
 

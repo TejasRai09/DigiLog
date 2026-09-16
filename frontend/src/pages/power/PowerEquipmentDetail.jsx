@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import FormsHubViewOnlyBanner from '../../components/FormsHubViewOnlyBanner';
 import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail, buildSugarHouseEquipmentNewTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
@@ -566,6 +567,7 @@ const PowerEquipmentDetail = () => {
   return (
     <main className="app-main">
       <AppBreadcrumb items={breadcrumbItems} className="mb-3" />
+      <FormsHubViewOnlyBanner />
 
       {isNewHub && (
         <div className="mb-4 flex justify-end">

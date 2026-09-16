@@ -19,6 +19,7 @@ const toAuthUser = (row) => ({
   email:        row.email,
   role:         row.role,
   isActive:     !!row.is_active,
+  formsHubViewOnly: row.role === 'employee' && !!row.forms_hub_view_only,
   authProvider: row.auth_provider,
   department:   row.department != null && row.department !== '' ? row.department : null,
   avatar:       resolveAvatarForClient(row),

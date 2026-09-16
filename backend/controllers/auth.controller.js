@@ -270,7 +270,7 @@ const uploadMyAvatar = async (req, res) => {
 
     await pool.query('UPDATE users SET avatar = ? WHERE id = ?', [storedKey, req.user.id]);
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, is_active, auth_provider, department, avatar FROM users WHERE id = ?',
+      'SELECT id, name, email, role, is_active, forms_hub_view_only, auth_provider, department, avatar FROM users WHERE id = ?',
       [req.user.id]
     );
     res.json({ user: toAuthUser(rows[0]) });
@@ -328,7 +328,7 @@ const deleteMyAvatar = async (req, res) => {
 
     await pool.query('UPDATE users SET avatar = NULL WHERE id = ?', [req.user.id]);
     const [rows] = await pool.query(
-      'SELECT id, name, email, role, is_active, auth_provider, department, avatar FROM users WHERE id = ?',
+      'SELECT id, name, email, role, is_active, forms_hub_view_only, auth_provider, department, avatar FROM users WHERE id = ?',
       [req.user.id]
     );
     res.json({ user: toAuthUser(rows[0]) });

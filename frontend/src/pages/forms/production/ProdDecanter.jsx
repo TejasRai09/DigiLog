@@ -8,6 +8,7 @@ import Spinner from '../../../components/Spinner';
 import { buildProdDecanterReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
+import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
 
 const SHIFTS = [
   { key: 'shift8_4',  label: 'Shift 8–4 (Morning)',  range: [0, 8] },
@@ -117,6 +118,7 @@ const ProdDecanter = () => {
       </button>
       <h1 className="page-title mb-1">Decanter Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill</p>
+      <FormsHubViewOnlyBanner />
 
       <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-3 gap-4">
