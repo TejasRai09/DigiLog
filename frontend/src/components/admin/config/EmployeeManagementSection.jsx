@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch,
   MdClose, MdSave, MdEmail, MdSend, MdMoreVert, MdGridView, MdInsights, MdUpload,
-  MdSupervisorAccount, MdLockOpen,
+  MdSupervisorAccount, MdLockOpen, MdVisibility,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -11,6 +11,7 @@ import Spinner from '../../Spinner';
 import EmployeeFormMappingModal from '../EmployeeFormMappingModal';
 import EmployeeDataUploadAccessModal from '../EmployeeDataUploadAccessModal';
 import EmployeeLockedCardManageModal from '../EmployeeLockedCardManageModal';
+import EmployeeFormsHubAccessModal from '../EmployeeFormsHubAccessModal';
 import { DATA_UPLOAD_SECTIONS } from '../../../config/dataUploadSections';
 import AssignManagerModal from '../AssignManagerModal';
 import ConfigSectionPanel from './ConfigSectionPanel';
@@ -146,6 +147,7 @@ export default function EmployeeManagementSection() {
   const [mappingModal, setMappingModal] = useState(null);
   const [dataUploadModal, setDataUploadModal] = useState(null);
   const [lockedCardModal, setLockedCardModal] = useState(null);
+  const [formsHubAccessModal, setFormsHubAccessModal] = useState(null);
   const [managerModal, setManagerModal] = useState(null);
   const [mappings, setMappings] = useState([]);
   const [dataUploadAssignments, setDataUploadAssignments] = useState([]);
@@ -317,6 +319,7 @@ export default function EmployeeManagementSection() {
                   <th className="th">Department</th>
                   <th className="th">Role</th>
                   <th className="th">Status</th>
+                  <th className="th min-w-[7rem] whitespace-normal">Forms Hub</th>
                   <th className="th min-w-[8rem]">Manager</th>
                   <th className="th min-w-[6rem] whitespace-normal">Data upload</th>
                   <th className="th min-w-[7rem] whitespace-normal">Locked cards</th>
@@ -326,7 +329,7 @@ export default function EmployeeManagementSection() {
               <tbody className="divide-y divide-gray-100 bg-white">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="td py-10 text-center text-gray-400">No employees found.</td>
+                    <td colSpan={11} className="td py-10 text-center text-gray-400">No employees found.</td>
                   </tr>
                 ) : (
                   filtered.map((u) => {
@@ -362,6 +365,13 @@ export default function EmployeeManagementSection() {
                           <span className={`badge ${u.isActive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
                             {u.isActive ? 'Active' : 'Inactive'}
                           </span>
+                        </td>
+                        <td className="td">
+                          {u.role === 'employee' && u.formsHubViewOnly ? (
+                            <span className="badge bg-amber-50 text-amber-800">View only</span>
+                          ) : (
+                            <span className="text-gray-300">—</span>
+                          )}
                         </td>
                         <td className="td max-w-[10rem] truncate text-sm text-gray-700" title={u.managerName || ''}>
                           {u.managerName ? <span>{u.managerName}</span> : <span className="text-gray-300">—</span>}
@@ -415,7 +425,7 @@ export default function EmployeeManagementSection() {
                                 const r = target.getBoundingClientRect();
                                 setRowMenu((prev) => {
                                   if (prev?.user._id === u._id) return null;
-                                  const menuH = 280;
+                                  const menuH = 320;
                                   let top = r.bottom + 4;
                                   if (top + menuH > window.innerHeight - 8) {
                                     top = Math.max(8, r.top - menuH - 4);
@@ -485,6 +495,21 @@ export default function EmployeeManagementSection() {
                 >
                   <MdGridView className="h-4 w-4 text-blue-600" />
                   Form mapping
+                </button>
+              )}
+              {rowMenu.user.role === 'employee' && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    const x = rowMenu.user;
+                    setRowMenu(null);
+                    setFormsHubAccessModal(x);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <MdVisibility className="h-4 w-4 text-amber-600" />
+                  Forms Hub access
                 </button>
               )}
               {rowMenu.user.role === 'employee' && (
@@ -595,6 +620,18 @@ export default function EmployeeManagementSection() {
           onClose={() => setLockedCardModal(null)}
           onSaved={() => {
             setLockedCardModal(null);
+            fetchData();
+          }}
+        />
+      )}
+
+      {formsHubAccessModal && (
+        <EmployeeFormsHubAccessModal
+          key={`forms-hub-access-${formsHubAccessModal._id}`}
+          user={formsHubAccessModal}
+          onClose={() => setFormsHubAccessModal(null)}
+          onSaved={() => {
+            setFormsHubAccessModal(null);
             fetchData();
           }}
         />

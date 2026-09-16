@@ -8,6 +8,7 @@ import Spinner from '../../../components/Spinner';
 import { buildProdCentrifugalReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
+import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
 
 const MACHINES = [
   { key: 'm1', name: 'No.1 (1 Ton)' },
@@ -83,6 +84,7 @@ const ProdCentrifugal = () => {
       </button>
       <h1 className="page-title mb-1">A-Centrifugal Machine Stoppage Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill</p>
+      <FormsHubViewOnlyBanner />
 
       <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-2 gap-4">

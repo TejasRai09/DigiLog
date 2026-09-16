@@ -18,6 +18,7 @@ import {
 import EquipmentSectionShell from './EquipmentSectionShell';
 import EquipmentMultiSelectDropdown from './EquipmentMultiSelectDropdown';
 import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 
 const ACTION_STEP_INPUT =
   'flex-1 w-full min-w-0 px-2 py-1 text-xs border border-slate-200 rounded resize-none leading-5 overflow-y-hidden';
@@ -71,6 +72,7 @@ export default function OemMaintenanceScheduleHub({
   equipmentOptions = [],
   disciplineSection = null,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   const scopedEquipmentOptions = useMemo(() => {
     if (!disciplineSection) return equipmentOptions;
     return equipmentOptions.filter((opt) => opt.section === disciplineSection);
@@ -303,7 +305,7 @@ export default function OemMaintenanceScheduleHub({
               )}
 
               <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-                {!isEditing ? (
+                {!viewOnly && (!isEditing ? (
                   <button type="button" onClick={startEdit} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 rounded-lg">
                     <MdEdit className="w-3.5 h-3.5" /> Edit Schedule
                   </button>
@@ -314,8 +316,8 @@ export default function OemMaintenanceScheduleHub({
                       <MdCheck className="w-3.5 h-3.5" /> {saving ? 'Saving…' : 'Save Changes'}
                     </button>
                   </>
-                )}
-                {!hideBulkActions && (
+                ))}
+                {!hideBulkActions && !viewOnly && (
                   <button type="button" onClick={handleReset} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-rose-50 text-rose-600 border border-rose-200 rounded-lg">
                     <MdRefresh className="w-3.5 h-3.5" /> Reset
                   </button>

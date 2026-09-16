@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { MdAdd, MdClose, MdDragIndicator, MdSortByAlpha } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 import {
   findNodeByPath,
   isHierarchyEquipment,
@@ -201,6 +202,7 @@ export function useHierarchyManage({
   getAddAction = hierarchyAddAction,
   canManageLockedCards = false,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   const [saving, setSaving] = useState(false);
   const [modal, setModal] = useState(null);
   const [editForm, setEditForm] = useState({ name: '', location: '', equipNo: '' });
@@ -640,7 +642,7 @@ export function useHierarchyManage({
     }
   };
 
-  const addButton = isDbTree && addAction ? (
+  const addButton = !viewOnly && isDbTree && addAction ? (
     <button
       type="button"
       onClick={openAddModal}
@@ -917,9 +919,9 @@ export function useHierarchyManage({
   return {
     saving,
     addButton,
-    manageModal: manageModal || editModal,
-    openEdit,
-    deleteNode,
+    manageModal: viewOnly ? null : (manageModal || editModal),
+    openEdit: viewOnly ? undefined : openEdit,
+    deleteNode: viewOnly ? undefined : deleteNode,
     isDbTree,
   };
 }

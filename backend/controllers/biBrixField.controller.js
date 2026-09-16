@@ -172,7 +172,11 @@ async function loadFieldStatsBundle(query, clause, params, effectiveFrom, effect
     prevParams.push(testType);
   }
 
-  const brixThreshold = await getBrixThreshold();
+  const brixThreshold = await getBrixThreshold({
+    date: toYmd(effectiveTo),
+    from: toYmd(effectiveFrom),
+    seasonLabel: query.baseSeason,
+  });
   const statsSelect = buildStatsSelect(brixThreshold);
 
   const currPromise = pool.query(

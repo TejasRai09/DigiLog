@@ -6,6 +6,7 @@ import {
   MdMenu,
 } from 'react-icons/md';
 import ManageGalleryModal from './ManageGalleryModal';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 import {
   formatCommissionedDisplay,
   getSubGroupMetaEntry,
@@ -133,6 +134,7 @@ export default function SpecSubGroupPanel({
   onPersistMeta,
   saving = false,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   const [lightbox, setLightbox] = useState(null);
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -264,6 +266,7 @@ export default function SpecSubGroupPanel({
           </>
         )}
 
+        {viewOnly ? null : (
         <div className="px-3 sm:px-5 py-3 border-t border-slate-100 bg-slate-50/50">
           <div className="grid grid-cols-2 gap-2 sm:hidden">
             <button
@@ -335,6 +338,7 @@ export default function SpecSubGroupPanel({
             </div>
           </div>
         </div>
+        )}
       </div>
 
       <ManageGalleryModal

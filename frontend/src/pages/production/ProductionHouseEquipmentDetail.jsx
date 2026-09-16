@@ -5,6 +5,8 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import FormsHubViewOnlyBanner from '../../components/FormsHubViewOnlyBanner';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 import EquipmentSpecificationHub from '../../components/equipment/EquipmentSpecificationHub';
 import EquipmentMaintenanceHistoryHub from '../../components/equipment/EquipmentMaintenanceHistoryHub';
 import { buildProductionHouseEquipmentTrail } from '../../utils/breadcrumbTrail';
@@ -43,6 +45,7 @@ const ProductionHouseEquipmentDetail = () => {
 
   const { canManage } = useLockedCardManageAccess();
   const canManageProduction = canManage('production');
+  const viewOnly = useFormsHubViewOnly();
 
   const [eq, setEq] = useState(null);
   const [specs, setSpecs] = useState([]);
@@ -121,6 +124,7 @@ const ProductionHouseEquipmentDetail = () => {
 
   const houseLabel = eq ? productionHouseSectionLabel(eq.house_section) : '';
   const identityLocked = Boolean(eq?.isImported) && !canManageProduction;
+  const identityReadOnly = identityLocked || viewOnly;
 
   const equipmentDefaults = useMemo(() => ({
     tagNo: '',
@@ -191,7 +195,7 @@ const ProductionHouseEquipmentDetail = () => {
 
   const saveIdentity = async (e) => {
     e?.preventDefault?.();
-    if (!equipId || identityLocked) return;
+    if (!equipId || identityReadOnly) return;
     const name = String(identityForm.name || '').trim();
     if (!name) {
       toast.error('Equipment name is required.');
@@ -215,7 +219,7 @@ const ProductionHouseEquipmentDetail = () => {
   };
 
   const deleteEquipment = async () => {
-    if (!equipId || identityLocked) return;
+    if (!equipId || identityReadOnly) return;
     if (!window.confirm(`Delete "${eq?.name || 'this equipment'}"? Specs and history will be removed.`)) {
       return;
     }
@@ -320,6 +324,7 @@ const ProductionHouseEquipmentDetail = () => {
   return (
     <main className="app-main">
       <AppBreadcrumb items={breadcrumbItems} className="mb-3" />
+      <FormsHubViewOnlyBanner />
 
       <div className="mb-4 flex justify-end">
         <button
@@ -342,7 +347,7 @@ const ProductionHouseEquipmentDetail = () => {
               {eq.isImported ? ' · Extracted / imported card' : ''}
             </p>
           </div>
-          {identityLocked && (
+          {identityLocked && !viewOnly && (
             <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-600">
               Identity locked — ask an admin for locked-card manage access
             </span>
@@ -354,9 +359,9 @@ const ProductionHouseEquipmentDetail = () => {
             <input
               type="text"
               value={identityForm.name}
-              readOnly={identityLocked}
+              readOnly={identityReadOnly}
               onChange={(e) => setIdentityForm((prev) => ({ ...prev, name: e.target.value }))}
-              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+              className={`input mt-1 ${identityReadOnly ? 'bg-slate-50 text-slate-500' : ''}`}
             />
           </label>
           <label className="block text-xs font-medium text-gray-600">
@@ -364,9 +369,9 @@ const ProductionHouseEquipmentDetail = () => {
             <input
               type="text"
               value={identityForm.type}
-              readOnly={identityLocked}
+              readOnly={identityReadOnly}
               onChange={(e) => setIdentityForm((prev) => ({ ...prev, type: e.target.value }))}
-              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+              className={`input mt-1 ${identityReadOnly ? 'bg-slate-50 text-slate-500' : ''}`}
             />
           </label>
           <label className="block text-xs font-medium text-gray-600">
@@ -374,9 +379,9 @@ const ProductionHouseEquipmentDetail = () => {
             <input
               type="text"
               value={identityForm.duty}
-              readOnly={identityLocked}
+              readOnly={identityReadOnly}
               onChange={(e) => setIdentityForm((prev) => ({ ...prev, duty: e.target.value }))}
-              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+              className={`input mt-1 ${identityReadOnly ? 'bg-slate-50 text-slate-500' : ''}`}
             />
           </label>
           <label className="block text-xs font-medium text-gray-600 sm:col-span-2">
@@ -384,12 +389,12 @@ const ProductionHouseEquipmentDetail = () => {
             <input
               type="text"
               value={identityForm.capacity}
-              readOnly={identityLocked}
+              readOnly={identityReadOnly}
               onChange={(e) => setIdentityForm((prev) => ({ ...prev, capacity: e.target.value }))}
-              className={`input mt-1 ${identityLocked ? 'bg-slate-50 text-slate-500' : ''}`}
+              className={`input mt-1 ${identityReadOnly ? 'bg-slate-50 text-slate-500' : ''}`}
             />
           </label>
-          {!identityLocked && (
+          {!identityReadOnly && (
             <div className="flex flex-wrap gap-2 sm:col-span-2">
               <button
                 type="submit"

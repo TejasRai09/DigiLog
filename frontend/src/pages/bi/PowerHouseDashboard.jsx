@@ -44,6 +44,11 @@ import {
 } from '../../utils/biCockpitDateFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
+import {
+  APP_CONSTANT_DEFAULTS,
+  constantsForSeason,
+  resolveActiveSeasonLabel,
+} from '../../hooks/useAppConstants';
 
 const TABS = [
   { id: 'summary', label: 'Power Summary', icon: Activity },
@@ -89,7 +94,13 @@ export default function PowerHouseDashboard() {
   const [stoppageRows, setStoppageRows] = useState([]);
   const [outageSection, setOutageSection] = useState('ALL');
   const [outageCategory, setOutageCategory] = useState('ALL');
-  const [powerTariffRate, setPowerTariffRate] = useState(4.85);
+  const [constantsBySeason, setConstantsBySeason] = useState({});
+  const [constantsDefaults, setConstantsDefaults] = useState(APP_CONSTANT_DEFAULTS);
+
+  const powerTariffRate = useMemo(() => {
+    const label = resolveActiveSeasonLabel({ to, from, seasonMapping });
+    return constantsForSeason(label, constantsBySeason, constantsDefaults).powerTariffRate;
+  }, [to, from, seasonMapping, constantsBySeason, constantsDefaults]);
 
   useTrackBiInteraction({
     dashboardLabel: BI_DASHBOARDS['/bi/power-house'],
@@ -157,8 +168,25 @@ export default function PowerHouseDashboard() {
           mapping = settingsRes.data.seasonMapping;
           setSeasonMapping(mapping);
         }
-        const tariff = settingsRes?.data?.powerTariffRate;
-        if (typeof tariff === 'number' && tariff > 0) setPowerTariffRate(tariff);
+        if (settingsRes?.data?.constantsBySeason && typeof settingsRes.data.constantsBySeason === 'object') {
+          setConstantsBySeason(settingsRes.data.constantsBySeason);
+        }
+        const fallback = settingsRes?.data?.defaults || settingsRes?.data;
+        const nextDefaults = {
+          theoreticalYield:
+            typeof fallback?.theoreticalYield === 'number' && fallback.theoreticalYield > 0
+              ? fallback.theoreticalYield
+              : APP_CONSTANT_DEFAULTS.theoreticalYield,
+          powerTariffRate:
+            typeof fallback?.powerTariffRate === 'number' && fallback.powerTariffRate > 0
+              ? fallback.powerTariffRate
+              : APP_CONSTANT_DEFAULTS.powerTariffRate,
+          brixThreshold:
+            typeof fallback?.brixThreshold === 'number' && fallback.brixThreshold > 0
+              ? fallback.brixThreshold
+              : APP_CONSTANT_DEFAULTS.brixThreshold,
+        };
+        setConstantsDefaults(nextDefaults);
 
         const bounds = powerRes.data?.meta?.dateBounds || {};
         const min = bounds.min || null;

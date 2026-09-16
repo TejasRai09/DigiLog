@@ -47,6 +47,7 @@ import {
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
 import { downloadHistoryDocument, downloadApprovalStagedDocument } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 import api from '../../api/axios';
 import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
 
@@ -307,9 +308,10 @@ export default function EquipmentMaintenanceHistoryHub({
   }, [open]);
 
   const { user } = useAuth();
-  const canDelete = user?.role === 'admin' && typeof onDelete === 'function';
+  const viewOnly = useFormsHubViewOnly();
+  const canDelete = !viewOnly && user?.role === 'admin' && typeof onDelete === 'function';
   const canEditRecord = (record) => (
-    !record?.pendingRequestId || record.pendingStatus === 'needs_modification'
+    !viewOnly && (!record?.pendingRequestId || record.pendingStatus === 'needs_modification')
   );
   const approvalBadge = (record) => {
     if (!record?.pendingRequestId) return null;
@@ -510,7 +512,7 @@ export default function EquipmentMaintenanceHistoryHub({
       }
       setHighlightedRequestId(focusId);
       if (row?.id) setHighlightedHistoryId(Number(row.id));
-      if (openEditForm && row) openEdit(row);
+      if (openEditForm && row && !viewOnly) openEdit(row);
       if (openView && row) {
         setFormOpen(false);
         openDetail(row);
@@ -588,6 +590,7 @@ export default function EquipmentMaintenanceHistoryHub({
   }, [focusApprovalRequestId, filteredRecords, records, onFocusHandled]);
 
   const openAdd = () => {
+    if (viewOnly) return;
     setIsEditing(false);
     setSelectedRecord(null);
     editBaselineRef.current = null;
@@ -602,6 +605,7 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const openEdit = (record, e) => {
     if (e) e.stopPropagation();
+    if (viewOnly) return;
     if (record?.pendingRequestId && record.pendingStatus !== 'needs_modification') return;
     setIsEditing(true);
     setSelectedRecord(record);
@@ -679,6 +683,7 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (viewOnly) return;
     if (!canSave) return;
     if (enableDocuments) {
       const oversized = getOversizedHistoryDocumentError(form.documents);
@@ -825,8 +830,8 @@ export default function EquipmentMaintenanceHistoryHub({
         <button
           type="button"
           onClick={openAdd}
-          disabled={showEquipmentPicker && equipmentOptions.length === 0}
-          className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={viewOnly || (showEquipmentPicker && equipmentOptions.length === 0)}
+          className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed ${viewOnly ? 'hidden' : ''}`}
         >
           <MdAdd className="w-3.5 h-3.5" />
           Add Record
@@ -1026,7 +1031,7 @@ export default function EquipmentMaintenanceHistoryHub({
     </div>
   ) : null;
 
-  const formModal = formOpen && (
+  const formModal = formOpen && !viewOnly && (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] p-4 flex items-end sm:items-center justify-center overflow-y-auto">
       <div className="bg-white shadow-2xl border border-slate-100 flex flex-col w-full max-w-2xl rounded-t-3xl sm:rounded-xl max-h-[92vh] sm:my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
@@ -1430,7 +1435,7 @@ export default function EquipmentMaintenanceHistoryHub({
           <button
             type="button"
             onClick={(e) => openEdit(selectedRecord, e)}
-            className="px-4 py-2 border border-slate-200 text-blue-600 font-semibold rounded-lg text-xs flex items-center gap-1"
+            className={`px-4 py-2 border border-slate-200 text-blue-600 font-semibold rounded-lg text-xs flex items-center gap-1 ${viewOnly ? 'hidden' : ''}`}
           >
             <MdEdit className="w-3.5 h-3.5" />
             Edit

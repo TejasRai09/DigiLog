@@ -8,6 +8,7 @@ import Spinner from '../../../components/Spinner';
 import { buildProdPanLogbookReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
+import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
 
 const GRADES = ['A-Massecuite', 'A1-Massecuite', 'B-Massecuite', 'C-Massecuite', 'C1-Massecuite'];
 
@@ -60,6 +61,7 @@ const ProdPanLogbook = () => {
       </button>
       <h1 className="page-title mb-1">Pan Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Zuari Industries Ltd — Gobind Sugar Mill</p>
+      <FormsHubViewOnlyBanner />
 
       <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-2 gap-4">

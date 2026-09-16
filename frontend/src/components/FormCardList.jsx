@@ -8,6 +8,7 @@ import {
 } from '../config/formColumnSchemas';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 import { isSimpleOpenForm, openFormButtonLabel, openFormTarget } from '../utils/formTableNav';
+import useFormsHubViewOnly from '../hooks/useFormsHubViewOnly';
 
 const escapeCsvCell = (v) => {
   if (v === null || v === undefined) return '';
@@ -46,6 +47,7 @@ export default function FormCardList({
   onViewData,
   onDownloadCsv = null,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   const downloadFormCsv = async (form) => {
     if (typeof onDownloadCsv === 'function') {
       await onDownloadCsv(form);
@@ -89,14 +91,16 @@ export default function FormCardList({
             </p>
 
             <div className="mt-4 border-t border-slate-100 pt-4 space-y-2.5">
-              <button
-                type="button"
-                onClick={() => openFormTarget(navigate, form, { appId, returnTo })}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                {openFormButtonLabel(form)}
-                <MdOpenInNew className="h-4 w-4 shrink-0" aria-hidden />
-              </button>
+              {!(viewOnly && !isSimpleOpenForm(form)) && (
+                <button
+                  type="button"
+                  onClick={() => openFormTarget(navigate, form, { appId, returnTo })}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                  {openFormButtonLabel(form)}
+                  <MdOpenInNew className="h-4 w-4 shrink-0" aria-hidden />
+                </button>
+              )}
 
               {showDataActions && (
                 <div className="grid grid-cols-2 gap-2.5">

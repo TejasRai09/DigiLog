@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
 import useAuth from '../hooks/useAuth';
+import useFormsHubViewOnly from '../hooks/useFormsHubViewOnly';
 import { useAppName } from '../hooks/useAppName';
 import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
 import {
@@ -345,6 +346,7 @@ const FormTable = ({
 }) => {
   const navigate            = useNavigate();
   const appName             = useAppName(appId);
+  const viewOnly            = useFormsHubViewOnly();
   const [viewing, setViewing] = useState(null); // form object being viewed
 
   const openViewData = (form) => {
@@ -421,14 +423,16 @@ const FormTable = ({
                 <td className="td">
                   <div className="flex items-center justify-center gap-2">
 
-                    {/* Open form or hub module (equipment / EHS) */}
-                    <button
-                      onClick={() => openFormTarget(navigate, form, { appId, returnTo })}
-                      className="btn-primary py-1.5 text-xs"
-                    >
-                      <MdOpenInNew className="h-3.5 w-3.5" />
-                      {isSimpleOpenForm(form) ? 'Open' : 'Open Form'}
-                    </button>
+                    {!(viewOnly && !isSimpleOpenForm(form)) && (
+                      <button
+                        type="button"
+                        onClick={() => openFormTarget(navigate, form, { appId, returnTo })}
+                        className="btn-primary py-1.5 text-xs"
+                      >
+                        <MdOpenInNew className="h-3.5 w-3.5" />
+                        {isSimpleOpenForm(form) ? 'Open' : 'Open Form'}
+                      </button>
+                    )}
 
                     {!isSimpleOpenForm(form) && (
                       <>

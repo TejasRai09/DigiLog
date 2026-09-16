@@ -191,3 +191,8 @@
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
 }
+
+body.forms-hub-view-only button[type="submit"].btn-primary,
+body.forms-hub-view-only .forms-hub-write-action {
+  display: none !important;
+}

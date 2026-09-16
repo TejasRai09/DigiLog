@@ -48,7 +48,10 @@ const INITIAL = {
 const DistilleryOperations = () => {
   const [form, setForm] = useState(INITIAL);
 
-  const { theoreticalYield } = useAppConstants();
+  const { theoreticalYield: todayYield, constantsForDate } = useAppConstants();
+  const theoreticalYield = form.date
+    ? constantsForDate(form.date).theoreticalYield
+    : todayYield;
 
   const derived = useMemo(
     () => computeDistilleryDerived(form, { theoreticalYieldFactor: theoreticalYield }),

@@ -1,4 +1,5 @@
 const { pool } = require('../config/mysql');
+const { renameSeasonConstants, deleteSeasonConstants } = require('../utils/biConstants');
 
 exports.getAllSeasons = async (req, res) => {
   try {
@@ -15,7 +16,7 @@ exports.createSeason = async (req, res) => {
   if (!season_label || !start_date || !end_date) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  
+
   try {
     const [result] = await pool.query(
       'INSERT INTO season_mapping (season_label, start_date, end_date) VALUES (?, ?, ?)',
@@ -34,12 +35,19 @@ exports.createSeason = async (req, res) => {
 exports.updateSeason = async (req, res) => {
   const { id } = req.params;
   const { season_label, start_date, end_date } = req.body;
-  
+
   try {
+    const [[existing]] = await pool.query(
+      'SELECT season_label FROM season_mapping WHERE id = ? LIMIT 1',
+      [id],
+    );
     await pool.query(
       'UPDATE season_mapping SET season_label = ?, start_date = ?, end_date = ? WHERE id = ?',
       [season_label, start_date, end_date, id]
     );
+    if (existing?.season_label && existing.season_label !== season_label) {
+      await renameSeasonConstants(existing.season_label, season_label);
+    }
     res.json({ message: 'Updated successfully' });
   } catch (err) {
     console.error('Error updating season mapping:', err);
@@ -50,7 +58,14 @@ exports.updateSeason = async (req, res) => {
 exports.deleteSeason = async (req, res) => {
   const { id } = req.params;
   try {
+    const [[existing]] = await pool.query(
+      'SELECT season_label FROM season_mapping WHERE id = ? LIMIT 1',
+      [id],
+    );
     await pool.query('DELETE FROM season_mapping WHERE id = ?', [id]);
+    if (existing?.season_label) {
+      await deleteSeasonConstants(existing.season_label);
+    }
     res.json({ message: 'Deleted successfully' });
   } catch (err) {
     console.error('Error deleting season mapping:', err);

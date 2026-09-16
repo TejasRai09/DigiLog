@@ -437,7 +437,7 @@ export default function PowerPlantHierarchyExplorer({
   }, [activeEquipment, currentNode, tree, apiBase, pathIds]);
 
   const cardManageActionsEnabled = (node) =>
-    isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase, canManageLockedCards);
+    Boolean(openEdit) && isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase, canManageLockedCards);
 
   const buildNavState = (node, specSection = null) => ({
     appId: appId != null && appId !== '' ? String(appId) : undefined,
