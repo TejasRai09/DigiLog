@@ -1,4 +1,5 @@
 import { useCallback, useLayoutEffect, useRef } from 'react';
+import AutoNowInput from '../AutoNowInput';
 
 export function StoppageLabel({ children, required = false, highlight = false }) {
   return (
@@ -23,10 +24,12 @@ export function StoppageInput({
   highlight = false,
   step,
 }) {
+  const isDateTime = type === 'date' || type === 'time' || type === 'datetime-local';
+  const InputTag = isDateTime ? AutoNowInput : 'input';
   return (
     <div>
       <StoppageLabel required={required} highlight={highlight}>{label}</StoppageLabel>
-      <input
+      <InputTag
         type={type}
         name={name}
         value={value}

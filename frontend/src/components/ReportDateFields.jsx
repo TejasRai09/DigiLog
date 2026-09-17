@@ -2,6 +2,8 @@
  * Legacy-style Report Date row: one centered label above date + datetime-local
  * (avoids separate "Date" and "Time" labels). Field names stay `date` / `time` for API.
  */
+import AutoNowInput from './AutoNowInput';
+
 export default function ReportDateFields({
   dateValue,
   timeValue,
@@ -21,7 +23,7 @@ export default function ReportDateFields({
         {needsStar ? <span className="text-red-500 ml-0.5">*</span> : null}
       </label>
       <div className="flex w-full max-w-md flex-col gap-3 sm:mx-auto sm:flex-row sm:flex-wrap sm:justify-center">
-        <input
+        <AutoNowInput
           type="date"
           name={dateName}
           value={dateValue}
@@ -30,7 +32,7 @@ export default function ReportDateFields({
           className="input w-full min-w-0 sm:min-w-[11rem] sm:w-auto"
         />
         {showTime ? (
-          <input
+          <AutoNowInput
             type="datetime-local"
             name={timeName}
             value={timeValue}

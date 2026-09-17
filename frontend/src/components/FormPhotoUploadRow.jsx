@@ -67,7 +67,7 @@ export default function FormPhotoUploadRow({
       const dataUrl = await resizeImage(file);
       setFileName(file.name);
       setFileSize(file.size);
-      onChange(dataUrl);
+      onChange(dataUrl, file.name);
       setPreviewOpen(false);
     } catch {
       toast.error('Could not read the selected image.');
@@ -75,7 +75,7 @@ export default function FormPhotoUploadRow({
   };
 
   const handleRemove = () => {
-    onChange('');
+    onChange('', '');
     setFileName('');
     setFileSize(0);
     setPreviewOpen(false);

@@ -9,8 +9,8 @@ const EHS_FORMS = [
   {
     _id:         'ehs_near_miss',
     formKey:     'ehs_near_miss',
-    name:        'Accident Report',
-    description: 'Log workplace accidents for investigation',
+    name:        'Accident Report / Near Miss Report',
+    description: 'Log workplace accidents and near misses for investigation',
   },
   {
     _id:         'ehs_water_gwa',

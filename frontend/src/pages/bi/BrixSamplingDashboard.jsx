@@ -9,6 +9,7 @@ import {
   AreaChart,
   Area,
   Bar,
+  BarChart,
   LineChart,
   Line,
   XAxis,
@@ -48,6 +49,8 @@ import {
 } from '../../utils/biCockpitDateFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
+import ChartCardToolbar from '../../components/bi/ChartCardToolbar';
+import BiChartExpandModal from '../../components/bi/BiChartExpandModal';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
 const fieldBrixTrendData = [
@@ -216,6 +219,7 @@ export default function BrixSamplingDashboard() {
   const [activeTab, setActiveTab] = useState('yard');
   const [darkMode, setDarkMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedChart, setExpandedChart] = useState(null);
 
   // ─── Shared Filter State ────────────────────────────────────────
   // Per-tab From/To so Field and Yard each show their own sampling span
@@ -590,6 +594,11 @@ export default function BrixSamplingDashboard() {
   const gridStroke = darkMode ? '#334155' : '#e2e8f0';
   const lineBlue = darkMode ? '#60a5fa' : '#2563eb';
   const lineDark = darkMode ? '#93c5fd' : '#1d4ed8';
+  const brixExpandBase = {
+    filePrefix: 'brix',
+    dashboardLabel: BI_DASHBOARDS['/bi/brix-sampling'],
+  };
+  const openBrixChart = (cfg) => setExpandedChart({ ...brixExpandBase, ...cfg });
 
   // ─── Center-wise search ─────────────────────────────────────────
   const filteredCenters = useMemo(() =>
@@ -834,6 +843,36 @@ export default function BrixSamplingDashboard() {
                         <span className="flex items-center gap-1 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span>Bottom</span>
                         <span className="flex items-center gap-1 text-emerald-500"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Middle</span>
                         <span className="flex items-center gap-1 text-indigo-500"><span className="w-2 h-2 rounded-full bg-indigo-500"></span>Top</span>
+                        <ChartCardToolbar
+                          compact
+                          isDarkMode={darkMode}
+                          onExpand={() => {
+                            const rows = fieldTrend.length ? fieldTrend : fieldBrixTrendData;
+                            openBrixChart({
+                              title: 'Brix Trend Across Plant Sections',
+                              data: rows,
+                              csvColumns: [
+                                { key: 'date', label: 'Date' },
+                                { key: 'bottomBrix', label: 'Bottom Brix' },
+                                { key: 'midBrix', label: 'Mid Brix' },
+                                { key: 'topBrix', label: 'Top Brix' },
+                              ],
+                              plot: (
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <LineChart data={rows} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
+                                    <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
+                                    <YAxis tickLine={false} tick={{ fontSize: 9, fill: tickColor }} domain={[0, 35]} />
+                                    <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                    <Line type="monotone" dataKey="bottomBrix" name="Bottom Brix" stroke="#eab308" strokeWidth={2.5} dot={{ r: 2 }} />
+                                    <Line type="monotone" dataKey="midBrix" name="Mid Brix" stroke="#22c55e" strokeWidth={2.5} dot={{ r: 2.5 }} />
+                                    <Line type="monotone" dataKey="topBrix" name="Top Brix" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 2 }} />
+                                  </LineChart>
+                                </ResponsiveContainer>
+                              ),
+                            });
+                          }}
+                        />
                       </div>
                     </div>
                     <div className="flex-1 min-h-[140px] w-full">
@@ -860,7 +899,37 @@ export default function BrixSamplingDashboard() {
                           <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
                           Crop Standing
                         </h3>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">HEALTH</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">HEALTH</span>
+                          <ChartCardToolbar
+                            compact
+                            isDarkMode={darkMode}
+                            onExpand={() => {
+                              const rows = fieldCropCond.length ? fieldCropCond : cropConditionData;
+                              openBrixChart({
+                                title: 'Crop Standing',
+                                data: rows,
+                                csvColumns: [
+                                  { key: 'name', label: 'Condition' },
+                                  { key: 'value', label: 'Count' },
+                                ],
+                                plot: (
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                      <Pie data={rows} cx="50%" cy="50%" innerRadius={80} outerRadius={130} dataKey="value" nameKey="name">
+                                        {rows.map((entry, i) => (
+                                          <Cell key={`cc-m-${i}`} fill={entry.color || '#3b82f6'} />
+                                        ))}
+                                      </Pie>
+                                      <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                      <Legend />
+                                    </PieChart>
+                                  </ResponsiveContainer>
+                                ),
+                              });
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <div className="flex-1 w-full relative flex items-center justify-center min-h-[175px] sm:min-h-[190px]">
@@ -899,7 +968,37 @@ export default function BrixSamplingDashboard() {
                           <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
                           Land Topography
                         </h3>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">TYPE</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">TYPE</span>
+                          <ChartCardToolbar
+                            compact
+                            isDarkMode={darkMode}
+                            onExpand={() => {
+                              const rows = fieldLandType.length ? fieldLandType : landAreaMaturityData;
+                              openBrixChart({
+                                title: 'Land Topography',
+                                data: rows,
+                                csvColumns: [
+                                  { key: 'name', label: 'Type' },
+                                  { key: 'value', label: 'Value' },
+                                ],
+                                plot: (
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                      <Pie data={rows} cx="50%" cy="50%" outerRadius={130} dataKey="value" nameKey="name">
+                                        {rows.map((entry, i) => (
+                                          <Cell key={`lt-m-${i}`} fill={entry.color || (i === 0 ? '#6366f1' : '#06b6d4')} />
+                                        ))}
+                                      </Pie>
+                                      <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                      <Legend />
+                                    </PieChart>
+                                  </ResponsiveContainer>
+                                ),
+                              });
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <div className="flex-1 w-full flex items-center justify-center min-h-[175px] sm:min-h-[190px]">
@@ -946,6 +1045,33 @@ export default function BrixSamplingDashboard() {
                         <span className="text-amber-500">■ No Water</span>
                         <span className="text-slate-400">-- Avg</span>
                         <span className="text-cyan-500">■ Waterlogged</span>
+                        <ChartCardToolbar
+                          compact
+                          isDarkMode={darkMode}
+                          onExpand={() => openBrixChart({
+                            title: 'Brix Trend - Hydration & Field Condition',
+                            data: fieldCondTrend,
+                            csvColumns: [
+                              { key: 'date', label: 'Date' },
+                              { key: 'noWater', label: 'No Water' },
+                              { key: 'overallAvg', label: 'Avg' },
+                              { key: 'waterlogged', label: 'Waterlogged' },
+                            ],
+                            plot: (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={fieldCondTrend} margin={{ top: 2, right: 10, left: -25, bottom: 0 }}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
+                                  <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                  <YAxis tickLine={false} tick={{ fontSize: 8, fill: tickColor }} domain={[0, 25]} />
+                                  <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                  <Line type="monotone" dataKey="noWater" name="No Water" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} connectNulls={true} />
+                                  <Line type="monotone" dataKey="overallAvg" name="Avg" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
+                                  <Line type="monotone" dataKey="waterlogged" name="Waterlogged" stroke="#06b6d4" strokeWidth={2} dot={{ r: 2 }} connectNulls={true} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            ),
+                          })}
+                        />
                       </div>
                     </div>
                     <div className="flex-1 w-full min-h-0">
@@ -967,7 +1093,38 @@ export default function BrixSamplingDashboard() {
                   <div className="md:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <h3 className="text-xs font-bold text-slate-900 dark:text-white">Maturity by Soil Type</h3>
-                      <span className="text-[9px] text-slate-400">Count &amp; Ratio</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-slate-400">Count &amp; Ratio</span>
+                        <ChartCardToolbar
+                          compact
+                          isDarkMode={darkMode}
+                          onExpand={() => {
+                            const rows = fieldSoilType.length ? fieldSoilType : soilTypeMaturityData;
+                            openBrixChart({
+                              title: 'Maturity by Soil Type',
+                              data: rows,
+                              csvColumns: [
+                                { key: 'soil', label: 'Soil' },
+                                { key: 'samples', label: 'Samples' },
+                                { key: 'maturity', label: 'Maturity' },
+                              ],
+                              plot: (
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <ComposedChart data={rows} margin={{ top: 4, right: 0, left: -25, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
+                                    <XAxis dataKey="soil" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                    <Bar yAxisId="left" dataKey="samples" name="Samples" fill="#818cf8" opacity={0.3} radius={[3, 3, 0, 0]} />
+                                    <Line yAxisId="right" type="monotone" dataKey="maturity" name="Maturity" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} />
+                                  </ComposedChart>
+                                </ResponsiveContainer>
+                              ),
+                            });
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="flex-1 w-full min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
@@ -988,7 +1145,38 @@ export default function BrixSamplingDashboard() {
                   <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <h3 className="text-xs font-bold text-slate-900 dark:text-white">Maturity by Crop Variety</h3>
-                      <span className="text-[9px] text-slate-400">Cultivars</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] text-slate-400">Cultivars</span>
+                        <ChartCardToolbar
+                          compact
+                          isDarkMode={darkMode}
+                          onExpand={() => {
+                            const rows = fieldVariety.length ? fieldVariety : cropVarietyData;
+                            openBrixChart({
+                              title: 'Maturity by Crop Variety',
+                              data: rows,
+                              csvColumns: [
+                                { key: 'variety', label: 'Variety' },
+                                { key: 'samples', label: 'Samples' },
+                                { key: 'maturity', label: 'Maturity' },
+                              ],
+                              plot: (
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <ComposedChart data={rows} margin={{ top: 4, right: 0, left: -25, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
+                                    <XAxis dataKey="variety" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                    <Bar yAxisId="left" dataKey="samples" name="Samples" fill="#818cf8" opacity={0.3} radius={[3, 3, 0, 0]} />
+                                    <Line yAxisId="right" type="monotone" dataKey="maturity" name="Maturity" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2.5, fill: '#3b82f6' }} />
+                                  </ComposedChart>
+                                </ResponsiveContainer>
+                              ),
+                            });
+                          }}
+                        />
+                      </div>
                     </div>
                     <div className="flex-1 w-full min-h-0">
                       <ResponsiveContainer width="100%" height="100%">
@@ -1147,11 +1335,40 @@ export default function BrixSamplingDashboard() {
 
                   {/* Combo chart — Brix daily trend */}
                   <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex flex-col">
-                    <div className="mb-1">
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % Daily Trend</h3>
-                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        Bars = samples with Brix &gt; {yardStats?.brixThreshold ?? 18} · Line = avg Brix % (secondary axis, min 16)
-                      </p>
+                    <div className="mb-1 flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % Daily Trend</h3>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Bars = samples with Brix &gt; {yardStats?.brixThreshold ?? 18} · Line = avg Brix % (secondary axis, min 16)
+                        </p>
+                      </div>
+                      <ChartCardToolbar
+                        compact
+                        isDarkMode={darkMode}
+                        onExpand={() => openBrixChart({
+                          title: 'Middle Brix % Daily Trend',
+                          data: yardTrend,
+                          csvColumns: [
+                            { key: 'date', label: 'Date' },
+                            { key: 'countAbove18', label: `Middle Brix > ${yardStats?.brixThreshold ?? 18}` },
+                            { key: 'avgBrix', label: 'Avg Middle Brix %' },
+                          ],
+                          plot: (
+                            <ResponsiveContainer width="100%" height="100%">
+                              <ComposedChart data={yardTrend} margin={{ top: 4, right: 10, left: -25, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.6} />
+                                <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
+                                <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
+                                <YAxis yAxisId="right" orientation="right" domain={[16, 'auto']} tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
+                                <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                <Legend wrapperStyle={{ fontSize: '10px' }} />
+                                <Bar yAxisId="left" dataKey="countAbove18" name={`Middle Brix > ${yardStats?.brixThreshold ?? 18}`} fill="#ec4899" opacity={0.5} radius={[3, 3, 0, 0]} />
+                                <Line yAxisId="right" type="monotone" dataKey="avgBrix" name="Avg Middle Brix %" stroke={lineDark} strokeWidth={2.5} dot={{ r: 2.5 }} />
+                              </ComposedChart>
+                            </ResponsiveContainer>
+                          ),
+                        })}
+                      />
                     </div>
                     <div className="flex-1 min-h-[120px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
@@ -1174,7 +1391,33 @@ export default function BrixSamplingDashboard() {
 
                     {/* Vehicle bar chart */}
                     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex-1 flex flex-col">
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white mb-1.5">Middle Brix % by Carrier</h3>
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % by Carrier</h3>
+                        <ChartCardToolbar
+                          compact
+                          isDarkMode={darkMode}
+                          onExpand={() => openBrixChart({
+                            title: 'Middle Brix % by Carrier',
+                            data: yardVehicle,
+                            csvColumns: [
+                              { key: 'vehicleType', label: 'Carrier' },
+                              { key: 'avgBrix', label: 'Avg Brix %' },
+                              { key: 'samples', label: 'Samples' },
+                            ],
+                            plot: (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={yardVehicle} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
+                                  <XAxis dataKey="vehicleType" tickLine={false} tick={{ fontSize: 10, fill: tickColor }} />
+                                  <YAxis tickLine={false} tick={{ fontSize: 10, fill: tickColor }} />
+                                  <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                  <Bar dataKey="avgBrix" name="Avg Brix %" fill="#4f46e5" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            ),
+                          })}
+                        />
+                      </div>
                       <div className="space-y-2 flex-1">
                         {yardVehicle.map(item => (
                           <div key={item.vehicleType}>
@@ -1196,9 +1439,37 @@ export default function BrixSamplingDashboard() {
 
                     {/* Condition pie — excl. affected cane */}
                     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex items-center justify-between gap-2">
-                      <div>
-                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Consignment Condition</h3>
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400 mb-1">Excl. affected cane (PBI formula)</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Consignment Condition</h3>
+                            <p className="text-[9px] text-slate-500 dark:text-slate-400">Excl. affected cane (PBI formula)</p>
+                          </div>
+                          <ChartCardToolbar
+                            compact
+                            isDarkMode={darkMode}
+                            onExpand={() => openBrixChart({
+                              title: 'Consignment Condition',
+                              data: yardCondition,
+                              csvColumns: [
+                                { key: 'name', label: 'Condition' },
+                                { key: 'value', label: 'Value' },
+                                { key: 'count', label: 'Count' },
+                              ],
+                              plot: (
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <PieChart>
+                                    <Pie data={yardCondition} cx="50%" cy="50%" innerRadius={70} outerRadius={120} dataKey="value" nameKey="name">
+                                      {yardCondition.map((e, i) => <Cell key={`cond-m-${i}`} fill={e.color} />)}
+                                    </Pie>
+                                    <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
+                                    <Legend />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                              ),
+                            })}
+                          />
+                        </div>
                         <div className="space-y-0.5">
                           {yardCondition.map(c => {
                             const total = yardCondition.reduce((s, x) => s + x.count, 0);
@@ -1274,6 +1545,11 @@ export default function BrixSamplingDashboard() {
             )}
           </div>
       </main>
+      <BiChartExpandModal
+        config={expandedChart}
+        isDarkMode={darkMode}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   );
 }

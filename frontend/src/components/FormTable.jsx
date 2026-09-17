@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   MdOpenInNew, MdTableChart, MdDownload,
@@ -10,13 +11,14 @@ import Spinner from './Spinner';
 import useAuth from '../hooks/useAuth';
 import useFormsHubViewOnly from '../hooks/useFormsHubViewOnly';
 import { useAppName } from '../hooks/useAppName';
-import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay } from '../config/formColumnSchemas';
+import { getDisplayColumns, headingRuns, headerLabel, formatRecordCellForDisplay, getRecordFileSlot, isRecordFileColumn } from '../config/formColumnSchemas';
 import {
   RecordActionsButton,
   RecordRowActionMenu,
   RecordViewModal,
   RecordEditModal,
   DeleteRecordConfirmModal,
+  FormFileSlotCell,
 } from './FormRecordAdminModals';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 import { isSimpleOpenForm, openFormTarget } from '../utils/formTableNav';
@@ -36,7 +38,7 @@ const downloadCSV = (filename, rows, columns, formKey = null) => {
   const headerLine = columns.map(headerLabel).map(escapeCsvCell).join(',');
   const dataLines = rows.map((row) =>
     columns.map(({ dbKey }) =>
-      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey], formKey)),
+      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey], formKey, row)),
     ).join(','),
   );
   const csv = [headerLine, ...dataLines].join('\r\n');
@@ -117,9 +119,9 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
     });
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-3 sm:p-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="view-data-modal-title"
@@ -131,7 +133,7 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
         onClick={onClose}
       />
 
-      <div className="relative my-auto flex w-full max-w-6xl max-h-[min(calc(100dvh-1.5rem),90vh)] min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="relative flex h-[calc(100dvh-1.5rem)] max-h-[calc(100dvh-1.5rem)] w-full max-w-6xl min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-2rem)]">
 
         {/* Header */}
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
@@ -226,18 +228,26 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
               <tbody className="divide-y divide-gray-100">
                 {data.records.map((row, i) => (
                   <tr key={`${page}-${i}`} className="hover:bg-gray-50">
-                    {columns.map((col) => (
-                      <td
-                        key={col.dbKey}
-                        className="px-3 py-2 text-gray-700 whitespace-nowrap"
-                      >
-                        {row[col.dbKey] === null || row[col.dbKey] === undefined ? (
-                          <span className="text-gray-300">—</span>
-                        ) : (
-                          formatRecordCellForDisplay(col.dbKey, row[col.dbKey], form.formKey)
-                        )}
-                      </td>
-                    ))}
+                    {columns.map((col) => {
+                      const isFileSlot = isRecordFileColumn(form.formKey, col.dbKey, row[col.dbKey]);
+                      const slot = isFileSlot
+                        ? getRecordFileSlot(form.formKey, row, col.dbKey, col.subheading)
+                        : null;
+                      return (
+                        <td
+                          key={col.dbKey}
+                          className={`px-3 py-2 text-gray-700 ${isFileSlot ? '' : 'whitespace-nowrap'}`}
+                        >
+                          {isFileSlot ? (
+                            <FormFileSlotCell slot={slot} />
+                          ) : row[col.dbKey] === null || row[col.dbKey] === undefined ? (
+                            <span className="text-gray-300">—</span>
+                          ) : (
+                            formatRecordCellForDisplay(col.dbKey, row[col.dbKey], form.formKey, row)
+                          )}
+                        </td>
+                      );
+                    })}
                     {isAdmin && (
                       <td className="sticky right-0 z-10 border-l border-gray-100 bg-white px-2 py-2 text-center">
                         <RecordActionsButton onOpenMenu={(e) => openRowMenu(e, row)} />
@@ -332,7 +342,8 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

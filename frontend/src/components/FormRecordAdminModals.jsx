@@ -6,10 +6,14 @@ import {
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
+import WordDocPreview, { isWordFile } from './WordDocPreview';
 import {
   getDisplayColumns,
   headerLabel,
   formatRecordCellForDisplay,
+  getRecordFileSlot,
+  isRecordFileColumn,
+  VIRTUAL_FILE_SLOT_KEYS,
 } from '../config/formColumnSchemas';
 
 const NON_EDITABLE_COLS = new Set([
@@ -55,7 +59,7 @@ function buildSections(columns, row, formKey, { readOnly = true } = {}) {
       dbKey: col.dbKey,
       label: col.subheading || col.dbKey,
       value: readOnly
-        ? formatRecordCellForDisplay(col.dbKey, raw, formKey)
+        ? formatRecordCellForDisplay(col.dbKey, raw, formKey, row)
         : cellToEditValue(col.dbKey, raw),
       raw,
     });
@@ -75,10 +79,10 @@ function RecordModalShell({ title, subtitle, onClose, children, footer }) {
     };
   }, [onClose]);
 
-  return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto p-3 sm:p-4" role="dialog" aria-modal="true">
+  return createPortal(
+    <div className="fixed inset-0 z-[210] flex items-center justify-center p-3 sm:p-4" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px]" aria-label="Close" onClick={onClose} />
-      <div className="relative my-auto flex w-full max-w-3xl max-h-[min(calc(100dvh-1.5rem),90vh)] min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+      <div className="relative flex h-[calc(100dvh-1.5rem)] max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-xl sm:h-auto sm:max-h-[calc(100dvh-2rem)]">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-gray-900 sm:text-lg">{title}</h2>
@@ -91,7 +95,8 @@ function RecordModalShell({ title, subtitle, onClose, children, footer }) {
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">{children}</div>
         {footer && <div className="shrink-0 border-t border-gray-100 px-4 py-3 sm:px-6">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -107,14 +112,64 @@ function isPdfDataUrl(value) {
   return typeof value === 'string' && value.startsWith('data:application/pdf');
 }
 
-function openDataUrl(value, fileName = 'download') {
-  if (!value) return;
-  const a = document.createElement('a');
-  a.href = value;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  a.download = fileName;
-  a.click();
+function FilePreviewLightbox({ preview, onClose }) {
+  if (!preview?.src) return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[220] flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-900/60"
+        aria-label="Close preview"
+        onClick={onClose}
+      />
+      <div className="relative flex max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h3 className="truncate text-sm font-semibold">{preview.title}</h3>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 hover:bg-gray-100" aria-label="Close">
+            <MdClose className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-slate-950 p-3">
+          {isImageDataUrl(preview.src) ? (
+            <img src={preview.src} alt={preview.title} className="max-h-[75dvh] max-w-full object-contain" />
+          ) : isPdfDataUrl(preview.src) ? (
+            <iframe title={preview.title} src={preview.src} className="h-[75dvh] w-full bg-white" />
+          ) : isWordFile(preview.src, preview.title) ? (
+            <WordDocPreview src={preview.src} title={preview.title} />
+          ) : (
+            <iframe title={preview.title} src={preview.src} className="h-[75dvh] w-full bg-white" />
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** Filename + eye button; never shows the data URL. */
+export function FormFileSlotCell({ slot }) {
+  const [preview, setPreview] = useState(null);
+  if (!slot?.src) {
+    return <span className="text-gray-300">—</span>;
+  }
+  const openFile = () => setPreview({ src: slot.src, title: slot.name });
+  return (
+    <>
+      <div className="inline-flex max-w-[16rem] items-center gap-1.5">
+        <span className="min-w-0 truncate text-gray-800" title={slot.name}>{slot.name}</span>
+        <button
+          type="button"
+          onClick={openFile}
+          className="inline-flex shrink-0 items-center justify-center rounded-md p-1 text-blue-600 hover:bg-blue-50"
+          title={`View ${slot.name}`}
+          aria-label={`View ${slot.name}`}
+        >
+          <MdVisibility className="h-4 w-4" />
+        </button>
+      </div>
+      <FilePreviewLightbox preview={preview} onClose={() => setPreview(null)} />
+    </>
+  );
 }
 
 export function RecordViewModal({ form, row, tsCol, onClose }) {
@@ -123,7 +178,6 @@ export function RecordViewModal({ form, row, tsCol, onClose }) {
     () => buildSections(columns, row, form.formKey, { readOnly: true }),
     [columns, row, form.formKey],
   );
-  const [preview, setPreview] = useState(null);
 
   return (
     <RecordModalShell
@@ -137,39 +191,19 @@ export function RecordViewModal({ form, row, tsCol, onClose }) {
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{section.heading}</h3>
             <dl className="grid gap-2 sm:grid-cols-2">
               {section.items.map((item) => {
-                const fileName =
-                  item.dbKey === 'hod_signoff_file'
-                    ? (row.hod_signoff_file_name || 'hod_signoff')
-                    : item.label;
-                const canPreview = isImageDataUrl(item.raw) || isPdfDataUrl(item.raw);
-                const canOpen = isDataUrl(item.raw);
+                const isFile = isRecordFileColumn(form.formKey, item.dbKey, item.raw);
+                const fileSlot = isFile
+                  ? getRecordFileSlot(form.formKey, row, item.dbKey, item.label)
+                  : null;
 
                 return (
                   <div key={item.dbKey} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
                     <dt className="text-[11px] font-medium text-gray-500">{item.label}</dt>
                     <dd className="mt-0.5 break-words text-sm text-gray-900">
-                      {item.value === '' ? (
+                      {isFile ? (
+                        <FormFileSlotCell slot={fileSlot} />
+                      ) : item.value === '' ? (
                         <span className="text-gray-300">—</span>
-                      ) : canOpen ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span>{item.value}</span>
-                          {canPreview ? (
-                            <button
-                              type="button"
-                              onClick={() => setPreview({ src: item.raw, title: fileName })}
-                              className="text-xs font-semibold text-amber-800 hover:underline"
-                            >
-                              View
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            onClick={() => openDataUrl(item.raw, fileName)}
-                            className="text-xs font-semibold text-amber-800 hover:underline"
-                          >
-                            {canPreview ? 'Download' : 'Open / Download'}
-                          </button>
-                        </div>
                       ) : (
                         item.value
                       )}
@@ -181,32 +215,6 @@ export function RecordViewModal({ form, row, tsCol, onClose }) {
           </div>
         ))}
       </div>
-
-      {preview ? (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <button
-            type="button"
-            className="absolute inset-0 bg-slate-900/60"
-            aria-label="Close preview"
-            onClick={() => setPreview(null)}
-          />
-          <div className="relative flex max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h3 className="truncate text-sm font-semibold">{preview.title}</h3>
-              <button type="button" onClick={() => setPreview(null)} className="rounded-lg p-1.5 hover:bg-gray-100" aria-label="Close">
-                <MdClose className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-950 p-3">
-              {isImageDataUrl(preview.src) ? (
-                <img src={preview.src} alt={preview.title} className="max-h-[75dvh] max-w-full object-contain" />
-              ) : (
-                <iframe title={preview.title} src={preview.src} className="h-[75dvh] w-full bg-white" />
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
     </RecordModalShell>
   );
 }
@@ -214,8 +222,12 @@ export function RecordViewModal({ form, row, tsCol, onClose }) {
 export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
   const columns = getDisplayColumns(form.formKey, row);
   const editableCols = useMemo(
-    () => columns.filter((c) => !NON_EDITABLE_COLS.has(c.dbKey)),
-    [columns],
+    () => columns.filter((c) => (
+      !NON_EDITABLE_COLS.has(c.dbKey)
+      && !VIRTUAL_FILE_SLOT_KEYS.has(c.dbKey)
+      && !isRecordFileColumn(form.formKey, c.dbKey, row[c.dbKey])
+    )),
+    [columns, form.formKey, row],
   );
 
   const [draft, setDraft] = useState(() => {
@@ -266,8 +278,7 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
         {editableCols.map((col) => {
           const label = headerLabel(col);
           const value = draft[col.dbKey] ?? '';
-          const isFileField = isDataUrl(value) || col.dbKey === 'hod_signoff_file'
-            || col.dbKey.endsWith('_photo') || col.dbKey === 'stoppage_photos';
+          const isFileField = isDataUrl(value) || isRecordFileColumn(form.formKey, col.dbKey, value);
           const isLong = col.dbKey === 'remarks' || col.dbKey === 'remark'
             || col.dbKey === 'topic_discussed' || String(value).length > 80;
 
@@ -394,9 +405,9 @@ export function RecordRowActionMenu({ rowMenu, onClose, onView, onEdit, onDelete
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[105]" aria-hidden onClick={onClose} />
+      <div className="fixed inset-0 z-[205]" aria-hidden onClick={onClose} />
       <div
-        className="fixed z-[106] min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+        className="fixed z-[206] min-w-[10rem] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
         style={{ top: rowMenu.top, right: rowMenu.right, left: rowMenu.left }}
         role="menu"
       >

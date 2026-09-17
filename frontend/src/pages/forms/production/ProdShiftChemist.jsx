@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave, MdAssignment, MdAccessTime } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import AutoNowInput from '../../../components/AutoNowInput';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -80,7 +81,7 @@ const ProdShiftChemist = () => {
         <div className="form-section grid grid-cols-2 gap-4">
           <div>
             <label className="label">Date <span className="text-red-500">*</span></label>
-            <input type="date" name="date" value={form.date} onChange={handleMeta} required className="input" />
+            <AutoNowInput type="date" name="date" value={form.date} onChange={handleMeta} required className="input" />
           </div>
           <div>
             <label className="label">Season</label>

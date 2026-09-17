@@ -56,7 +56,7 @@ export default function DistilleryChartsGrid({
   const meta = DISTILLERY_CHART_META;
 
   const ethanolMetrics = (
-    <div className="mb-2 flex flex-wrap gap-4">
+    <div className="mb-1 flex flex-wrap gap-2">
       <div className="flex flex-col">
         <span className={`text-[9px] font-bold ${textClasses.muted}`}>
           Total Vol: <span className={textClasses.title}>{formatMetric(getChartMetric('totalProd', true), { asPercent: false })}</span>
@@ -73,7 +73,7 @@ export default function DistilleryChartsGrid({
   );
 
   const fermSugarMetrics = (
-    <div className="mb-2 flex flex-wrap gap-4">
+    <div className="mb-1 flex flex-wrap gap-2">
       <div className="flex flex-col">
         <span className={`text-[9px] font-bold ${textClasses.muted}`}>
           Avg Ferm. Sugar: <span className={textClasses.title}>{formatMetric(getChartMetric('fermSugar', false))}</span>
@@ -90,7 +90,7 @@ export default function DistilleryChartsGrid({
   );
 
   const efficiencyMetrics = (
-    <div className="mb-2 flex flex-wrap gap-4">
+    <div className="mb-1 flex flex-wrap gap-2">
       <div className="flex flex-col">
         <span className={`text-[9px] font-bold ${textClasses.muted}`}>
           Avg FE: <span className={textClasses.title}>{formatMetric(getChartMetric('fermEff', false))}</span>
@@ -113,7 +113,7 @@ export default function DistilleryChartsGrid({
   );
 
   const washMetrics = (
-    <div className="mb-2 flex flex-wrap gap-4">
+    <div className="mb-1 flex flex-wrap gap-2">
       <div className="flex flex-col">
         <span className={`text-[9px] font-bold ${textClasses.muted}`}>
           Total Wash: <span className={textClasses.title}>{formatMetric(getChartMetric('totalWash', true), { asPercent: false })}</span>
@@ -124,7 +124,7 @@ export default function DistilleryChartsGrid({
   );
 
   const molMetrics = (
-    <div className="mb-2 flex flex-wrap gap-4">
+    <div className="mb-1 flex flex-wrap gap-2">
       <div className="flex flex-col">
         <span className={`text-[9px] font-bold ${textClasses.muted}`}>
           Avg Stock: <span className={textClasses.title}>{formatMetric(getChartMetric('molInStore', false), { asPercent: false })}</span>
@@ -135,7 +135,7 @@ export default function DistilleryChartsGrid({
   );
 
   const ethStockMetrics = (
-    <div className="mb-2 flex flex-wrap gap-4">
+    <div className="mb-1 flex flex-wrap gap-2">
       <div className="flex flex-col">
         <span className={`text-[9px] font-bold ${textClasses.muted}`}>
           Avg Stock: <span className={textClasses.title}>{formatMetric(getChartMetric('ethInStore', false), { asPercent: false })}</span>
@@ -147,7 +147,7 @@ export default function DistilleryChartsGrid({
 
   return (
     <>
-      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 max-md:auto-rows-min md:grid-cols-2 md:grid-rows-3 md:gap-2 md:[grid-template-rows:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-3 xl:grid-rows-2 xl:gap-2 xl:[grid-template-rows:minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-1.5 max-md:auto-rows-min md:grid-cols-2 md:grid-rows-3 md:gap-1.5 md:[grid-template-rows:minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-3 xl:grid-rows-2 xl:gap-1.5 xl:[grid-template-rows:minmax(0,1fr)_minmax(0,1fr)]">
         <DistilleryGraphCard
           chartId="ethanol-vol"
           onExpand={(id) => openExpand(id, ethanolMetrics)}
