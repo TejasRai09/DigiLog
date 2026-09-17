@@ -5,11 +5,9 @@ const { pool } = require('../../config/mysql');
 const { excelDateToISO, minMaxDates } = require('../../utils/excelDateUtils');
 const {
   HEADER_ROW_INDEX,
-  DATA_START_ROW,
-  EXPECTED_FILE_HEADERS,
   COLUMNS,
 } = require('./dmrDailySchema');
-const { validateExactHeaders, ColumnValidationError } = require('../../utils/excelColumnValidation');
+const { mapHeadersByName, ColumnValidationError } = require('../../utils/excelColumnValidation');
 
 const BATCH_SIZE = 200;
 const TABLE = 'dmr_daily';
@@ -30,9 +28,11 @@ function findHeaderRowIndex(matrix) {
   return HEADER_ROW_INDEX;
 }
 
-function validateHeaders(fileHeaders) {
+function mapDmrColumns(fileHeaders) {
   try {
-    validateExactHeaders(fileHeaders, EXPECTED_FILE_HEADERS, 'DMR Sheet1');
+    const expected = COLUMNS.map((c) => c.fileHeader);
+    const fileIndexes = mapHeadersByName(fileHeaders, expected, 'DMR Sheet1');
+    return COLUMNS.map((col, i) => ({ ...col, fileIndex: fileIndexes[i] }));
   } catch (err) {
     if (err.name === 'ColumnValidationError') {
       throw new DmrColumnValidationError(err.message, err.details);
@@ -105,13 +105,13 @@ async function runDmrLogbookImport({ filePath, onProgress }) {
   const headerRowIdx = findHeaderRowIndex(matrix);
   const fileHeaders = matrix[headerRowIdx] || [];
 
-  log('validate', 'Validating column headers against DMR template…');
-  validateHeaders(fileHeaders);
+  log('validate', 'Matching column names against DMR template (order and extra columns ignored)…');
+  const mappedColumns = mapDmrColumns(fileHeaders);
 
-  const dbColumnNames = COLUMNS.map((c) => c.dbColumn);
+  const dbColumnNames = mappedColumns.map((c) => c.dbColumn);
   const dataRows = matrix.slice(headerRowIdx + 1);
 
-  log('parse', `Sheet "${sheetName}": header row ${headerRowIdx + 1}, ${dataRows.length} data rows.`);
+  log('parse', `Sheet "${sheetName}": header row ${headerRowIdx + 1}, ${dataRows.length} data rows, ${mappedColumns.length} mapped columns.`);
 
   const conn = await pool.getConnection();
   let imported = 0;
@@ -129,8 +129,8 @@ async function runDmrLogbookImport({ filePath, onProgress }) {
       if (!row || row.every((c) => c === '' || c == null)) continue;
 
       const obj = {};
-      for (const col of COLUMNS) {
-        const raw = row[col.index];
+      for (const col of mappedColumns) {
+        const raw = row[col.fileIndex];
         obj[col.dbColumn] = coerceValue(col.fileHeader, raw);
       }
 

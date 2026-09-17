@@ -12,7 +12,7 @@ export default function DistilleryGraphCard({
 }) {
   return (
     <div
-      className={`flex h-full min-h-0 min-w-0 max-md:min-h-[220px] flex-col overflow-hidden rounded-2xl border p-3 md:min-h-0 lg:p-3.5 ${cardClasses}`}
+      className={`flex h-full min-h-0 min-w-0 max-md:min-h-[180px] flex-col overflow-hidden rounded-xl border p-2 md:min-h-0 lg:p-2.5 ${cardClasses}`}
     >
       <div className="relative z-20 mb-1 flex items-start justify-between gap-2 overflow-visible">
         <div className="min-w-0 flex-1 overflow-visible">{titleRow}</div>

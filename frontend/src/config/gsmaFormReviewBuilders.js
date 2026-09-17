@@ -362,7 +362,10 @@ export function buildEhsAccidentReview(form) {
 }
 
 export function buildEhsNearMissReview(form) {
-  return reviewMeta('Review Near Miss / Incident Report', ehsDateSummary(form), [
+  return reviewMeta('Review Accident Report / Near Miss Report', ehsDateSummary(form), [
+    section('Incident Type', fieldsFromDefs(form, [
+      { key: 'incident_category', label: 'Type' },
+    ], { onlyFilled: false })),
     section('Person Involved', fieldsFromDefs(form, [
       { key: 'name', label: 'Name' },
       { key: 'contact_no', label: 'Contact No.' },
@@ -380,15 +383,27 @@ export function buildEhsNearMissReview(form) {
       { key: 'treatment_given', label: 'Treatment Details' },
       { key: 'treatment_by', label: 'By Whom' },
     ])),
-    section('Follow-up & HOD Sign-off', [
+    section('Follow-up', [
       ...fieldsFromDefs(form, [
         { key: 'hazard_identified', label: 'Significant Hazard Identified?' },
       ]),
+    ]),
+    section('Document Upload', [
       {
-        label: 'HOD Sign-off Document',
-        value: form.hod_signoff_file
-          ? (form.hod_signoff_file_name || 'File attached')
-          : EMPTY,
+        label: 'Documents',
+        value: (() => {
+          const n = (form.document_files || []).filter(Boolean).length;
+          return n ? `${n} file(s)` : EMPTY;
+        })(),
+      },
+    ]),
+    section('Incident Photos', [
+      {
+        label: 'Photos',
+        value: (() => {
+          const n = (form.incident_photos || []).filter(Boolean).length;
+          return n ? `${n} photo(s)` : EMPTY;
+        })(),
       },
     ]),
   ]);

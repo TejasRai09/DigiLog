@@ -53,6 +53,56 @@ function validateExactHeaders(fileHeaders, expectedHeaders, label = 'file') {
   }
 }
 
+/**
+ * Map expected headers to file column indexes by name (order-independent).
+ * Duplicate names match in left-to-right occurrence order (1st BAGASSE → 1st BAGASSE).
+ * Extra file columns are ignored. Missing expected names throw.
+ * @returns {number[]} file column index for each expected header
+ */
+function mapHeadersByName(fileHeaders, expectedHeaders, label = 'file') {
+  const actual = (fileHeaders || []).map((h) => String(h ?? '').trim());
+  const expected = (expectedHeaders || []).map((h) => String(h ?? '').trim());
+
+  const queues = new Map();
+  actual.forEach((name, i) => {
+    if (!name) return;
+    if (!queues.has(name)) queues.set(name, []);
+    queues.get(name).push(i);
+  });
+
+  const indexes = [];
+  const missing = [];
+  for (const exp of expected) {
+    if (!exp) {
+      indexes.push(null);
+      continue;
+    }
+    const q = queues.get(exp);
+    if (!q || !q.length) {
+      missing.push(exp);
+      indexes.push(null);
+      continue;
+    }
+    indexes.push(q.shift());
+  }
+
+  if (missing.length) {
+    const uniqueMissing = [...new Set(missing)];
+    throw new ColumnValidationError(
+      `Missing column names in ${label} (${uniqueMissing.length}): ${formatMismatches(
+        uniqueMissing.map((expected) => ({ expected, actual: null })),
+      )}. Extra or reordered columns are allowed; required names must match the template.`,
+      {
+        missing: uniqueMissing,
+        expectedCount: expected.filter(Boolean).length,
+        actualCount: actual.filter(Boolean).length,
+      },
+    );
+  }
+
+  return indexes;
+}
+
 /** Required column names for sheet_to_json imports (order-independent). */
 function validateRequiredHeaders(actualHeaders, expectedHeaders, label = 'file') {
   const actualSet = new Set((actualHeaders || []).map((h) => String(h ?? '').trim()).filter(Boolean));
@@ -88,5 +138,6 @@ module.exports = {
   ColumnValidationError,
   validateExactHeaders,
   validateRequiredHeaders,
+  mapHeadersByName,
   headersFromSheet,
 };

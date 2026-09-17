@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import AutoNowInput from '../../../components/AutoNowInput';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -71,7 +72,7 @@ const EhsWaterEtp = () => {
         <div className="form-section space-y-4">
           <div>
             <label className="label">Date<span className="text-red-500 ml-0.5">*</span></label>
-            <input type="date" name="date" value={form.date} onChange={handle} required className="input" />
+            <AutoNowInput type="date" name="date" value={form.date} onChange={handle} required className="input" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Num label="Cane Crush — On Date (TCD)" name="cane_crush_ondate" value={form.cane_crush_ondate} onChange={handle} />

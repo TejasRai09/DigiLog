@@ -832,6 +832,9 @@ model ehs_near_miss {
   hazard_identified     String?   @db.VarChar(5)
   hod_signoff_file      String?   @db.MediumText
   hod_signoff_file_name String?   @db.VarChar(255)
+  incident_category     String?   @db.VarChar(80)
+  documents             String?   @db.MediumText
+  incident_photos       String?   @db.MediumText
   timestamp             DateTime  @default(now()) @db.Timestamp(0)
 }
 

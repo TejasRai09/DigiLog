@@ -57,6 +57,8 @@ import {
 } from '../../utils/biCockpitDateFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
+import ChartCardToolbar from '../../components/bi/ChartCardToolbar';
+import BiChartExpandModal from '../../components/bi/BiChartExpandModal';
 import {
   filterMillStoppages,
   filterMillSeasonCompareRows,
@@ -1024,6 +1026,73 @@ function MillOutageTab({
   gridStyle,
 }) {
   const tooltipRender = (props) => <ChartTooltip {...props} isDarkMode={isDarkMode} unit="h" />;
+  const [expandedChart, setExpandedChart] = useState(null);
+  const millExpand = {
+    filePrefix: 'milling',
+    dashboardLabel: BI_DASHBOARDS['/bi/milling-operations'],
+  };
+
+  const dailyTrendPlot = (gradId) => (
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={dailySeries} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35} />
+            <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid vertical={false} {...gridStyle} />
+        <XAxis dataKey="date" tick={axisStyle} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
+        <YAxis tick={axisStyle} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
+        <Tooltip content={tooltipRender} />
+        <Legend wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} iconType="circle" />
+        <Area
+          type="monotone"
+          dataKey="stoppageHours"
+          name="Stoppage Hours"
+          stroke="#f43f5e"
+          strokeWidth={3}
+          fillOpacity={1}
+          fill={`url(#${gradId})`}
+          isAnimationActive={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="stoppageHoursCompare"
+          name="Prior Period"
+          stroke="#94a3b8"
+          strokeWidth={1.5}
+          strokeDasharray="4 4"
+          dot={false}
+          isAnimationActive={false}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+
+  const sectionBarPlot = () => (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={sectionTotals} margin={{ top: 5, right: 10, left: -20, bottom: 30 }}>
+        <CartesianGrid vertical={false} {...gridStyle} />
+        <XAxis
+          dataKey="section"
+          tick={{ ...axisStyle, fontSize: 8 }}
+          stroke={isDarkMode ? '#334155' : '#cbd5e1'}
+          interval={0}
+          angle={-25}
+          textAnchor="end"
+          height={50}
+        />
+        <YAxis tick={axisStyle} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
+        <Tooltip content={tooltipRender} />
+        <Bar dataKey="hours" name="Stoppage Hours" radius={[4, 4, 0, 0]} isAnimationActive={false}>
+          {sectionTotals.map((entry, idx) => (
+            <Cell key={`bar-${idx}`} fill={entry.color} />
+          ))}
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -1103,48 +1172,30 @@ function MillOutageTab({
               placement="bottom"
             />
           </div>
-          <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-            isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
-          }`}>
-            {periodLabel} · {comparisonLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+              isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+            }`}>
+              {periodLabel} · {comparisonLabel}
+            </span>
+            <ChartCardToolbar
+              isDarkMode={isDarkMode}
+              onExpand={() => setExpandedChart({
+                ...millExpand,
+                title: 'Stoppages Daily Trend',
+                data: dailySeries,
+                csvColumns: [
+                  { key: 'date', label: 'Date' },
+                  { key: 'stoppageHours', label: 'Stoppage Hours' },
+                  { key: 'stoppageHoursCompare', label: 'Prior Period' },
+                ],
+                plot: dailyTrendPlot('mill-trend-grad-modal'),
+              })}
+            />
+          </div>
         </div>
         <div className="h-[280px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={dailySeries} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
-              <defs>
-                <linearGradient id="mill-trend-grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid vertical={false} {...gridStyle} />
-              <XAxis dataKey="date" tick={axisStyle} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
-              <YAxis tick={axisStyle} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
-              <Tooltip content={tooltipRender} />
-              <Legend wrapperStyle={{ fontSize: 10, fontWeight: 'bold' }} iconType="circle" />
-              <Area
-                type="monotone"
-                dataKey="stoppageHours"
-                name="Stoppage Hours"
-                stroke="#f43f5e"
-                strokeWidth={3}
-                fillOpacity={1}
-                fill="url(#mill-trend-grad)"
-                isAnimationActive={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="stoppageHoursCompare"
-                name="Prior Period"
-                stroke="#94a3b8"
-                strokeWidth={1.5}
-                strokeDasharray="4 4"
-                dot={false}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          {dailyTrendPlot('mill-trend-grad')}
         </div>
       </div>
 
@@ -1159,37 +1210,32 @@ function MillOutageTab({
               placement="bottom"
             />
           </div>
-          <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-            isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
-          }`}>
-            {sectionTotals.length} sections
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+              isDarkMode ? 'bg-slate-800 text-slate-500' : 'bg-slate-100 text-slate-400'
+            }`}>
+              {sectionTotals.length} sections
+            </span>
+            <ChartCardToolbar
+              isDarkMode={isDarkMode}
+              onExpand={() => setExpandedChart({
+                ...millExpand,
+                title: 'Total Outages by Category',
+                data: sectionTotals,
+                csvColumns: [
+                  { key: 'section', label: 'Section' },
+                  { key: 'hours', label: 'Stoppage Hours' },
+                ],
+                plot: sectionBarPlot(),
+              })}
+            />
+          </div>
         </div>
         <div className="h-[300px] w-full">
           {sectionTotals.length === 0 ? (
             <EmptyState message="No stoppages match the current filters." isDarkMode={isDarkMode} textClasses={textClasses} />
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={sectionTotals} margin={{ top: 5, right: 10, left: -20, bottom: 30 }}>
-                <CartesianGrid vertical={false} {...gridStyle} />
-                <XAxis
-                  dataKey="section"
-                  tick={{ ...axisStyle, fontSize: 8 }}
-                  stroke={isDarkMode ? '#334155' : '#cbd5e1'}
-                  interval={0}
-                  angle={-25}
-                  textAnchor="end"
-                  height={50}
-                />
-                <YAxis tick={axisStyle} stroke={isDarkMode ? '#334155' : '#cbd5e1'} />
-                <Tooltip content={tooltipRender} />
-                <Bar dataKey="hours" name="Stoppage Hours" radius={[4, 4, 0, 0]} isAnimationActive={false}>
-                  {sectionTotals.map((entry, idx) => (
-                    <Cell key={`bar-${idx}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            sectionBarPlot()
           )}
         </div>
       </div>
@@ -1334,6 +1380,11 @@ function MillOutageTab({
         </div>
       </div>
       </div>
+      <BiChartExpandModal
+        config={expandedChart}
+        isDarkMode={isDarkMode}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   );
 }

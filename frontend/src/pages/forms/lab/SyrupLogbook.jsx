@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import AutoNowInput from '../../../components/AutoNowInput';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -10,7 +11,7 @@ import { buildSyrupLogbookReview } from '../../../config/gsmaFormReviewBuilders'
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
-const SHIFTS = ['A', 'B', 'C', 'G'];
+const SHIFTS = ['A', 'B', 'C'];
 const DIV_OPTIONS = ['No Diversion', 'DS', 'RS'];
 
 const INITIAL = {
@@ -58,7 +59,7 @@ const SyrupLogbook = () => {
           <div className="form-row flex-wrap gap-4">
             <div>
               <label className="label">Report Date:<span className="text-red-500 ml-0.5">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} required className="input" />
+              <AutoNowInput type="date" name="date" value={form.date} onChange={handleChange} required className="input" />
             </div>
             <div>
               <label className="label">Shift:<span className="text-red-500 ml-0.5">*</span></label>

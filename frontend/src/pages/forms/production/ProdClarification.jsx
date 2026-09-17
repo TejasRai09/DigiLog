@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import AutoNowInput from '../../../components/AutoNowInput';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -102,7 +103,7 @@ const ProdClarification = () => {
 
       <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-3 gap-4">
-          <div><label className="label">Operation Date <span className="text-red-500">*</span></label><input type="date" name="date" value={form.date} onChange={handleMeta} required className="input" /></div>
+          <div><label className="label">Operation Date <span className="text-red-500">*</span></label><AutoNowInput type="date" name="date" value={form.date} onChange={handleMeta} required className="input" /></div>
           <div><label className="label">Season</label><input type="text" name="season" value={form.season} onChange={handleMeta} className="input" /></div>
           <div><label className="label">Crop Day</label><input type="text" name="crop_day" value={form.crop_day} onChange={handleMeta} placeholder="e.g. 34" className="input" /></div>
         </div>

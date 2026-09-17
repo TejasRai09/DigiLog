@@ -1,3 +1,25 @@
+/** Filename-safe slug from a chart title. */
+export function slugifyChartTitle(title) {
+  return String(title || 'chart').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'chart';
+}
+
+const CSV_SKIP_KEYS = new Set(['color', 'fill', 'pctRaw']);
+
+/** Infer CSV columns from the first data row when a chart does not declare them. */
+export function inferCsvColumns(rows) {
+  if (!rows?.length) return [];
+  return Object.keys(rows[0])
+    .filter((key) => !CSV_SKIP_KEYS.has(key) && !String(key).startsWith('_'))
+    .map((key) => ({
+      key,
+      label: String(key)
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim(),
+    }));
+}
+
 /** Escape a CSV cell value. */
 export function escapeCsvCell(v) {
   if (v === null || v === undefined) return '';

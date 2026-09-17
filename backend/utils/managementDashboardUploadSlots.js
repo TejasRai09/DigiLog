@@ -11,7 +11,7 @@ const MD_DATASETS = {
     slot: 'dmr',
     dataset: 'dmr_workbook',
     label: 'DMR workbook',
-    hint: 'Single-sheet DMR (.xlsx) — Sheet1, header row must match DMR_season template (206 columns incl. Date, Crop Day)',
+    hint: 'Single-sheet DMR (.xlsx) — Sheet1. Columns are matched by name (Date, Crop Day, …). Extra or reordered columns are OK; required names must be present.',
     category: 'Management Dashboard — DMR Workbook',
     accept: '.xlsx,.xls',
   },

@@ -138,7 +138,7 @@ const formDefs = [
   { name: 'Production House equipment', description: 'Browse production house equipment cards by house section', formKey: 'digilog_hub_production_equipment', app: 'Production House Equipment History', sort_order: 1 },
 
   // EHS — individual submit forms
-  { name: 'Accident Report',    description: 'Log workplace accidents for investigation', formKey: 'ehs_near_miss',  app: 'EHS — Environment Health & Safety', sort_order: 1 },
+  { name: 'Accident Report / Near Miss Report', description: 'Log workplace accidents and near misses for investigation', formKey: 'ehs_near_miss',  app: 'EHS — Environment Health & Safety', sort_order: 1 },
   { name: 'Water Dashboard — Ground Water Abstraction', description: 'Daily bore well extraction and usage report',                         formKey: 'ehs_water_gwa', app: 'EHS — Environment Health & Safety', sort_order: 2 },
   { name: 'Water Dashboard — ETP Working',              description: 'Effluent Treatment Plant daily quantity and quality report',          formKey: 'ehs_water_etp', app: 'EHS — Environment Health & Safety', sort_order: 3 },
   { name: 'Water Dashboard — CPU Water Recycle',        description: 'CPU inlet/outlet daily report with quality parameters',              formKey: 'ehs_water_cpu', app: 'EHS — Environment Health & Safety', sort_order: 4 },

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import AutoNowInput from '../../../components/AutoNowInput';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -105,7 +106,7 @@ const DistilleryOperations = () => {
           <label className="label" htmlFor="op-date">
             Operation Date<span className="text-red-500 ml-0.5">*</span>
           </label>
-          <input
+          <AutoNowInput
             id="op-date"
             type="date"
             name="date"

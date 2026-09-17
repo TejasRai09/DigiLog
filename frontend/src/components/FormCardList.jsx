@@ -26,7 +26,7 @@ function downloadCSV(filename, rows, columns, formKey = null) {
   const headerLine = columns.map(headerLabel).map(escapeCsvCell).join(',');
   const dataLines = rows.map((row) =>
     columns.map(({ dbKey }) =>
-      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey], formKey)),
+      escapeCsvCell(formatRecordCellForDisplay(dbKey, row[dbKey], formKey, row)),
     ).join(','),
   );
   const csv = [headerLine, ...dataLines].join('\r\n');

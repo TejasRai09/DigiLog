@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import AutoNowInput from '../../../components/AutoNowInput';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -10,7 +11,7 @@ import { buildDSLogbookReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
-const SHIFTS = ['A', 'B', 'C', 'G'];
+const SHIFTS = ['A', 'B', 'C'];
 const MODE_OPTIONS = ['B Heavy', 'C Heavy'];
 
 /** ds_form.html order + row labels */
@@ -94,7 +95,7 @@ const DSLogbook = () => {
           <div className="form-row flex-wrap gap-4">
             <div>
               <label className="label">Report Date:<span className="text-red-500 ml-0.5">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handleChange} required className="input" />
+              <AutoNowInput type="date" name="date" value={form.date} onChange={handleChange} required className="input" />
             </div>
             <div>
               <label className="label">Shift:<span className="text-red-500 ml-0.5">*</span></label>
@@ -111,7 +112,7 @@ const DSLogbook = () => {
             </div>
             <div>
               <label className="label">Sampling Time:</label>
-              <input type="time" name="samplingTime" value={form.samplingTime} onChange={handleChange} className="input" />
+              <AutoNowInput type="time" name="samplingTime" value={form.samplingTime} onChange={handleChange} className="input" />
             </div>
           </div>
         </div>

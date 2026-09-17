@@ -28,6 +28,8 @@ import {
 } from "../../utils/biCockpitDateFilters";
 import useTrackBiInteraction from "../../hooks/useTrackBiInteraction";
 import { BI_DASHBOARDS } from "../../utils/activityPath";
+import ChartCardToolbar from "../../components/bi/ChartCardToolbar";
+import BiChartExpandModal from "../../components/bi/BiChartExpandModal";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
@@ -1074,7 +1076,7 @@ const Gate1KpiCard = ({ title, value, delta, lowerBetter = false, icon: Icon, ic
 };
 
 /** Soft white chart panel (no gradient header) */
-const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassName = "", accent = false, info }) => {
+const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassName = "", accent = false, info, onExpand }) => {
   const tip = resolveSectionInfo(title, info);
   return (
   <div className={`rounded-2xl border flex flex-col transition-all duration-200 hover:-translate-y-0.5 overflow-visible
@@ -1088,6 +1090,7 @@ const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassNa
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {subtitle && <p className={`text-[10px] font-medium ${dm ? "text-slate-500" : "text-slate-400"}`}>{subtitle}</p>}
+          {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
           <InfoTip text={tip} dm={dm} />
         </div>
       </div>
@@ -1096,6 +1099,23 @@ const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassNa
   </div>
   );
 };
+
+const CANE_MODE_CSV = [
+  { key: "date", label: "Date" },
+  { key: "c18", label: "18 QCART" },
+  { key: "c36", label: "36 QTROLLY" },
+  { key: "c45", label: "45 QTROLLY" },
+  { key: "c63", label: "63 QTROLLY" },
+  { key: "c99", label: "99 QTRUCK" },
+];
+const CANE_VEH_CSV = [
+  { key: "date", label: "Date" },
+  { key: "v18", label: "18 QCART" },
+  { key: "v36", label: "36 QTROLLY" },
+  { key: "v45", label: "45 QTROLLY" },
+  { key: "v63", label: "63 QTROLLY" },
+  { key: "v99", label: "99 QTRUCK" },
+];
 
 const GATE1_MODE_COLORS = {
   "18 QCART": "#14b8a6",
@@ -1421,6 +1441,14 @@ export default function CanePerformanceDashboard(){
   const[dm,setDm]=useState(false);
   const[liveData, setLiveData] = useState(null);
   const[loading, setLoading] = useState(true);
+  const[expandedChart, setExpandedChart] = useState(null);
+  const openChart = useCallback((cfg) => {
+    setExpandedChart({
+      filePrefix: "cane",
+      dashboardLabel: BI_DASHBOARDS["/bi/cane-performance"],
+      ...cfg,
+    });
+  }, []);
   
   const[fromDate, setFromDate] = useState("");
   const[toDate, setToDate] = useState("");
@@ -2169,12 +2197,56 @@ export default function CanePerformanceDashboard(){
 
             {/* Middle: full-height donut (left) + stacked purchase/overrun trends (right) */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-              <Gate1Panel title="Purchase Split - Modewise" dm={dm} accent className="xl:col-span-5 min-h-[440px]">
+              <Gate1Panel
+                title="Purchase Split - Modewise"
+                dm={dm}
+                accent
+                className="xl:col-span-5 min-h-[440px]"
+                onExpand={() => openChart({
+                  title: "Purchase Split - Modewise",
+                  data: modePieRows,
+                  csvColumns: [
+                    { key: "name", label: "Mode" },
+                    { key: "value", label: "Cane Qty" },
+                  ],
+                  plot: <Gate1ModeDonut data={modePieRows} dm={dm} />,
+                })}
+              >
                 <Gate1ModeDonut data={modePieRows} dm={dm} />
               </Gate1Panel>
 
               <div className="xl:col-span-7 flex flex-col gap-4">
-                <Gate1Panel title="Cane Purchase Trend" dm={dm} className="min-h-[260px]" bodyClassName="px-2 pb-3 pt-1">
+                <Gate1Panel
+                  title="Cane Purchase Trend"
+                  dm={dm}
+                  className="min-h-[260px]"
+                  bodyClassName="px-2 pb-3 pt-1"
+                  onExpand={() => openChart({
+                    title: "Cane Purchase Trend",
+                    data: actualGate1Daily,
+                    csvColumns: [
+                      { key: "date", label: "Date" },
+                      { key: "qty", label: "Cane Purchased" },
+                    ],
+                    plot: (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={actualGate1Daily}>
+                          <defs>
+                            <linearGradient id="gQty-exp" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.35} />
+                              <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                          <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                          <YAxis tickFormatter={(v) => (v / 1000).toFixed(1) + "k"} tickLine={false} axisLine={false} tick={softTick} width={42} />
+                          <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " Qtls"} {...TT(dm)} />
+                          <Area type="monotone" dataKey="qty" name="Cane Purchased" stroke="#14b8a6" fill="url(#gQty-exp)" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0 }} activeDot={{ r: 4 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ),
+                  })}
+                >
                   <ResponsiveContainer width="100%" height={220}>
                     <AreaChart data={actualGate1Daily}>
                       <defs>
@@ -2192,7 +2264,34 @@ export default function CanePerformanceDashboard(){
                   </ResponsiveContainer>
                 </Gate1Panel>
 
-                <Gate1Panel title="Parchi Overrun Trend (Qtls)" subtitle={rangeLabel} dm={dm} className="min-h-[220px]" bodyClassName="px-2 pb-3 pt-1">
+                <Gate1Panel
+                  title="Parchi Overrun Trend (Qtls)"
+                  subtitle={rangeLabel}
+                  dm={dm}
+                  className="min-h-[220px]"
+                  bodyClassName="px-2 pb-3 pt-1"
+                  onExpand={() => openChart({
+                    title: "Parchi Overrun Trend (Qtls)",
+                    data: overrunSeries,
+                    csvColumns: CANE_MODE_CSV,
+                    plot: (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={overrunSeries}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                          <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                          <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                          <Tooltip formatter={(v) => fmt(v) + " Qtls"} {...TT(dm)} />
+                          <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                          <Line type="monotone" dataKey="c18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="c36" name="36 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="c45" name="45 QTROLLY" stroke="#a78bfa" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="c63" name="63 QTROLLY" stroke="#fb923c" strokeWidth={2} dot={false} />
+                          <Line type="monotone" dataKey="c99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ),
+                  })}
+                >
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={overrunSeries}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2378,7 +2477,33 @@ export default function CanePerformanceDashboard(){
 
             {/* Soft chart panels */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              <Gate1Panel title="Average Yard Holding Time" subtitle={rangeLabel} dm={dm} className="min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Average Yard Holding Time"
+                subtitle={rangeLabel}
+                dm={dm}
+                className="min-h-[280px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Average Yard Holding Time",
+                  data: holdingSeries,
+                  csvColumns: CANE_MODE_CSV,
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={holdingSeries}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                        <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                        <Tooltip formatter={(v) => fmt(v) + " Hrs"} {...TT(dm)} />
+                        <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        <Line type="monotone" dataKey="c18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="c36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="c63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="c99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={holdingSeries}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2394,7 +2519,33 @@ export default function CanePerformanceDashboard(){
                 </ResponsiveContainer>
               </Gate1Panel>
 
-              <Gate1Panel title="Vehicles Exceeding Standard Holding Time" subtitle={rangeLabel} dm={dm} className="min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Vehicles Exceeding Standard Holding Time"
+                subtitle={rangeLabel}
+                dm={dm}
+                className="min-h-[280px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Vehicles Exceeding Standard Holding Time",
+                  data: exceedSeries,
+                  csvColumns: CANE_MODE_CSV,
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={exceedSeries}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                        <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                        <Tooltip formatter={(v) => n(v).toLocaleString("en-IN")} {...TT(dm)} />
+                        <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        <Bar dataKey="c18" name="18 QCART" fill="#14b8a6" radius={[3, 3, 0, 0]} barSize={8} />
+                        <Bar dataKey="c36" name="36 QTROLLY" fill="#3b82f6" radius={[3, 3, 0, 0]} barSize={8} />
+                        <Bar dataKey="c63" name="63 QTROLLY" fill="#f97316" radius={[3, 3, 0, 0]} barSize={8} />
+                        <Bar dataKey="c99" name="99 QTRUCK" fill="#8b5cf6" radius={[3, 3, 0, 0]} barSize={8} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={exceedSeries}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2549,12 +2700,57 @@ export default function CanePerformanceDashboard(){
 
             {/* Donut + trends — Gate 1 layout */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-              <Gate1Panel title="Purchase Split - Modewise" dm={dm} accent className="xl:col-span-5 min-h-[400px]">
+              <Gate1Panel
+                title="Purchase Split - Modewise"
+                dm={dm}
+                accent
+                className="xl:col-span-5 min-h-[400px]"
+                onExpand={() => openChart({
+                  title: "Purchase Split - Modewise",
+                  data: modePieRows,
+                  csvColumns: [
+                    { key: "name", label: "Mode" },
+                    { key: "value", label: "Cane Qty" },
+                  ],
+                  plot: <Gate1ModeDonut data={modePieRows} dm={dm} />,
+                })}
+              >
                 <Gate1ModeDonut data={modePieRows} dm={dm} />
               </Gate1Panel>
 
               <div className="xl:col-span-7 flex flex-col gap-4">
-                <Gate1Panel title="Cane Purchase Trend" subtitle={rangeLabel} dm={dm} className="min-h-[240px]" bodyClassName="px-2 pb-3 pt-1">
+                <Gate1Panel
+                  title="Cane Purchase Trend"
+                  subtitle={rangeLabel}
+                  dm={dm}
+                  className="min-h-[240px]"
+                  bodyClassName="px-2 pb-3 pt-1"
+                  onExpand={() => openChart({
+                    title: "Cane Purchase Trend",
+                    data: purchaseTrend,
+                    csvColumns: [
+                      { key: "date", label: "Date" },
+                      { key: "qty", label: "Cane Purchased" },
+                    ],
+                    plot: (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={purchaseTrend}>
+                          <defs>
+                            <linearGradient id="gCenterQty-exp" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.35} />
+                              <stop offset="95%" stopColor="#14b8a6" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                          <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                          <YAxis tickFormatter={(v) => (v / 1000).toFixed(1) + "k"} tickLine={false} axisLine={false} tick={softTick} width={42} />
+                          <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " Qtls"} {...TT(dm)} />
+                          <Area type="monotone" dataKey="qty" name="Cane Purchased" stroke="#14b8a6" fill="url(#gCenterQty-exp)" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0 }} activeDot={{ r: 4 }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ),
+                  })}
+                >
                   <ResponsiveContainer width="100%" height={210}>
                     <AreaChart data={purchaseTrend}>
                       <defs>
@@ -2572,7 +2768,34 @@ export default function CanePerformanceDashboard(){
                   </ResponsiveContainer>
                 </Gate1Panel>
 
-                <Gate1Panel title="Parchi Overrun Trend (Qtls)" subtitle={rangeLabel} dm={dm} className="min-h-[220px]" bodyClassName="px-2 pb-3 pt-1">
+                <Gate1Panel
+                  title="Parchi Overrun Trend (Qtls)"
+                  subtitle={rangeLabel}
+                  dm={dm}
+                  className="min-h-[220px]"
+                  bodyClassName="px-2 pb-3 pt-1"
+                  onExpand={() => openChart({
+                    title: "Parchi Overrun Trend (Qtls)",
+                    data: overrunSeries,
+                    csvColumns: CANE_MODE_CSV,
+                    plot: (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={overrunSeries}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                          <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                          <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                          <Tooltip formatter={(v) => fmt(v) + " Qtls"} {...TT(dm)} />
+                          <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                          <Line type="monotone" dataKey="c18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                          <Line type="monotone" dataKey="c36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                          <Line type="monotone" dataKey="c45" name="45 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
+                          <Line type="monotone" dataKey="c63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                          <Line type="monotone" dataKey="c99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ),
+                  })}
+                >
                   <ResponsiveContainer width="100%" height={200}>
                     <LineChart data={overrunSeries}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2593,7 +2816,36 @@ export default function CanePerformanceDashboard(){
 
             {/* Top / Bottom centers — stacked like reference */}
             <div className="flex flex-col gap-4">
-              <Gate1Panel title="Top 10 Centers - Cane Purchase" subtitle={rangeLabel} dm={dm} className="min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Top 10 Centers - Cane Purchase"
+                subtitle={rangeLabel}
+                dm={dm}
+                className="min-h-[300px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Top 10 Centers - Cane Purchase",
+                  data: topCenters,
+                  csvColumns: [
+                    { key: "c", label: "Center" },
+                    { key: "q", label: "Cane Purchased (Qtls)" },
+                    { key: "a", label: "Avg Parchi Size" },
+                  ],
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={topCenters} margin={{ top: 18, right: 12, left: 0, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="c" tickLine={false} axisLine={false} tick={softTick} dy={8} angle={-25} textAnchor="end" height={54} interval={0} />
+                        <YAxis yAxisId="left" tickFormatter={(v) => (v / 1000).toFixed(0) + "K"} tickLine={false} axisLine={false} tick={softTick} width={40} />
+                        <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={softTick} width={36} />
+                        <Tooltip {...TT(dm)} />
+                        <Legend verticalAlign="top" height={28} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        <Bar yAxisId="left" dataKey="q" name="Cane Purchased (Qtls)" fill="#f4c7c3" radius={[4, 4, 0, 0]} barSize={28} />
+                        <Line yAxisId="right" type="monotone" dataKey="a" name="Avg Parchi Size" stroke="#000080" strokeWidth={2} dot={{ r: 3.5, fill: "#000080", strokeWidth: 0 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={topCenters} margin={{ top: 18, right: 12, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2612,7 +2864,36 @@ export default function CanePerformanceDashboard(){
                 </ResponsiveContainer>
               </Gate1Panel>
 
-              <Gate1Panel title="Bottom 10 Centers - Cane Purchase" subtitle={rangeLabel} dm={dm} className="min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Bottom 10 Centers - Cane Purchase"
+                subtitle={rangeLabel}
+                dm={dm}
+                className="min-h-[300px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Bottom 10 Centers - Cane Purchase",
+                  data: bottomCenters,
+                  csvColumns: [
+                    { key: "c", label: "Center" },
+                    { key: "q", label: "Cane Purchased (Qtls)" },
+                    { key: "a", label: "Avg Parchi Size" },
+                  ],
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={bottomCenters} margin={{ top: 18, right: 12, left: 0, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="c" tickLine={false} axisLine={false} tick={softTick} dy={8} angle={-25} textAnchor="end" height={54} interval={0} />
+                        <YAxis yAxisId="left" tickFormatter={(v) => (v / 1000).toFixed(0) + "K"} tickLine={false} axisLine={false} tick={softTick} width={40} />
+                        <YAxis yAxisId="right" orientation="right" tickLine={false} axisLine={false} tick={softTick} width={36} />
+                        <Tooltip {...TT(dm)} />
+                        <Legend verticalAlign="top" height={28} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        <Bar yAxisId="left" dataKey="q" name="Cane Purchased (Qtls)" fill="#f4c7c3" radius={[4, 4, 0, 0]} barSize={28} />
+                        <Line yAxisId="right" type="monotone" dataKey="a" name="Avg Parchi Size" stroke="#000080" strokeWidth={2} dot={{ r: 3.5, fill: "#000080", strokeWidth: 0 }} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={260}>
                   <ComposedChart data={bottomCenters} margin={{ top: 18, right: 12, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2729,7 +3010,35 @@ export default function CanePerformanceDashboard(){
 
             {/* Mode split + trend */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-              <Gate1Panel title="Mode wise Split" subtitle={rangeLabel} dm={dm} accent className="xl:col-span-5 min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Mode wise Split"
+                subtitle={rangeLabel}
+                dm={dm}
+                accent
+                className="xl:col-span-5 min-h-[280px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Mode wise Split",
+                  data: modeRows,
+                  csvColumns: [
+                    { key: "full", label: "Mode" },
+                    { key: "vehicles", label: "Vehicles" },
+                  ],
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={modeRows} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="mode" tickLine={false} axisLine={false} tick={softTick} dy={8} />
+                        <YAxis tickFormatter={(v) => (v / 1000).toFixed(1) + "K"} tickLine={false} axisLine={false} tick={softTick} width={42} />
+                        <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " vehicles"} {...TT(dm)} />
+                        <Bar dataKey="vehicles" name="Vehicles" radius={[6, 6, 0, 0]} barSize={36}>
+                          {modeRows.map((e, i) => <Cell key={i} fill={e.fill} />)}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={modeRows} margin={{ top: 12, right: 8, left: 0, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2744,7 +3053,34 @@ export default function CanePerformanceDashboard(){
                 </ResponsiveContainer>
               </Gate1Panel>
 
-              <Gate1Panel title="Vehicle Handling Trend (Mode wise)" subtitle={rangeLabel} dm={dm} className="xl:col-span-7 min-h-[280px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Vehicle Handling Trend (Mode wise)"
+                subtitle={rangeLabel}
+                dm={dm}
+                className="xl:col-span-7 min-h-[280px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Vehicle Handling Trend (Mode wise)",
+                  data: handlingTrend,
+                  csvColumns: CANE_VEH_CSV,
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={handlingTrend}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                        <YAxis tickLine={false} axisLine={false} tick={softTick} width={40} />
+                        <Tooltip formatter={(v) => n(v).toLocaleString("en-IN") + " vehicles"} {...TT(dm)} />
+                        <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        <Line type="monotone" dataKey="v18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v45" name="45 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={handlingTrend}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2842,7 +3178,34 @@ export default function CanePerformanceDashboard(){
 
             {/* Trend + scatter */}
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-              <Gate1Panel title="Avg Holding Time at Centers - Trend" subtitle={rangeLabel} dm={dm} className="xl:col-span-7 min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Avg Holding Time at Centers - Trend"
+                subtitle={rangeLabel}
+                dm={dm}
+                className="xl:col-span-7 min-h-[300px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Avg Holding Time at Centers - Trend",
+                  data: holdingTrend,
+                  csvColumns: CANE_VEH_CSV,
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={holdingTrend}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
+                        <XAxis dataKey="date" tickLine={false} axisLine={false} tick={softTick} dy={8} interval="preserveStartEnd" />
+                        <YAxis tickLine={false} axisLine={false} tick={softTick} width={36} />
+                        <Tooltip formatter={(v) => fmt(v) + " Hrs"} {...TT(dm)} />
+                        <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        <Line type="monotone" dataKey="v18" name="18 QCART" stroke="#14b8a6" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v36" name="36 QTROLLY" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v45" name="45 QTROLLY" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v63" name="63 QTROLLY" stroke="#f97316" strokeWidth={2} dot={false} connectNulls />
+                        <Line type="monotone" dataKey="v99" name="99 QTRUCK" stroke="#8b5cf6" strokeWidth={2} dot={false} connectNulls />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={260}>
                   <LineChart data={holdingTrend}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={softGrid} />
@@ -2859,7 +3222,43 @@ export default function CanePerformanceDashboard(){
                 </ResponsiveContainer>
               </Gate1Panel>
 
-              <Gate1Panel title="Vehicle vs Center Holding Time" subtitle={rangeLabel} dm={dm} accent className="xl:col-span-5 min-h-[300px]" bodyClassName="px-2 pb-3 pt-1">
+              <Gate1Panel
+                title="Vehicle vs Center Holding Time"
+                subtitle={rangeLabel}
+                dm={dm}
+                accent
+                className="xl:col-span-5 min-h-[300px]"
+                bodyClassName="px-2 pb-3 pt-1"
+                onExpand={() => openChart({
+                  title: "Vehicle vs Center Holding Time",
+                  data: scatterRaw,
+                  csvColumns: [
+                    { key: "center", label: "Center" },
+                    { key: "mode", label: "Mode" },
+                    { key: "h", label: "Holding Hrs" },
+                    { key: "v", label: "Vehicles" },
+                  ],
+                  plot: (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 12, right: 12, bottom: 8, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={softGrid} />
+                        <XAxis dataKey="h" name="Holding (Hrs)" type="number" tickLine={false} axisLine={false} tick={softTick} />
+                        <YAxis dataKey="v" name="Vehicles" type="number" tickLine={false} axisLine={false} tick={softTick} width={40} />
+                        <Tooltip cursor={{ strokeDasharray: "3 3" }} {...TT(dm)} />
+                        <Legend verticalAlign="top" height={32} iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                        {scatterModes.map((m) => (
+                          <Scatter
+                            key={m}
+                            name={m}
+                            data={scatterRaw.filter((r) => r.mode === m).map((r) => ({ h: n(r.h), v: n(r.v), center: r.center }))}
+                            fill={gate1ModeColor(m)}
+                          />
+                        ))}
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  ),
+                })}
+              >
                 <ResponsiveContainer width="100%" height={260}>
                   <ScatterChart margin={{ top: 12, right: 12, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={softGrid} />
@@ -2937,6 +3336,11 @@ export default function CanePerformanceDashboard(){
         )}
 
       </main>
+      <BiChartExpandModal
+        config={expandedChart}
+        isDarkMode={dm}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   );
 }

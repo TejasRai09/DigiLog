@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import AutoNowInput from '../../../components/AutoNowInput';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
@@ -124,7 +125,7 @@ const BrixYardSampling = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">1. Sampling Date <span className="text-red-500">*</span></label>
-              <input type="date" name="Date" value={form.Date} onChange={handleInput} className="input" />
+              <AutoNowInput type="date" name="Date" value={form.Date} onChange={handleInput} className="input" />
             </div>
             <div>
               <label className="label">2. Name <span className="text-red-500">*</span></label>
