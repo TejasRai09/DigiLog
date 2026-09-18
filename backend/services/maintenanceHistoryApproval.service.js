@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { pool } = require('../config/mysql');
 const { validHistoryImageField } = require('../utils/historyImages');
+const { historyDateRangeError } = require('../utils/historyDateRange');
 const {
   MAX_HISTORY_DOCUMENTS,
   historyDocumentStorageKey,
@@ -1252,6 +1253,15 @@ async function createPendingRequest({
   reqUser,
   equipment,
 }) {
+  if (action === 'create' || action === 'update') {
+    const dateError = historyDateRangeError(payload?.date_start, payload?.date_finish);
+    if (dateError) {
+      const err = new Error(dateError);
+      err.status = 400;
+      throw err;
+    }
+  }
+
   const hod = await resolveHodUser(domain);
 
   if (action !== 'create' && historyId) {
@@ -2507,6 +2517,13 @@ async function resubmitRequest(request, payload, user) {
   if (request.status !== STATUS.NEEDS_MODIFICATION) {
     const err = new Error('Only requests sent back for modification can be resubmitted.');
     err.status = 409;
+    throw err;
+  }
+
+  const dateError = historyDateRangeError(payload?.date_start, payload?.date_finish);
+  if (dateError) {
+    const err = new Error(dateError);
+    err.status = 400;
     throw err;
   }
 

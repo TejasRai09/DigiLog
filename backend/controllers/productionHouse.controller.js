@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
+const { historyDateRangeError } = require('../utils/historyDateRange');
 const { formatProductionHouseSpecValue } = require('../utils/productionHouseSpecValue');
 const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
 const {
@@ -353,6 +354,7 @@ const getHistory = async (req, res) => {
       req.user?.id,
       scoped,
     );
+    res.set('Cache-Control', 'no-store');
     res.json({ total, page, limit, records: withPending });
   } catch (err) {
     sendServerError(res, 'getHistory:', err, MSG.LOAD);
@@ -366,6 +368,8 @@ const addHistory = async (req, res) => {
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
     const payload = historyPayloadFromBody(req.body, eq);
+    const dateError = historyDateRangeError(payload.date_start, payload.date_finish);
+    if (dateError) return res.status(400).json({ message: dateError });
     const queued = await queueProductionHistoryApproval(req, res, {
       action: 'create',
       equipId: id,
@@ -411,6 +415,8 @@ const updateHistory = async (req, res) => {
     if (!existingRow) return res.status(404).json({ message: 'Record not found.' });
 
     const payload = historyPayloadFromBody(req.body, eq);
+    const dateError = historyDateRangeError(payload.date_start, payload.date_finish);
+    if (dateError) return res.status(400).json({ message: dateError });
     const queued = await queueProductionHistoryApproval(req, res, {
       action: 'update',
       equipId: id,
