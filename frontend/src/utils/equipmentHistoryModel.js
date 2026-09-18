@@ -260,6 +260,15 @@ export function isPlaceholderNo(value) {
   return String(value || '').trim().toUpperCase() === 'NO';
 }
 
+/** When both dates are set, start must not be after finish. Same-day work is allowed. */
+export function historyDateRangeError(start, finish) {
+  const a = String(start || '').trim().slice(0, 10);
+  const b = String(finish || '').trim().slice(0, 10);
+  if (!a || !b) return '';
+  if (a > b) return 'Date of Start must be before Date of Finish.';
+  return '';
+}
+
 function displayHistoryText(primary, fallback = '') {
   const main = String(primary || '').trim();
   if (main && !isPlaceholderNo(main)) return main;

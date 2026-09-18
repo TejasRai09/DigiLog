@@ -84,11 +84,16 @@ const ProductionHouseEquipmentDetail = () => {
 
   const loadHistory = useCallback(async () => {
     if (!equipId) return;
-    const { data } = await api.get(`${API_BASE}/${equipId}/history`, {
-      params: { page: 1, limit: HIST_FETCH_LIMIT },
-    });
-    setHistory(data.records);
-    setHistTotal(data.total);
+    try {
+      const { data } = await api.get(`${API_BASE}/${equipId}/history`, {
+        params: { page: 1, limit: HIST_FETCH_LIMIT },
+      });
+      setHistory(data.records);
+      setHistTotal(data.total);
+    } catch (err) {
+      if (err?.response?.status === 304) return;
+      throw err;
+    }
   }, [equipId]);
 
   useMaintenanceHistoryHodRefresh({

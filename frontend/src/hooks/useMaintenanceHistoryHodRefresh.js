@@ -5,8 +5,9 @@ const HOD_HISTORY_REFRESH_TYPES = new Set(['mh_approved', 'mh_needs_modification
 
 /**
  * Reload equipment maintenance history when HOD approves or sends for modification
- * (Socket.IO notification to the submitter). Also quiet-refreshes when the tab
- * becomes visible again as a backup if the socket event was missed.
+ * (Socket.IO notification to the submitter). Quiet-refreshes when the user returns
+ * to this tab. Do not listen to window `focus` — closing the file picker also
+ * fires focus and was toasting "Failed to load history" on 304.
  *
  * @param {{
  *   equipId: string|number|null|undefined,
@@ -54,10 +55,8 @@ export default function useMaintenanceHistoryHodRefresh({ equipId, domain = null
       }
     };
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', onVisible);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', onVisible);
     };
   }, [equipId]);
 }

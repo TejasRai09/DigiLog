@@ -174,7 +174,9 @@ const PowerEquipmentDetail = () => {
       const { data } = await api.get(`${apiBase}/${eid}/history`, { params });
       setHistory(data.records);
       setHistTotal(data.total);
-    } catch {
+    } catch (err) {
+      // 304 = cached copy unchanged. History is already on screen; do not toast.
+      if (err?.response?.status === 304) return;
       toast.error('Failed to load history.');
     }
   }, [apiBase, isNewHub, specSection]);

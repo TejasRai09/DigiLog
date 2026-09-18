@@ -1,6 +1,7 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
+const { historyDateRangeError } = require('../utils/historyDateRange');
 
 const getEq = async (id) => {
   const [[eq]] = await pool.execute('SELECT * FROM mh_equipment WHERE id = ?', [id]);
@@ -178,6 +179,7 @@ const getHistory = async (req, res) => {
        LIMIT ${limit} OFFSET ${offset}`,
       [id]
     );
+    res.set('Cache-Control', 'no-store');
     res.json({ total, page, limit, records });
   } catch (err) {
     sendServerError(res, 'getHistory:', err, MSG.LOAD);
@@ -192,6 +194,8 @@ const addHistory = async (req, res) => {
     if (!eq) return res.status(404).json({ message: 'Equipment not found.' });
 
     const { season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after } = req.body;
+    const dateError = historyDateRangeError(date_start, date_finish);
+    if (dateError) return res.status(400).json({ message: dateError });
     const [result] = await pool.execute(
       `INSERT INTO mh_history
          (equip_id, season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after)
@@ -214,6 +218,8 @@ const updateHistory = async (req, res) => {
   try {
     const { id, hid } = req.params;
     const { season, year, date_start, date_finish, obs, act, cost, svc, maintenance_type, provider, resp, rem, img_before, img_after } = req.body;
+    const dateError = historyDateRangeError(date_start, date_finish);
+    if (dateError) return res.status(400).json({ message: dateError });
     const [result] = await pool.execute(
       `UPDATE mh_history
        SET season=?, year=?, date_start=?, date_finish=?,
