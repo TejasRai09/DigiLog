@@ -2,12 +2,14 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave, MdAssignment, MdAccessTime } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
+import AutoNowInput from '../../../components/AutoNowInput';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import { buildProdShiftChemistReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
+import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
 
 const SHIFTS = [
   { key: 'shift8_4',  label: 'Shift 8–4 (Morning)' },
@@ -73,12 +75,13 @@ const ProdShiftChemist = () => {
       </button>
       <h1 className="page-title mb-1">Shift Chemist Job Log Book</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Production Department Log Register</p>
+      <FormsHubViewOnlyBanner />
 
       <form onSubmit={openReview} className="space-y-6">
         <div className="form-section grid grid-cols-2 gap-4">
           <div>
             <label className="label">Date <span className="text-red-500">*</span></label>
-            <input type="date" name="date" value={form.date} onChange={handleMeta} required className="input" />
+            <AutoNowInput type="date" name="date" value={form.date} onChange={handleMeta} required className="input" />
           </div>
           <div>
             <label className="label">Season</label>

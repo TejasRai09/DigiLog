@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import FormsHubViewOnlyBanner from '../../components/FormsHubViewOnlyBanner';
 import { buildEquipmentDetailTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
@@ -15,6 +16,7 @@ import OemMaintenanceScheduleHub from '../../components/equipment/OemMaintenance
 import EquipmentMaintenanceHistoryHub from '../../components/equipment/EquipmentMaintenanceHistoryHub';
 import { serializeScheduleForApi } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi } from '../../utils/equipmentHistoryModel';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 
 const HIST_FETCH_LIMIT = 200;
 
@@ -24,6 +26,7 @@ const EquipmentDetail = () => {
   const location = useLocation();
   const appId = location.state?.appId;
   const appName = useAppName(appId);
+  const viewOnly = useFormsHubViewOnly();
 
   const [eq,        setEq]        = useState(null);
   const [specs,     setSpecs]     = useState([]);
@@ -47,7 +50,8 @@ const EquipmentDetail = () => {
       });
       setHistory(data.records);
       setHistTotal(data.total);
-    } catch {
+    } catch (err) {
+      if (err?.response?.status === 304) return;
       toast.error('Failed to load history.');
     }
   };
@@ -187,6 +191,7 @@ const EquipmentDetail = () => {
           equipmentName: eq?.name,
         })}
       />
+      <FormsHubViewOnlyBanner />
 
       <EquipmentLifeHistoryCard
         equipment={eq}
@@ -269,9 +274,11 @@ const EquipmentDetail = () => {
                   </table>
                 </div>
               )}
+              {!viewOnly && (
               <button onClick={startEditSpecs} className="btn-secondary">
                 <MdEdit className="h-4 w-4" /> Edit Specifications
               </button>
+              )}
             </>
           )}
         </div>

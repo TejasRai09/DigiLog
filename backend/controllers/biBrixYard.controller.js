@@ -196,7 +196,11 @@ async function loadYardStatsBundle(query, clause, params, effectiveFrom, effecti
   prevPack = await finalizePrevWhere(prevPack);
   const { prevConditions, prevParams, compareMode, pyFrom, pyTo, compSeason } = prevPack;
 
-  const brixThreshold = await getBrixThreshold();
+  const brixThreshold = await getBrixThreshold({
+    date: toYmd(effectiveTo),
+    from: toYmd(effectiveFrom),
+    seasonLabel: query.baseSeason,
+  });
   const statsSelect = buildStatsSelect(brixThreshold);
 
   const currPromise = pool.query(
@@ -237,8 +241,8 @@ async function loadYardStatsBundle(query, clause, params, effectiveFrom, effecti
   };
 }
 
-async function queryYardTrend(clause, params) {
-  const threshold = sanitizeThreshold(await getBrixThreshold());
+async function queryYardTrend(clause, params, { date, from, seasonLabel } = {}) {
+  const threshold = sanitizeThreshold(await getBrixThreshold({ date, from, seasonLabel }));
   const [rows] = await pool.query(
     `SELECT
       \`Date\`                                                           AS date,
@@ -422,9 +426,14 @@ const getYardDashboard = async (req, res) => {
     }
 
     const { clause, params, effectiveFrom, effectiveTo } = await buildWhere(req.query);
+    const thresholdOpts = {
+      date: toYmd(effectiveTo),
+      from: toYmd(effectiveFrom),
+      seasonLabel: req.query.baseSeason,
+    };
     const [statsBundle, trend, vehicle, condition, centers, deliveryPoints] = await Promise.all([
       loadYardStatsBundle(req.query, clause, params, effectiveFrom, effectiveTo),
-      queryYardTrend(clause, params),
+      queryYardTrend(clause, params, thresholdOpts),
       queryYardByVehicle(clause, params),
       queryYardConditionDist(clause, params),
       queryYardCenterWise(clause, params),
@@ -448,8 +457,12 @@ const getYardDashboard = async (req, res) => {
 
 const getYardBrixTrend = async (req, res) => {
   try {
-    const { clause, params } = await buildWhere(req.query);
-    res.json(await queryYardTrend(clause, params));
+    const { clause, params, effectiveFrom, effectiveTo } = await buildWhere(req.query);
+    res.json(await queryYardTrend(clause, params, {
+      date: toYmd(effectiveTo),
+      from: toYmd(effectiveFrom),
+      seasonLabel: req.query.baseSeason,
+    }));
   } catch (err) {
     console.error('[bi/brix-yard/brix-trend]', err);
     res.status(500).json({ message: 'Could not load trend data.' });

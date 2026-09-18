@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import AutoNowInput from '../../../components/AutoNowInput';
 import FormReviewModal from '../../../components/FormReviewModal';
 import FormPhotoUploadRow from '../../../components/FormPhotoUploadRow';
 import toast from 'react-hot-toast';
@@ -16,7 +17,7 @@ const TOPIC_MIN = 20;
 const TOPIC_MAX = 150;
 const TIME_RANGE_ERROR = 'Time — To must be later than Time — From (24-hour format).';
 
-/** Compare HH:mm values from `<input type="time">` (24-hour). */
+/** Compare HH:mm values from `<AutoNowInput type="time">` (24-hour). */
 const isEndTimeAfterStart = (start, end) => Boolean(start && end && end > start);
 
 const getTimeRangeError = (start, end) => {
@@ -65,6 +66,7 @@ const buildInitial = (preparedBy = '') => ({
 const EhsToolboxTalk = () => {
   const { user } = useAuth();
   const [form, setForm] = useState(() => buildInitial(user?.name ?? ''));
+  const [photoNames, setPhotoNames] = useState({});
   const [timeError, setTimeError] = useState('');
 
   useEffect(() => {
@@ -146,11 +148,21 @@ const EhsToolboxTalk = () => {
         ...form,
         topic_discussed: form.topic_discussed.trim(),
       };
+      for (const row of PHOTO_ROWS) {
+        const dataUrl = form[row.key];
+        payload[row.key] = dataUrl
+          ? JSON.stringify({
+              file: dataUrl,
+              name: photoNames[row.key] || `${row.label}.jpg`,
+            })
+          : null;
+      }
       await gsmaSubmitRequest(
         () => api.post('/forms/ehs_toolbox_talk', payload),
         'Toolbox talk report submitted!',
       );
       setForm(buildInitial(user?.name ?? ''));
+      setPhotoNames({});
       setTimeError('');
     },
   });
@@ -178,7 +190,7 @@ const EhsToolboxTalk = () => {
           <div className="form-row flex-wrap gap-4">
             <div>
               <label className="label">Date<span className="text-red-500 ml-0.5">*</span></label>
-              <input type="date" name="date" value={form.date} onChange={handle} required className="input" />
+              <AutoNowInput type="date" name="date" value={form.date} onChange={handle} required className="input" />
             </div>
             <div>
               <label className="label">Shift<span className="text-red-500 ml-0.5">*</span></label>
@@ -192,7 +204,7 @@ const EhsToolboxTalk = () => {
           <div className="form-row flex-wrap gap-4">
             <div>
               <label className="label">Time — From<span className="text-red-500 ml-0.5">*</span></label>
-              <input
+              <AutoNowInput
                 type="time"
                 name="start_time"
                 value={form.start_time}
@@ -204,7 +216,7 @@ const EhsToolboxTalk = () => {
             </div>
             <div>
               <label className="label">Time — To<span className="text-red-500 ml-0.5">*</span></label>
-              <input
+              <AutoNowInput
                 type="time"
                 name="end_time"
                 value={form.end_time}
@@ -279,7 +291,10 @@ const EhsToolboxTalk = () => {
               label={row.label}
               hint={row.hint}
               value={form[row.key]}
-              onChange={(v) => setForm((p) => ({ ...p, [row.key]: v }))}
+              onChange={(dataUrl, fileName) => {
+                setForm((p) => ({ ...p, [row.key]: dataUrl || '' }));
+                setPhotoNames((p) => ({ ...p, [row.key]: dataUrl ? (fileName || '') : '' }));
+              }}
               required={row.required}
               optional={row.optional}
             />
@@ -287,7 +302,7 @@ const EhsToolboxTalk = () => {
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={() => { setForm(buildInitial(user?.name ?? '')); setTimeError(''); }} className="btn-secondary">
+          <button type="button" onClick={() => { setForm(buildInitial(user?.name ?? '')); setPhotoNames({}); setTimeError(''); }} className="btn-secondary">
             Reset
           </button>
           <button type="submit" disabled={submitting} className="btn-primary px-8">

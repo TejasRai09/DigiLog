@@ -67,6 +67,23 @@
     max-width: 100%;
   }
 
+  .distillery-filter-bar.distillery-filter-bar--nowrap {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    row-gap: 0;
+  }
+
+  .distillery-filter-bar.distillery-filter-bar--nowrap > * {
+    max-width: none;
+  }
+
+  .distillery-filter-bar--nowrap input[type='date'].bi-date-input {
+    width: 8.75rem !important;
+    min-width: 8.75rem !important;
+    max-width: 8.75rem !important;
+  }
+
   /*
    * From/To date fields — wide enough for DD-MM-YYYY + native calendar icon
    * (html root font-size is 80%, so rem-based widths need extra room).
@@ -173,4 +190,9 @@
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
+}
+
+body.forms-hub-view-only button[type="submit"].btn-primary,
+body.forms-hub-view-only .forms-hub-write-action {
+  display: none !important;
 }

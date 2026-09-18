@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   `password`      VARCHAR(200) DEFAULT NULL,
   `role`          ENUM('admin','employee') NOT NULL DEFAULT 'employee',
   `is_active`     TINYINT(1)   NOT NULL DEFAULT 1,
+  `forms_hub_view_only` TINYINT(1) NOT NULL DEFAULT 0,
   `auth_provider` VARCHAR(20)  NOT NULL DEFAULT 'local',
   `mail_sent`     TINYINT(1)   NOT NULL DEFAULT 0,
   `microsoft_id`  VARCHAR(200) DEFAULT NULL,
@@ -211,6 +212,16 @@ ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
 INSERT INTO `portal_settings` (`setting_key`, `setting_value`)
 VALUES ('brix_threshold', '18')
 ON DUPLICATE KEY UPDATE `setting_key` = `setting_key`;
+
+-- Per-season BI calculation constants (fallback defaults remain in portal_settings).
+CREATE TABLE IF NOT EXISTS `season_bi_constants` (
+  `season_label`        VARCHAR(50)    NOT NULL,
+  `theoretical_yield`   DECIMAL(10,4)  NOT NULL,
+  `power_tariff_rate`   DECIMAL(10,4)  NOT NULL,
+  `brix_threshold`      DECIMAL(10,4)  NOT NULL,
+  `updated_at`          TIMESTAMP      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`season_label`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Homepage big-card access (Forms Hub / BI Control Tower on `/`).
 CREATE TABLE IF NOT EXISTS `user_homepage_cards` (

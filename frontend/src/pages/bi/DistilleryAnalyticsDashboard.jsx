@@ -211,7 +211,7 @@ function OpModeFilter({
         ref={btnRef}
         type="button"
         onClick={onToggle}
-        className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl border p-1.5 px-2 text-[10px] font-bold transition-colors sm:gap-2 sm:px-3 sm:text-xs ${cardClasses} ${textClasses.muted} ${
+        className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border p-1 px-1.5 text-[9px] font-bold transition-colors ${cardClasses} ${textClasses.muted} ${
           isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'
         }`}
       >
@@ -277,27 +277,27 @@ const MetricCard = ({
 
   return (
     <div
-      className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border p-4 transition-shadow hover:shadow-md sm:overflow-visible ${cardClasses}`}
+      className={`relative flex min-w-0 flex-col justify-between overflow-hidden rounded-xl border p-2.5 transition-shadow hover:shadow-md sm:overflow-visible ${cardClasses}`}
     >
-      <div className="mb-2 flex min-w-0 items-start justify-between overflow-visible">
-        <div className={`flex min-w-0 items-center text-xs font-bold ${textClasses.title}`}>
+      <div className="mb-1 flex min-w-0 items-start justify-between overflow-visible">
+        <div className={`flex min-w-0 items-center text-[10px] font-bold ${textClasses.title}`}>
           {title}
           <InfoTooltip definition={definition} isDarkMode={isDarkMode} placement="top" />
         </div>
       </div>
 
-      <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex w-full min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div className="z-10 min-w-0 shrink-0">
           <div className="flex items-baseline gap-1">
-            <span className={`text-2xl font-black ${textClasses.value}`}>
+            <span className={`text-xl font-black leading-none ${textClasses.value}`}>
               {value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
             <span className={`text-[10px] font-bold ${textClasses.unit}`}>{unit}</span>
           </div>
 
-          <div className="mt-1.5 flex items-center gap-2">
+          <div className="mt-1 flex items-center gap-1.5">
             <div
-              className={`inline-flex min-w-[76px] items-center justify-center gap-1 whitespace-nowrap rounded px-2 py-0.5 text-[11px] font-bold tabular-nums ${
+              className={`inline-flex min-w-[64px] items-center justify-center gap-0.5 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${
                 isNeutral
                   ? isDarkMode
                     ? 'bg-slate-700 text-slate-300'
@@ -320,14 +320,14 @@ const MetricCard = ({
               )}
               {Math.abs(delta).toFixed(1)}%
             </div>
-            <span className={`text-[10px] font-bold sm:whitespace-nowrap ${textClasses.vs}`}>
+            <span className={`text-[9px] font-bold sm:whitespace-nowrap ${textClasses.vs}`}>
               vs {comparisonLabel} {timeFilter}
             </span>
           </div>
         </div>
 
         {chartData && chartData.length > 0 && (
-          <div className="relative h-14 w-full min-w-0 opacity-90 sm:-mb-2 sm:-mr-1 sm:ml-4 sm:h-16 sm:max-w-[55%] sm:flex-1 sm:min-w-[100px]">
+          <div className="relative h-11 w-full min-w-0 opacity-90 sm:-mb-1 sm:-mr-1 sm:ml-3 sm:h-12 sm:max-w-[50%] sm:flex-1 sm:min-w-[80px]">
             <ResponsiveContainer width="100%" height="100%">
               {chartType === 'area' ? (
                 <AreaChart data={chartData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
@@ -444,9 +444,9 @@ const ChartTitle = ({
     : { title: 'text-slate-800', muted: 'text-slate-400' };
 
   return (
-    <div className="mb-1 flex flex-wrap items-center gap-3">
+    <div className="mb-0.5 flex flex-wrap items-center gap-2">
       <div className="flex items-center">
-        <h3 className={`text-sm font-black ${textClasses.title}`}>{title}</h3>
+        <h3 className={`text-xs font-black ${textClasses.title}`}>{title}</h3>
         <InfoTooltip definition={definition} isDarkMode={isDarkMode} placement="top" />
       </div>
 
@@ -908,7 +908,7 @@ export default function DistilleryAnalyticsDashboard() {
   if (loading) {
     return (
       <div
-        className={`flex h-[calc(100vh-3.75rem)] min-h-0 w-full flex-col items-center justify-center p-2 font-sans transition-colors duration-300 sm:p-3 ${appClasses}`}
+        className={`flex h-[calc(100dvh-3.75rem)] min-h-0 w-full flex-col items-center justify-center p-1.5 font-sans transition-colors duration-300 sm:p-2 ${appClasses}`}
       >
         <Spinner size="lg" />
       </div>
@@ -917,7 +917,7 @@ export default function DistilleryAnalyticsDashboard() {
 
   return (
     <div
-      className={`flex h-[calc(100vh-3.75rem)] min-h-0 w-full flex-col overflow-hidden p-2 font-sans transition-colors duration-300 sm:p-3 ${appClasses}`}
+      className={`flex h-[calc(100dvh-3.75rem)] min-h-0 w-full flex-col overflow-hidden p-1.5 font-sans transition-colors duration-300 sm:p-2 ${appClasses}`}
     >
       {loadError ? (
         <div
@@ -929,8 +929,8 @@ export default function DistilleryAnalyticsDashboard() {
           {loadError}
         </div>
       ) : null}
-      <div className="mb-0 flex shrink-0 flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-0 flex shrink-0 flex-col gap-1">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <BiDashboardHeader
             title="Distillery Operations"
             subtitle="Enterprise Analytics & PoP Performance"
@@ -939,18 +939,19 @@ export default function DistilleryAnalyticsDashboard() {
             isDarkMode={isDarkMode}
           />
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <BiKeyMetricBox
               value={operatingDaysCount}
               title="Operating Days"
               subtitle={rangePreset === 'Custom' ? timeFilterLabel : rangePreset}
               isDarkMode={isDarkMode}
+              compact
               tooltip={`${operatingDaysCount} days with ethanol production > 0 — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
             />
           </div>
         </div>
 
-        <BiFilterBarLayout isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode}>
+        <BiFilterBarLayout isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} compact nowrap>
             <div className="shrink-0">
               <OpModeFilter
                 isOpen={isModeOpen}
@@ -966,17 +967,17 @@ export default function DistilleryAnalyticsDashboard() {
               />
             </div>
 
-            <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
-              <div className="flex flex-wrap gap-0.5 sm:gap-1">
+            <div className={`flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border p-0.5 ${cardClasses}`}>
+              <div className="flex flex-nowrap gap-0.5">
                 {YEAR_TYPE_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
                     type="button"
                     title={opt.title}
                     onClick={() => applyYearType(opt.id)}
-                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                       yearType === opt.id
-                        ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20'
+                        ? 'bg-amber-600 text-white shadow-sm shadow-amber-500/20'
                         : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                     }`}
                   >
@@ -986,17 +987,17 @@ export default function DistilleryAnalyticsDashboard() {
               </div>
             </div>
 
-            <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${cardClasses}`}>
-              <MdCalendarMonth className={`ml-0.5 h-3.5 w-3.5 shrink-0 sm:ml-1 sm:h-4 sm:w-4 ${textClasses.muted}`} />
-              <div className="flex flex-wrap gap-0.5 sm:gap-1">
+            <div className={`flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border p-0.5 ${cardClasses}`}>
+              <MdCalendarMonth className={`ml-0.5 h-3 w-3 shrink-0 ${textClasses.muted}`} />
+              <div className="flex flex-nowrap gap-0.5">
                 {childPresets.map((preset) => (
                   <button
                     key={preset}
                     type="button"
                     onClick={() => applyRangePreset(preset)}
-                    className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                    className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                       rangePreset === preset
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                        ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
                         : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                     }`}
                   >
@@ -1006,9 +1007,9 @@ export default function DistilleryAnalyticsDashboard() {
                 <button
                   type="button"
                   onClick={selectCustomPreset}
-                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                     rangePreset === 'Custom'
-                      ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                      ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/25'
                       : `text-slate-500 hover:text-slate-700 ${isDarkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                   }`}
                 >
@@ -1017,50 +1018,50 @@ export default function DistilleryAnalyticsDashboard() {
               </div>
             </div>
 
-            <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-2">
-              <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
+            <div className="flex shrink-0 flex-nowrap items-center gap-1">
+              <label className="flex shrink-0 items-center gap-1">
+                <span className={`text-[8px] font-bold uppercase tracking-wide ${textClasses.muted}`}>From</span>
                 <input
                   type="date"
                   value={fromDate}
                   min={dataBounds.min || undefined}
                   max={toDate}
                   onChange={handleFromDateChange}
-                  className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`bi-date-input min-w-0 rounded-md border px-1 py-0.5 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
                   }`}
                 />
-              </div>
-              <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${textClasses.muted}`}>To</span>
+              </label>
+              <label className="flex shrink-0 items-center gap-1">
+                <span className={`text-[8px] font-bold uppercase tracking-wide ${textClasses.muted}`}>To</span>
                 <input
                   type="date"
                   value={toDate}
                   min={fromDate}
                   max={dataBounds.max || undefined}
                   onChange={handleToDateChange}
-                  className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`bi-date-input min-w-0 rounded-md border px-1 py-0.5 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
                     isDarkMode
                       ? 'border-slate-600 bg-slate-900 text-slate-100'
                       : 'border-slate-200 bg-white text-slate-800'
                   }`}
                 />
-              </div>
+              </label>
             </div>
 
-            <div className="flex w-full min-w-0 basis-full flex-wrap items-center gap-1.5 sm:basis-auto sm:gap-2 lg:w-auto">
-                <span className={`shrink-0 whitespace-nowrap text-[9px] font-bold uppercase tracking-wider sm:text-[10px] sm:tracking-widest ${textClasses.muted}`}>
-                  Compare:
+            <div className={`flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border px-1 py-0.5 ${cardClasses}`}>
+                <span className={`shrink-0 whitespace-nowrap text-[8px] font-bold uppercase tracking-wide ${textClasses.muted}`}>
+                  Compare
                 </span>
-                <div className={`flex min-w-0 flex-wrap gap-0.5 rounded-lg border p-0.5 ${cardClasses}`}>
+                <div className="flex shrink-0 flex-nowrap gap-0.5">
                   {comparisonOptions.map((comp) => (
                     <button
                       key={comp.id}
                       type="button"
                       onClick={() => onCompareSelect(comp.id)}
-                      className={`shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[9px] font-black transition-all sm:px-2 sm:py-1 sm:text-[10px] md:px-2.5 ${
+                      className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                         comparisonType === comp.id
                           ? isDarkMode
                             ? 'bg-slate-700 text-slate-100 shadow-sm'
@@ -1077,8 +1078,8 @@ export default function DistilleryAnalyticsDashboard() {
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto max-md:pb-1 md:flex md:flex-col md:overflow-y-hidden">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 md:gap-2 md:overflow-hidden">
-          <div className="mt-2 grid min-w-0 shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2 xl:grid-cols-4 xl:gap-2">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 md:overflow-hidden">
+          <div className="mt-1 grid min-w-0 shrink-0 grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-1.5 xl:grid-cols-4 xl:gap-1.5">
             <MetricCard
               title="Total Ethanol Produced"
               value={currentKPIs.ethanolProd}

@@ -16,6 +16,7 @@ import api from '../../api/axios';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
 import PowerProcessFlow from '../../components/bi/PowerProcessFlow';
 import PowerSummaryView from '../../components/bi/PowerSummaryView';
+import PowerChartExpandModal from '../../components/bi/PowerChartExpandModal';
 import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
 import {
   PowerConsumptionView,
@@ -43,6 +44,11 @@ import {
 } from '../../utils/biCockpitDateFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
+import {
+  APP_CONSTANT_DEFAULTS,
+  constantsForSeason,
+  resolveActiveSeasonLabel,
+} from '../../hooks/useAppConstants';
 
 const TABS = [
   { id: 'summary', label: 'Power Summary', icon: Activity },
@@ -53,16 +59,6 @@ const TABS = [
   { id: 'outage', label: 'Outage', icon: TimerReset },
   { id: 'process', label: 'Process', icon: Factory },
 ];
-
-const FIT_TABS = new Set([
-  'summary',
-  'generation',
-  'consumption',
-  'steam-summary',
-  'steam-consumption',
-  'outage',
-  'process',
-]);
 
 function clampDate(value, min, max) {
   if (!value) return value;
@@ -98,7 +94,13 @@ export default function PowerHouseDashboard() {
   const [stoppageRows, setStoppageRows] = useState([]);
   const [outageSection, setOutageSection] = useState('ALL');
   const [outageCategory, setOutageCategory] = useState('ALL');
-  const [powerTariffRate, setPowerTariffRate] = useState(4.85);
+  const [constantsBySeason, setConstantsBySeason] = useState({});
+  const [constantsDefaults, setConstantsDefaults] = useState(APP_CONSTANT_DEFAULTS);
+
+  const powerTariffRate = useMemo(() => {
+    const label = resolveActiveSeasonLabel({ to, from, seasonMapping });
+    return constantsForSeason(label, constantsBySeason, constantsDefaults).powerTariffRate;
+  }, [to, from, seasonMapping, constantsBySeason, constantsDefaults]);
 
   useTrackBiInteraction({
     dashboardLabel: BI_DASHBOARDS['/bi/power-house'],
@@ -113,8 +115,9 @@ export default function PowerHouseDashboard() {
   const [comparePowerRows, setComparePowerRows] = useState([]);
   const [compareSteamRows, setCompareSteamRows] = useState([]);
   const [compareStoppageRows, setCompareStoppageRows] = useState([]);
+  const [expandedChart, setExpandedChart] = useState(null);
 
-  const fitLayout = FIT_TABS.has(tab) && !loading;
+  const fitLayout = !loading;
 
   const seasonLabels = useMemo(() => {
     const refIso = to || dateBounds.max || formatYMD(new Date());
@@ -129,6 +132,10 @@ export default function PowerHouseDashboard() {
   useEffect(() => {
     ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
   }, [comparisonType, comparisonOptions]);
+
+  useEffect(() => {
+    setExpandedChart(null);
+  }, [tab]);
 
   const onCompareSelect = useCallback((nextId) => {
     applyCockpitCompareSelection({
@@ -161,8 +168,25 @@ export default function PowerHouseDashboard() {
           mapping = settingsRes.data.seasonMapping;
           setSeasonMapping(mapping);
         }
-        const tariff = settingsRes?.data?.powerTariffRate;
-        if (typeof tariff === 'number' && tariff > 0) setPowerTariffRate(tariff);
+        if (settingsRes?.data?.constantsBySeason && typeof settingsRes.data.constantsBySeason === 'object') {
+          setConstantsBySeason(settingsRes.data.constantsBySeason);
+        }
+        const fallback = settingsRes?.data?.defaults || settingsRes?.data;
+        const nextDefaults = {
+          theoreticalYield:
+            typeof fallback?.theoreticalYield === 'number' && fallback.theoreticalYield > 0
+              ? fallback.theoreticalYield
+              : APP_CONSTANT_DEFAULTS.theoreticalYield,
+          powerTariffRate:
+            typeof fallback?.powerTariffRate === 'number' && fallback.powerTariffRate > 0
+              ? fallback.powerTariffRate
+              : APP_CONSTANT_DEFAULTS.powerTariffRate,
+          brixThreshold:
+            typeof fallback?.brixThreshold === 'number' && fallback.brixThreshold > 0
+              ? fallback.brixThreshold
+              : APP_CONSTANT_DEFAULTS.brixThreshold,
+        };
+        setConstantsDefaults(nextDefaults);
 
         const bounds = powerRes.data?.meta?.dateBounds || {};
         const min = bounds.min || null;
@@ -378,9 +402,9 @@ export default function PowerHouseDashboard() {
   const hdr = dm ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80';
 
   return (
-    <div className={`${pageBg} ${fitLayout ? 'h-dvh overflow-hidden flex flex-col' : 'min-h-screen'}`}>
-      <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className={`${pageBg} ${fitLayout ? 'flex h-[calc(100dvh-3.75rem)] min-h-0 flex-col overflow-hidden' : 'min-h-screen'}`}>
+      <div className="mb-1 flex shrink-0 flex-col gap-1 px-2 pt-1.5 sm:px-3">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <BiDashboardHeader
             title="Power House"
             subtitle="Generation · Steam · Outages"
@@ -388,45 +412,46 @@ export default function PowerHouseDashboard() {
             iconColor="#f59e0b"
             isDarkMode={dm}
           />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <BiKeyMetricBox
               value={daily.length}
               title="Operating Days"
               subtitle={compareRange?.label ? `${rangePreset} · vs ${compareRange.label}` : rangePreset}
               isDarkMode={dm}
+              compact
             />
           </div>
         </div>
 
-        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm}>
-          <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+        <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact nowrap>
+          <div className={`flex shrink-0 flex-nowrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
             {TABS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setTab(id)}
-                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] flex items-center gap-1 ${
+                className={`flex shrink-0 items-center gap-0.5 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                   tab === id
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
                     : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                 }`}
               >
-                <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                <Icon className="h-3 w-3" />
                 {label}
               </button>
             ))}
           </div>
-          <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
-          <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+          <div className={`mx-0.5 hidden h-4 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
+          <div className={`flex shrink-0 flex-nowrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
             {['WTD', 'MTD', 'STD'].map((p) => (
               <button
                 key={p}
                 type="button"
                 onClick={() => applyPreset(p)}
                 disabled={!dateBounds.min || !dateBounds.max}
-                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                   rangePreset === p
-                    ? 'bg-blue-600 text-white shadow-md'
+                    ? 'bg-blue-600 text-white shadow-sm'
                     : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                 }`}
               >
@@ -437,56 +462,56 @@ export default function PowerHouseDashboard() {
               type="button"
               onClick={() => applyPreset('Custom')}
               disabled={!dateBounds.min || !dateBounds.max}
-              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                 rangePreset === 'Custom'
-                  ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-500/25'
                   : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
               }`}
             >
               Custom
             </button>
           </div>
-          <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
+          <div className="flex shrink-0 flex-nowrap items-center gap-1">
+            <label className="flex shrink-0 items-center gap-1">
+              <span className={`text-[8px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
               <input
                 type="date"
                 value={from}
                 min={dateBounds.min || undefined}
                 max={to || dateBounds.max || undefined}
                 onChange={(e) => onFromChange(e.target.value)}
-                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-md border px-1 py-0.5 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
-            </div>
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
+            </label>
+            <label className="flex shrink-0 items-center gap-1">
+              <span className={`text-[8px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
               <input
                 type="date"
                 value={to}
                 min={from || dateBounds.min || undefined}
                 max={dateBounds.max || undefined}
                 onChange={(e) => onToChange(e.target.value)}
-                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-md border px-1 py-0.5 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
-            </div>
+            </label>
           </div>
-          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
+          <div className={`flex shrink-0 flex-nowrap items-center gap-1 rounded-lg border px-1 py-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            <span className={`shrink-0 text-[8px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
               Compare
             </span>
-            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+            <div className="flex shrink-0 flex-nowrap gap-0.5">
               {comparisonOptions.map((comp) => (
                 <button
                   key={comp.id}
                   type="button"
                   onClick={() => onCompareSelect(comp.id)}
-                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black transition-all ${
                     comparisonType === comp.id
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
                       : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                   }`}
                 >
@@ -542,9 +567,9 @@ export default function PowerHouseDashboard() {
 
         {!loading && !error && (
           tab === 'summary' ? (
-            <PowerSummaryView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+            <PowerSummaryView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'generation' ? (
-            <PowerGenerationView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+            <PowerGenerationView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'consumption' ? (
             <PowerConsumptionView
               powerKpis={powerKpis}
@@ -554,11 +579,12 @@ export default function PowerHouseDashboard() {
               consumptionPie={consumptionPie}
               externalPie={externalPie}
               dm={dm}
+              onExpand={setExpandedChart}
             />
           ) : tab === 'steam-summary' ? (
-            <SteamSummaryView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+            <SteamSummaryView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'steam-consumption' ? (
-            <SteamConsumptionView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} />
+            <SteamConsumptionView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'outage' ? (
             <PowerOutageView
               dm={dm}
@@ -574,12 +600,14 @@ export default function PowerHouseDashboard() {
               filteredStoppages={filteredStoppages}
               outageDaily={outageDaily}
               outageBySection={outageBySection}
+              onExpand={setExpandedChart}
             />
           ) : tab === 'process' ? (
             <PowerProcessFlow powerKpis={powerKpis} steamKpis={steamKpis} dm={dm} />
           ) : null
         )}
       </main>
+      <PowerChartExpandModal config={expandedChart} dm={dm} onClose={() => setExpandedChart(null)} />
     </div>
   );
 }

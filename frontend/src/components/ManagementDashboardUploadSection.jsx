@@ -33,7 +33,7 @@ const SLOTS = [
     slot: 'dmr',
     dataset: 'dmr_workbook',
     label: 'DMR workbook',
-    hint: 'Single Sheet1 — columns must exactly match DMR template (see DMR_season 23-24.xlsx)',
+    hint: 'Single Sheet1 — columns matched by name (Date, Crop Day, …). Extra or reordered columns are OK.',
   },
 ];
 

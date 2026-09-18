@@ -26,21 +26,28 @@ export default function ManageGalleryModal({
   saving = false,
 }) {
   const fileRef = useRef(null);
+  const pickGenRef = useRef(0);
+  const initialImagesRef = useRef(initialImages);
+  initialImagesRef.current = initialImages;
   const [draftImages, setDraftImages] = useState(() => normalizeDraftImages(initialImages));
   const [pendingFileName, setPendingFileName] = useState('');
   const [pendingPreview, setPendingPreview] = useState(null);
   const [caption, setCaption] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Re-init only when the modal opens. Do not reset when the parent re-renders
+  // (history reload used to pass a new initialImages array and wipe the chosen file).
   useEffect(() => {
-    if (!open) return;
-    setDraftImages(normalizeDraftImages(initialImages));
+    if (!open) return undefined;
+    setDraftImages(normalizeDraftImages(initialImagesRef.current));
     setPendingFileName('');
     setPendingPreview(null);
     setCaption('');
     setFormError('');
+    pickGenRef.current += 1;
     if (fileRef.current) fileRef.current.value = '';
-  }, [open, initialImages]);
+    return undefined;
+  }, [open]);
 
   if (!open) return null;
 
@@ -60,10 +67,19 @@ export default function ManageGalleryModal({
   const handleChooseFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const src = await resizeImage(file);
+    const gen = ++pickGenRef.current;
     setPendingFileName(file.name);
-    setPendingPreview(src);
+    setPendingPreview(null);
     setFormError('');
+    try {
+      const src = await resizeImage(file);
+      if (gen !== pickGenRef.current) return;
+      setPendingPreview(src);
+    } catch {
+      if (gen !== pickGenRef.current) return;
+      setPendingPreview(null);
+      setFormError('Could not read this image. Use a JPG or PNG file.');
+    }
   };
 
   const handleAppend = () => {
@@ -80,17 +96,13 @@ export default function ManageGalleryModal({
       return;
     }
 
-    const emptyIndex = draftImages.findIndex((img) => !img.src);
-    if (emptyIndex === -1) {
-      setFormError(`Maximum ${SUBGROUP_GALLERY_SIZE} images allowed.`);
-      return;
-    }
-
-    setDraftImages((prev) =>
-      prev.map((img, i) =>
+    setDraftImages((prev) => {
+      const emptyIndex = prev.findIndex((img) => !img.src);
+      if (emptyIndex === -1) return prev;
+      return prev.map((img, i) =>
         i === emptyIndex ? { src: pendingPreview, caption: caption.trim() } : img
-      )
-    );
+      );
+    });
     resetPending();
   };
 
@@ -101,12 +113,13 @@ export default function ManageGalleryModal({
   };
 
   const handleApply = () => {
-    const galleryError = validateSubGroupGalleryImages(draftImages);
+    const packed = normalizeDraftImages(draftImages.filter((img) => img.src));
+    const galleryError = validateSubGroupGalleryImages(packed);
     if (galleryError) {
       setFormError(galleryError);
       return;
     }
-    onApply(draftImages);
+    onApply(packed);
   };
 
   const handleClose = () => {
@@ -159,6 +172,9 @@ export default function ManageGalleryModal({
                 <span className="text-xs text-slate-500 truncate max-w-[200px]">
                   {pendingFileName || 'No file chosen'}
                 </span>
+                {pendingFileName && !pendingPreview && !formError ? (
+                  <span className="text-[10px] font-semibold text-slate-400">Reading…</span>
+                ) : null}
               </div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleChooseFile} />
             </div>

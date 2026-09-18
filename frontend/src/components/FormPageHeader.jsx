@@ -1,6 +1,7 @@
 import { useFormMeta } from '../hooks/useFormMeta';
 import FormPageBreadcrumb from './FormPageBreadcrumb';
 import AppPageHeader from './AppPageHeader';
+import FormsHubViewOnlyBanner from './FormsHubViewOnlyBanner';
 
 /**
  * Form page title from catalog (GET /api/forms/:formKey) with optional fallback.
@@ -35,6 +36,7 @@ const FormPageHeader = ({
           className={showTitleBlock ? breadcrumbClassName : className}
         />
       )}
+      <FormsHubViewOnlyBanner />
       {showTitleBlock && (
         <AppPageHeader className={className}>
           {showTitle && (

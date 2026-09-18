@@ -6,7 +6,9 @@ import {
   MdSave,
 } from 'react-icons/md';
 import FormPageHeader from '../FormPageHeader';
+import AutoNowInput from '../AutoNowInput';
 import Spinner from '../Spinner';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 
 const CollapseContext = createContext(false);
 
@@ -21,6 +23,7 @@ export function PowerFormPage({
   formKey,
   fallbackTitle,
 }) {
+  const viewOnly = useFormsHubViewOnly();
   return (
     <main className="min-h-screen bg-slate-50/90 pb-12">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
@@ -39,15 +42,17 @@ export function PowerFormPage({
               <MdRefresh className="h-4 w-4" />
               Reset
             </button>
-            <button
-              type="submit"
-              form={formId}
-              disabled={submitting}
-              className="btn-primary gap-2 px-6"
-            >
-              {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-              {submitting ? 'Submitting…' : submitLabel}
-            </button>
+            {!viewOnly && (
+              <button
+                type="submit"
+                form={formId}
+                disabled={submitting}
+                className="btn-primary gap-2 px-6 forms-hub-write-action"
+              >
+                {submitting ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
+                {submitting ? 'Submitting…' : submitLabel}
+              </button>
+            )}
           </div>
         </div>
         {children}
@@ -63,7 +68,7 @@ export function PowerDateCard({ label = 'Report Date:', value, onChange, name = 
         {label}
         {required ? <span className="ml-0.5 text-red-500">*</span> : null}
       </h3>
-      <input
+      <AutoNowInput
         type="date"
         name={name}
         value={value}
@@ -95,7 +100,7 @@ export function MillDateShiftCard({
             Report Date:
             <span className="ml-0.5 text-red-500">*</span>
           </label>
-          <input
+          <AutoNowInput
             id={dateName}
             type="date"
             name={dateName}
@@ -237,15 +242,17 @@ export function PowerMetricField({
   type = 'number',
   step = '0.01',
 }) {
+  const isDateTime = type === 'date' || type === 'time' || type === 'datetime-local';
+  const InputTag = isDateTime ? AutoNowInput : 'input';
   return (
     <div>
       <label htmlFor={name} className="mb-1.5 block text-xs font-semibold text-gray-700">
         {label}
       </label>
-      <input
+      <InputTag
         id={name}
         type={type}
-        step={type === 'number' ? step : undefined}
+        step={type === 'number' ? step : type === 'datetime-local' ? step : undefined}
         name={name}
         value={value}
         onChange={onChange}

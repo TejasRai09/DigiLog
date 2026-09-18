@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Info } from 'lucide-react';
 import { formatCompact } from '../../utils/powerHouseMeasures';
 import MillComparePct from './MillComparePct';
+import ChartCardToolbar from './ChartCardToolbar';
 
 /** Match Cane Performance card elevation */
 export function cardShadow(dm) {
@@ -14,10 +15,10 @@ export function axisStroke(dm) {
   return dm ? '#64748b' : '#94a3b8';
 }
 
-/** Fills the area below tabs (parent main is flex-1). */
+/** Fills the area below tabs (parent main is flex-1). No page scroll. */
 export function FitShell({ children, className = '' }) {
   return (
-    <div className={`flex flex-col gap-3 overflow-hidden w-full h-full min-h-0 ${className}`}>
+    <div className={`flex h-full min-h-0 w-full flex-col gap-1.5 overflow-hidden ${className}`}>
       {children}
     </div>
   );
@@ -85,9 +86,15 @@ export function InfoTip({ text, dm }) {
 }
 
 /** Cane-style chart/section card: rounded-2xl, shadow, muted title (optional gradient header) */
-export function BandCard({ title, children, dm, className = '', bodyClassName = '', right = null, tone = null, titleWrap = false }) {
+export function BandCard({ title, children, dm, className = '', bodyClassName = '', right = null, tone = null, titleWrap = false, onExpand }) {
   const bodyOverflow = /\boverflow-/.test(bodyClassName) ? '' : 'overflow-hidden';
   const titleCls = titleWrap ? 'whitespace-normal break-words leading-snug' : 'truncate';
+  const actions = right || onExpand ? (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {right}
+      {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
+    </div>
+  ) : null;
   return (
     <div
       className={`relative rounded-2xl border flex flex-col min-h-0 transition-all duration-200 hover:-translate-y-0.5 ${
@@ -99,14 +106,14 @@ export function BandCard({ title, children, dm, className = '', bodyClassName = 
         tone ? (
           <div className={`shrink-0 px-3 py-1.5 flex items-center justify-between gap-2 rounded-t-2xl min-w-0 bg-gradient-to-r ${HEADER_TONES[tone] || HEADER_TONES.blue}`}>
             <h3 className={`text-xs font-black uppercase tracking-[0.14em] text-white ${titleCls}`}>{title}</h3>
-            {right}
+            {actions}
           </div>
         ) : (
           <div className="shrink-0 px-3 pt-2.5 pb-1 flex items-center justify-between gap-2 min-w-0">
             <p className={`text-[11px] font-bold uppercase tracking-wider ${titleCls} ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
               {title}
             </p>
-            {right}
+            {actions}
           </div>
         )
       ) : null}

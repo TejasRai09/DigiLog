@@ -7,6 +7,9 @@ import PurchyTablePagination from './PurchyTablePagination';
 import usePurchyFailureDate from '../../../hooks/usePurchyFailureDate';
 import { purchyFiltersToParams } from '../../../hooks/usePurchyFilters';
 import Spinner from '../../Spinner';
+import ChartCardToolbar from '../ChartCardToolbar';
+import BiChartExpandModal from '../BiChartExpandModal';
+import { BI_DASHBOARDS } from '../../../utils/activityPath';
 
 
 const SLICERS = [
@@ -123,6 +126,7 @@ export default function PurchyFailureDateDrilldownTab({
   const [filters, setFilters] = useState({ societyName: [] });
   const [dateFrom, setDateFrom] = useState('2025-10-24');
   const [dateTo, setDateTo] = useState('2026-03-06');
+  const [expandedChart, setExpandedChart] = useState(null);
 
   const mergedParams = useMemo(
     () => ({ ...globalQueryParams, ...purchyFiltersToParams(filters) }),
@@ -202,7 +206,34 @@ export default function PurchyFailureDateDrilldownTab({
       />
 
       <div className={`shrink-0 rounded-xl border p-2 shadow-sm ${card}`}>
-        <h3 className={`mb-1 text-xs font-bold ${title}`}>Failure % by Date</h3>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <h3 className={`text-xs font-bold ${title}`}>Failure % by Date</h3>
+          <ChartCardToolbar
+            compact
+            isDarkMode={isDarkMode}
+            onExpand={() => setExpandedChart({
+              title: 'Failure % by Date',
+              filePrefix: 'purchy',
+              dashboardLabel: BI_DASHBOARDS['/bi/purchy-analysis'],
+              data: chartData,
+              csvColumns: [
+                { key: 'date', label: 'Date' },
+                { key: 'pct', label: 'Failure %' },
+              ],
+              plot: (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#334155' : '#e2e8f0'} />
+                    <XAxis dataKey="date" angle={-45} textAnchor="end" height={48} tick={{ fontSize: 9 }} />
+                    <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 9 }} domain={[0, 'auto']} width={36} />
+                    <Tooltip formatter={(v) => [`${v}%`, 'Failure %']} />
+                    <Line type="monotone" dataKey="pct" stroke="#1e40af" strokeWidth={2} dot={{ r: 2 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ),
+            })}
+          />
+        </div>
         {useLiveData && loading ? (
           <div className="flex h-[140px] items-center justify-center">
             <Spinner size="md" />
@@ -238,6 +269,11 @@ export default function PurchyFailureDateDrilldownTab({
           loading={useLiveData && loading}
         />
       </div>
+      <BiChartExpandModal
+        config={expandedChart}
+        isDarkMode={isDarkMode}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   );
 }

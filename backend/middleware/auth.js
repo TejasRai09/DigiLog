@@ -15,7 +15,7 @@ const authenticate = async (req, res, next) => {
     const decoded = verifyToken(token);
 
     const [rows] = await pool.query(
-      `SELECT id, name, email, role, is_active, auth_provider, department, avatar
+      `SELECT id, name, email, role, is_active, forms_hub_view_only, auth_provider, department, avatar
        FROM users WHERE id = ?`,
       [decoded.id]
     );

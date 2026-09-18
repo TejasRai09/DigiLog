@@ -36,7 +36,153 @@ export const DISTILLERY_CALCULATED_DB_KEYS = new Set([
   'total_mol_in_store_qtls',
 ]);
 
-export function formatRecordCellForDisplay(dbKey, value, formKey = null) {
+const HIDDEN_FILE_BLOB_KEYS = new Set([
+  'documents',
+  'incident_photos',
+  'hod_signoff_file',
+  'hod_signoff_file_name',
+  'stoppage_photos',
+]);
+
+export const EHS_NEAR_MISS_FILE_SLOT_KEYS = new Set([
+  'image_1', 'image_2', 'image_3',
+  'document_1', 'document_2', 'document_3',
+]);
+
+export const VIRTUAL_FILE_SLOT_KEYS = new Set([
+  ...EHS_NEAR_MISS_FILE_SLOT_KEYS,
+  'photo_1', 'photo_2',
+]);
+
+const FILE_KEY_RE = /(?:^|_)(?:photo|photos|file|image|document|documents)(?:_\d+)?$/i;
+
+function parseJsonList(raw) {
+  if (raw == null || raw === '') return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw !== 'string') return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseFileItems(raw) {
+  if (raw == null || raw === '') return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'object') return [raw];
+  if (typeof raw !== 'string') return [];
+  const s = raw.trim();
+  if (s.startsWith('data:')) return [s];
+  if (s.startsWith('[') || s.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(s);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && typeof parsed === 'object') return [parsed];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function extFromDataUrl(dataUrl, fallbackExt) {
+  const mime = String(dataUrl || '').match(/^data:([^;,]+)/i)?.[1]?.toLowerCase() || '';
+  if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+  if (mime.includes('png')) return 'png';
+  if (mime.includes('pdf')) return 'pdf';
+  if (mime.includes('wordprocessingml') || mime.includes('officedocument')) return 'docx';
+  if (mime.includes('msword')) return 'doc';
+  return fallbackExt;
+}
+
+function normalizeFileSlot(item, fallbackName, fallbackExt) {
+  if (!item) return null;
+  if (typeof item === 'string') {
+    if (!item.startsWith('data:')) return null;
+    const ext = extFromDataUrl(item, fallbackExt);
+    return { name: `${fallbackName}.${ext}`, src: item };
+  }
+  if (typeof item === 'object') {
+    const src = item.file || item.src || item.dataUrl || '';
+    if (!src) return null;
+    const name = String(item.name || item.fileName || '').trim()
+      || `${fallbackName}.${extFromDataUrl(src, fallbackExt)}`;
+    return { name, src };
+  }
+  return null;
+}
+
+function looksLikeStoredFile(value) {
+  if (value == null || value === '') return false;
+  if (typeof value === 'object') {
+    return Boolean(value.file || value.src || value.dataUrl || (Array.isArray(value) && value.length));
+  }
+  if (typeof value !== 'string') return false;
+  const s = value.trim();
+  return s.startsWith('data:') || s.startsWith('[{') || s.startsWith('{') || s.startsWith('["data:');
+}
+
+/** True for image/document columns in View Data (filename + eye, never the URL). */
+export function isRecordFileColumn(formKey, dbKey, value) {
+  if (!dbKey) return false;
+  if (HIDDEN_FILE_BLOB_KEYS.has(dbKey)) return false;
+  if (VIRTUAL_FILE_SLOT_KEYS.has(dbKey)) return true;
+  if (FILE_KEY_RE.test(dbKey) && !dbKey.endsWith('_name') && !dbKey.endsWith('_names')) return true;
+  return looksLikeStoredFile(value);
+}
+
+/** Image 1–3 / Document 1–3 slots for Accident Report View Data (filename + preview src). */
+export function ehsNearMissFileSlot(row, dbKey) {
+  if (!row || !EHS_NEAR_MISS_FILE_SLOT_KEYS.has(dbKey)) return null;
+  const photos = [...parseJsonList(row.incident_photos)];
+  const docs = [...parseJsonList(row.documents)];
+  if (!docs.length && row.hod_signoff_file) {
+    docs.push({ file: row.hod_signoff_file, name: row.hod_signoff_file_name || 'Document 1' });
+  }
+  const map = {
+    image_1: normalizeFileSlot(photos[0], 'Image 1', 'jpg'),
+    image_2: normalizeFileSlot(photos[1], 'Image 2', 'jpg'),
+    image_3: normalizeFileSlot(photos[2], 'Image 3', 'jpg'),
+    document_1: normalizeFileSlot(docs[0], 'Document 1', 'pdf'),
+    document_2: normalizeFileSlot(docs[1], 'Document 2', 'pdf'),
+    document_3: normalizeFileSlot(docs[2], 'Document 3', 'pdf'),
+  };
+  return map[dbKey] || null;
+}
+
+export function isEhsNearMissFileSlot(dbKey) {
+  return EHS_NEAR_MISS_FILE_SLOT_KEYS.has(dbKey);
+}
+
+/** Filename + data-URL src for a View Data file column, or null when empty. */
+export function getRecordFileSlot(formKey, row, dbKey, fallbackName = '') {
+  const label = fallbackName || String(dbKey || 'file').replace(/_/g, ' ');
+  if (formKey === 'ehs_near_miss' && EHS_NEAR_MISS_FILE_SLOT_KEYS.has(dbKey)) {
+    return ehsNearMissFileSlot(row, dbKey);
+  }
+  if (formKey === 'ph_stoppage' && (dbKey === 'photo_1' || dbKey === 'photo_2')) {
+    const photos = parseFileItems(row?.stoppage_photos);
+    const idx = dbKey === 'photo_1' ? 0 : 1;
+    return normalizeFileSlot(photos[idx], `Photo ${idx + 1}`, 'jpg');
+  }
+  if (!row) return null;
+  const value = row[dbKey];
+  const companion = row[`${dbKey}_name`] || row[`${dbKey}_file_name`];
+  const items = parseFileItems(value);
+  if (!items.length) return null;
+  const item = items[0];
+  if (companion && typeof item === 'string') {
+    return normalizeFileSlot({ file: item, name: companion }, label, 'jpg');
+  }
+  return normalizeFileSlot(item, label, 'jpg');
+}
+
+export function formatRecordCellForDisplay(dbKey, value, formKey = null, row = null) {
+  if (isRecordFileColumn(formKey, dbKey, value) || VIRTUAL_FILE_SLOT_KEYS.has(dbKey)) {
+    return getRecordFileSlot(formKey, row, dbKey)?.name || '';
+  }
   if (value === null || value === undefined) return '';
   if (typeof value === 'string' && value.startsWith('data:image/')) return 'Photo attached';
   if (typeof value === 'string' && value.startsWith('data:')) {
@@ -533,7 +679,8 @@ function schemaPhStoppage() {
   push(a, 'category', 'GSMA Power — Stoppages', 'Category');
   push(a, 'category_specify', 'GSMA Power — Stoppages', 'Please specify Category');
   push(a, 'remarks', 'GSMA Power — Stoppages', 'General remarks');
-  push(a, 'stoppage_photos', 'GSMA Power — Stoppages', 'Photos');
+  push(a, 'photo_1', 'GSMA Power — Stoppages', 'Photo 1');
+  push(a, 'photo_2', 'GSMA Power — Stoppages', 'Photo 2');
   push(a, 'created_at', 'System', 'Created at');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
@@ -542,8 +689,9 @@ function schemaPhStoppage() {
 // ─── ehs_near_miss ─────────────────────────────────────────────
 function schemaEhsNearMiss() {
   const a = [];
-  push(a, 'Date',             'EHS — Near Miss Report', 'Date');
-  push(a, 'Time',             'EHS — Near Miss Report', 'Time');
+  push(a, 'Date',             'EHS — Accident / Near Miss', 'Date');
+  push(a, 'Time',             'EHS — Accident / Near Miss', 'Time');
+  push(a, 'incident_category','Incident Type',              'Incident type');
   push(a, 'name',             'Person Involved',        'Name');
   push(a, 'contact_no',       'Person Involved',        'Contact No.');
   push(a, 'department',       'Person Involved',        'Dept / Section');
@@ -556,8 +704,12 @@ function schemaEhsNearMiss() {
   push(a, 'treatment_by',     'Treatment',              'By Whom');
   push(a, 'description',      'Incident Details',       'Description / Cause');
   push(a, 'hazard_identified',      'Follow-up',     'Significant Hazard Identified');
-  push(a, 'hod_signoff_file_name',  'HOD Sign-off',  'Document name');
-  push(a, 'hod_signoff_file',       'HOD Sign-off',  'Document');
+  push(a, 'image_1',                'Incident Photos', 'Image 1');
+  push(a, 'image_2',                'Incident Photos', 'Image 2');
+  push(a, 'image_3',                'Incident Photos', 'Image 3');
+  push(a, 'document_1',             'Document Upload', 'Document 1');
+  push(a, 'document_2',             'Document Upload', 'Document 2');
+  push(a, 'document_3',             'Document Upload', 'Document 3');
   push(a, 'timestamp',              'System',        'Recorded at');
   return a;
 }
@@ -856,6 +1008,8 @@ export function getDisplayColumns(formKey, sampleRow) {
   const extras = [];
   if (sampleRow && typeof sampleRow === 'object') {
     for (const k of Object.keys(sampleRow)) {
+      if (HIDDEN_FILE_BLOB_KEYS.has(k)) continue;
+      if (k.endsWith('_file_name') || k.endsWith('_photo_names')) continue;
       if (!seen.has(k)) {
         extras.push({ dbKey: k, heading: 'Additional', subheading: k });
         seen.add(k);

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { MdSave } from 'react-icons/md';
 import FormPageHeader from '../../../components/FormPageHeader';
+import AutoNowInput from '../../../components/AutoNowInput';
 import FormReviewModal from '../../../components/FormReviewModal';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
@@ -48,7 +49,10 @@ const INITIAL = {
 const DistilleryOperations = () => {
   const [form, setForm] = useState(INITIAL);
 
-  const { theoreticalYield } = useAppConstants();
+  const { theoreticalYield: todayYield, constantsForDate } = useAppConstants();
+  const theoreticalYield = form.date
+    ? constantsForDate(form.date).theoreticalYield
+    : todayYield;
 
   const derived = useMemo(
     () => computeDistilleryDerived(form, { theoreticalYieldFactor: theoreticalYield }),
@@ -102,7 +106,7 @@ const DistilleryOperations = () => {
           <label className="label" htmlFor="op-date">
             Operation Date<span className="text-red-500 ml-0.5">*</span>
           </label>
-          <input
+          <AutoNowInput
             id="op-date"
             type="date"
             name="date"

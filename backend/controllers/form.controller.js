@@ -1,6 +1,7 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
+const { isFormsHubViewOnly, VIEW_ONLY_MESSAGE } = require('../utils/formsHubViewOnly');
 
 // ─── Form configuration ──────────────────────────────────────
 // pattern:
@@ -248,6 +249,41 @@ function validateFormPayload(formKey, payload) {
       return validatePhFields(payload, ['inlet_ph_a', 'inlet_ph_b', 'inlet_ph_c', 'outlet_ph']);
     case 'ehs_water_etp':
       return validatePhFields(payload, ['ph_g_shift']);
+    case 'ehs_near_miss': {
+      const allowed = new Set([
+        'Unsafe Act',
+        'Unsafe Condition',
+        'Near Miss',
+        'Non-Reportable Act',
+        'Reportable Act',
+      ]);
+      const cat = String(payload.incident_category ?? '').trim();
+      if (!allowed.has(cat)) {
+        return { ok: false, message: 'Select an incident type.' };
+      }
+      payload.incident_category = cat;
+
+      const parseList = (raw, max, label) => {
+        if (raw == null || raw === '') return null;
+        let list = raw;
+        if (typeof raw === 'string') {
+          try { list = JSON.parse(raw); } catch { return { error: `${label} data is invalid.` }; }
+        }
+        if (!Array.isArray(list)) return { error: `${label} data is invalid.` };
+        if (list.length > max) return { error: `${label}: maximum ${max} allowed.` };
+        return { value: JSON.stringify(list) };
+      };
+
+      const docs = parseList(payload.documents, 3, 'Document upload');
+      if (docs?.error) return { ok: false, message: docs.error };
+      payload.documents = docs ? docs.value : null;
+
+      const photos = parseList(payload.incident_photos, 3, 'Incident photos');
+      if (photos?.error) return { ok: false, message: photos.error };
+      payload.incident_photos = photos ? photos.value : null;
+
+      return { ok: true };
+    }
     case 'ehs_toolbox_talk': {
       const shift = String(payload.Shift ?? '').trim();
       if (!['A', 'B', 'C'].includes(shift)) {
@@ -446,6 +482,10 @@ const sanitisePayload = (rawBody) => {
 
 // ─── POST /api/forms/:formKey ─────────────────────────────────
 const submitForm = async (req, res) => {
+  if (isFormsHubViewOnly(req.user)) {
+    return res.status(403).json({ message: VIEW_ONLY_MESSAGE });
+  }
+
   const { formKey } = req.params;
   const config = FORM_CONFIG[formKey];
 
@@ -559,6 +599,10 @@ const getRecords = async (req, res) => {
 // ─── POST /api/forms/:formKey/batch ──────────────────────────
 // Accepts { rows: [...] } — inserts multiple rows at once (pan, decanter, clarification).
 const submitBatch = async (req, res) => {
+  if (isFormsHubViewOnly(req.user)) {
+    return res.status(403).json({ message: VIEW_ONLY_MESSAGE });
+  }
+
   const { formKey } = req.params;
   const config = FORM_CONFIG[formKey];
 

@@ -69,6 +69,15 @@ function formatDuration(minutes) {
   return rem ? `${h}h ${rem}m` : `${h}h`;
 }
 
+const CLICK_EVENTS = new Set([
+  'download_csv',
+  'download_pdf',
+  'chart_download_csv',
+  'dashboard_tab',
+  'dashboard_filter',
+  'view_data',
+]);
+
 function formatDwell(seconds) {
   if (seconds == null || seconds === '') return '—';
   const s = Number(seconds);
@@ -77,6 +86,11 @@ function formatDwell(seconds) {
   const m = Math.floor(s / 60);
   const rem = s % 60;
   return rem ? `${m}m ${rem}s` : `${m}m`;
+}
+
+function formatStayTime(row) {
+  if (CLICK_EVENTS.has(String(row.event_type || ''))) return 'Not a page stay';
+  return formatDwell(row.dwell_seconds);
 }
 
 function statusClass(code) {
@@ -307,10 +321,11 @@ export default function AuditLogSection() {
   const [filterScreen, setFilterScreen] = useState('');
   const [formsCardLabels, setFormsCardLabels] = useState(null);
   const [page, setPage] = useState(1);
-  const [applied, setApplied] = useState({
+  const emptyApplied = {
     q: '', action: '', success: '', active: '', from: '', to: '',
     filterRoot: '', filterBranch: '', filterLeaf: '', filterCard: '', filterScreen: '',
-  });
+  };
+  const [applied, setApplied] = useState(emptyApplied);
 
   useEffect(() => {
     let cancelled = false;
@@ -395,6 +410,41 @@ export default function AuditLogSection() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    setApplied((prev) => {
+      const next = {
+        ...prev,
+        action,
+        success,
+        active,
+        from,
+        to,
+        filterRoot,
+        filterBranch,
+        filterLeaf,
+        filterCard,
+        filterScreen,
+      };
+      if (
+        prev.action === next.action
+        && prev.success === next.success
+        && prev.active === next.active
+        && prev.from === next.from
+        && prev.to === next.to
+        && prev.filterRoot === next.filterRoot
+        && prev.filterBranch === next.filterBranch
+        && prev.filterLeaf === next.filterLeaf
+        && prev.filterCard === next.filterCard
+        && prev.filterScreen === next.filterScreen
+      ) {
+        return prev;
+      }
+      setExpandedId(null);
+      setPage(1);
+      return next;
+    });
+  }, [action, success, active, from, to, filterRoot, filterBranch, filterLeaf, filterCard, filterScreen]);
+
   const applyFilters = (e) => {
     e.preventDefault();
     setExpandedId(null);
@@ -403,6 +453,23 @@ export default function AuditLogSection() {
       filterRoot, filterBranch, filterLeaf, filterCard, filterScreen,
     });
     setPage(1);
+  };
+
+  const resetFilters = () => {
+    setQ('');
+    setAction('');
+    setSuccess('');
+    setActive('');
+    setFrom('');
+    setTo('');
+    setFilterRoot('');
+    setFilterBranch('');
+    setFilterLeaf('');
+    setFilterCard('');
+    setFilterScreen('');
+    setExpandedId(null);
+    setPage(1);
+    setApplied(emptyApplied);
   };
 
   const switchTab = (next) => {
@@ -447,6 +514,9 @@ export default function AuditLogSection() {
       </div>
 
       <form onSubmit={applyFilters} className="mb-4 flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+        <p className="w-full text-xs text-gray-500">
+          Area, dates, and other dropdowns apply as soon as you change them. Use Apply for search text.
+        </p>
         <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-xs font-medium text-gray-600">
           Search
           <input
@@ -523,9 +593,14 @@ export default function AuditLogSection() {
           To
           <input type="date" className="input-field h-10" value={to} onChange={(e) => setTo(e.target.value)} />
         </label>
-        <button type="submit" className="btn-primary h-10 px-4 text-sm">
-          Apply
-        </button>
+        <div className="flex gap-2">
+          <button type="submit" className="btn-primary h-10 px-4 text-sm">
+            Apply
+          </button>
+          <button type="button" className="btn-secondary h-10 px-4 text-sm" onClick={resetFilters}>
+            Reset
+          </button>
+        </div>
       </form>
 
       {loading ? (
@@ -621,6 +696,8 @@ export default function AuditLogSection() {
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-500">
                 <th className="whitespace-nowrap px-2 py-2 font-medium">Entered</th>
                 <th className="px-2 py-2 font-medium">Name</th>
+                <th className="px-2 py-2 font-medium">Email</th>
+                <th className="px-2 py-2 font-medium">Role</th>
                 <th className="px-2 py-2 font-medium">Event</th>
                 <th className="px-2 py-2 font-medium">Section</th>
                 <th className="px-2 py-2 font-medium">Card</th>
@@ -634,6 +711,8 @@ export default function AuditLogSection() {
                 <tr key={row.id} className="align-top border-b border-gray-50 hover:bg-gray-50/80">
                   <td className="whitespace-nowrap px-2 py-2.5 text-gray-700">{formatTime(row.entered_at)}</td>
                   <td className="px-2 py-2.5 font-medium text-gray-900">{row.user_name || '—'}</td>
+                  <td className="px-2 py-2.5 text-gray-600">{row.user_email || '—'}</td>
+                  <td className="px-2 py-2.5 capitalize text-gray-700">{row.user_role || '—'}</td>
                   <td className="px-2 py-2.5 text-gray-700">{row.event_type}</td>
                   <td className="px-2 py-2.5 text-gray-800">{row.section || '—'}</td>
                   <td className="px-2 py-2.5 text-gray-800">{row.card || '—'}</td>
@@ -642,7 +721,7 @@ export default function AuditLogSection() {
                     <div className="line-clamp-2 text-sm">{row.display_path || row.page_path || '—'}</div>
                   </td>
                   <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-gray-700">
-                    {formatDwell(row.dwell_seconds)}
+                    {formatStayTime(row)}
                   </td>
                 </tr>
               ))}

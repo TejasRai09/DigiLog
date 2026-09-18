@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
+import FormsHubViewOnlyBanner from '../../components/FormsHubViewOnlyBanner';
 import { buildPowerEquipmentTrail, buildPowerPlantEquipmentNewTrail, buildSugarHouseEquipmentNewTrail } from '../../utils/breadcrumbTrail';
 import { useAppName } from '../../hooks/useAppName';
 import EquipmentLifeHistoryCard from '../../components/equipment/EquipmentLifeHistoryCard';
@@ -173,7 +174,9 @@ const PowerEquipmentDetail = () => {
       const { data } = await api.get(`${apiBase}/${eid}/history`, { params });
       setHistory(data.records);
       setHistTotal(data.total);
-    } catch {
+    } catch (err) {
+      // 304 = cached copy unchanged. History is already on screen; do not toast.
+      if (err?.response?.status === 304) return;
       toast.error('Failed to load history.');
     }
   }, [apiBase, isNewHub, specSection]);
@@ -566,6 +569,7 @@ const PowerEquipmentDetail = () => {
   return (
     <main className="app-main">
       <AppBreadcrumb items={breadcrumbItems} className="mb-3" />
+      <FormsHubViewOnlyBanner />
 
       {isNewHub && (
         <div className="mb-4 flex justify-end">

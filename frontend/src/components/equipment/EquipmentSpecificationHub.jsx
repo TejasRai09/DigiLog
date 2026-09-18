@@ -28,6 +28,7 @@ import {
 } from '../../utils/equipmentSpecModel';
 import { downloadSpecTemplate, parseSpecWorkbook } from '../../utils/equipmentSpecExcel';
 import { trackEquipmentSectionOpen } from '../../utils/trackActivity';
+import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 
 function isPlaceholderValue(val) {
   const v = String(val || '').trim().toLowerCase();
@@ -50,6 +51,8 @@ export default function EquipmentSpecificationHub({
   onDeleteSubGroupMaintenanceHistory = null,
   onRenameSubGroupMaintenanceHistory = null,
 }) {
+  const viewOnly = useFormsHubViewOnly();
+  const canWrite = !viewOnly;
   const initial = useMemo(
     () => parseSpecsFromApi(apiSpecs, equipmentDefaults),
     [apiSpecs, equipmentDefaults],
@@ -356,11 +359,12 @@ export default function EquipmentSpecificationHub({
     subSectionsToSave = subSections,
     subGroupMetaToSave = subGroupMeta,
   ) => {
+    if (!canWrite) return;
     if (onSave) {
       await onSave(specsToSave, subSectionsToSave, subGroupMetaToSave);
       setUploadedFileName(null);
     }
-  }, [onSave, specs, subSections, subGroupMeta]);
+  }, [canWrite, onSave, specs, subSections, subGroupMeta]);
 
   const deleteSubGroup = async (sectionId, subName) => {
     const nextSubs = (subSections[sectionId] || []).filter((s) => s !== subName);
@@ -419,7 +423,13 @@ export default function EquipmentSpecificationHub({
       ...subGroupMeta,
       [sectionId]: {
         ...(subGroupMeta[sectionId] || {}),
-        [subName]: normalizeSubGroupMetaEntry(entry, equipmentDefaults),
+        [subName]: normalizeSubGroupMetaEntry(
+          {
+            ...(subGroupMeta[sectionId]?.[subName] || {}),
+            ...entry,
+          },
+          equipmentDefaults,
+        ),
       },
     };
     setSubGroupMeta(nextMeta);
@@ -719,7 +729,7 @@ export default function EquipmentSpecificationHub({
                     className="w-full sm:w-48 pl-9 pr-4 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
                   />
                 </div>
-                {!hideBulkActions && (
+                {!hideBulkActions && canWrite && (
                   <>
                     <button
                       type="button"
@@ -756,7 +766,7 @@ export default function EquipmentSpecificationHub({
                     )}
                   </>
                 )}
-                {subGroupCardMode && activeSectionId && !hideAddSubGroup && (
+                {subGroupCardMode && activeSectionId && !hideAddSubGroup && canWrite && (
                   <button
                     type="button"
                     onClick={() => openSubModal(activeSectionId)}
@@ -765,7 +775,7 @@ export default function EquipmentSpecificationHub({
                     <MdAdd className="w-3.5 h-3.5" /> Add Equipment
                   </button>
                 )}
-                {!subGroupCardMode && (
+                {!subGroupCardMode && canWrite && (
                   <>
                     <button
                       type="button"

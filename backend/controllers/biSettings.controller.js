@@ -1,15 +1,17 @@
-const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
-const { BRIX_THRESHOLD_KEY, BRIX_THRESHOLD_DEFAULT } = require('../utils/biConstants');
+const {
+  BRIX_THRESHOLD_DEFAULT,
+  THEORETICAL_YIELD_DEFAULT,
+  POWER_TARIFF_DEFAULT,
+  buildBiConstantsPayload,
+  upsertSeasonConstants,
+  updateDefaultConstants,
+} = require('../utils/biConstants');
+const { pool } = require('../config/mysql');
 
 const SETTING_KEY = 'bi_third_season_compare';
 const DASHBOARD_SEASONS_KEY = 'bi_dashboard_seasons';
 const LEGACY_VISIBLE_SEASONS_KEY = 'bi_visible_seasons';
-const THEORETICAL_YIELD_KEY = 'distillery_theoretical_yield';
-const POWER_TARIFF_KEY = 'power_tariff_rate';
-
-const THEORETICAL_YIELD_DEFAULT = 64.4;
-const POWER_TARIFF_DEFAULT = 4.85;
 
 function parseBool(v) {
   return v === '1' || v === 'true' || v === true;
@@ -35,48 +37,52 @@ function parseJsonArray(v) {
   }
 }
 
+function parsePositiveOrDefault(raw, fallback) {
+  const n = parseFloat(raw);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+async function loadLegacyDashboardSeasons() {
+  const [rows] = await pool.query(
+    'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?, ?)',
+    [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY],
+  );
+  const map = {};
+  rows.forEach((r) => { map[r.setting_key] = r.setting_value; });
+
+  let dashboardSeasons = parseJsonObject(map[DASHBOARD_SEASONS_KEY]);
+  const legacySeasons = parseJsonArray(map[LEGACY_VISIBLE_SEASONS_KEY]);
+
+  if (Object.keys(dashboardSeasons).length === 0 && legacySeasons.length > 0) {
+    dashboardSeasons = {
+      brix_sampling: legacySeasons,
+      centre_maturity: legacySeasons,
+    };
+  }
+
+  return {
+    thirdSeasonCompareEnabled: parseBool(map[SETTING_KEY]),
+    dashboardSeasons,
+  };
+}
+
 /** GET /api/bi/settings — BI dashboard options for signed-in users */
 const getBiSettings = async (_req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?, ?)',
-      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY, BRIX_THRESHOLD_KEY],
-    );
-    const map = {};
-    rows.forEach(r => { map[r.setting_key] = r.setting_value; });
-
-    let dashboardSeasons = parseJsonObject(map[DASHBOARD_SEASONS_KEY]);
-    const legacySeasons = parseJsonArray(map[LEGACY_VISIBLE_SEASONS_KEY]);
-
-    if (Object.keys(dashboardSeasons).length === 0 && legacySeasons.length > 0) {
-      dashboardSeasons = {
-        brix_sampling: legacySeasons,
-        centre_maturity: legacySeasons,
-      };
-    }
-
-    let seasonMapping = {};
-    try {
-      const [seasonRows] = await pool.query(
-        'SELECT season_label, start_date, end_date FROM season_mapping ORDER BY start_date DESC',
-      );
-      seasonRows.forEach((s) => {
-        seasonMapping[s.season_label] = {
-          startDate: s.start_date ? String(s.start_date).slice(0, 10) : null,
-          endDate: s.end_date ? String(s.end_date).slice(0, 10) : null,
-        };
-      });
-    } catch (_) {
-      seasonMapping = {};
-    }
-
+    const [legacy, constants] = await Promise.all([
+      loadLegacyDashboardSeasons(),
+      buildBiConstantsPayload(),
+    ]);
     res.json({
-      thirdSeasonCompareEnabled: parseBool(map[SETTING_KEY]),
-      dashboardSeasons,
-      seasonMapping,
-      theoreticalYield: parseFloat(map[THEORETICAL_YIELD_KEY] ?? THEORETICAL_YIELD_DEFAULT) || THEORETICAL_YIELD_DEFAULT,
-      powerTariffRate: parseFloat(map[POWER_TARIFF_KEY] ?? POWER_TARIFF_DEFAULT) || POWER_TARIFF_DEFAULT,
-      brixThreshold: parseFloat(map[BRIX_THRESHOLD_KEY] ?? BRIX_THRESHOLD_DEFAULT) || BRIX_THRESHOLD_DEFAULT,
+      thirdSeasonCompareEnabled: legacy.thirdSeasonCompareEnabled,
+      dashboardSeasons: legacy.dashboardSeasons,
+      seasonMapping: constants.seasonMapping,
+      theoreticalYield: constants.theoreticalYield,
+      powerTariffRate: constants.powerTariffRate,
+      brixThreshold: constants.brixThreshold,
+      defaults: constants.defaults,
+      constantsBySeason: constants.constantsBySeason,
+      currentSeasonLabel: constants.currentSeasonLabel,
     });
   } catch (err) {
     sendServerError(res, 'getBiSettings', err, MSG.LOAD);
@@ -86,49 +92,34 @@ const getBiSettings = async (_req, res) => {
 /** GET /api/admin/bi-settings */
 const getAdminBiSettings = async (_req, res) => {
   try {
-    const [rows] = await pool.query(
-      'SELECT setting_key, setting_value, updated_at FROM portal_settings WHERE setting_key IN (?, ?, ?, ?, ?, ?)',
-      [SETTING_KEY, DASHBOARD_SEASONS_KEY, LEGACY_VISIBLE_SEASONS_KEY, THEORETICAL_YIELD_KEY, POWER_TARIFF_KEY, BRIX_THRESHOLD_KEY],
-    );
-    const map = {};
-    rows.forEach(r => { map[r.setting_key] = r.setting_value; });
-
-    let dashboardSeasons = parseJsonObject(map[DASHBOARD_SEASONS_KEY]);
-    const legacySeasons = parseJsonArray(map[LEGACY_VISIBLE_SEASONS_KEY]);
-
-    if (Object.keys(dashboardSeasons).length === 0 && legacySeasons.length > 0) {
-      dashboardSeasons = {
-        brix_sampling: legacySeasons,
-        centre_maturity: legacySeasons,
-      };
-    }
-
+    const [legacy, constants] = await Promise.all([
+      loadLegacyDashboardSeasons(),
+      buildBiConstantsPayload(),
+    ]);
     res.json({
-      thirdSeasonCompareEnabled: parseBool(map[SETTING_KEY]),
-      dashboardSeasons,
-      theoreticalYield: parseFloat(map[THEORETICAL_YIELD_KEY] ?? THEORETICAL_YIELD_DEFAULT) || THEORETICAL_YIELD_DEFAULT,
-      powerTariffRate: parseFloat(map[POWER_TARIFF_KEY] ?? POWER_TARIFF_DEFAULT) || POWER_TARIFF_DEFAULT,
-      brixThreshold: parseFloat(map[BRIX_THRESHOLD_KEY] ?? BRIX_THRESHOLD_DEFAULT) || BRIX_THRESHOLD_DEFAULT,
-      updatedAt: rows[0]?.updated_at ?? null,
+      thirdSeasonCompareEnabled: legacy.thirdSeasonCompareEnabled,
+      dashboardSeasons: legacy.dashboardSeasons,
+      theoreticalYield: constants.theoreticalYield,
+      powerTariffRate: constants.powerTariffRate,
+      brixThreshold: constants.brixThreshold,
+      defaults: constants.defaults,
+      constantsBySeason: constants.constantsBySeason,
+      seasons: constants.seasons,
+      currentSeasonLabel: constants.currentSeasonLabel,
     });
   } catch (err) {
     sendServerError(res, 'getAdminBiSettings', err, MSG.LOAD);
   }
 };
 
-/** PUT /api/admin/bi-settings body: { theoreticalYield?, powerTariffRate?, brixThreshold? } */
+/** PUT /api/admin/bi-settings body: { seasonLabel?, theoreticalYield?, powerTariffRate?, brixThreshold? } */
 const updateAdminBiSettings = async (req, res) => {
   try {
-    const rawYield = parseFloat(req.body?.theoreticalYield);
-    const theoreticalYield = Number.isFinite(rawYield) && rawYield > 0 ? rawYield : THEORETICAL_YIELD_DEFAULT;
-    const rawTariff = parseFloat(req.body?.powerTariffRate);
-    const powerTariffRate = Number.isFinite(rawTariff) && rawTariff > 0 ? rawTariff : POWER_TARIFF_DEFAULT;
-    const rawBrixThreshold = parseFloat(req.body?.brixThreshold);
-    const brixThreshold = Number.isFinite(rawBrixThreshold) && rawBrixThreshold > 0
-      ? rawBrixThreshold
-      : BRIX_THRESHOLD_DEFAULT;
+    const theoreticalYield = parsePositiveOrDefault(req.body?.theoreticalYield, THEORETICAL_YIELD_DEFAULT);
+    const powerTariffRate = parsePositiveOrDefault(req.body?.powerTariffRate, POWER_TARIFF_DEFAULT);
+    const brixThreshold = parsePositiveOrDefault(req.body?.brixThreshold, BRIX_THRESHOLD_DEFAULT);
+    const seasonLabel = typeof req.body?.seasonLabel === 'string' ? req.body.seasonLabel.trim() : '';
 
-    // Compare chips use season_mapping only — clear obsolete gates/filters.
     await pool.query(
       `INSERT INTO portal_settings (setting_key, setting_value)
        VALUES (?, ?)
@@ -143,33 +134,33 @@ const updateAdminBiSettings = async (req, res) => {
       [DASHBOARD_SEASONS_KEY, '{}'],
     );
 
-    await pool.query(
-      `INSERT INTO portal_settings (setting_key, setting_value)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [THEORETICAL_YIELD_KEY, String(theoreticalYield)],
-    );
+    const values = { theoreticalYield, powerTariffRate, brixThreshold };
 
-    await pool.query(
-      `INSERT INTO portal_settings (setting_key, setting_value)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [POWER_TARIFF_KEY, String(powerTariffRate)],
-    );
+    if (seasonLabel) {
+      const [[mapping]] = await pool.query(
+        'SELECT season_label FROM season_mapping WHERE season_label = ? LIMIT 1',
+        [seasonLabel],
+      );
+      if (!mapping) {
+        return res.status(400).json({ message: 'Unknown sugar season.' });
+      }
+      await upsertSeasonConstants(seasonLabel, values);
+    } else {
+      await updateDefaultConstants(values);
+    }
 
-    await pool.query(
-      `INSERT INTO portal_settings (setting_key, setting_value)
-       VALUES (?, ?)
-       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
-      [BRIX_THRESHOLD_KEY, String(brixThreshold)],
-    );
-
+    const constants = await buildBiConstantsPayload();
     res.json({
       message: 'BI dashboard settings saved.',
       thirdSeasonCompareEnabled: false,
+      seasonLabel: seasonLabel || null,
       theoreticalYield,
       powerTariffRate,
       brixThreshold,
+      defaults: constants.defaults,
+      constantsBySeason: constants.constantsBySeason,
+      seasons: constants.seasons,
+      currentSeasonLabel: constants.currentSeasonLabel,
     });
   } catch (err) {
     sendServerError(res, 'updateAdminBiSettings', err, MSG.SAVE);

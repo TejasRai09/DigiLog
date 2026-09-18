@@ -3,6 +3,7 @@ const path = require('path');
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
+const { historyDateRangeError } = require('../utils/historyDateRange');
 const {
   isApprovalEnabled,
   createPendingRequest,
@@ -678,6 +679,7 @@ function createPowerEquipmentController(tables) {
         params,
       );
       const overlaid = await overlayPendingHistory(approvalDomain, Number(id), req.user?.id, records);
+      res.set('Cache-Control', 'no-store');
       res.json({
         total: total + Math.max(0, overlaid.length - records.length),
         page,
@@ -709,6 +711,9 @@ function createPowerEquipmentController(tables) {
       if (parsedDocuments === null) {
         return res.status(400).json({ message: `Invalid documents (max ${MAX_HISTORY_DOCUMENTS} files).` });
       }
+
+      const dateError = historyDateRangeError(date_start, date_finish);
+      if (dateError) return res.status(400).json({ message: dateError });
 
       const payload = {
         season, year, date_start, date_finish, obs, act, cost, svc,
@@ -796,6 +801,9 @@ function createPowerEquipmentController(tables) {
       if (historySubGroupScoped && equipmentRefs.length === 0) {
         return res.status(400).json({ message: 'At least one equipment mapping is required.' });
       }
+
+      const dateError = historyDateRangeError(date_start, date_finish);
+      if (dateError) return res.status(400).json({ message: dateError });
 
       const payload = {
         season, year, date_start, date_finish, obs, act, cost, svc,

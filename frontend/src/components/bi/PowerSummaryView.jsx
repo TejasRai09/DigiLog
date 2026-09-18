@@ -13,6 +13,7 @@ import {
 import { Leaf, Sprout } from 'lucide-react';
 import { formatCompact, formatNum, formatPct } from '../../utils/powerHouseMeasures';
 import { KPICard, TG_COLORS, axisStroke, cardShadow } from './powerHouseUi';
+import ChartCardToolbar from './ChartCardToolbar';
 
 const TG = TG_COLORS;
 
@@ -43,10 +44,19 @@ function ChartTip({ active, payload, label, dm, suffix = '' }) {
   );
 }
 
+function ChartHead({ title, muted, onExpand, dm }) {
+  return (
+    <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
+      <p className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>{title}</p>
+      {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
+    </div>
+  );
+}
+
 /**
- * Single-screen Power Summary with clear Generation | Consumption columns.
+ * Single-screen Power Summary with Generation | Consumption columns.
  */
-export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparisonLabel, daily, dm }) {
+export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparisonLabel, daily, dm, onExpand }) {
   const p = powerKpis || {};
   const cp = comparePowerKpis || {};
   const chartDaily = (daily || []).map((d) => ({
@@ -62,9 +72,9 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
   const shadow = { boxShadow: cardShadow(dm) };
 
   return (
-    <div className="flex flex-col gap-2 overflow-hidden w-full h-full min-h-0">
+    <div className="flex h-full min-h-0 w-full flex-col gap-2 overflow-hidden">
       {/* Shared context KPIs */}
-      <div className="grid grid-cols-2 gap-3 shrink-0">
+      <div className="grid shrink-0 grid-cols-2 gap-3">
         <KPICard
           compact
           label="Bagasse Produced"
@@ -92,15 +102,15 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
       </div>
 
       {/* Two separated sections */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 flex-1 min-h-0">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-2 xl:grid-cols-2">
         {/* ══════════ Power Generation ══════════ */}
-        <section className={`rounded-2xl border flex flex-col min-h-0 ${card}`} style={shadow}>
+        <section className={`flex min-h-0 flex-col rounded-2xl border ${card}`} style={shadow}>
           <div className="shrink-0 px-3 py-1.5 rounded-t-2xl bg-gradient-to-r from-slate-800 via-blue-950 to-slate-900">
             <h2 className="text-[12px] font-black uppercase tracking-[0.14em] text-white">Power Generation</h2>
           </div>
 
           <div
-            className="flex-1 min-h-0 p-2 grid gap-2 overflow-visible"
+            className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2"
             style={{ gridTemplateRows: 'auto minmax(0, 1.2fr) auto minmax(0, 1fr)' }}
           >
             {/* Total gen hero */}
@@ -113,11 +123,19 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
             </div>
 
             {/* Day-wise chart */}
-            <div className={`rounded-lg border p-2 min-h-0 flex flex-col ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
-              <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 shrink-0 ${muted}`}>
-                Day-wise Power Generation
-              </p>
-              <div className="flex-1 min-h-0">
+            <div className={`flex min-h-0 flex-col rounded-lg border p-2 ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
+              <ChartHead
+                title="Day-wise Power Generation"
+                muted={muted}
+                dm={dm}
+                onExpand={() => onExpand?.({
+                  title: 'Day-wise Power Generation',
+                  kind: 'area',
+                  data: chartDaily,
+                  series: [{ key: 'TotalGen', name: 'Total Gen', color: '#2563eb' }],
+                })}
+              />
+              <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartDaily} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
                     <defs>
@@ -161,11 +179,26 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
             </div>
 
             {/* PLF trend */}
-            <div className={`rounded-lg border p-2 min-h-0 flex flex-col ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
-              <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 shrink-0 ${muted}`}>
-                Plant Load Factor (%)
-              </p>
-              <div className="flex-1 min-h-0">
+            <div className={`flex min-h-0 flex-col rounded-lg border p-2 ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
+              <ChartHead
+                title="Plant Load Factor (%)"
+                muted={muted}
+                dm={dm}
+                onExpand={() => onExpand?.({
+                  title: 'Plant Load Factor (%)',
+                  kind: 'line',
+                  data: chartDaily,
+                  suffix: '%',
+                  domain: [0, 120],
+                  series: [
+                    { key: 'PLF_30MW', name: '30 MW', color: TG.g30 },
+                    { key: 'PLF_3Old', name: '3 Old', color: TG.g3o },
+                    { key: 'PLF_3New', name: '3 New', color: TG.g3n },
+                    { key: 'PLF_4MW', name: '4 MW', color: TG.g4 },
+                  ],
+                })}
+              />
+              <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={chartDaily} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={dm ? '#1e293b' : '#e2e8f0'} vertical={false} />
@@ -185,13 +218,13 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
         </section>
 
         {/* ══════════ Power Consumption ══════════ */}
-        <section className={`rounded-2xl border flex flex-col min-h-0 ${card}`} style={shadow}>
+        <section className={`flex min-h-0 flex-col rounded-2xl border ${card}`} style={shadow}>
           <div className="shrink-0 px-3 py-1.5 rounded-t-2xl bg-gradient-to-r from-slate-800 via-emerald-950 to-slate-900">
             <h2 className="text-[12px] font-black uppercase tracking-[0.14em] text-white">Power Consumption</h2>
           </div>
 
           <div
-            className="flex-1 min-h-0 p-2 grid gap-2 overflow-visible"
+            className="grid min-h-0 flex-1 gap-2 overflow-hidden p-2"
             style={{ gridTemplateRows: 'auto minmax(0, 1.15fr) minmax(0, 1.2fr) auto' }}
           >
             {/* Grid + Inhouse */}
@@ -213,11 +246,24 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
             </div>
 
             {/* Export vs Inhouse */}
-            <div className={`rounded-lg border p-2 min-h-0 flex flex-col ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
-              <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 shrink-0 ${muted}`}>
-                Export vs Inhouse (% of Generation)
-              </p>
-              <div className="flex-1 min-h-0">
+            <div className={`flex min-h-0 flex-col rounded-lg border p-2 ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
+              <ChartHead
+                title="Export vs Inhouse (% of Generation)"
+                muted={muted}
+                dm={dm}
+                onExpand={() => onExpand?.({
+                  title: 'Export vs Inhouse (% of Generation)',
+                  kind: 'area',
+                  data: chartDaily,
+                  suffix: '%',
+                  domain: [0, 120],
+                  series: [
+                    { key: 'Export_pct', name: 'Export %', color: '#2563eb' },
+                    { key: 'Int_Cons_pct', name: 'Inhouse %', color: '#f59e0b' },
+                  ],
+                })}
+              />
+              <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartDaily} margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
                     <defs>
@@ -243,11 +289,23 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
             </div>
 
             {/* Inhouse breakup */}
-            <div className={`rounded-lg border p-2 min-h-0 flex flex-col ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
-              <p className={`text-[10px] font-bold uppercase tracking-wide mb-1 shrink-0 ${muted}`}>
-                Inhouse Consumption — Breakup
-              </p>
-              <div className="flex-1 min-h-0">
+            <div className={`flex min-h-0 flex-col rounded-lg border p-2 ${dm ? 'border-slate-700' : 'border-slate-100'}`}>
+              <ChartHead
+                title="Inhouse Consumption — Breakup"
+                muted={muted}
+                dm={dm}
+                onExpand={() => onExpand?.({
+                  title: 'Inhouse Consumption — Breakup',
+                  kind: 'area-percent',
+                  data: chartDaily,
+                  series: [
+                    { key: 'Export_Sugar', name: 'Power to Sugar', color: '#94a3b8' },
+                    { key: 'PowerCons_Dist_CPU_4MW', name: 'Power to Distillery', color: '#0ea5e9' },
+                    { key: 'Export_Cogen', name: 'Aux Consumption', color: '#1d4ed8' },
+                  ],
+                })}
+              />
+              <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartDaily} stackOffset="expand" margin={{ top: 4, right: 6, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={dm ? '#1e293b' : '#e2e8f0'} vertical={false} />
