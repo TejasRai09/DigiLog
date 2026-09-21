@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS `ehs_water_gwa` (
   `gw_pump1_ext_kl`     DECIMAL(10,2)     DEFAULT NULL,
   `gw_pump2_meter`      DECIMAL(12,2)     DEFAULT NULL,
   `gw_pump2_ext_kl`     DECIMAL(10,2)     DEFAULT NULL,
+  `gw_pump3_meter`      DECIMAL(12,2)     DEFAULT NULL,
+  `gw_pump3_ext_kl`     DECIMAL(10,2)     DEFAULT NULL,
   `total_ext_kl`        DECIMAL(10,2)     DEFAULT NULL,
   `dom_colony`          DECIMAL(10,2)     DEFAULT NULL,
   `dom_fire`            DECIMAL(10,2)     DEFAULT NULL,

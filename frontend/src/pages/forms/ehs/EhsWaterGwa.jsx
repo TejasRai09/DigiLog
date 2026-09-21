@@ -14,6 +14,7 @@ const INITIAL = {
   date: '',
   gw_pump1_meter:     '', gw_pump1_ext_kl:  '',
   gw_pump2_meter:     '', gw_pump2_ext_kl:  '',
+  gw_pump3_meter:     '', gw_pump3_ext_kl:  '',
   total_ext_kl:       '',
   dom_colony:         '', dom_fire:           '',
   ind_distillery:     '', ind_power_plant:    '', ind_refinery: '',
@@ -80,6 +81,8 @@ const EhsWaterGwa = () => {
             <NumField label="Pump 1 — Extracted (KL)"             name="gw_pump1_ext_kl" value={form.gw_pump1_ext_kl} onChange={handle} />
             <NumField label="Pump 2 — Meter Reading (36 Block)"   name="gw_pump2_meter"   value={form.gw_pump2_meter}   onChange={handle} />
             <NumField label="Pump 2 — Extracted (KL)"             name="gw_pump2_ext_kl" value={form.gw_pump2_ext_kl} onChange={handle} />
+            <NumField label="Pump 3 — Meter Reading (Admin)"      name="gw_pump3_meter"   value={form.gw_pump3_meter}   onChange={handle} />
+            <NumField label="Pump 3 — Extracted (KL)"             name="gw_pump3_ext_kl" value={form.gw_pump3_ext_kl} onChange={handle} />
           </div>
           <NumField label="Total Extracted from Bore Wells (KL)" name="total_ext_kl" value={form.total_ext_kl} onChange={handle} />
         </div>

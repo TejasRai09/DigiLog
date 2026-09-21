@@ -892,6 +892,8 @@ model ehs_water_gwa {
   gw_pump1_ext_kl    Decimal?  @db.Decimal(10, 2)
   gw_pump2_meter     Decimal?  @db.Decimal(12, 2)
   gw_pump2_ext_kl    Decimal?  @db.Decimal(10, 2)
+  gw_pump3_meter     Decimal?  @db.Decimal(12, 2)
+  gw_pump3_ext_kl    Decimal?  @db.Decimal(10, 2)
   total_ext_kl       Decimal?  @db.Decimal(10, 2)
   dom_colony         Decimal?  @db.Decimal(10, 2)
   dom_fire           Decimal?  @db.Decimal(10, 2)

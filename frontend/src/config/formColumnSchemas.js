@@ -722,6 +722,8 @@ function schemaEhsWaterGwa() {
   push(a, 'gw_pump1_ext_kl',   'GW Pump 1 (Truck Yard)',     'Extracted (KL)');
   push(a, 'gw_pump2_meter',     'GW Pump 2 (36 Block)',       'Meter Reading');
   push(a, 'gw_pump2_ext_kl',   'GW Pump 2 (36 Block)',       'Extracted (KL)');
+  push(a, 'gw_pump3_meter',     'GW Pump 3 (Admin)',          'Meter Reading');
+  push(a, 'gw_pump3_ext_kl',   'GW Pump 3 (Admin)',          'Extracted (KL)');
   push(a, 'total_ext_kl',       'Total Bore Well',            'Total Ext. (KL)');
   push(a, 'dom_colony',         'Domestic Uses',              'Colony (KL)');
   push(a, 'dom_fire',           'Domestic Uses',              'Fire & Labour (KL)');

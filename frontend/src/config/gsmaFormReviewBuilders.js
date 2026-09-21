@@ -497,6 +497,8 @@ export function buildEhsWaterGwaReview(form) {
       { key: 'gw_pump1_ext_kl', label: 'Pump 1 — Extracted (KL)' },
       { key: 'gw_pump2_meter', label: 'Pump 2 — Meter Reading' },
       { key: 'gw_pump2_ext_kl', label: 'Pump 2 — Extracted (KL)' },
+      { key: 'gw_pump3_meter', label: 'Pump 3 — Meter Reading (Admin)' },
+      { key: 'gw_pump3_ext_kl', label: 'Pump 3 — Extracted (KL)' },
       { key: 'total_ext_kl', label: 'Total Extracted (KL)' },
     ])),
     section('Domestic Uses', fieldsFromDefs(form, [
