@@ -280,8 +280,8 @@
       "element": "KPI card",
       "name": "Operating Days",
       "unit": "count",
-      "description": "Number of filtered stoppage log rows in the period (not unique days).",
-      "formula": "COUNT(filtered stoppage rows); not unique calendar days.",
+      "description": "Inclusive calendar days in the selected From–To window, including days with no stoppage.",
+      "formula": "days = max(1, round((toDate - fromDate)/86400000)+1) when From and To are valid; 0 if either date is missing. Unique calendar days, not stoppage row count.",
       "source": "mill_stoppages.Date, mill_stoppages.section",
       "comparison": "No percent chip on this element."
     },
