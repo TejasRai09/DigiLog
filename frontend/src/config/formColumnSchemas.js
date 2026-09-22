@@ -729,7 +729,9 @@ function schemaEhsWaterGwa() {
   push(a, 'dom_fire',           'Domestic Uses',              'Fire & Labour (KL)');
   push(a, 'ind_distillery',     'Industrial Uses',            'Distillery (KL)');
   push(a, 'ind_power_plant',    'Industrial Uses',            'Power Plant (KL)');
-  push(a, 'ind_refinery',       'Industrial Uses',            'Refinery + DS + Mill (KL)');
+  push(a, 'ind_refinery',       'Industrial Uses',            'Refinery (KL)');
+  push(a, 'ind_ds',             'Industrial Uses',            'DS (KL)');
+  push(a, 'ind_mill',           'Industrial Uses',            'Mill (KL)');
   push(a, 'total_industrial',   'Industrial Uses',            'Total Industrial (KL)');
   push(a, 'cane_crush_ondate',  'Cane Crushing',              'On Date (TCD)');
   push(a, 'cane_crush_todate',  'Cane Crushing',              'To Date (TCD)');

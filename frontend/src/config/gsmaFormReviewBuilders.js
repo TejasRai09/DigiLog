@@ -508,7 +508,9 @@ export function buildEhsWaterGwaReview(form) {
     section('Industrial Uses', fieldsFromDefs(form, [
       { key: 'ind_distillery', label: 'Distillery (KL)' },
       { key: 'ind_power_plant', label: 'Power Plant (KL)' },
-      { key: 'ind_refinery', label: 'Refinery + DS + Mill (KL)' },
+      { key: 'ind_refinery', label: 'Refinery (KL)' },
+      { key: 'ind_ds', label: 'DS (KL)' },
+      { key: 'ind_mill', label: 'Mill (KL)' },
       { key: 'total_industrial', label: 'Total Industrial (KL)' },
     ])),
     section('Cane Crush & Water per Tonne', fieldsFromDefs(form, [
