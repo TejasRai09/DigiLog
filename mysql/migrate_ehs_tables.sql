@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS `ehs_water_gwa` (
   `ind_distillery`      DECIMAL(10,2)     DEFAULT NULL,
   `ind_power_plant`     DECIMAL(10,2)     DEFAULT NULL,
   `ind_refinery`        DECIMAL(10,2)     DEFAULT NULL,
+  `ind_ds`              DECIMAL(10,2)     DEFAULT NULL,
+  `ind_mill`            DECIMAL(10,2)     DEFAULT NULL,
   `total_industrial`    DECIMAL(10,2)     DEFAULT NULL,
   `cane_crush_ondate`   DECIMAL(10,2)     DEFAULT NULL,
   `cane_crush_todate`   DECIMAL(12,2)     DEFAULT NULL,

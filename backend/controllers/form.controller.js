@@ -243,8 +243,34 @@ function validateStoppagePhotos(value) {
   return { value: validated };
 }
 
+function sumOptionalKl(values) {
+  let any = false;
+  let sum = 0;
+  for (const value of values) {
+    if (value === null || value === undefined || value === '') continue;
+    const n = Number(value);
+    if (!Number.isFinite(n)) continue;
+    any = true;
+    sum += n;
+  }
+  return any ? Math.round(sum * 100) / 100 : null;
+}
+
+function applyEhsWaterGwaTotals(payload) {
+  payload.total_industrial = sumOptionalKl([
+    payload.ind_distillery,
+    payload.ind_power_plant,
+    payload.ind_refinery,
+    payload.ind_ds,
+    payload.ind_mill,
+  ]);
+}
+
 function validateFormPayload(formKey, payload) {
   switch (formKey) {
+    case 'ehs_water_gwa':
+      applyEhsWaterGwaTotals(payload);
+      return { ok: true };
     case 'ehs_water_cpu':
       return validatePhFields(payload, ['inlet_ph_a', 'inlet_ph_b', 'inlet_ph_c', 'outlet_ph']);
     case 'ehs_water_etp':

@@ -10,6 +10,26 @@ import { buildEhsWaterGwaReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 
+const INDUSTRIAL_KL_FIELDS = [
+  'ind_distillery',
+  'ind_power_plant',
+  'ind_refinery',
+  'ind_ds',
+  'ind_mill',
+];
+
+function parseKl(value) {
+  const n = parseFloat(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function totalIndustrialKl(form) {
+  const filled = INDUSTRIAL_KL_FIELDS.some((key) => String(form[key] ?? '').trim() !== '');
+  if (!filled) return '';
+  const sum = INDUSTRIAL_KL_FIELDS.reduce((acc, key) => acc + parseKl(form[key]), 0);
+  return String(Math.round(sum * 100) / 100);
+}
+
 const INITIAL = {
   date: '',
   gw_pump1_meter:     '', gw_pump1_ext_kl:  '',
@@ -17,24 +37,42 @@ const INITIAL = {
   gw_pump3_meter:     '', gw_pump3_ext_kl:  '',
   total_ext_kl:       '',
   dom_colony:         '', dom_fire:           '',
-  ind_distillery:     '', ind_power_plant:    '', ind_refinery: '',
+  ind_distillery:     '', ind_power_plant:    '',
+  ind_refinery:       '', ind_ds:             '', ind_mill: '',
   total_industrial:   '',
   cane_crush_ondate:  '', cane_crush_todate:  '',
   sugar_total_lt:     '', industrial_lt:      '', total_ext_sugar_lt: '',
   remarks: '',
 };
 
-const NumField = ({ label, name, value, onChange }) => (
+const NumField = ({ label, name, value, onChange, readOnly = false }) => (
   <div>
     <label className="label">{label}</label>
-    <input type="number" step="any" name={name} value={value} onChange={onChange} className="input" />
+    <input
+      type="number"
+      step="any"
+      name={name}
+      value={value}
+      onChange={onChange}
+      readOnly={readOnly}
+      className={`input${readOnly ? ' bg-slate-50 text-slate-700' : ''}`}
+    />
   </div>
 );
 
 const EhsWaterGwa = () => {
   const [form, setForm] = useState(INITIAL);
 
-  const handle = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handle = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (INDUSTRIAL_KL_FIELDS.includes(name)) {
+        next.total_industrial = totalIndustrialKl(next);
+      }
+      return next;
+    });
+  };
 
   const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
     validate: () => {
@@ -100,10 +138,17 @@ const EhsWaterGwa = () => {
         <div className="form-section space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Water Uses — Industrial</h2>
           <div className="grid grid-cols-2 gap-4">
-            <NumField label="Distillery (KL)"             name="ind_distillery"   value={form.ind_distillery}   onChange={handle} />
-            <NumField label="Power Plant (KL)"            name="ind_power_plant"  value={form.ind_power_plant}  onChange={handle} />
-            <NumField label="Refinery + DS + Mill (KL)"  name="ind_refinery"     value={form.ind_refinery}     onChange={handle} />
-            <NumField label="Total Industrial (KL)"      name="total_industrial"  value={form.total_industrial} onChange={handle} />
+            <NumField label="Distillery (KL)"   name="ind_distillery"  value={form.ind_distillery}  onChange={handle} />
+            <NumField label="Power Plant (KL)"  name="ind_power_plant" value={form.ind_power_plant} onChange={handle} />
+            <NumField label="Refinery (KL)"     name="ind_refinery"    value={form.ind_refinery}    onChange={handle} />
+            <NumField label="DS (KL)"           name="ind_ds"          value={form.ind_ds}          onChange={handle} />
+            <NumField label="Mill (KL)"         name="ind_mill"        value={form.ind_mill}        onChange={handle} />
+            <NumField
+              label="Total Industrial (KL)"
+              name="total_industrial"
+              value={form.total_industrial}
+              readOnly
+            />
           </div>
         </div>
 
