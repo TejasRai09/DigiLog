@@ -758,6 +758,16 @@ function buildChangeDescription({
     if (parts.includes('link')) {
       return `Linked equipment to hierarchy node${name ? ` ${quoteName(name)}` : ''}`.slice(0, 255);
     }
+    if (parts.includes('move')) {
+      const ids = Array.isArray(body?.nodeIds) ? body.nodeIds : [];
+      const n = ids.length;
+      return `Moved ${n || 'selected'} hierarchy item${n === 1 ? '' : 's'}`.slice(0, 255);
+    }
+    if (parts.includes('stars')) {
+      if (m === 'DELETE') return 'Removed a hierarchy star'.slice(0, 255);
+      if (m === 'POST') return 'Starred a hierarchy item'.slice(0, 255);
+      return 'Updated hierarchy stars'.slice(0, 255);
+    }
     if (parts.includes('sync-name')) {
       return `Synced hierarchy name${name ? ` to ${quoteName(name)}` : ''}${equip ? ` for ${equip}` : ''}`.slice(0, 255);
     }
@@ -868,6 +878,12 @@ function buildChangeDescription({
     const base = `Updated Life History Card details${equip ? ` for ${equip}` : ''}`;
     if (detailFields) return `${base} — ${detailFields}`.slice(0, 255);
     return base.slice(0, 255);
+  }
+
+  if (moduleKey === 'production-house' && parts[1] === 'move' && m === 'POST') {
+    const ids = Array.isArray(body?.equipmentIds) ? body.equipmentIds : [];
+    const n = ids.length;
+    return `Moved ${n || 'selected'} production equipment card${n === 1 ? '' : 's'}`.slice(0, 255);
   }
 
   if (['power-new', 'power', 'sugar-new', 'equipment', 'production-house'].includes(moduleKey)

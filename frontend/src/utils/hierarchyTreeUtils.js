@@ -89,6 +89,47 @@ export function isHierarchyNodeLocked(tree, node, apiBase = '/power-new', canMan
   return Boolean(tree && isProtectedSeededNode(tree, node.id));
 }
 
+export function collectHierarchyDescendantIds(node, acc = []) {
+  if (!node) return acc;
+  acc.push(String(node.id));
+  for (const child of node.children || []) collectHierarchyDescendantIds(child, acc);
+  return acc;
+}
+
+/** Parent-folder depth required for a same-level move. */
+export function hierarchyMoveParentDepth(sourceDepth) {
+  return Number(sourceDepth) - 1;
+}
+
+/**
+ * Why Move here is disabled for the folder currently open in the picker.
+ * Returns null when the open folder is a legal destination.
+ */
+export function hierarchyMoveBlockReason(tree, sourceNodes, browseFolder) {
+  if (!tree || !browseFolder || !sourceNodes?.length) return 'Select a destination folder.';
+  if (isHierarchyEquipment(browseFolder)) return 'Cannot move items into an equipment card.';
+  const depths = sourceNodes.map((node) => pathIdsForNodeId(tree, node.id).length);
+  if (depths.some((depth) => depth !== depths[0])) {
+    return 'Select items from the same level to move together.';
+  }
+  const targetDepth = pathIdsForNodeId(tree, browseFolder.id).length;
+  if (targetDepth !== hierarchyMoveParentDepth(depths[0])) {
+    return 'Select a destination folder at the same level, then click Move here.';
+  }
+  const forbidden = new Set();
+  sourceNodes.forEach((node) => {
+    collectHierarchyDescendantIds(node).forEach((id) => forbidden.add(id));
+  });
+  if (forbidden.has(String(browseFolder.id))) {
+    return 'Cannot move a folder into itself or one of its items.';
+  }
+  const parentId = Number(browseFolder.dbId || browseFolder.id);
+  if (sourceNodes.every((node) => Number(node.parentId) === parentId)) {
+    return 'Those items are already in this folder.';
+  }
+  return null;
+}
+
 /** Separator used between sub-equipment name and Inst. History card location. */
 export const SUGAR_LEAF_NAME_SEP = ' · ';
 

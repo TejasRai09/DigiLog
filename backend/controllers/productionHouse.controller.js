@@ -6,6 +6,7 @@ const { validHistoryImageField } = require('../utils/historyImages');
 const { historyDateRangeError } = require('../utils/historyDateRange');
 const { formatProductionHouseSpecValue } = require('../utils/productionHouseSpecValue');
 const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
+const { uniquePositiveIds } = require('../utils/hierarchyMove');
 const {
   isApprovalEnabled,
   createPendingRequest,
@@ -294,6 +295,75 @@ const deleteEquipment = async (req, res) => {
     res.json({ message: 'Equipment deleted.' });
   } catch (err) {
     sendServerError(res, 'deleteEquipment:', err, MSG.DELETE);
+  }
+};
+
+const moveEquipment = async (req, res) => {
+  try {
+    const equipmentIds = uniquePositiveIds(req.body?.equipmentIds);
+    const house_section = String(req.body?.house_section || '').trim();
+    if (!equipmentIds.length) {
+      return res.status(400).json({ message: 'Select at least one item to move.' });
+    }
+    if (!HOUSE_SECTIONS.has(house_section)) {
+      return res.status(400).json({ message: 'Unknown house section.' });
+    }
+
+    const placeholders = equipmentIds.map(() => '?').join(',');
+    const [rows] = await pool.execute(
+      `SELECT id, name, sheet_name, house_section, is_imported
+       FROM phn_equipment WHERE id IN (${placeholders})`,
+      equipmentIds,
+    );
+    if (rows.length !== equipmentIds.length) {
+      return res.status(404).json({ message: 'One of the selected items was not found.' });
+    }
+
+    const canManage = await canManageLockedCards(req.user, 'production');
+    if (rows.some((row) => row.is_imported) && !canManage) {
+      return res.status(403).json({
+        message: 'Imported production equipment cannot be moved without locked-card manage access.',
+      });
+    }
+
+    const moving = rows.filter((row) => row.house_section !== house_section);
+    if (!moving.length) {
+      return res.status(400).json({ message: 'Those items are already in this house.' });
+    }
+
+    const sheetNames = [...new Set(moving.map((row) => String(row.sheet_name || '').trim()).filter(Boolean))];
+    if (sheetNames.length) {
+      const [conflicts] = await pool.execute(
+        `SELECT sheet_name FROM phn_equipment
+         WHERE house_section = ?
+           AND sheet_name IN (${sheetNames.map(() => '?').join(',')})
+           AND id NOT IN (${placeholders})`,
+        [house_section, ...sheetNames, ...equipmentIds],
+      );
+      if (conflicts.length) {
+        return res.status(409).json({
+          message: `"${conflicts[0].sheet_name}" already exists in that house.`,
+        });
+      }
+    }
+
+    await pool.execute(
+      `UPDATE phn_equipment SET house_section = ? WHERE id IN (${moving.map(() => '?').join(',')})`,
+      [house_section, ...moving.map((row) => row.id)],
+    );
+
+    res.json({
+      message: moving.length === 1 ? 'Moved 1 item.' : `Moved ${moving.length} items.`,
+      moved: moving.length,
+      house_section,
+    });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        message: 'An item with that sheet name already exists in the destination house.',
+      });
+    }
+    sendServerError(res, 'moveEquipment:', err, MSG.SAVE);
   }
 };
 
@@ -636,6 +706,7 @@ module.exports = {
   getEquipment,
   updateEquipment,
   deleteEquipment,
+  moveEquipment,
   updateSpecs,
   getHistory,
   addHistory,

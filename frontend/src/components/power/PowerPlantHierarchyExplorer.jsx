@@ -4,22 +4,31 @@ import {
   MdAccountTree,
   MdArrowForward,
   MdBolt,
+  MdCheckBox,
+  MdCheckBoxOutlineBlank,
   MdChevronRight,
   MdClose,
   MdDashboard,
   MdDelete,
+  MdDriveFileMove,
   MdEdit,
   MdExpandLess,
   MdExpandMore,
   MdFolder,
+  MdHistory,
   MdHub,
   MdSearch,
+  MdSelectAll,
   MdSettings,
+  MdStar,
+  MdStarBorder,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../Spinner';
+import CardOverflowMenu from '../CardOverflowMenu';
 import EngineeringDisciplineCards from './EngineeringDisciplineCards';
+import HierarchyMoveModal from './HierarchyMoveModal';
 import { useHierarchyManage, hierarchyAddAction } from './HierarchyManagePanel';
 import {
   disciplineNodesForEquipment,
@@ -38,10 +47,14 @@ import {
 } from '../../utils/hierarchyTreeUtils';
 import { isZilEquipNo } from '../../config/powerEquipmentFields';
 import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
+import useHierarchyStars from '../../hooks/useHierarchyStars';
+import useHierarchyMoveHistory from '../../hooks/useHierarchyMoveHistory';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
 const VIEW_MAP = 'map';
+const VIEW_STARRED = 'starred';
+const VIEW_MOVE_HISTORY = 'move-history';
 
 // markmap pulls in its own renderer; only load it when the map view is opened.
 const HierarchyMarkmapView = lazy(() => import('./HierarchyMarkmapView'));
@@ -82,6 +95,17 @@ function hierarchyChoiceLabel(apiBase, pathDepth, isEquipmentLeaf) {
   return 'item';
 }
 
+function collectNodesByIds(root, idSet) {
+  if (!root || !idSet?.size) return [];
+  const out = [];
+  const walk = (node) => {
+    if (idSet.has(String(node.id))) out.push(node);
+    for (const child of node.children || []) walk(child);
+  };
+  walk(root);
+  return out;
+}
+
 function EquipmentCard({
   node,
   onOpen,
@@ -89,8 +113,17 @@ function EquipmentCard({
   showManageActions = false,
   onEdit,
   onDelete,
+  onMove,
+  onSelect,
   manageSaving = false,
   showHistLocation = false,
+  selectMode = false,
+  selected = false,
+  selectDisabled = false,
+  onToggleSelect,
+  starred = false,
+  onToggleStar,
+  pathCaption = '',
 }) {
   const isGroup = isHierarchyGroup(node);
   const childCount = node.children?.length ?? 0;
@@ -110,15 +143,40 @@ function EquipmentCard({
     return `${ENGINEERING_DISCIPLINES.length} disciplines · Choose section`;
   };
 
+  const handleCardClick = () => {
+    if (selectMode) {
+      if (!selectDisabled) onToggleSelect?.(node);
+      return;
+    }
+    onOpen(node);
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => onOpen(node)}
-      disabled={isOpening}
-      className="card p-4 text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-60 disabled:pointer-events-none"
+    <div
+      role="button"
+      tabIndex={isOpening ? -1 : 0}
+      onClick={handleCardClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleCardClick();
+        }
+      }}
+      className={`card p-4 text-left w-full transition-all duration-200 group focus:outline-none hover:shadow-md hover:-translate-y-0.5 focus:ring-2 focus:ring-amber-500 ${
+        isOpening ? 'opacity-60 pointer-events-none' : ''
+      } ${selected ? 'ring-2 ring-amber-400' : ''} ${
+        selectDisabled && selectMode ? 'opacity-60' : ''
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-3 min-w-0">
+          {selectMode ? (
+            <span className="mt-2 shrink-0 text-amber-700">
+              {selected
+                ? <MdCheckBox className="h-5 w-5" />
+                : <MdCheckBoxOutlineBlank className="h-5 w-5" />}
+            </span>
+          ) : null}
           <div className="h-10 w-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
             <Icon className="h-5 w-5" />
           </div>
@@ -137,30 +195,37 @@ function EquipmentCard({
               </p>
             ) : null}
             <p className="text-xs text-gray-500 mt-1">{subtitle()}</p>
+            {pathCaption ? (
+              <p className="text-xs text-slate-400 mt-1 truncate">{pathCaption}</p>
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {showManageActions && (
-            <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                disabled={manageSaving}
-                onClick={() => onEdit?.(node)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                title="Edit"
-              >
-                <MdEdit className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                disabled={manageSaving}
-                onClick={() => onDelete?.(node)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                title="Delete"
-              >
-                <MdDelete className="h-4 w-4" />
-              </button>
-            </div>
+          {onToggleStar ? (
+            <button
+              type="button"
+              title={starred ? 'Remove from starred' : 'Star this card'}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleStar(node);
+              }}
+              className={`p-1.5 rounded-lg ${
+                starred ? 'text-amber-500 hover:bg-amber-50' : 'text-slate-300 hover:text-amber-500 hover:bg-amber-50'
+              }`}
+            >
+              {starred ? <MdStar className="h-5 w-5" /> : <MdStarBorder className="h-5 w-5" />}
+            </button>
+          ) : null}
+          {showManageActions && !selectMode && (
+            <CardOverflowMenu
+              disabled={manageSaving}
+              items={[
+                { label: 'Move', icon: MdDriveFileMove, onClick: () => onMove?.(node) },
+                { label: 'Select', icon: MdSelectAll, onClick: () => onSelect?.(node) },
+                { label: 'Edit', icon: MdEdit, onClick: () => onEdit?.(node) },
+                { label: 'Delete', icon: MdDelete, danger: true, onClick: () => onDelete?.(node) },
+              ]}
+            />
           )}
           {isGroup ? (
             <MdChevronRight className="h-5 w-5 text-gray-400 group-hover:text-amber-600 mt-0.5" />
@@ -169,7 +234,7 @@ function EquipmentCard({
           )}
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -336,8 +401,61 @@ function ViewToggle({ view, onChange }) {
         <MdHub className="h-4 w-4" />
         Mind map
       </button>
+      <button
+        type="button"
+        onClick={() => onChange(VIEW_STARRED)}
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          view === VIEW_STARRED
+            ? 'bg-white text-amber-800 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+        aria-pressed={view === VIEW_STARRED}
+      >
+        <MdStar className="h-4 w-4" />
+        Starred
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange(VIEW_MOVE_HISTORY)}
+        className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+          view === VIEW_MOVE_HISTORY
+            ? 'bg-white text-amber-800 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+        aria-pressed={view === VIEW_MOVE_HISTORY}
+      >
+        <MdHistory className="h-4 w-4" />
+        Move history
+      </button>
     </div>
   );
+}
+
+function formatMoveWhen(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function moveFolderPath(fullPath, nodeName) {
+  const full = String(fullPath || '').trim();
+  const name = String(nodeName || '').trim();
+  if (!full) return '—';
+  if (name) {
+    const suffix = ` › ${name}`;
+    if (full.endsWith(suffix)) {
+      const parent = full.slice(0, -suffix.length).trim();
+      return parent || '—';
+    }
+  }
+  return full;
 }
 
 export default function PowerPlantHierarchyExplorer({
@@ -359,8 +477,18 @@ export default function PowerPlantHierarchyExplorer({
   const [view, setView] = useState(VIEW_CARDS);
   const [opening, setOpening] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [moveNodes, setMoveNodes] = useState(null);
+  const [moveSaving, setMoveSaving] = useState(false);
   const { canManageApiBase } = useLockedCardManageAccess();
   const canManageLockedCards = canManageApiBase(apiBase);
+  const { starredIds, isStarred, toggleStar } = useHierarchyStars(apiBase);
+  const {
+    entries: moveHistory,
+    loading: moveHistoryLoading,
+    reload: reloadMoveHistory,
+  } = useHierarchyMoveHistory(apiBase, { enabled: view === VIEW_MOVE_HISTORY });
 
   const isDbTree = hierarchySource === 'database';
 
@@ -392,6 +520,7 @@ export default function PowerPlantHierarchyExplorer({
   });
 
   const updateNavigation = (nextPathIds, nextActiveEquipmentId = null) => {
+    if (!moveNodes?.length) exitSelectMode();
     onNavigationChange?.({
       pathIds: nextPathIds,
       activeEquipmentId: nextActiveEquipmentId,
@@ -421,6 +550,31 @@ export default function PowerPlantHierarchyExplorer({
     return searchTargetNodes.filter((n) => matchesNodeSearch(n, query));
   }, [currentNode, tree, searchTerm]);
 
+  const starredCards = useMemo(() => {
+    const nodes = collectNodesByIds(tree, starredIds).filter(
+      (node) => String(node.id) !== String(tree?.id),
+    );
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return nodes;
+    return nodes.filter((node) => matchesNodeSearch(node, query));
+  }, [tree, starredIds, searchTerm]);
+
+  const filteredMoveHistory = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return moveHistory;
+    return moveHistory.filter((entry) => {
+      const haystack = [
+        entry.userName,
+        entry.nodeName,
+        entry.fromPath,
+        entry.toPath,
+        entry.fromParentName,
+        entry.toParentName,
+      ].join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [moveHistory, searchTerm]);
+
   const childCount = displayCards.length;
 
   const currentPosition = useMemo(() => {
@@ -438,6 +592,68 @@ export default function PowerPlantHierarchyExplorer({
 
   const cardManageActionsEnabled = (node) =>
     Boolean(openEdit) && isDbTree && tree && !isHierarchyNodeLocked(tree, node, apiBase, canManageLockedCards);
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const startSelectMode = (node) => {
+    if (searchTerm.trim()) {
+      toast.error('Clear search to select items.');
+      return;
+    }
+    setSelectMode(true);
+    setSelectedIds(node ? new Set([String(node.id)]) : new Set());
+  };
+
+  const toggleSelect = (node) => {
+    if (!cardManageActionsEnabled(node)) return;
+    const id = String(node.id);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedCards = displayCards.filter((node) => selectedIds.has(String(node.id)));
+  const movePickMode = Boolean(moveNodes?.length);
+
+  const startMovePick = (nodes) => {
+    const list = (nodes || []).filter((node) => cardManageActionsEnabled(node));
+    if (!list.length) {
+      toast.error('Select at least one item you can move.');
+      return;
+    }
+    setMoveNodes(list);
+  };
+
+  const cancelMovePick = () => {
+    if (moveSaving) return;
+    setMoveNodes(null);
+  };
+
+  const confirmMove = async (targetParentId) => {
+    if (!moveNodes?.length) return;
+    setMoveSaving(true);
+    try {
+      const { data } = await api.post(`${apiBase}/hierarchy/move`, {
+        nodeIds: moveNodes.map((node) => Number(node.dbId || node.id)),
+        targetParentId,
+      });
+      toast.success(data?.message || 'Moved.');
+      setMoveNodes(null);
+      exitSelectMode();
+      await onReloadTree?.({ silent: true });
+      reloadMoveHistory();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Move failed.');
+    } finally {
+      setMoveSaving(false);
+    }
+  };
 
   const buildNavState = (node, specSection = null) => ({
     appId: appId != null && appId !== '' ? String(appId) : undefined,
@@ -530,6 +746,21 @@ export default function PowerPlantHierarchyExplorer({
     updateNavigation(pathIdsForNodeId(tree, node.id).slice(0, -1), node.id);
   };
 
+  const openStarredNode = (node) => {
+    handleNodeOpen(node);
+    setView(VIEW_CARDS);
+  };
+
+  const openHistoryNode = (entry) => {
+    const node = tree ? findNodeById(tree, entry.nodeId) : null;
+    if (!node) {
+      toast.error('That card is no longer in the hierarchy.');
+      return;
+    }
+    handleNodeOpen(node);
+    setView(VIEW_CARDS);
+  };
+
   const handleDisciplineOpen = (disciplineNode) => {
     const equipment = disciplineNode.equipmentNode;
     if (!equipment) return;
@@ -554,10 +785,24 @@ export default function PowerPlantHierarchyExplorer({
 
   return (
     <>
-      <div className="card overflow-hidden">
+      <div className="card overflow-visible">
         <div className="px-5 py-4 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            {currentPosition ? (
+            {view === VIEW_STARRED ? (
+              <>
+                <h2 className="text-base font-semibold text-gray-900">Starred</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Open a folder or equipment card to go there
+                </p>
+              </>
+            ) : view === VIEW_MOVE_HISTORY ? (
+              <>
+                <h2 className="text-base font-semibold text-gray-900">Move history</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Card moves by every user, with their name
+                </p>
+              </>
+            ) : currentPosition ? (
               <>
                 <h2 className="text-base font-semibold text-gray-900">
                   You are currently in {currentPosition.name}
@@ -571,14 +816,41 @@ export default function PowerPlantHierarchyExplorer({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {addButton}
+            {selectMode ? (
+              <>
+                <span className="text-xs font-semibold text-slate-600">
+                  {selectedCards.length} selected
+                </span>
+                <button
+                  type="button"
+                  disabled={moveSaving || !selectedCards.length}
+                  onClick={() => startMovePick(selectedCards)}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg border border-amber-200 disabled:opacity-50"
+                >
+                  <MdDriveFileMove className="w-3.5 h-3.5" />
+                  Move
+                </button>
+                <button
+                  type="button"
+                  onClick={exitSelectMode}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg border border-slate-200"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : view === VIEW_STARRED || view === VIEW_MOVE_HISTORY ? null : (
+              addButton
+            )}
             <div className="relative">
               <MdSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search tag or name..."
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (selectMode) exitSelectMode();
+                }}
+                placeholder={view === VIEW_MOVE_HISTORY ? 'Search user or card...' : 'Search tag or name...'}
                 className="w-44 sm:w-56 pl-8 pr-7 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:border-amber-500 focus:outline-none transition-colors"
               />
               {searchTerm && (
@@ -597,7 +869,100 @@ export default function PowerPlantHierarchyExplorer({
         </div>
 
         <div className="p-5">
-          {view === VIEW_CARDS ? (
+          {view === VIEW_STARRED ? (
+            starredCards.length === 0 ? (
+              <p className="text-sm text-gray-500 py-8 text-center">
+                {searchTerm
+                  ? <>No starred items matching &ldquo;<span className="font-medium text-gray-700">{searchTerm}</span>&rdquo;.</>
+                  : 'No starred folders or equipment yet. Tap the star on a card to add it here.'}
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {starredCards.map((node) => (
+                  <EquipmentCard
+                    key={node.id}
+                    node={node}
+                    onOpen={openStarredNode}
+                    opening={opening}
+                    showManageActions={false}
+                    showHistLocation={apiBase === '/sugar-new'}
+                    starred={isStarred(node)}
+                    onToggleStar={toggleStar}
+                    pathCaption={pathLabels(tree, pathIdsForNodeId(tree, node.id)).slice(0, -1).join(' › ')}
+                  />
+                ))}
+              </div>
+            )
+          ) : view === VIEW_MOVE_HISTORY ? (
+            moveHistoryLoading && moveHistory.length === 0 ? (
+              <div className="py-16 flex justify-center">
+                <Spinner />
+              </div>
+            ) : filteredMoveHistory.length === 0 ? (
+              <p className="text-sm text-gray-500 py-8 text-center">
+                {searchTerm
+                  ? <>No moves matching &ldquo;<span className="font-medium text-gray-700">{searchTerm}</span>&rdquo;.</>
+                  : 'No card moves yet. When someone moves a folder or equipment card, it will show up here with their name.'}
+              </p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col className="w-[14%]" />
+                    <col className="w-[22%]" />
+                    <col className="w-[25%]" />
+                    <col className="w-[25%]" />
+                    <col className="w-[14%]" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="th">User</th>
+                      <th className="th">Card</th>
+                      <th className="th">From</th>
+                      <th className="th">To</th>
+                      <th className="th">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {filteredMoveHistory.map((entry) => {
+                      const stillExists = Boolean(tree && findNodeById(tree, entry.nodeId));
+                      const fromFolder = moveFolderPath(entry.fromPath, entry.nodeName);
+                      const toFolder = moveFolderPath(entry.toPath, entry.nodeName);
+                      return (
+                        <tr key={entry.id} className="hover:bg-amber-50/40">
+                          <td className="px-3 py-2.5 text-sm font-medium text-gray-900 whitespace-normal break-words sm:px-4">
+                            {entry.userName}
+                          </td>
+                          <td className="px-3 py-2.5 text-sm whitespace-normal break-words sm:px-4">
+                            {stillExists ? (
+                              <button
+                                type="button"
+                                onClick={() => openHistoryNode(entry)}
+                                className="text-left font-medium text-amber-800 hover:underline"
+                              >
+                                {entry.nodeName}
+                              </button>
+                            ) : (
+                              <span className="font-medium text-gray-900">{entry.nodeName}</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-normal break-words sm:px-4">
+                            {fromFolder !== '—' ? fromFolder : (entry.fromParentName || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-normal break-words sm:px-4">
+                            {toFolder !== '—' ? toFolder : (entry.toParentName || '—')}
+                          </td>
+                          <td className="px-3 py-2.5 text-sm text-gray-500 whitespace-normal break-words sm:px-4">
+                            {formatMoveWhen(entry.createdAt)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          ) : view === VIEW_CARDS ? (
             activeEquipment ? (
               <EngineeringDisciplineCards
                 equipmentNode={activeEquipment}
@@ -633,8 +998,16 @@ export default function PowerPlantHierarchyExplorer({
                         showManageActions={cardManageActionsEnabled(node)}
                         onEdit={openEdit}
                         onDelete={deleteNode}
-                        manageSaving={manageSaving}
+                        onMove={(item) => startMovePick([item])}
+                        onSelect={startSelectMode}
+                        manageSaving={manageSaving || moveSaving}
                         showHistLocation={apiBase === '/sugar-new'}
+                        selectMode={selectMode}
+                        selected={selectedIds.has(String(node.id))}
+                        selectDisabled={!cardManageActionsEnabled(node)}
+                        onToggleSelect={toggleSelect}
+                        starred={isStarred(node)}
+                        onToggleStar={isDbTree ? toggleStar : undefined}
                       />
                     ))}
                   </div>
@@ -671,7 +1044,15 @@ export default function PowerPlantHierarchyExplorer({
           )}
         </div>
       </div>
-      {manageModal}
+      {movePickMode ? (
+        <HierarchyMoveModal
+          tree={tree}
+          sourceNodes={moveNodes}
+          saving={moveSaving}
+          onClose={cancelMovePick}
+          onConfirm={confirmMove}
+        />
+      ) : manageModal}
     </>
   );
 }
