@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
+  MdAdd,
   MdCheckCircle,
   MdChevronRight,
   MdClose,
@@ -28,6 +29,10 @@ export default function HierarchyMoveModal({
   onClose,
   onConfirm,
   saving = false,
+  getAddAction,
+  onAdd,
+  canAdd = false,
+  addModalOpen = false,
 }) {
   const [browsePathIds, setBrowsePathIds] = useState(() => (tree ? [tree.id] : []));
   const [selectedId, setSelectedId] = useState(null);
@@ -36,14 +41,20 @@ export default function HierarchyMoveModal({
   const requiredParentDepth = hierarchyMoveParentDepth(sourceDepth);
 
   useEffect(() => {
-    if (tree) setBrowsePathIds([tree.id]);
+    setBrowsePathIds(tree ? [tree.id] : []);
     setSelectedId(null);
-  }, [tree, sourceNodes]);
+  }, [sourceNodes]);
+
+  useEffect(() => {
+    if (!tree) return;
+    setBrowsePathIds((prev) => (prev.length && findNodeByPath(tree, prev) ? prev : [tree.id]));
+    setSelectedId((prev) => (prev && findNodeById(tree, prev) ? prev : null));
+  }, [tree]);
 
   useEffect(() => {
     if (saving) return undefined;
     const onKey = (event) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape' && !addModalOpen) onClose();
     };
     document.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -52,7 +63,7 @@ export default function HierarchyMoveModal({
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [saving, onClose]);
+  }, [saving, onClose, addModalOpen]);
 
   const browseFolder = useMemo(
     () => findNodeByPath(tree, browsePathIds) || tree,
@@ -89,6 +100,11 @@ export default function HierarchyMoveModal({
     : 'Select a destination folder.';
   const canSelectThisFolder = browseDepth === requiredParentDepth;
 
+  const addAction = useMemo(() => {
+    if (!canAdd || !getAddAction || !tree || !browsePathIds.length) return null;
+    return getAddAction(tree, browsePathIds, null);
+  }, [canAdd, getAddAction, tree, browsePathIds]);
+
   const goToPath = (nextPathIds) => {
     setBrowsePathIds(nextPathIds);
     setSelectedId(null);
@@ -119,7 +135,7 @@ export default function HierarchyMoveModal({
         type="button"
         className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px]"
         aria-label="Close"
-        onClick={() => !saving && onClose()}
+        onClick={() => !saving && !addModalOpen && onClose()}
       />
       <div className="relative flex max-h-[min(80vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
@@ -136,8 +152,8 @@ export default function HierarchyMoveModal({
           </div>
           <button
             type="button"
-            onClick={() => !saving && onClose()}
-            disabled={saving}
+            onClick={() => !saving && !addModalOpen && onClose()}
+            disabled={saving || addModalOpen}
             className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40"
             aria-label="Close"
           >
@@ -199,7 +215,9 @@ export default function HierarchyMoveModal({
 
           {listedFolders.length === 0 && !canSelectThisFolder ? (
             <p className="px-3 py-8 text-center text-sm text-slate-500">
-              No folders here. Use the path above to go back.
+              {addAction
+                ? `No folders here. Click ${addAction.buttonLabel} to create one.`
+                : 'No folders here. Use the path above to go back.'}
             </p>
           ) : (
             listedFolders.map((node) => {
@@ -244,14 +262,28 @@ export default function HierarchyMoveModal({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
+        <div className="flex flex-col gap-2 border-t border-slate-100 px-5 py-3">
           <p className="min-w-0 text-xs text-slate-500">
             {selectedReason || `Move into ${selectedNode?.name || 'this folder'}.`}
           </p>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
+            {addAction && onAdd ? (
+              <button
+                type="button"
+                disabled={saving || addModalOpen}
+                onClick={() => onAdd(browsePathIds)}
+                className="flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 disabled:opacity-50"
+              >
+                <MdAdd className="h-3.5 w-3.5" />
+                {addAction.buttonLabel}
+              </button>
+            ) : (
+              <span />
+            )}
+            <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || addModalOpen}
               onClick={onClose}
               className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
             >
@@ -266,6 +298,7 @@ export default function HierarchyMoveModal({
               <MdDriveFileMove className="h-3.5 w-3.5" />
               Move here
             </button>
+            </div>
           </div>
         </div>
       </div>
