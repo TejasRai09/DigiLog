@@ -497,6 +497,8 @@ export function buildEhsWaterGwaReview(form) {
       { key: 'gw_pump1_ext_kl', label: 'Pump 1 — Extracted (KL)' },
       { key: 'gw_pump2_meter', label: 'Pump 2 — Meter Reading' },
       { key: 'gw_pump2_ext_kl', label: 'Pump 2 — Extracted (KL)' },
+      { key: 'gw_pump3_meter', label: 'Pump 3 — Meter Reading (Admin)' },
+      { key: 'gw_pump3_ext_kl', label: 'Pump 3 — Extracted (KL)' },
       { key: 'total_ext_kl', label: 'Total Extracted (KL)' },
     ])),
     section('Domestic Uses', fieldsFromDefs(form, [
@@ -506,7 +508,9 @@ export function buildEhsWaterGwaReview(form) {
     section('Industrial Uses', fieldsFromDefs(form, [
       { key: 'ind_distillery', label: 'Distillery (KL)' },
       { key: 'ind_power_plant', label: 'Power Plant (KL)' },
-      { key: 'ind_refinery', label: 'Refinery + DS + Mill (KL)' },
+      { key: 'ind_refinery', label: 'Refinery (KL)' },
+      { key: 'ind_ds', label: 'DS (KL)' },
+      { key: 'ind_mill', label: 'Mill (KL)' },
       { key: 'total_industrial', label: 'Total Industrial (KL)' },
     ])),
     section('Cane Crush & Water per Tonne', fieldsFromDefs(form, [

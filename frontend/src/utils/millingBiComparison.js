@@ -104,19 +104,23 @@ export function buildMillDailyStoppageSeries(filteredData, compareData, alignOpt
     });
 }
 
+/** Inclusive calendar days in From–To (days with no stoppage still count). */
+export function millOperatingDays(fromDate, toDate) {
+  if (!fromDate || !toDate) return 0;
+  const from = fromDate <= toDate ? fromDate : toDate;
+  const to = fromDate <= toDate ? toDate : fromDate;
+  const start = new Date(`${from}T12:00:00`);
+  const end = new Date(`${to}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+  return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
+}
+
 export function aggregateMillStoppageKpis(rows, fromDate, toDate) {
   const sumHours = (list) => list.reduce((acc, r) => acc + (Number(r.hours) || 0), 0);
   const maxHours = (list) => (list.length ? Math.max(...list.map((r) => Number(r.hours) || 0)) : 0);
   const eventCount = (list) => list.filter((r) => (Number(r.hours) || 0) > 0).length;
 
-  const from = fromDate <= toDate ? fromDate : toDate;
-  const to = fromDate <= toDate ? toDate : fromDate;
-  const start = new Date(`${from}T12:00:00`);
-  const end = new Date(`${to}T12:00:00`);
-  const days =
-    Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())
-      ? 1
-      : Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1);
+  const days = millOperatingDays(fromDate, toDate) || 1;
   const totalAvailable = days * 24;
 
   const totalHrs = sumHours(rows);

@@ -722,12 +722,16 @@ function schemaEhsWaterGwa() {
   push(a, 'gw_pump1_ext_kl',   'GW Pump 1 (Truck Yard)',     'Extracted (KL)');
   push(a, 'gw_pump2_meter',     'GW Pump 2 (36 Block)',       'Meter Reading');
   push(a, 'gw_pump2_ext_kl',   'GW Pump 2 (36 Block)',       'Extracted (KL)');
+  push(a, 'gw_pump3_meter',     'GW Pump 3 (Admin)',          'Meter Reading');
+  push(a, 'gw_pump3_ext_kl',   'GW Pump 3 (Admin)',          'Extracted (KL)');
   push(a, 'total_ext_kl',       'Total Bore Well',            'Total Ext. (KL)');
   push(a, 'dom_colony',         'Domestic Uses',              'Colony (KL)');
   push(a, 'dom_fire',           'Domestic Uses',              'Fire & Labour (KL)');
   push(a, 'ind_distillery',     'Industrial Uses',            'Distillery (KL)');
   push(a, 'ind_power_plant',    'Industrial Uses',            'Power Plant (KL)');
-  push(a, 'ind_refinery',       'Industrial Uses',            'Refinery + DS + Mill (KL)');
+  push(a, 'ind_refinery',       'Industrial Uses',            'Refinery (KL)');
+  push(a, 'ind_ds',             'Industrial Uses',            'DS (KL)');
+  push(a, 'ind_mill',           'Industrial Uses',            'Mill (KL)');
   push(a, 'total_industrial',   'Industrial Uses',            'Total Industrial (KL)');
   push(a, 'cane_crush_ondate',  'Cane Crushing',              'On Date (TCD)');
   push(a, 'cane_crush_todate',  'Cane Crushing',              'To Date (TCD)');

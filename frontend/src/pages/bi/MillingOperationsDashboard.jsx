@@ -64,6 +64,7 @@ import {
   filterMillSeasonCompareRows,
   buildMillDailyStoppageSeries,
   aggregateMillStoppageKpis,
+  millOperatingDays,
 } from '../../utils/millingBiComparison';
 import MillThermalReportsTab from './MillThermalReportsTab';
 import MillLubeRollerTab from './MillLubeRollerTab';
@@ -634,6 +635,12 @@ export default function MillingOperationsDashboard() {
     [machineryTotals],
   );
 
+  /** Header Operating Days: inclusive calendar days in From–To, including idle days. */
+  const operatingDays = useMemo(
+    () => millOperatingDays(fromDate, toDate),
+    [fromDate, toDate],
+  );
+
   /** KPI aggregates for current and compare period. */
   const kpis = useMemo(() => {
     const cur = aggregateMillStoppageKpis(filteredData, fromDate, toDate);
@@ -721,11 +728,11 @@ export default function MillingOperationsDashboard() {
 
           <div className="flex items-center gap-4">
             <BiKeyMetricBox
-              value={filteredData?.length}
+              value={operatingDays}
               title="Operating Days"
               subtitle={rangePreset === 'Custom' ? 'All' : rangePreset}
               isDarkMode={isDarkMode}
-              tooltip={`${filteredData?.length} operating days logged in this period.`}
+              tooltip={`${operatingDays} calendar days in this period (including days with no stoppage).`}
             />
           </div>
         </div>

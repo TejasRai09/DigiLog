@@ -190,7 +190,7 @@ const ROWS = [
     'Header',
     'Operating Days',
     'count',
-    'COUNT of filtered stoppage rows (not unique calendar days).',
+    'Inclusive calendar days from From to To (days with no stoppage still count). Not stoppage row count.',
     'No %',
   ),
   r(

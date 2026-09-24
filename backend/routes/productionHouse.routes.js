@@ -6,6 +6,7 @@ const ctrl = require('../controllers/productionHouse.controller');
 
 router.get('/houses', authenticate, ctrl.listHouses);
 router.get('/', authenticate, ctrl.listEquipment);
+router.post('/move', authenticate, rejectIfFormsHubViewOnly, ctrl.moveEquipment);
 router.get('/:id', authenticate, ctrl.getEquipment);
 router.put('/:id', authenticate, rejectIfFormsHubViewOnly, ctrl.updateEquipment);
 router.delete('/:id', authenticate, rejectIfFormsHubViewOnly, ctrl.deleteEquipment);
