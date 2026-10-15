@@ -109,6 +109,7 @@ async function queueProductionHistoryApproval(req, res, {
   if (!enabled) return false;
 
   try {
+    const asDraft = action === 'create';
     const pending = await createPendingRequest({
       domain: APPROVAL_DOMAIN,
       action,
@@ -118,12 +119,13 @@ async function queueProductionHistoryApproval(req, res, {
       previousRow,
       reqUser: req.user,
       equipment,
+      initialStatus: asDraft ? 'draft' : 'pending',
     });
 
     const deferHodNotify = String(
       req.query?.deferHodNotify ?? req.body?.deferHodNotify ?? '',
     ).trim() === '1';
-    if (!deferHodNotify) {
+    if (!asDraft && !deferHodNotify) {
       try {
         if (pending.request) {
           await notifyHodInAppPending(pending.request, { resubmitted: false });
@@ -134,10 +136,13 @@ async function queueProductionHistoryApproval(req, res, {
     }
 
     res.status(202).json({
-      message: 'Submitted for HOD approval.',
+      message: asDraft
+        ? 'Saved as pending. Submit it when you are ready for HOD approval.'
+        : 'Submitted for HOD approval.',
       pending: true,
+      draft: asDraft,
       approvalRequestId: pending.id,
-      hodNotifyDeferred: deferHodNotify,
+      hodNotifyDeferred: !asDraft && deferHodNotify,
     });
     return true;
   } catch (err) {
