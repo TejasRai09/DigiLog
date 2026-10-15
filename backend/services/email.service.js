@@ -147,17 +147,21 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
   });
 };
 
-function inboxUrl(acceptToken, openId) {
-  let url = `${publicBase}/api/maintenance-approval/inbox?token=${encodeURIComponent(acceptToken)}`;
+function inboxUrl(acceptToken, openId, inboxPath = '/api/maintenance-approval/inbox') {
+  let url = `${publicBase}${inboxPath}?token=${encodeURIComponent(acceptToken)}`;
   if (openId != null && openId !== '') {
     url += `&open=${encodeURIComponent(openId)}`;
   }
   return url;
 }
 
-function digestEntriesHtml(entries = []) {
+function digestEntriesHtml(entries = [], {
+  nameHeader = 'Equipment',
+  pathHeader = 'Path',
+  inboxPath = '/api/maintenance-approval/inbox',
+} = {}) {
   const rows = entries.map((entry, index) => {
-    const url = inboxUrl(entry.acceptToken, entry.id);
+    const url = inboxUrl(entry.acceptToken, entry.id, inboxPath);
     const submitter = entry.submitterEmail
       ? `${entry.submitterName} (${entry.submitterEmail})`
       : entry.submitterName;
@@ -182,8 +186,8 @@ function digestEntriesHtml(entries = []) {
       <thead>
         <tr style="background:#1d4ed8;color:#fff;">
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:center;width:40px;">#</th>
-          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Equipment</th>
-          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Path</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">${escapeHtml(nameHeader)}</th>
+          <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">${escapeHtml(pathHeader)}</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Action</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Created at</th>
           <th style="padding:10px 12px;border:1px solid #1e40af;text-align:left;">Submitted by</th>
@@ -472,6 +476,205 @@ async function sendMaintenanceHistoryModificationReminderEmail({
   });
 }
 
+const FORM_APPROVAL_INBOX_PATH = '/api/form-approval/inbox';
+
+async function sendFormApprovalDigestEmail({
+  to,
+  hodName,
+  cardLabel,
+  digestDate,
+  entries = [],
+  previousCount = 0,
+  newTodayCount = 0,
+  totalCount,
+  mode = 'all',
+}) {
+  const count = totalCount != null ? totalCount : entries.length;
+  const seedToken = entries[0]?.acceptToken;
+  const inboxLink = seedToken ? inboxUrl(seedToken, null, FORM_APPROVAL_INBOX_PATH) : '';
+  const modeNote = mode === 'new'
+    ? 'This email lists only items that were not included in a previous digest.'
+    : 'This email lists all currently pending items (including carry-forward).';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 1100px; width: 100%; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#2563eb;text-align:center;margin:0;">Action Required: ${count} Form${count === 1 ? '' : 's'} Awaiting Approval</h2>
+      <p style="text-align:center;color:#64748b;font-size:14px;margin:4px 0 0;">
+        ${escapeHtml(cardLabel)} · ${escapeHtml(digestDate)} (IST)
+      </p>
+      <p style="margin:20px 0 8px;">Hi <strong>${escapeHtml(hodName || 'HOD')}</strong>,</p>
+      <table style="border-collapse:collapse;margin:12px 0;font-size:14px;width:100%;">
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#fff7ed;">Previous Pending</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;">${Number(previousCount)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#ecfdf5;">New Today</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;">${Number(newTodayCount)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#eff6ff;">In this email</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;">${count}</td>
+        </tr>
+      </table>
+      <p style="margin:0 0 8px;color:#334155;font-size:14px;">
+        Open the approvals inbox — <strong>no DigiLog login required</strong>. Review each row in a modal, then Accept or send for modification.
+        ${escapeHtml(modeNote)}
+      </p>
+      ${inboxLink ? `
+      <p style="text-align:center;margin:20px 0 8px;">
+        <a href="${inboxLink}"
+           style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:8px;font-size:14px;">
+          OPEN APPROVALS INBOX (NO LOGIN)
+        </a>
+      </p>` : ''}
+      <p style="text-align:center;font-size:12px;color:#64748b;margin:0 0 16px;">
+        Per-row Review links open the same inbox and highlight that item.
+      </p>
+      ${digestEntriesHtml(entries, {
+        nameHeader: 'Form',
+        pathHeader: 'Card',
+        inboxPath: FORM_APPROVAL_INBOX_PATH,
+      })}
+      <p style="font-size:12px;color:#64748b;margin-top:20px;">
+        Links expire after 7 days and are refreshed on each digest. Missed this mail? Ask an admin to resend the digest from DigiLog settings.
+      </p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message from DigiLog.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] ${count} form${count === 1 ? '' : 's'} awaiting approval — ${cardLabel}`,
+    html,
+  });
+}
+
+async function sendFormApprovalApprovedEmail({
+  to,
+  submitterName,
+  cardLabel,
+  formName,
+  actionLabel,
+}) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#059669;text-align:center;">Form Approved</h2>
+      <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
+      <p>
+        Your ${escapeHtml(String(actionLabel || 'create').toLowerCase())} for
+        <strong>${escapeHtml(formName)}</strong> in ${escapeHtml(cardLabel)} has been
+        <strong>approved and saved</strong> in DigiLog.
+      </p>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Open DigiLog
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message. Do not reply.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] Form approved — ${formName}`,
+    html,
+  });
+}
+
+async function sendFormApprovalModificationEmail({
+  to,
+  submitterName,
+  cardLabel,
+  formName,
+  actionLabel,
+  comment,
+  openUrl,
+}) {
+  const trimmedOpen = String(openUrl || '').trim();
+  let ctaUrl = trimmedOpen || loginUrl;
+  if (!trimmedOpen && publicBase) {
+    ctaUrl = `${publicBase}/?login=1`;
+  }
+  const safeCta = escapeHtml(ctaUrl);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#d97706;text-align:center;">Sent back for modification</h2>
+      <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
+      <p>
+        Your ${escapeHtml(String(actionLabel || 'create').toLowerCase())} for
+        <strong>${escapeHtml(formName)}</strong> in ${escapeHtml(cardLabel)} was
+        <strong>sent back for modification</strong>. The live form data was not saved.
+      </p>
+      ${comment ? `<p style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;color:#92400e;">
+        <strong>HOD comment:</strong><br/>${escapeHtml(comment)}
+      </p>` : ''}
+      <p>Open DigiLog, update the form, and submit again for HOD review.</p>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${safeCta}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Open form
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">Or copy this link: <a href="${safeCta}" style="color:#2563eb;">${safeCta}</a></p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message. Do not reply.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] Form needs modification — ${formName}`,
+    html,
+  });
+}
+
+async function sendFormApprovalModificationReminderEmail({
+  to,
+  submitterName,
+  cardLabel,
+  formName,
+  actionLabel,
+  comment,
+  openUrl,
+}) {
+  const trimmedOpen = String(openUrl || '').trim();
+  let ctaUrl = trimmedOpen || loginUrl;
+  if (!trimmedOpen && publicBase) {
+    ctaUrl = `${publicBase}/?login=1`;
+  }
+  const safeCta = escapeHtml(ctaUrl);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#d97706;text-align:center;">Reminder: still needs modification</h2>
+      <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
+      <p>
+        This is a reminder that your ${escapeHtml(String(actionLabel || 'create').toLowerCase())} for
+        <strong>${escapeHtml(formName)}</strong> in ${escapeHtml(cardLabel)} is still
+        <strong>waiting for you to revise and resubmit</strong>.
+      </p>
+      ${comment ? `<p style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;color:#92400e;">
+        <strong>HOD comment:</strong><br/>${escapeHtml(comment)}
+      </p>` : ''}
+      <p>Open DigiLog, update the form, and submit again for HOD review.</p>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${safeCta}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Open form
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">Or copy this link: <a href="${safeCta}" style="color:#2563eb;">${safeCta}</a></p>
+      <p style="color:#6b7280;font-size:12px;">You will receive this reminder every 2 days until you resubmit. This is an automated message. Do not reply.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] Reminder: form still needs modification — ${formName}`,
+    html,
+  });
+}
+
 module.exports = {
   sendMail,
   sendAccountActivationEmail,
@@ -481,4 +684,8 @@ module.exports = {
   sendMaintenanceHistoryApprovedEmail,
   sendMaintenanceHistoryModificationEmail,
   sendMaintenanceHistoryModificationReminderEmail,
+  sendFormApprovalDigestEmail,
+  sendFormApprovalApprovedEmail,
+  sendFormApprovalModificationEmail,
+  sendFormApprovalModificationReminderEmail,
 };

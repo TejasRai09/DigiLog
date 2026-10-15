@@ -35,7 +35,7 @@ function ReviewModal({ item, busy, busyAction, onClose, onApprove, onModify, onR
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="min-w-0">
             <h3 id="approval-review-title" className="text-lg font-bold text-slate-900">
-              Review maintenance history change
+              {item.module === 'forms' ? 'Review form submission' : 'Review maintenance history change'}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               {item.domainLabel}
@@ -56,11 +56,11 @@ function ReviewModal({ item, busy, busyAction, onClose, onApprove, onModify, onR
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="space-y-1 text-sm text-slate-600">
             <p>
-              Equipment:{' '}
+              {item.module === 'forms' ? 'Form' : 'Equipment'}:{' '}
               <span className="break-words font-semibold text-slate-900">{item.equipmentName}</span>
             </p>
             <p>
-              Path:{' '}
+              {item.module === 'forms' ? 'Card' : 'Path'}:{' '}
               <span className="break-words font-semibold text-slate-800">{item.equipmentPath || '—'}</span>
             </p>
             <p>
@@ -106,6 +106,7 @@ function ApprovalTable({
   onToggle,
   onReview,
   startIndex = 1,
+  source = 'maintenance',
 }) {
   if (!rows.length) {
     return (
@@ -122,8 +123,8 @@ function ApprovalTable({
           <tr className="bg-blue-700 text-white">
             <th className="w-10 border border-blue-800 px-3 py-2.5 font-semibold" />
             <th className="w-12 border border-blue-800 px-3 py-2.5 text-center font-semibold">#</th>
-            <th className="border border-blue-800 px-3 py-2.5 font-semibold">Equipment</th>
-            <th className="border border-blue-800 px-3 py-2.5 font-semibold">Path</th>
+            <th className="border border-blue-800 px-3 py-2.5 font-semibold">{source === 'forms' ? 'Form' : 'Equipment'}</th>
+            <th className="border border-blue-800 px-3 py-2.5 font-semibold">{source === 'forms' ? 'Card' : 'Path'}</th>
             <th className="border border-blue-800 px-3 py-2.5 font-semibold">Action</th>
             <th className="border border-blue-800 px-3 py-2.5 font-semibold">Status</th>
             <th className="border border-blue-800 px-3 py-2.5 font-semibold">Created at</th>
@@ -200,6 +201,7 @@ export default function PendingChangeList({
   onApprove,
   onModify,
   onResolve,
+  source = 'maintenance',
 }) {
   const [reviewItem, setReviewItem] = useState(null);
 
@@ -228,6 +230,7 @@ export default function PendingChangeList({
         onToggle={onToggle}
         onReview={setReviewItem}
         startIndex={1}
+        source={source}
       />
 
       <ReviewModal

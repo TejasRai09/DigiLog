@@ -500,7 +500,7 @@ export default function MillingOperationsDashboard() {
 
   const comparisonOptions = useMemo(() => {
     const refIso = toDate || rangeToIso || formatYMD(new Date());
-    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, toDate, rangeToIso]);
 
   useEffect(() => {

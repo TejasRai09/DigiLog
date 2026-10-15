@@ -1,10 +1,12 @@
-import { MdCategory, MdFactCheck, MdHistory, MdInsights, MdPeople, MdCalendarToday } from 'react-icons/md';
+import { MdAssignment, MdCategory, MdFactCheck, MdHistory, MdInsights, MdNotes, MdPeople, MdCalendarToday } from 'react-icons/md';
 import EmployeeCategoriesSection from './EmployeeCategoriesSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import BiDashboardSettingsSection from './BiDashboardSettingsSection';
 import SeasonMappingSection from './SeasonMappingSection';
 import AuditLogSection from './AuditLogSection';
 import MaintenanceHistoryApprovalSection from './MaintenanceHistoryApprovalSection';
+import MaintenanceNotesApprovalSection from './MaintenanceNotesApprovalSection';
+import FormsApprovalSection from './FormsApprovalSection';
 
 /**
  * Registry of admin Config sections. Add new entries here to expose
@@ -52,6 +54,20 @@ export const ADMIN_CONFIG_SECTIONS = [
     description: 'HOD email approval for Sugar House, Power Plant, and Production House maintenance history.',
     Icon: MdFactCheck,
     Component: MaintenanceHistoryApprovalSection,
+  },
+  {
+    id: 'maintenance-notes-approval',
+    label: 'Maintenance Notes Approval',
+    description: 'Assign the HOD who can close Maintenance Notes for each plant.',
+    Icon: MdNotes,
+    Component: MaintenanceNotesApprovalSection,
+  },
+  {
+    id: 'forms-approval',
+    label: 'Forms Approval',
+    description: 'HOD approval for Forms Hub cards and individual forms. Off until you enable a card or form.',
+    Icon: MdAssignment,
+    Component: FormsApprovalSection,
   },
 ];
 

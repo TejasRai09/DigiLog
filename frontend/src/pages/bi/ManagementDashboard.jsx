@@ -26,6 +26,7 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import { millOperatingDays } from '../../utils/millingBiComparison';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 
@@ -102,7 +103,7 @@ export default function ManagementDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Compare toggle — PP + all Season Mapping seasons (except current)
+  // Compare toggle — named seasons on STD (no Prev. Season); PP + seasons on other presets
   const [compareType, setCompareType] = useState('PP');
   const [pyData, setPyData] = useState(null);
   const [pyLoading, setPyLoading] = useState(false);
@@ -136,7 +137,7 @@ export default function ManagementDashboard() {
 
   const compareOptions = useMemo(() => {
     const refIso = to || dateBounds.max || formatYMD(new Date());
-    return buildCockpitComparisonOptions(preset, seasonMapping, refIso);
+    return buildCockpitComparisonOptions(preset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [preset, seasonMapping, to, dateBounds.max]);
 
   useEffect(() => {
@@ -336,7 +337,7 @@ export default function ManagementDashboard() {
   );
 
   const periodLabel = from && to ? `${from} → ${to}` : '';
-  const daysElapsed = dashboardData?.daysElapsed ?? null;
+  const daysElapsed = useMemo(() => millOperatingDays(from, to), [from, to]);
 
   if (loading && !dashboardData) {
     return (
@@ -466,7 +467,7 @@ export default function ManagementDashboard() {
             dm ? 'border-slate-700 bg-slate-900/50' : 'border-slate-200 bg-white'
           }`}
         >
-          {/* Responsive zoom-out so 5 rows × 7 KPIs fit without clutter on laptop/monitor */}
+          {/* Responsive zoom-out so all rows × KPIs fit without clutter on laptop/monitor */}
           <div className="min-h-0 flex-1 overflow-hidden">
             <div
               className={`flex h-[122%] w-[122%] origin-top-left scale-[0.82] flex-col gap-1 p-1 lg:h-[114%] lg:w-[114%] lg:scale-[0.88] xl:h-[109%] xl:w-[109%] xl:scale-[0.92] 2xl:h-[104%] 2xl:w-[104%] 2xl:scale-[0.96] ${

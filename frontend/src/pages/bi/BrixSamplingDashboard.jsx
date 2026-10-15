@@ -362,7 +362,7 @@ export default function BrixSamplingDashboard() {
 
   const comparisonOptions = useMemo(() => {
     const refIso = dateTo || dbMaxDateStr || formatYMD(new Date());
-    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, dateTo, dbMaxDateStr]);
 
   useEffect(() => {

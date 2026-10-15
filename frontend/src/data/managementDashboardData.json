@@ -15,9 +15,7 @@
         { "id": "cane_indent", "title": "Cane Indent (Q)", "value": "21.39K", "chart": "line", "chartColor": "#3b82f6", "unit": "Q" },
         { "id": "cane_purchase", "title": "Cane Purchase (Q)", "value": "71.13K", "chart": "bar", "chartColor": "#3b82f6", "unit": "Q" },
         { "id": "yard_bal", "title": "Yard Bal. (8AM)", "value": "21775.86", "subValues": [{"label": "Overrun Gate", "value": "67.4%", "valColor": "text-gray-800"}, {"label": "Overrun Center", "value": "79.1%", "valColor": "text-red-500", "rightVal": "4.19K"}] },
-        { "id": "pol_in_cane", "title": "Pol in Cane %", "value": "15.16", "chart": "line", "chartColor": "#3b82f6", "unit": "%" },
-        { "id": "brix_yard", "title": "Middle Brix % Yard", "value": "19.73", "chart": "bar", "chartColor": "#3b82f6", "unit": "%" },
-        { "id": "brix_field", "title": "Middle Brix % Field", "value": "19.41", "chart": "area", "chartColor": "#3b82f6", "unit": "%" }
+        { "id": "pol_in_cane", "title": "Pol in Cane %", "value": "15.16", "chart": "line", "chartColor": "#3b82f6", "unit": "%" }
       ]
     },
     {

@@ -42,6 +42,7 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
+import { millOperatingDays } from '../../utils/millingBiComparison';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
@@ -126,7 +127,7 @@ export default function PowerHouseDashboard() {
 
   const comparisonOptions = useMemo(() => {
     const refIso = to || dateBounds.max || formatYMD(new Date());
-    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, to, dateBounds.max]);
 
   useEffect(() => {
@@ -398,6 +399,8 @@ export default function PowerHouseDashboard() {
     [powerKpis],
   );
 
+  const operatingDaysCount = useMemo(() => millOperatingDays(from, to), [from, to]);
+
   const pageBg = dm ? 'bg-slate-950 text-slate-100' : 'bg-transparent text-slate-800';
   const hdr = dm ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80';
 
@@ -414,7 +417,7 @@ export default function PowerHouseDashboard() {
           />
           <div className="flex items-center gap-2">
             <BiKeyMetricBox
-              value={daily.length}
+              value={operatingDaysCount}
               title="Operating Days"
               subtitle={compareRange?.label ? `${rangePreset} · vs ${compareRange.label}` : rangePreset}
               isDarkMode={dm}

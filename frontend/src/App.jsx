@@ -27,6 +27,7 @@ function LoggedInHomeRedirect() {
 /** Lazy: heavy pages stay out of the main bundle (and ease Lightsail Vite builds) */
 const MarketingDashboard = lazy(() => import('./pages/MarketingDashboard'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const FormsHubCategory = lazy(() => import('./pages/FormsHubCategory'));
 const BiControlTower = lazy(() => import('./pages/BiControlTower'));
 const DistilleryAnalyticsDashboard = lazy(() => import('./pages/bi/DistilleryAnalyticsDashboard'));
 const MillingOperationsDashboard = lazy(() => import('./pages/bi/MillingOperationsDashboard'));
@@ -43,6 +44,7 @@ const MaintenanceApprovalResult = lazy(() => import('./pages/MaintenanceApproval
 const MaintenanceApprovalReview = lazy(() => import('./pages/MaintenanceApprovalReview'));
 const MaintenanceApprovals = lazy(() => import('./pages/MaintenanceApprovals'));
 const DataIngestionCenter = lazy(() => import('./pages/DataIngestionCenter'));
+const MaintenanceNotesPage = lazy(() => import('./pages/maintenanceNotes/MaintenanceNotesPage'));
 
 const EquipmentTemp = lazy(() => import('./pages/forms/mill/EquipmentTemp'));
 const ShreddarOTG = lazy(() => import('./pages/forms/mill/ShreddarOTG'));
@@ -114,6 +116,8 @@ const App = () => {
             <Route path="/maintenance/approvals" element={<MaintenanceApprovals />} />
             <Route path="/data-upload" element={<DataIngestionCenter />} />
             <Route path="/forms-hub" element={<Dashboard />} />
+            <Route path="/forms-hub/maintenance-notes" element={<MaintenanceNotesPage />} />
+            <Route path="/forms-hub/:category" element={<FormsHubCategory />} />
             <Route path="/bi" element={<BiControlTower />} />
             <Route path="/bi/distillery-operations" element={<DistilleryAnalyticsDashboard />} />
             <Route path="/bi/milling-operations" element={<MillingOperationsDashboard />} />

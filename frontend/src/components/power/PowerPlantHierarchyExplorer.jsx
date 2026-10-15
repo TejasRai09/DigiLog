@@ -49,6 +49,7 @@ import { isZilEquipNo } from '../../config/powerEquipmentFields';
 import useLockedCardManageAccess from '../../hooks/useLockedCardManageAccess';
 import useHierarchyStars from '../../hooks/useHierarchyStars';
 import useHierarchyMoveHistory from '../../hooks/useHierarchyMoveHistory';
+import { trackActivityEvent } from '../../utils/trackActivity';
 
 const VIEW_CARDS = 'cards';
 const VIEW_TREE = 'tree';
@@ -629,14 +630,19 @@ export default function PowerPlantHierarchyExplorer({
     }
   };
 
-  const buildNavState = (node, specSection = null) => ({
-    appId: appId != null && appId !== '' ? String(appId) : undefined,
-    returnTo,
-    fromHierarchy: true,
-    hierarchyPathIds: tree ? pathIdsForNodeId(tree, node.id) : [],
-    restoreEquipmentId: node.id,
-    ...(specSection ? { specSection } : {}),
-  });
+  const buildNavState = (node, specSection = null) => {
+    const nodePathIds = tree ? pathIdsForNodeId(tree, node.id) : [];
+    return {
+      appId: appId != null && appId !== '' ? String(appId) : undefined,
+      returnTo,
+      fromHierarchy: true,
+      hierarchyPathIds: nodePathIds,
+      hierarchyLabels: tree ? pathLabels(tree, nodePathIds) : [],
+      restoreEquipmentId: node.id,
+      equipmentName: node.name,
+      ...(specSection ? { specSection } : {}),
+    };
+  };
 
   const equipmentDetailPath = (equipId, specSection = null) => detailPathFn(equipId, specSection);
 
@@ -713,7 +719,26 @@ export default function PowerPlantHierarchyExplorer({
 
   const handleNodeOpen = (node) => {
     if (!tree) return;
+
     if (isHierarchyGroup(node)) {
+      let sectionName = 'Equipment';
+      if (apiBase === '/power-new') sectionName = 'Power Plant Equipment';
+      else if (apiBase === '/sugar-new') sectionName = 'Sugar House Equipment';
+      else if (apiBase === '/production' || apiBase.includes('production')) sectionName = 'Production House Equipment';
+
+      const nodePathIds = pathIdsForNodeId(tree, node.id);
+      const labels = pathLabels(tree, nodePathIds);
+      const trail = ['Home', 'Forms Hub', sectionName, ...labels.slice(1)].filter(Boolean).join(' > ');
+
+      trackActivityEvent({
+        event_type: 'card_open',
+        section: sectionName,
+        card: node.name,
+        form_or_dashboard: null,
+        display_path: trail,
+        element_label: node.name,
+      });
+
       updateNavigation(pathIdsForNodeId(tree, node.id), null);
       return;
     }

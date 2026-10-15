@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "docs:audit": "node scripts/generate-audit-doc.js",
-    "docs:audit-ba": "node scripts/generate-audit-ba-overview.js"
+    "docs:audit-ba": "node scripts/generate-audit-ba-overview.js",
+    "docs:business": "node scripts/generate-business-functional-doc.js"
   },
   "devDependencies": {
     "docx": "^8.5.0"

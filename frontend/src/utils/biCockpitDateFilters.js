@@ -104,10 +104,12 @@ export function resolveSeasonLabelFromCompareId(comparisonType, seasonLabels = {
 
 /**
  * Compare options: PP + every season_mapping row except current.
- * Signature: (rangePreset, seasonMapping, refIso)
+ * On STD, omit PP when at least one named season chip exists (newest season is the default compare).
+ * Signature: (rangePreset, seasonMapping, refIso, options?)
  * Legacy (rangePreset, seasonLabels, thirdSeasonEnabled) still works for S1/S2/(S3).
  */
-export function buildCockpitComparisonOptions(rangePreset, seasonMappingOrLabels = {}, refIsoOrThird = null) {
+export function buildCockpitComparisonOptions(rangePreset, seasonMappingOrLabels = {}, refIsoOrThird = null, options = {}) {
+  const omitPpOnStd = Boolean(options?.omitPpOnStd);
   const opts = [{ id: 'PP', label: getCockpitPPLabel(rangePreset) }];
 
   const looksLikeLegacyLabels =
@@ -123,6 +125,9 @@ export function buildCockpitComparisonOptions(rangePreset, seasonMappingOrLabels
     if (thirdSeasonEnabled && seasonLabels?.season3) {
       opts.push({ id: 'S3', label: seasonLabels.season3 });
     }
+    if (omitPpOnStd && rangePreset === 'STD' && opts.length > 1) {
+      return opts.filter((o) => o.id !== 'PP');
+    }
     return opts;
   }
 
@@ -135,6 +140,9 @@ export function buildCockpitComparisonOptions(rangePreset, seasonMappingOrLabels
   }
   for (const label of seasons) {
     opts.push({ id: seasonCompareOptionId(label), label });
+  }
+  if (omitPpOnStd && rangePreset === 'STD' && seasons.length > 0) {
+    return opts.filter((o) => o.id !== 'PP');
   }
   return opts;
 }
@@ -247,11 +255,13 @@ export function applyCockpitCompareSelection({
   }
 }
 
-/** Drop stale compare selection if chip no longer in options. */
+/** Drop stale compare selection if chip no longer in options; fall back to first chip. */
 export function ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType) {
-  if (!comparisonType || comparisonType === 'PP') return;
-  const ok = (comparisonOptions || []).some((o) => o.id === comparisonType);
-  if (!ok) setComparisonType('PP');
+  if (!comparisonType) return;
+  const opts = comparisonOptions || [];
+  if (!opts.length) return;
+  const ok = opts.some((o) => o.id === comparisonType);
+  if (!ok) setComparisonType(opts[0].id);
 }
 
 export function clampIsoToBounds(iso, minStr, maxStr) {
