@@ -25,6 +25,7 @@ export const CONFIG_TAB_FILTER_LABELS = [
   'BI Dashboards',
   'Audit & Activity',
   'Maintenance History Approval',
+  'Maintenance Notes Approval',
 ];
 
 export const CRUD_FILTER_LABELS = ['Create', 'Update', 'Delete'];
@@ -148,4 +149,6 @@ export const CONFIG_SECTION_ID_TO_LABEL = {
   'bi-dashboards': 'BI Dashboards',
   'audit-log': 'Audit & Activity',
   'maintenance-history-approval': 'Maintenance History Approval',
+  'maintenance-notes-approval': 'Maintenance Notes Approval',
+  'forms-approval': 'Forms Approval',
 };

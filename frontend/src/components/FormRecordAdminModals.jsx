@@ -24,6 +24,10 @@ const NON_EDITABLE_COLS = new Set([
 ]);
 
 export function recordKeyFromRow(row, tsCol = 'timestamp') {
+  if (row?.pendingRequestId) {
+    const idx = Number(row.pendingRowIndex) || 0;
+    return encodeURIComponent(`pending:${row.pendingRequestId}:${idx}`);
+  }
   const v = row?.[tsCol];
   if (v == null) return null;
   const s = typeof v === 'string' ? v : String(v);
@@ -182,9 +186,21 @@ export function RecordViewModal({ form, row, tsCol, onClose }) {
   return (
     <RecordModalShell
       title={`${form.name} — Record Details`}
-      subtitle="Read-only view"
+      subtitle={
+        row?.pendingStatus === 'needs_modification'
+          ? 'Sent back for modification'
+          : row?.pendingRequestId
+            ? 'Awaiting HOD approval'
+            : 'Read-only view'
+      }
       onClose={onClose}
     >
+      {row?.hodComment ? (
+        <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">HOD comment</p>
+          <p className="mt-0.5">{row.hodComment}</p>
+        </div>
+      ) : null}
       <div className="space-y-5">
         {sections.map((section) => (
           <div key={section.heading}>
@@ -249,7 +265,7 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
     setSaving(true);
     try {
       await api.put(`/forms/${form.formKey}/records/${recordKey}`, draft);
-      toast.success('Record updated.');
+      toast.success(row?.pendingRequestId ? 'Updated and sent for approval.' : 'Record updated.');
       onSaved();
       onClose();
     } catch (err) {
@@ -262,18 +278,24 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
   return (
     <RecordModalShell
       title={`${form.name} — Edit Record`}
-      subtitle="Admin edit"
+      subtitle={row?.pendingStatus === 'needs_modification' ? 'Sent back by HOD — edit and resubmit' : 'Admin edit'}
       onClose={onClose}
       footer={(
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="btn-secondary" disabled={saving}>Cancel</button>
           <button type="button" onClick={handleSave} className="btn-primary" disabled={saving}>
             {saving ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            Save changes
+            {row?.pendingStatus === 'needs_modification' ? 'Resubmit for approval' : 'Save changes'}
           </button>
         </div>
       )}
     >
+      {row?.hodComment ? (
+        <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-orange-900">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">HOD comment</p>
+          <p className="mt-0.5">{row.hodComment}</p>
+        </div>
+      ) : null}
       <div className="space-y-4">
         {editableCols.map((col) => {
           const label = headerLabel(col);
@@ -400,7 +422,15 @@ export function DeleteRecordConfirmModal({ form, row, tsCol, onClose, onDeleted 
   );
 }
 
-export function RecordRowActionMenu({ rowMenu, onClose, onView, onEdit, onDelete }) {
+export function RecordRowActionMenu({
+  rowMenu,
+  onClose,
+  onView,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}) {
   if (!rowMenu) return null;
 
   return createPortal(
@@ -420,24 +450,28 @@ export function RecordRowActionMenu({ rowMenu, onClose, onView, onEdit, onDelete
           <MdVisibility className="h-4 w-4 text-blue-600" />
           View
         </button>
-        <button
-          type="button"
-          role="menuitem"
-          onClick={() => { onClose(); onEdit(rowMenu.row); }}
-          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-        >
-          <MdEdit className="h-4 w-4 text-amber-600" />
-          Edit
-        </button>
-        <button
-          type="button"
-          role="menuitem"
-          onClick={() => { onClose(); onDelete(rowMenu.row); }}
-          className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-        >
-          <MdDelete className="h-4 w-4" />
-          Delete
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { onClose(); onEdit(rowMenu.row); }}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <MdEdit className="h-4 w-4 text-amber-600" />
+            Edit
+          </button>
+        )}
+        {canDelete && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { onClose(); onDelete(rowMenu.row); }}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+          >
+            <MdDelete className="h-4 w-4" />
+            Delete
+          </button>
+        )}
       </div>
     </>,
     document.body,

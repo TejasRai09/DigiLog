@@ -26,6 +26,7 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from "../../utils/biCockpitDateFilters";
+import { millOperatingDays } from "../../utils/millingBiComparison";
 import useTrackBiInteraction from "../../hooks/useTrackBiInteraction";
 import { BI_DASHBOARDS } from "../../utils/activityPath";
 import ChartCardToolbar from "../../components/bi/ChartCardToolbar";
@@ -1458,6 +1459,11 @@ export default function CanePerformanceDashboard(){
   const[rangePreset, setRangePreset] = useState("STD"); // MTD | STD | WTD | Custom
   const[comparisonType, setComparisonType] = useState("PP");
   const[seasonMapping, setSeasonMapping] = useState({});
+
+  const operatingDays = useMemo(
+    () => millOperatingDays(fromDate, toDate),
+    [fromDate, toDate]
+  );
   const[dbMinDateStr, setDbMinDateStr] = useState("");
   const[dbMaxDateStr, setDbMaxDateStr] = useState("");
   const[dbMaxDate, setDbMaxDate] = useState(null);
@@ -1511,7 +1517,7 @@ export default function CanePerformanceDashboard(){
 
   const comparisonOptions = useMemo(() => {
     const refIso = toDate || dbMaxDateStr || formatYMD(new Date());
-    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, toDate, dbMaxDateStr]);
 
   React.useEffect(() => {
@@ -1885,9 +1891,10 @@ export default function CanePerformanceDashboard(){
           />
           <div className="flex items-center gap-4">
             <BiKeyMetricBox
-              value={liveData?.dbRows?.length ?? 0}
+              value={operatingDays}
               title="Operating Days"
-              subtitle={rangePreset}
+              subtitle={rangePreset === 'Custom' ? 'All' : rangePreset}
+              tooltip={`${operatingDays} calendar days in this period.`}
               isDarkMode={dm}
             />
           </div>

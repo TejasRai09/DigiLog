@@ -75,8 +75,8 @@ const DistilleryOperations = () => {
     submit: async () => {
       const payload = { ...form, ...derived };
       try {
-        await api.post('/forms/distillery_ops', payload);
-        toast.success('Distillery operations saved.');
+        const { data } = await api.post('/forms/distillery_ops', payload);
+        toast.success(data?.pendingApproval ? (data.message || 'Sent for approval') : 'Distillery operations saved.');
         setForm(INITIAL);
       } catch (err) {
         toast.error(err.response?.data?.message || 'Submission failed.');

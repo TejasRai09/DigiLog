@@ -3,6 +3,14 @@ const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { isFormsHubViewOnly, VIEW_ONLY_MESSAGE } = require('../utils/formsHubViewOnly');
 
+function queueFormIfRequired(args) {
+  return require('../services/formApproval.service').queueIfRequired(args);
+}
+
+function formApprovalApi() {
+  return require('../services/formApproval.service');
+}
+
 // ─── Form configuration ──────────────────────────────────────
 // pattern:
 //   A  →  Date, Shift, Time          (mill logbooks)
@@ -556,9 +564,25 @@ const submitForm = async (req, res) => {
     if (dup) {
       return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
     }
+
+    const approval = await queueFormIfRequired({
+      formKey,
+      storedPayload: { batch: false, row: payload },
+      user: req.user,
+      isBatch: false,
+    });
+    if (approval) {
+      return res.status(201).json({
+        message: 'Sent for approval.',
+        pendingApproval: true,
+        requestId: approval.id,
+      });
+    }
+
     await pool.execute(sql, values);
     res.status(201).json({ message: 'Form submitted successfully.' });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
     }
@@ -584,6 +608,9 @@ const getFormMeta = async (req, res) => {
       name: row.name,
       description: row.description,
       formKey: row.form_key,
+      approvalRequired: Boolean(
+        (await require('../services/formApproval.service').resolvePolicy(formKey, { requireHod: false })).enabled,
+      ),
     });
   } catch (err) {
     sendServerError(res, 'getFormMeta', err, MSG.LOAD);
@@ -605,18 +632,42 @@ const getRecords = async (req, res) => {
   const offset = (page - 1) * limit;
 
   try {
-    const [[{ total }]] = await pool.query(
+    const overlayUserId = req.user?.role === 'admin' ? null : req.user?.id;
+    const overlay = await formApprovalApi().listOpenFormApprovalRecords(formKey, overlayUserId);
+    const virtualCount = overlay.length;
+
+    const [[{ total: dbTotal }]] = await pool.query(
       `SELECT COUNT(*) AS total FROM \`${config.table}\``
     );
+    const total = Number(dbTotal) + virtualCount;
     const orderBy = config.sortByTs
       ? `ORDER BY (\`${config.tsCol}\` IS NULL) ASC, \`${config.tsCol}\` DESC`
       : `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC`;
-    const [rows] = await pool.query(
-      `SELECT * FROM \`${config.table}\`
-       ${orderBy}
-       LIMIT ${limit} OFFSET ${offset}`
-    );
-    res.json({ total, page, limit, tsCol: config.tsCol, records: rows });
+
+    let records;
+    if (offset < virtualCount) {
+      const virtSlice = overlay.slice(offset, offset + limit);
+      const need = limit - virtSlice.length;
+      let dbRows = [];
+      if (need > 0) {
+        const [rows] = await pool.query(
+          `SELECT * FROM \`${config.table}\`
+           ${orderBy}
+           LIMIT ${need} OFFSET 0`,
+        );
+        dbRows = rows;
+      }
+      records = [...virtSlice, ...dbRows];
+    } else {
+      const dbOffset = offset - virtualCount;
+      const [rows] = await pool.query(
+        `SELECT * FROM \`${config.table}\`
+         ${orderBy}
+         LIMIT ${limit} OFFSET ${dbOffset}`,
+      );
+      records = rows;
+    }
+    res.json({ total, page, limit, tsCol: config.tsCol, records });
   } catch (err) {
     sendServerError(res, 'Form records error:', err, MSG.LOAD);
   }
@@ -643,9 +694,29 @@ const submitBatch = async (req, res) => {
   }
 
   try {
+    const prepared = [];
     for (const row of rows) {
       const payload = sanitisePayload(row);
       injectDateCols(payload, config.pattern, row);
+      prepared.push(payload);
+    }
+
+    const approval = await queueFormIfRequired({
+      formKey,
+      storedPayload: { batch: true, rows: prepared },
+      user: req.user,
+      isBatch: true,
+    });
+    if (approval) {
+      return res.status(201).json({
+        message: 'Sent for approval.',
+        pendingApproval: true,
+        requestId: approval.id,
+        rowCount: prepared.length,
+      });
+    }
+
+    for (const payload of prepared) {
       const columns      = Object.keys(payload).map((c) => `\`${c}\``).join(', ');
       const placeholders = Object.keys(payload).map(() => '?').join(', ');
       await pool.execute(
@@ -653,21 +724,35 @@ const submitBatch = async (req, res) => {
         Object.values(payload)
       );
     }
-    res.status(201).json({ message: `${rows.length} rows inserted.` });
+    res.status(201).json({ message: `${prepared.length} rows inserted.` });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
     sendServerError(res, 'Batch submit error:', err, MSG.SAVE);
   }
 };
 
-// ─── GET /api/forms/:formKey/records/:recordKey (admin) ───────
+// ─── GET /api/forms/:formKey/records/:recordKey ───────────────
 const getRecord = async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
   const { formKey, recordKey } = req.params;
   const config = FORM_CONFIG[formKey];
   if (!config) return res.status(400).json({ message: 'Unknown form.' });
 
   try {
+    const pending = formApprovalApi().parsePendingRecordKey(recordKey);
+    if (pending) {
+      if (req.user?.role === 'admin') {
+        return res.status(404).json({ message: 'Pending entry not found.' });
+      }
+      const overlay = await formApprovalApi().listOpenFormApprovalRecords(formKey, req.user?.id);
+      const record = overlay.find((row) => (
+        Number(row.pendingRequestId) === pending.requestId
+        && Number(row.pendingRowIndex || 0) === pending.rowIndex
+      ));
+      if (!record) return res.status(404).json({ message: 'Pending entry not found.' });
+      return res.json({ record, tsCol: config.tsCol });
+    }
+
+    if (!requireAdmin(req, res)) return;
     const record = await fetchRecordByKey(config, recordKey);
     if (!record) return res.status(404).json({ message: 'Record not found.' });
     res.json({ record, tsCol: config.tsCol });
@@ -676,15 +761,34 @@ const getRecord = async (req, res) => {
   }
 };
 
-// ─── PUT /api/forms/:formKey/records/:recordKey (admin) ───────
+// ─── PUT /api/forms/:formKey/records/:recordKey ───────────────
 const updateRecord = async (req, res) => {
-  if (!requireAdmin(req, res)) return;
-
   const { formKey, recordKey } = req.params;
   const config = FORM_CONFIG[formKey];
   if (!config) return res.status(400).json({ message: 'Unknown form.' });
 
   try {
+    const pendingKey = formApprovalApi().parsePendingRecordKey(recordKey);
+    if (pendingKey) {
+      if (req.user?.role === 'admin') {
+        return res.status(403).json({ message: 'Queued entries can only be edited by the submitter.' });
+      }
+      const payload = buildAdminUpdatePayload(formKey, config, req.body);
+      const result = await formApprovalApi().resubmitFromRecordEdit(
+        formKey,
+        recordKey,
+        payload,
+        req.user,
+      );
+      return res.json({
+        message: 'Entry updated and sent back for approval.',
+        pendingApproval: true,
+        requestId: result?.id,
+      });
+    }
+
+    if (!requireAdmin(req, res)) return;
+
     const existing = await fetchRecordByKey(config, recordKey);
     if (!existing) return res.status(404).json({ message: 'Record not found.' });
 
@@ -716,6 +820,7 @@ const updateRecord = async (req, res) => {
 
     res.json({ message: 'Record updated successfully.' });
   } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
     if (err.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
     }
@@ -746,7 +851,58 @@ const deleteRecord = async (req, res) => {
   }
 };
 
+async function insertPreparedRow(formKey, config, payload) {
+  const row = { ...payload };
+  const skipGenerated = GENERATED_INSERT_EXCLUDE[formKey];
+  if (skipGenerated) {
+    for (const k of skipGenerated) delete row[k];
+  }
+  if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(row, 'end_time')) {
+    row.end_Time = row.end_time;
+    delete row.end_time;
+  }
+  const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, row, {
+    autoTime: config.autoTime,
+  });
+  if (dup) {
+    const err = new Error(DUPLICATE_OPERATION_MSG);
+    err.status = 409;
+    throw err;
+  }
+  const columns      = Object.keys(row).map((c) => `\`${c}\``).join(', ');
+  const placeholders = Object.keys(row).map(() => '?').join(', ');
+  await pool.execute(
+    `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`,
+    Object.values(row),
+  );
+}
+
+/**
+ * Insert a queued approval payload into the live form table.
+ * Payload shape: { batch: false, row } or { batch: true, rows: [] }
+ */
+async function applyApprovedInsert(formKey, storedPayload) {
+  const config = FORM_CONFIG[formKey];
+  if (!config) {
+    const err = new Error('Unknown form.');
+    err.status = 400;
+    throw err;
+  }
+  const rows = storedPayload?.batch
+    ? (Array.isArray(storedPayload.rows) ? storedPayload.rows : [])
+    : [storedPayload?.row || storedPayload].filter(Boolean);
+  if (!rows.length) {
+    const err = new Error('Nothing to insert.');
+    err.status = 400;
+    throw err;
+  }
+  for (const row of rows) {
+    await insertPreparedRow(formKey, config, row);
+  }
+}
+
 module.exports = {
+  FORM_CONFIG,
   submitForm,
   submitBatch,
   getRecords,
@@ -755,4 +911,5 @@ module.exports = {
   updateRecord,
   deleteRecord,
   canAccessForm,
+  applyApprovedInsert,
 };

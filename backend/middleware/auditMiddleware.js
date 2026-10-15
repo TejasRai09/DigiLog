@@ -19,12 +19,12 @@ async function auditMiddleware(req, res, next) {
   const pathOnly = String(path).split('?')[0];
 
   // Must complete before the route replaces specs rows
-  let beforeSubsections = null;
+  let beforeSpecs = null;
   if (!shouldSkipAudit(req.method, pathOnly) && /\/specs$/.test(pathOnly)) {
     try {
-      beforeSubsections = await captureSpecsBefore(pool, pathOnly);
+      beforeSpecs = await captureSpecsBefore(pool, pathOnly);
     } catch {
-      beforeSubsections = null;
+      beforeSpecs = null;
     }
   }
 
@@ -41,7 +41,7 @@ async function auditMiddleware(req, res, next) {
 
       setImmediate(async () => {
         try {
-          const bodyJson = sanitizeRequestBody(req.body, { beforeSubsections });
+          const bodyJson = sanitizeRequestBody(req.body, { beforeSpecs });
           const readableBody = parseStoredAuditBody(bodyJson);
           const ctx = await enrichAuditContext(pool, method, pathOnly, statusCode, req.body);
           const description = buildChangeDescription({

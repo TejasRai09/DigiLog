@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MdOpenInNew, MdTableChart, MdDownload,
   MdClose, MdChevronLeft, MdChevronRight,
@@ -53,10 +53,48 @@ const downloadCSV = (filename, rows, columns, formKey = null) => {
   return true;
 };
 
+function approvalBadge(row) {
+  if (!row?.pendingRequestId) return null;
+  if (row.pendingStatus === 'needs_modification') {
+    return (
+      <span className="ml-1 inline-flex rounded-full bg-orange-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-700">
+        Needs modification
+      </span>
+    );
+  }
+  if (row.pendingStatus === 'resubmitted') {
+    return (
+      <span className="ml-1 inline-flex rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
+        Resubmitted
+      </span>
+    );
+  }
+  return (
+    <span className="ml-1 inline-flex rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
+      Pending HOD approval
+    </span>
+  );
+}
+
+function rowEmphasisClass(row, isFocus) {
+  if (isFocus) return 'bg-amber-50 ring-2 ring-inset ring-amber-400';
+  if (!row?.pendingRequestId) return 'hover:bg-gray-50';
+  if (row.pendingStatus === 'needs_modification') return 'bg-orange-50/90 hover:bg-orange-50';
+  return 'bg-amber-50/90 hover:bg-amber-50';
+}
+
+function stickyActionsClass(row, isFocus) {
+  if (isFocus) return 'bg-amber-50';
+  if (!row?.pendingRequestId) return 'bg-white';
+  if (row.pendingStatus === 'needs_modification') return 'bg-orange-50/90';
+  return 'bg-amber-50/90';
+}
+
 // ─── View Data Modal ──────────────────────────────────────────
-const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
+const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusApprovalRequestId = null }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const viewOnly = useFormsHubViewOnly();
 
   const [page, setPage]       = useState(1);
   const [data, setData]       = useState(null);   // { total, records, tsCol }
@@ -65,8 +103,21 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
   const [viewRow, setViewRow] = useState(null);
   const [editRow, setEditRow] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [highlightedRequestId, setHighlightedRequestId] = useState(
+    focusApprovalRequestId ? Number(focusApprovalRequestId) : null,
+  );
+  const focusHandledRef = useRef(null);
   const LIMIT = 20;
   const tsCol = data?.tsCol || 'timestamp';
+
+  const canEditRow = (row) => {
+    if (viewOnly) return false;
+    if (row?.pendingRequestId) return row.pendingStatus === 'needs_modification';
+    return isAdmin;
+  };
+  const canDeleteRow = (row) => isAdmin && !viewOnly && !row?.pendingRequestId;
+  const showRowActions = (row) => isAdmin || Boolean(row?.pendingRequestId);
+  const showActionsCol = isAdmin || Boolean(data?.records?.some((r) => r.pendingRequestId));
 
   const fetchPage = async (p) => {
     setLoading(true);
@@ -85,6 +136,19 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
 
   // Load first page on mount
   useEffect(() => { fetchPage(1); }, []);
+
+  useEffect(() => {
+    const focusId = Number(focusApprovalRequestId);
+    if (!focusId || Number.isNaN(focusId) || !data?.records) return;
+    if (focusHandledRef.current === focusId) return;
+    const row = data.records.find((r) => Number(r.pendingRequestId) === focusId);
+    if (!row) return;
+    focusHandledRef.current = focusId;
+    setHighlightedRequestId(focusId);
+    if (row.pendingStatus === 'needs_modification' && !viewOnly) {
+      setEditRow(row);
+    }
+  }, [data, focusApprovalRequestId, viewOnly]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -205,7 +269,7 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
                       {run.heading}
                     </th>
                   ))}
-                  {isAdmin && (
+                  {showActionsCol && (
                     <th
                       rowSpan={2}
                       className="sticky right-0 z-20 border-b border-l border-gray-200 bg-gray-50 px-3 py-2 text-center font-semibold text-gray-600"
@@ -226,9 +290,12 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {data.records.map((row, i) => (
-                  <tr key={`${page}-${i}`} className="hover:bg-gray-50">
-                    {columns.map((col) => {
+                {data.records.map((row, i) => {
+                  const isFocus = Number(highlightedRequestId) > 0
+                    && Number(row.pendingRequestId) === Number(highlightedRequestId);
+                  return (
+                  <tr key={`${page}-${row.pendingRequestId || ''}-${i}`} className={rowEmphasisClass(row, isFocus)}>
+                    {columns.map((col, colIdx) => {
                       const isFileSlot = isRecordFileColumn(form.formKey, col.dbKey, row[col.dbKey]);
                       const slot = isFileSlot
                         ? getRecordFileSlot(form.formKey, row, col.dbKey, col.subheading)
@@ -238,7 +305,16 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
                           key={col.dbKey}
                           className={`px-3 py-2 text-gray-700 ${isFileSlot ? '' : 'whitespace-nowrap'}`}
                         >
-                          {isFileSlot ? (
+                          {colIdx === 0 ? (
+                            <span className="inline-flex items-center">
+                              {row[col.dbKey] === null || row[col.dbKey] === undefined ? (
+                                <span className="text-gray-300">—</span>
+                              ) : (
+                                formatRecordCellForDisplay(col.dbKey, row[col.dbKey], form.formKey, row)
+                              )}
+                              {approvalBadge(row)}
+                            </span>
+                          ) : isFileSlot ? (
                             <FormFileSlotCell slot={slot} />
                           ) : row[col.dbKey] === null || row[col.dbKey] === undefined ? (
                             <span className="text-gray-300">—</span>
@@ -248,19 +324,22 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
                         </td>
                       );
                     })}
-                    {isAdmin && (
-                      <td className="sticky right-0 z-10 border-l border-gray-100 bg-white px-2 py-2 text-center">
-                        <RecordActionsButton onOpenMenu={(e) => openRowMenu(e, row)} />
+                    {showActionsCol && (
+                      <td className={`sticky right-0 z-10 border-l border-gray-100 px-2 py-2 text-center ${stickyActionsClass(row, isFocus)}`}>
+                        {showRowActions(row) ? (
+                          <RecordActionsButton onOpenMenu={(e) => openRowMenu(e, row)} />
+                        ) : null}
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
         )}
       </div>
 
-      {isAdmin && (
+      {showActionsCol && (
         <>
           <RecordRowActionMenu
             rowMenu={rowMenu}
@@ -268,6 +347,8 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null }) => {
             onView={setViewRow}
             onEdit={setEditRow}
             onDelete={setDeleteRow}
+            canEdit={rowMenu ? canEditRow(rowMenu.row) : false}
+            canDelete={rowMenu ? canDeleteRow(rowMenu.row) : false}
           />
           {viewRow && (
             <RecordViewModal
@@ -356,9 +437,28 @@ const FormTable = ({
   returnTo = null,
 }) => {
   const navigate            = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const appName             = useAppName(appId);
   const viewOnly            = useFormsHubViewOnly();
   const [viewing, setViewing] = useState(null); // form object being viewed
+  const [focusApprovalRequestId, setFocusApprovalRequestId] = useState(null);
+
+  useEffect(() => {
+    const viewForm = searchParams.get('viewForm');
+    const viewData = searchParams.get('viewData');
+    const approvalRequestId = searchParams.get('approvalRequestId');
+    if (!viewForm && viewData !== '1') return;
+    const match = forms?.find((f) => f.formKey === viewForm)
+      || (viewData === '1' && forms?.length === 1 ? forms[0] : null);
+    if (!match) return;
+    setFocusApprovalRequestId(approvalRequestId || null);
+    setViewing(match);
+    const next = new URLSearchParams(searchParams);
+    next.delete('viewForm');
+    next.delete('viewData');
+    next.delete('approvalRequestId');
+    setSearchParams(next, { replace: true });
+  }, [forms, searchParams, setSearchParams]);
 
   const openViewData = (form) => {
     trackFormDataAction({
@@ -479,9 +579,13 @@ const FormTable = ({
       {viewing && (
         <ViewDataModal
           form={viewing}
-          onClose={() => setViewing(null)}
+          onClose={() => {
+            setViewing(null);
+            setFocusApprovalRequestId(null);
+          }}
           appName={withoutGsmaLabel(appName) || null}
           appId={appId}
+          focusApprovalRequestId={focusApprovalRequestId}
         />
       )}
     </>

@@ -96,4 +96,22 @@ router.get('/maintenance-history-approval-settings', getMaintenanceHistoryApprov
 router.put('/maintenance-history-approval-settings', putMaintenanceHistoryApprovalSettings);
 router.post('/maintenance-history-approval-settings/resend-digest', postResendMaintenanceHistoryDigest);
 
+const {
+  getFormApprovalSettings,
+  putFormApprovalSettings,
+  postResendFormApprovalDigest,
+} = require('../controllers/formApprovalSettings.controller');
+
+router.get('/form-approval-settings', getFormApprovalSettings);
+router.put('/form-approval-settings', putFormApprovalSettings);
+router.post('/form-approval-settings/resend-digest', postResendFormApprovalDigest);
+
+const {
+  getMaintenanceNotesApprovalSettings,
+  putMaintenanceNotesApprovalSettings,
+} = require('../controllers/maintenanceNotesSettings.controller');
+
+router.get('/maintenance-notes-approval-settings', getMaintenanceNotesApprovalSettings);
+router.put('/maintenance-notes-approval-settings', putMaintenanceNotesApprovalSettings);
+
 module.exports = router;

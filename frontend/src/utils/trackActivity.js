@@ -37,7 +37,7 @@ export async function trackActivityEvent(payload = {}) {
 export function trackFormDataAction({ event_type, form, appName = null, appId = null }) {
   const formName = withoutGsmaLabel(form?.name) || form?.formKey || 'Form';
   const card = withoutGsmaLabel(appName) || null;
-  const crumbs = ['Dashboard', 'Forms Hub', card, formName].filter(Boolean);
+  const crumbs = ['Home', 'Forms Hub', card, formName].filter(Boolean);
   return trackActivityEvent({
     event_type,
     section: 'Forms Hub',
@@ -61,21 +61,24 @@ const EQUIPMENT_SECTION_LABELS = {
 };
 
 /** Specs / OEM Schedule / Life History section open (same URL). */
-export function trackEquipmentSectionOpen(sectionKey) {
+export function trackEquipmentSectionOpen(sectionKey, state = {}, overrideDisplayPath = null) {
   const label = EQUIPMENT_SECTION_LABELS[sectionKey] || sectionKey;
   const path = typeof window !== 'undefined' ? window.location.pathname : '';
   // Discipline routes already emit equipment_section_open via ActivityTracker.
   if (/\/(specs|schedule|history)(?:\/|$)/.test(path)) return null;
 
-  const base = classifyPath(path);
-  const crumbs = ['Dashboard', base.section, base.card, label].filter(Boolean);
+  const base = classifyPath(path, state);
+  const display_path = overrideDisplayPath
+    ? `${overrideDisplayPath} > ${label}`
+    : ['Home', 'Forms Hub', base.section, base.card, label].filter(Boolean).join(' > ');
+
   return trackActivityEvent({
     event_type: 'equipment_section_open',
     section: base.section,
     card: base.card,
     form_or_dashboard: label,
     page_path: path,
-    display_path: crumbs.join(' > '),
+    display_path,
     element_id: sectionKey,
     element_label: label,
     metadata: { equipment_section: sectionKey },
@@ -93,7 +96,7 @@ export function trackEquipmentPdfDownload({ sections = [], equipmentName = null 
     card: base.card || label,
     form_or_dashboard: 'Download PDF',
     page_path: path,
-    display_path: ['Dashboard', base.section, base.card || label, 'Download PDF']
+    display_path: ['Home', 'Forms Hub', base.section, base.card || label, 'Download PDF']
       .filter(Boolean)
       .join(' > '),
     element_label: 'Download PDF',
@@ -110,10 +113,10 @@ export function trackChartDownloadCsv({ dashboardLabel, chartId = null, chartTit
   return trackActivityEvent({
     event_type: 'chart_download_csv',
     section: 'BI Control Tower',
-    card: 'BI Dashboards',
-    form_or_dashboard: dashboardLabel || null,
+    card: dashboardLabel || 'BI Dashboards',
+    form_or_dashboard: null,
     page_path: path,
-    display_path: ['Dashboard', 'BI Control Tower', dashboardLabel].filter(Boolean).join(' > '),
+    display_path: ['Home', 'BI Control Tower', dashboardLabel].filter(Boolean).join(' > '),
     element_id: chartId || null,
     element_label: chartTitle || chartId || 'Chart CSV',
     metadata: {

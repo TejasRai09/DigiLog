@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   MdAdd,
   MdCheck,
@@ -50,7 +51,9 @@ export default function EquipmentSpecificationHub({
   equipmentDefaults = {},
   onDeleteSubGroupMaintenanceHistory = null,
   onRenameSubGroupMaintenanceHistory = null,
+  displayPath = null,
 }) {
+  const location = useLocation();
   const viewOnly = useFormsHubViewOnly();
   const canWrite = !viewOnly;
   const initial = useMemo(
@@ -87,8 +90,8 @@ export default function EquipmentSpecificationHub({
   useEffect(() => {
     if (!bodyOpen || sectionTrackedRef.current) return;
     sectionTrackedRef.current = true;
-    trackEquipmentSectionOpen('specs');
-  }, [bodyOpen]);
+    trackEquipmentSectionOpen('specs', location.state, displayPath);
+  }, [bodyOpen, displayPath]);
   const draggedParam = useRef(null);
 
   useEffect(() => {

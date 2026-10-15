@@ -33,6 +33,7 @@ import {
   resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
 } from '../../utils/biCockpitDateFilters';
+import { millOperatingDays } from '../../utils/millingBiComparison';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import {
@@ -695,6 +696,7 @@ export default function DistilleryAnalyticsDashboard() {
       compareRangePreset,
       activeYearMapping,
       toDate || rangeToIso,
+      { omitPpOnStd: true },
     );
     if (opts[0]?.id === 'PP') {
       return [{ id: 'PP', label: dynamicPPLabel }, ...opts.slice(1)];
@@ -826,10 +828,10 @@ export default function DistilleryAnalyticsDashboard() {
 
   const currentKPIs = useMemo(() => aggregateKpisFromRows(filteredData), [filteredData]);
 
-  /** Match Power BI: count days with ethanol production > 0 (not every logged date). */
+  /** Operating days based on calendar dates, as requested */
   const operatingDaysCount = useMemo(
-    () => filteredData.filter((row) => Number(row.totalProd) > 0).length,
-    [filteredData],
+    () => millOperatingDays(fromDate, toDate),
+    [fromDate, toDate],
   );
 
   const pyKPIs = useMemo(
@@ -946,7 +948,7 @@ export default function DistilleryAnalyticsDashboard() {
               subtitle={rangePreset === 'Custom' ? timeFilterLabel : rangePreset}
               isDarkMode={isDarkMode}
               compact
-              tooltip={`${operatingDaysCount} days with ethanol production > 0 — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
+              tooltip={`${operatingDaysCount} calendar days in this period — ${rangePreset === 'Custom' ? timeFilterLabel : rangePreset}`}
             />
           </div>
         </div>

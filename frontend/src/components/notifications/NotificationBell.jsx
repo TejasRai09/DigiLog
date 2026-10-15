@@ -119,6 +119,36 @@ const TOAST_STYLES = {
     color: '#92400e',
     border: '1px solid #fde68a',
   },
+  form_pending_hod: {
+    background: '#fffbeb',
+    color: '#92400e',
+    border: '1px solid #fde68a',
+  },
+  form_approved: {
+    background: '#ecfdf5',
+    color: '#065f46',
+    border: '1px solid #a7f3d0',
+  },
+  form_needs_modification: {
+    background: '#fffbeb',
+    color: '#92400e',
+    border: '1px solid #fde68a',
+  },
+  mn_pending_hod: {
+    background: '#fffbeb',
+    color: '#92400e',
+    border: '1px solid #fde68a',
+  },
+  mn_approved: {
+    background: '#ecfdf5',
+    color: '#065f46',
+    border: '1px solid #a7f3d0',
+  },
+  mn_rework: {
+    background: '#fffbeb',
+    color: '#92400e',
+    border: '1px solid #fde68a',
+  },
 };
 
 function toastStyleForType(type) {

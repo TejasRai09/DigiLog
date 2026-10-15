@@ -30,7 +30,9 @@ export default function ChangeComparison({ item }) {
   if (operation === 'create') {
     return (
       <div>
-        <p className="mb-2 text-sm font-bold uppercase tracking-wide text-emerald-700">+ New maintenance history entry</p>
+        <p className="mb-2 text-sm font-bold uppercase tracking-wide text-emerald-700">
+          {item?.module === 'forms' ? '+ New form submission' : '+ New maintenance history entry'}
+        </p>
         <FieldTable rows={rows} mode="single" operation={operation} valueHeader="Value" />
       </div>
     );

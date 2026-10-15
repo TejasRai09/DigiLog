@@ -208,20 +208,15 @@ async function getManagementDashboard(req, res) {
     const indentBound = buildGenericDateBound('indent_date', queryForBound);
     const purchaseBound = buildGenericDateBound('p.purchase_date', queryForBound);
     const purchaseDateBound = buildGenericDateBound('purchase_date', queryForBound);
-    const brixBound = buildGenericDateBound('`Date`', queryForBound);
 
     const [
       indentAgg,
       purchaseAgg,
-      brixYardAgg,
-      brixFieldAgg,
       polAgg,
       yardBalRow,
       centreOverruns,
       indentRaw,
       purchaseRaw,
-      brixYardRaw,
-      brixFieldRaw,
       opsRaw,
       dsRaw,
       rsRaw,
@@ -238,14 +233,6 @@ async function getManagementDashboard(req, res) {
         `SELECT SUM(p.purchase_qty) AS total FROM centre_purchase_data p
          WHERE p.purchase_date IS NOT NULL${purchaseBound.clause}`,
         purchaseBound.params,
-      ),
-      safeQuery(
-        `SELECT AVG(MiddleBrix) AS avgVal FROM brix_yard_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause}`,
-        brixBound.params,
-      ),
-      safeQuery(
-        `SELECT AVG(MiddleBrix) AS avgVal FROM brix_field_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause}`,
-        brixBound.params,
       ),
       safeQuery(
         `SELECT AVG(PJ_Pol) AS avgVal FROM ds_logbook WHERE \`Date\` IS NOT NULL${dateBound.clause}`,
@@ -268,14 +255,6 @@ async function getManagementDashboard(req, res) {
         `SELECT purchase_date, purchase_qty, category FROM centre_purchase_data
          WHERE purchase_date IS NOT NULL${purchaseDateBound.clause} LIMIT ${BI_ROW_LIMIT}`,
         purchaseDateBound.params,
-      ),
-      safeQuery(
-        `SELECT \`Date\`, MiddleBrix FROM brix_yard_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause} LIMIT ${BI_ROW_LIMIT}`,
-        brixBound.params,
-      ),
-      safeQuery(
-        `SELECT \`Date\`, MiddleBrix FROM brix_field_sampling WHERE \`Date\` IS NOT NULL${brixBound.clause} LIMIT ${BI_ROW_LIMIT}`,
-        brixBound.params,
       ),
       safeQuery(
         `SELECT * FROM ops_logbook WHERE \`Date\` IS NOT NULL${dateBound.clause}
@@ -334,8 +313,6 @@ async function getManagementDashboard(req, res) {
         powerRows,
         steamRows,
         distilleryRows,
-        brixYardRows: brixYardRaw,
-        brixFieldRows: brixFieldRaw,
         dmrRows,
       },
       queryForBound.from,
@@ -348,8 +325,6 @@ async function getManagementDashboard(req, res) {
       canePurchase: nullableNum(purchaseAgg[0]?.total),
       yardBal: nullableNum(yardBalRow[0]?.yard_bal),
       polInCane: nullableNum(polAgg[0]?.avgVal),
-      brixYard: nullableNum(brixYardAgg[0]?.avgVal),
-      brixField: nullableNum(brixFieldAgg[0]?.avgVal),
       overrunGatePct: centreOverruns.overrunGatePct,
       overrunCenterPct: centreOverruns.overrunCenterPct,
       overrunCenterQty: centreOverruns.overrunCenterQty,

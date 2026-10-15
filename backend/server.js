@@ -26,6 +26,9 @@ const activityRoutes = require('./routes/activity.routes');
 const maintenanceApprovalRoutes = require('./routes/maintenanceApproval.routes');
 const changeRequestRoutes = require('./routes/changeRequest.routes');
 const approvalRoutes = require('./routes/approval.routes');
+const formApprovalRoutes = require('./routes/formApproval.routes');
+const formApprovalInboxRoutes = require('./routes/formApprovalInbox.routes');
+const maintenanceNotesRoutes = require('./routes/maintenanceNotes.routes');
 const userNotificationRoutes = require('./routes/userNotification.routes');
 const { expireStaleSessions } = require('./utils/sessionActivity');
 const {
@@ -33,6 +36,11 @@ const {
   runEmployeeModificationReminderTick,
   ensureDigestSchema,
 } = require('./services/maintenanceHistoryApproval.service');
+const {
+  runFormDigestSchedulerTick,
+  runFormEmployeeModificationReminderTick,
+  ensureFormApprovalMailSchema,
+} = require('./services/formApproval.service');
 const { attachRealtime } = require('./services/realtimeSocket.service');
 
 const app = express();
@@ -60,14 +68,21 @@ const runApprovalSchedulers = () => {
   runEmployeeModificationReminderTick().catch((err) => {
     console.error('[maintenanceEmployeeReminderScheduler]', err.message);
   });
+  runFormDigestSchedulerTick().catch((err) => {
+    console.error('[formDigestScheduler]', err.message);
+  });
+  runFormEmployeeModificationReminderTick().catch((err) => {
+    console.error('[formEmployeeReminderScheduler]', err.message);
+  });
 };
 ensureDigestSchema()
+  .then(() => ensureFormApprovalMailSchema())
   .then(() => {
     runApprovalSchedulers();
     setInterval(runApprovalSchedulers, 60 * 1000);
   })
   .catch((err) => {
-    console.error('[maintenanceHistoryApproval] schema check failed:', err.message);
+    console.error('[approvalSchedulers] schema check failed:', err.message);
     runApprovalSchedulers();
     setInterval(runApprovalSchedulers, 60 * 1000);
   });
@@ -115,6 +130,9 @@ app.use('/api/activity',         activityRoutes);
 app.use('/api/maintenance-approval', maintenanceApprovalRoutes);
 app.use('/api/change-requests', changeRequestRoutes);
 app.use('/api/approvals', approvalRoutes);
+app.use('/api/form-approvals', formApprovalRoutes);
+app.use('/api/form-approval', formApprovalInboxRoutes);
+app.use('/api/maintenance-notes', maintenanceNotesRoutes);
 app.use('/api/notifications', userNotificationRoutes);
 app.use('/api/locked-card-manage-access', require('./routes/lockedCardManageAccess.routes'));
 

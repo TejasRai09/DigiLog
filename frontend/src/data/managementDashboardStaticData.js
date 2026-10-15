@@ -23,8 +23,6 @@ const SNAPSHOT_VALUES = {
     ],
   },
   pol_in_cane: { value: 15.16 },
-  brix_yard: { value: 19.73 },
-  brix_field: { value: 19.41 },
   cane_crush: { value: 73070, display: '73.07K' },
   maceration: { value: 54.21 },
   mixed_juice: { value: 88030, display: '88.03K' },

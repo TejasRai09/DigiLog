@@ -399,7 +399,17 @@ function renderReviewPage(review) {
 </html>`;
 }
 
+const DEFAULT_INBOX_LABELS = {
+  apiBase: '/api/maintenance-approval',
+  pageTitle: 'Pending approvals',
+  heading: 'Pending maintenance approvals',
+  reviewHeading: 'Review maintenance history change',
+  itemLabel: 'Equipment',
+  pathLabel: 'Path',
+};
+
 function renderInboxPage(inbox, options = {}) {
+  const labels = { ...DEFAULT_INBOX_LABELS, ...(options.labels || {}) };
   const seedToken = String(options.seedToken || '');
   const openId = options.openId != null && Number.isFinite(Number(options.openId))
     ? Number(options.openId)
@@ -427,8 +437,8 @@ function renderInboxPage(inbox, options = {}) {
       <tr data-id="${Number(entry.id)}">
         <td class="check" data-label="Select"><input type="checkbox" class="row-check" value="${Number(entry.id)}" /></td>
         <td class="num" data-label="#"></td>
-        <td class="equip" data-label="Equipment">${escapeHtml(entry.equipmentName)}</td>
-        <td class="path" data-label="Path">${escapeHtml(entry.equipmentPath || '—')}</td>
+        <td class="equip" data-label="${escapeHtml(labels.itemLabel)}">${escapeHtml(entry.equipmentName)}</td>
+        <td class="path" data-label="${escapeHtml(labels.pathLabel)}">${escapeHtml(entry.equipmentPath || '—')}</td>
         <td data-label="Action">${escapeHtml(entry.actionLabel)}</td>
         <td class="created" data-label="Created at">${escapeHtml(formatEntryCreatedAt(entry.createdAt))}</td>
         <td class="submitter" data-label="Submitted by">${escapeHtml(submitter)}</td>
@@ -450,8 +460,8 @@ function renderInboxPage(inbox, options = {}) {
           <tr>
             <th style="width:40px;"></th>
             <th style="width:48px;">#</th>
-            <th>Equipment</th>
-            <th>Path</th>
+            <th>${escapeHtml(labels.itemLabel)}</th>
+            <th>${escapeHtml(labels.pathLabel)}</th>
             <th>Action</th>
             <th>Created at</th>
             <th>Submitted by</th>
@@ -468,7 +478,7 @@ function renderInboxPage(inbox, options = {}) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Pending approvals · DigiLog</title>
+  <title>${escapeHtml(labels.pageTitle)} · DigiLog</title>
   <style>
     * { box-sizing: border-box; }
     ${pageBackgroundCss()}
@@ -652,7 +662,7 @@ function renderInboxPage(inbox, options = {}) {
         padding-bottom: 10px;
         margin-bottom: 4px;
       }
-      table.grid.inbox td.equip::before { content: 'Equipment'; }
+      table.grid.inbox td.equip::before { content: attr(data-label); }
       table.grid.inbox td.path {
         order: 0;
         text-align: left;
@@ -664,7 +674,7 @@ function renderInboxPage(inbox, options = {}) {
         padding-bottom: 10px;
         margin-bottom: 4px;
       }
-      table.grid.inbox td.path::before { content: 'Path'; }
+      table.grid.inbox td.path::before { content: attr(data-label); }
       table.grid.inbox td.act {
         margin-top: 8px;
         padding-top: 10px;
@@ -753,7 +763,7 @@ function renderInboxPage(inbox, options = {}) {
   ${headerHtml()}
   <main class="page-body">
     <div class="card">
-      <h1>Pending maintenance approvals</h1>
+      <h1>${escapeHtml(labels.heading)}</h1>
       <p class="meta" id="inbox-meta"><strong>${escapeHtml(inbox.domainLabel)}</strong> · <span id="inbox-count">${inbox.entries.length}</span> item(s)</p>
       <p class="toast" id="inbox-toast"></p>
       ${body}
@@ -779,6 +789,7 @@ function renderInboxPage(inbox, options = {}) {
       var seedToken = ${JSON.stringify(seedToken)};
       var openId = ${openId == null ? 'null' : String(openId)};
       var entries = ${entriesJson};
+      var cfg = ${JSON.stringify(labels).replace(/</g, '\\u003c')};
       var byId = {};
       entries.forEach(function (e) { byId[String(e.id)] = e; });
       var backdrop = document.getElementById('review-modal');
@@ -927,10 +938,10 @@ function renderInboxPage(inbox, options = {}) {
           : '<p class="meta">No field details available.</p>';
         var submitter = data.submitterName + (data.submitterEmail ? ' (' + data.submitterEmail + ')' : '');
         modalBody.innerHTML =
-          '<h2 id="modal-title">Review maintenance history change</h2>' +
+          '<h2 id="modal-title">' + esc(cfg.reviewHeading) + '</h2>' +
           '<p class="meta"><strong>' + esc(data.domainLabel || '') + '</strong> · ' + esc(data.actionLabel || '') + '</p>' +
-          '<p class="meta">Equipment: <strong>' + esc(data.equipmentName) + '</strong></p>' +
-          '<p class="meta">Path: <strong>' + esc(data.equipmentPath || '—') + '</strong></p>' +
+          '<p class="meta">' + esc(cfg.itemLabel) + ': <strong>' + esc(data.equipmentName) + '</strong></p>' +
+          '<p class="meta">' + esc(cfg.pathLabel) + ': <strong>' + esc(data.equipmentPath || '—') + '</strong></p>' +
           '<p class="meta">Submitted by ' + esc(submitter) + '</p>' +
           '<p class="meta">Created at: <strong>' + esc(data.createdAtLabel || '—') + '</strong></p>' +
           (data.tokenExpiresAtDisplay ? '<p class="meta">This link expires on ' + esc(data.tokenExpiresAtDisplay) + '.</p>' : '') +
@@ -993,7 +1004,7 @@ function renderInboxPage(inbox, options = {}) {
         openModal();
         modalBody.innerHTML = '<h2 id="modal-title">Review</h2><p class="meta">Loading details…</p>';
         try {
-          var data = await postJson('/api/maintenance-approval/review', { token: entry.acceptToken });
+          var data = await postJson(cfg.apiBase + '/review', { token: entry.acceptToken });
           if (data.alreadyResolved || (data.status !== 'pending' && data.status !== 'resubmitted')) {
             modalBody.innerHTML = '<h2 id="modal-title">Already processed</h2><p class="meta">' +
               esc(data.equipmentName || entry.equipmentName) + ' is already ' + esc(data.status) + '.</p>' +
@@ -1048,7 +1059,7 @@ function renderInboxPage(inbox, options = {}) {
           if (acceptBtn) acceptBtn.disabled = true;
         }
         try {
-          var path = kind === 'accept' ? '/api/maintenance-approval/accept' : '/api/maintenance-approval/reject';
+          var path = cfg.apiBase + (kind === 'accept' ? '/accept' : '/reject');
           var result = await postJson(path, extra);
           closeModal();
           removeRow(data.id || Object.keys(byId).find(function (k) {
@@ -1091,7 +1102,7 @@ function renderInboxPage(inbox, options = {}) {
         }
         syncToolbar();
         try {
-          var result = await postJson('/api/maintenance-approval/bulk-accept', {
+          var result = await postJson(cfg.apiBase + '/bulk-accept', {
             token: seedToken,
             ids: ids
           });
@@ -1220,7 +1231,12 @@ const acceptByToken = async (req, res) => {
 
   try {
     const result = await approveRequestByToken(token);
-    const label = await equipmentDisplayNameFromRequest(result.request);
+    let label = 'equipment';
+    try {
+      label = await equipmentDisplayNameFromRequest(result.request);
+    } catch (err) {
+      console.error('[acceptByToken] equipment name after approve failed:', err.message);
+    }
     const domainLabel = DOMAIN_TABLES[result.request.domain]?.label || '';
     const msg = result.alreadyResolved
       ? alreadyApprovedMessage(label, result.request.resolved_at)
@@ -1373,10 +1389,16 @@ const acceptByTokenJson = async (req, res) => {
   if (!token) return res.status(400).json({ message: 'Token is required.' });
   try {
     const result = await approveRequestByToken(token);
+    let equipmentName = '';
+    try {
+      equipmentName = await equipmentDisplayNameFromRequest(result.request);
+    } catch (err) {
+      console.error('[acceptByTokenJson] equipment name after approve failed:', err.message);
+    }
     return res.json({
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      equipmentName: await equipmentDisplayNameFromRequest(result.request),
+      equipmentName,
       action: result.request.action,
       domain: result.request.domain,
       resolvedAt: result.request.resolved_at || null,
@@ -1567,4 +1589,6 @@ module.exports = {
   inboxByToken,
   documentByToken,
   bulkAcceptByTokenJson,
+  renderInboxPage,
+  renderHtmlPage,
 };
