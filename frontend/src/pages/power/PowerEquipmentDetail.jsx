@@ -18,7 +18,7 @@ const EquipmentPdfExportModal = lazy(() => import('../../components/equipment/Eq
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
 import { serializeScheduleForApi, scheduleApiRowMatchesSection } from '../../utils/equipmentScheduleModel';
 import { historyRecordToApi, historyRecordMatchesSection } from '../../utils/equipmentHistoryModel';
-import { saveHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
+import { saveHistoryWithDocuments, saveDraftHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
 import { POWER_LIFE_HISTORY_FIELDS } from '../../config/powerEquipmentFields';
 import { findDiscipline } from '../../config/engineeringDisciplines';
 import usePowerPlantHierarchy from '../../hooks/usePowerPlantHierarchy';
@@ -354,6 +354,18 @@ const PowerEquipmentDetail = () => {
     setSaving(true);
     try {
       const equipId = await resolveEquipmentId();
+      if (record?.pendingStatus === 'draft' && record.pendingRequestId) {
+        await saveDraftHistoryWithDocuments({
+          apiBase,
+          equipId,
+          form,
+          approvalRequestId: record.pendingRequestId,
+          previousDocuments: record.documents || [],
+        });
+        toast.success('Pending record updated. Submit it when you are ready for HOD approval.');
+        await loadHistory(equipId);
+        return;
+      }
       if (record?.pendingStatus === 'needs_modification' && record.pendingRequestId) {
         await resubmitHistoryWithDocuments({
           apiBase,
@@ -368,8 +380,13 @@ const PowerEquipmentDetail = () => {
       }
       if (isNewHub) {
         const result = await saveHistoryWithDocuments({ apiBase, equipId, form, mode, recordId });
+        if (result?.draft) {
+          toast.success('Saved as Pending. Review it, then submit it for HOD approval.');
+          await loadHistory(equipId);
+          return;
+        }
         if (result?.pending) {
-          toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
+          toast.success('Sent to HOD for approval. It stays Approval pending until the HOD reviews it.');
           await loadHistory(equipId);
           return;
         }
@@ -382,7 +399,9 @@ const PowerEquipmentDetail = () => {
           response = await api.put(`${apiBase}/${equipId}/history/${recordId}`, body);
         }
         if (response.status === 202 || response.data?.pending) {
-          toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
+          toast.success(response.data?.draft
+            ? 'Saved as Pending. Review it, then submit it for HOD approval.'
+            : 'Sent to HOD for approval. It stays Approval pending until the HOD reviews it.');
           await loadHistory(equipId);
           return;
         }
@@ -607,6 +626,7 @@ const PowerEquipmentDetail = () => {
       <div className="mb-3">
         <EquipmentSpecificationHub
           embedded
+          displayPath={breadcrumbItems.map(i => i.label).join(' > ')}
           equipmentTag={eq?.tag_name || eq?.equip_no || ''}
           apiSpecs={specs}
           onSave={saveHubSpecs}
@@ -625,6 +645,7 @@ const PowerEquipmentDetail = () => {
       <div className="mb-3">
         <OemMaintenanceScheduleHub
           embedded
+          displayPath={breadcrumbItems.map(i => i.label).join(' > ')}
           apiSchedule={scheduleForView}
           onSave={saveHubSchedule}
           saving={saving}
@@ -636,6 +657,7 @@ const PowerEquipmentDetail = () => {
 
       <EquipmentMaintenanceHistoryHub
         embedded
+        displayPath={breadcrumbItems.map(i => i.label).join(' > ')}
         apiRecords={isNewHub ? historyForView : history}
         totalCount={isNewHub ? historyTotalForView : histTotal}
         saving={saving}
@@ -643,6 +665,7 @@ const PowerEquipmentDetail = () => {
         onToggle={() => toggle('hist')}
         onSave={saveMaintenanceRecord}
         onDelete={deleteMaintenanceRecord}
+        onRefresh={() => loadHistory(eq?.id || id)}
         equipmentOptions={isNewHub ? equipmentOptions : []}
         exportFileName={eq?.name || eq?.tag_name || 'Equipment_Maintenance_History'}
         enableDocuments={isNewHub}

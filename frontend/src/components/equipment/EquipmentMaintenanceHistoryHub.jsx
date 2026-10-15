@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   MdAdd,
   MdChevronLeft,
@@ -10,6 +11,7 @@ import {
   MdInfo,
   MdSave,
   MdSearch,
+  MdSend,
   MdVisibility,
 } from 'react-icons/md';
 import {
@@ -46,7 +48,7 @@ import {
   serviceLabel,
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
-import { downloadHistoryDocument, downloadApprovalStagedDocument } from '../../utils/historyDocuments';
+import { downloadHistoryDocument, downloadApprovalStagedDocument, submitAllHistoryDrafts, submitHistoryDraft } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
 import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 import api from '../../api/axios';
@@ -170,6 +172,14 @@ function PhotoUploadGrid({ label, photos, onChange, inputRef }) {
       />
     </div>
   );
+}
+
+function approvalDomainFromApiBase(apiBase) {
+  const base = String(apiBase || '');
+  if (base.includes('sugar')) return 'sugar';
+  if (base.includes('production')) return 'production';
+  if (base.includes('power')) return 'power';
+  return '';
 }
 
 function documentFileKind(doc) {
@@ -300,22 +310,36 @@ export default function EquipmentMaintenanceHistoryHub({
   observationRequired = true,
   focusApprovalRequestId = null,
   onFocusHandled = null,
+  displayPath = null,
+  onRefresh = null,
 }) {
+  const location = useLocation();
   const sectionTrackedRef = useRef(false);
   useEffect(() => {
     if (!open || sectionTrackedRef.current) return;
     sectionTrackedRef.current = true;
-    trackEquipmentSectionOpen('history');
-  }, [open]);
+    trackEquipmentSectionOpen('history', location.state, displayPath);
+  }, [open, displayPath]);
 
   const { user } = useAuth();
   const viewOnly = useFormsHubViewOnly();
   const canDelete = !viewOnly && user?.role === 'admin' && typeof onDelete === 'function';
   const canEditRecord = (record) => (
-    !viewOnly && (!record?.pendingRequestId || record.pendingStatus === 'needs_modification')
+    !viewOnly && (
+      !record?.pendingRequestId
+      || record.pendingStatus === 'needs_modification'
+      || record.pendingStatus === 'draft'
+    )
   );
   const approvalBadge = (record) => {
     if (!record?.pendingRequestId) return null;
+    if (record.pendingStatus === 'draft') {
+      return (
+        <span className="ml-1 inline-flex rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
+          Pending
+        </span>
+      );
+    }
     if (record.pendingStatus === 'needs_modification') {
       return (
         <span className="ml-1 inline-flex rounded-full bg-orange-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-orange-700">
@@ -330,9 +354,16 @@ export default function EquipmentMaintenanceHistoryHub({
         </span>
       );
     }
+    if (record.pendingStatus === 'pending' || record.pendingStatus === 'resubmitted') {
+      return (
+        <span className="ml-1 inline-flex rounded-full bg-sky-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700">
+          Approval pending
+        </span>
+      );
+    }
     return (
       <span className="ml-1 inline-flex rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
-        Pending HOD approval
+        Approval pending
       </span>
     );
   };
@@ -395,6 +426,7 @@ export default function EquipmentMaintenanceHistoryHub({
     return HISTORY_MAINTENANCE_TYPE_OPTIONS;
   }, [form.maintenanceType]);
 
+  const [submittingDrafts, setSubmittingDrafts] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxCaption, setLightboxCaption] = useState('');
   const [highlightedRequestId, setHighlightedRequestId] = useState(null);
@@ -422,21 +454,22 @@ export default function EquipmentMaintenanceHistoryHub({
       return 'bg-amber-50 ring-2 ring-inset ring-amber-400';
     }
     if (!isApprovalHighlighted(row)) return '';
+    if (row.pendingStatus === 'draft') return 'bg-amber-50/90';
     if (row.pendingStatus === 'needs_modification') {
       return 'bg-orange-50/90';
     }
-    // Pending HOD approval / delete pending / resubmitted
-    return 'bg-amber-50/90';
+    return 'bg-sky-50/80';
   };
   const mobileEmphasisClass = (row) => {
     if (isFocusHighlighted(row)) {
       return 'border-amber-400 ring-2 ring-amber-300 bg-amber-50/60';
     }
     if (!isApprovalHighlighted(row)) return 'border-slate-200/60';
+    if (row.pendingStatus === 'draft') return 'border-amber-300 bg-amber-50/80';
     if (row.pendingStatus === 'needs_modification') {
       return 'border-orange-300 bg-orange-50/80';
     }
-    return 'border-amber-300 bg-amber-50/80';
+    return 'border-sky-300 bg-sky-50/80';
   };
 
   const fileBeforeRef = useRef(null);
@@ -477,9 +510,10 @@ export default function EquipmentMaintenanceHistoryHub({
       .sort((a, b) => {
         // Needs-modification first, then other pending approval rows, then by created_at.
         const rank = (row) => {
-          if (row.pendingStatus === 'needs_modification') return 0;
-          if (row.pendingRequestId) return 1;
-          return 2;
+          if (row.pendingStatus === 'draft') return 0;
+          if (row.pendingStatus === 'needs_modification') return 1;
+          if (row.pendingRequestId) return 2;
+          return 3;
         };
         const aRank = rank(a);
         const bRank = rank(b);
@@ -567,7 +601,7 @@ export default function EquipmentMaintenanceHistoryHub({
           return;
         }
 
-        if (status === 'needs_modification' || status === 'pending' || status === 'resubmitted') {
+        if (status === 'needs_modification' || status === 'draft' || status === 'pending' || status === 'resubmitted') {
           // Overlay may still be loading; retry when records update.
           return;
         }
@@ -607,7 +641,7 @@ export default function EquipmentMaintenanceHistoryHub({
   const openEdit = (record, e) => {
     if (e) e.stopPropagation();
     if (viewOnly) return;
-    if (record?.pendingRequestId && record.pendingStatus !== 'needs_modification') return;
+    if (record?.pendingRequestId && record.pendingStatus !== 'needs_modification' && record.pendingStatus !== 'draft') return;
     setIsEditing(true);
     setSelectedRecord(record);
     const snapshot = formSnapshotFromRecord(record);
@@ -732,6 +766,49 @@ export default function EquipmentMaintenanceHistoryHub({
     }
   };
 
+  const draftRecords = useMemo(
+    () => records.filter((row) => row.pendingStatus === 'draft' && row.pendingRequestId),
+    [records],
+  );
+
+  const refreshAfterSubmit = async () => {
+    if (typeof onRefresh === 'function') await onRefresh();
+  };
+
+  const handleSubmitOne = async (record, e) => {
+    if (e) e.stopPropagation();
+    if (viewOnly || !record?.pendingRequestId || record.pendingStatus !== 'draft') return;
+    setSubmittingDrafts(true);
+    try {
+      await submitHistoryDraft(record.pendingRequestId);
+      toast.success('Submitted for HOD approval.');
+      await refreshAfterSubmit();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not submit this record.');
+    } finally {
+      setSubmittingDrafts(false);
+    }
+  };
+
+  const handleSubmitAll = async () => {
+    if (viewOnly || !draftRecords.length) return;
+    const domain = approvalDomainFromApiBase(historyApiBase);
+    if (!domain || !equipId) {
+      toast.error('Could not submit these records.');
+      return;
+    }
+    setSubmittingDrafts(true);
+    try {
+      const data = await submitAllHistoryDrafts({ domain, equipId });
+      toast.success(data?.message || 'Submitted for HOD approval.');
+      await refreshAfterSubmit();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not submit pending records.');
+    } finally {
+      setSubmittingDrafts(false);
+    }
+  };
+
   const handleDownloadExcel = () => {
     if (!records.length) return;
     const baseName = (exportFileName || 'Equipment_Maintenance_History')
@@ -838,6 +915,17 @@ export default function EquipmentMaintenanceHistoryHub({
           <MdDownload className="w-3.5 h-3.5" />
           Download Excel
         </button>
+        {historyApiBase ? (
+        <button
+          type="button"
+          onClick={handleSubmitAll}
+          disabled={viewOnly || submittingDrafts || saving || draftRecords.length === 0}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 rounded-lg border border-sky-200 disabled:opacity-50 disabled:cursor-not-allowed ${viewOnly ? 'hidden' : ''}`}
+        >
+          <MdSend className="w-3.5 h-3.5" />
+          Submit all{draftRecords.length ? ` (${draftRecords.length})` : ''}
+        </button>
+        ) : null}
         <button
           type="button"
           onClick={openAdd}
@@ -906,6 +994,11 @@ export default function EquipmentMaintenanceHistoryHub({
                     <button type="button" onClick={() => openDetail(row)} className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg" title="View">
                       <MdVisibility className="w-4 h-4" />
                     </button>
+                    {row.pendingStatus === 'draft' && (
+                      <button type="button" disabled={submittingDrafts} onClick={(e) => handleSubmitOne(row, e)} className="p-1.5 text-slate-400 hover:text-sky-700 hover:bg-sky-50 rounded-lg disabled:opacity-40" title="Submit for approval">
+                        <MdSend className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {canEditRecord(row) && (
                       <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">
                         <MdEdit className="w-3.5 h-3.5" />
@@ -976,6 +1069,11 @@ export default function EquipmentMaintenanceHistoryHub({
               <button type="button" onClick={() => openDetail(row)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-500">
                 <MdVisibility className="w-3.5 h-3.5" />
               </button>
+              {row.pendingStatus === 'draft' && (
+                <button type="button" disabled={submittingDrafts} onClick={(e) => handleSubmitOne(row, e)} className="p-1.5 bg-sky-50 border border-sky-200 rounded-lg text-sky-700 disabled:opacity-40" title="Submit for approval">
+                  <MdSend className="w-3.5 h-3.5" />
+                </button>
+              )}
               {canEditRecord(row) && (
                 <button type="button" onClick={(e) => openEdit(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-blue-600">
                   <MdEdit className="w-3.5 h-3.5" />
@@ -1051,9 +1149,14 @@ export default function EquipmentMaintenanceHistoryHub({
               {isEditing ? (
               selectedRecord?.pendingStatus === 'needs_modification'
                 ? 'Revise and resubmit'
-                : 'Edit History Record'
+                : (selectedRecord?.pendingStatus === 'draft' ? 'Edit pending record' : 'Edit History Record')
             ) : 'Add History Record'}
             </h3>
+            {!isEditing && historyApiBase ? (
+              <p className="mt-1 text-[11px] font-medium text-slate-500">
+                Saved as Pending so you can review and edit it before HOD approval.
+              </p>
+            ) : null}
             {isEditing && selectedRecord && (
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                 ID: {formatEntryId(selectedRecord.id)}
@@ -1297,7 +1400,7 @@ export default function EquipmentMaintenanceHistoryHub({
                 {saving
                   ? (selectedRecord?.pendingStatus === 'needs_modification'
                     ? 'Resubmitting…'
-                    : (isEditing ? 'Saving…' : 'Submitting…'))
+                    : 'Saving…')
                   : (selectedRecord?.pendingStatus === 'needs_modification'
                     ? 'Resubmit'
                     : (isEditing ? 'Save' : 'Add'))}
