@@ -76,7 +76,6 @@ const APPROVAL_DOMAINS = Object.keys(DOMAIN_TABLES);
 const TOKEN_TTL_DAYS = 7;
 
 const STATUS = {
-  DRAFT: 'draft',
   PENDING: 'pending',
   NEEDS_MODIFICATION: 'needs_modification',
   RESUBMITTED: 'resubmitted',
@@ -95,7 +94,6 @@ const OPERATION = {
 
 const ACTIVE_QUEUE_STATUSES = [STATUS.PENDING, STATUS.RESUBMITTED];
 const EMPLOYEE_VISIBLE_STATUSES = [
-  STATUS.DRAFT,
   STATUS.PENDING,
   STATUS.RESUBMITTED,
   STATUS.NEEDS_MODIFICATION,
@@ -105,8 +103,6 @@ const HOD_QUEUE_STATUSES = [STATUS.PENDING, STATUS.RESUBMITTED, STATUS.CONFLICT]
 
 const AUDIT_ACTION = {
   CREATED: 'employee_created_request',
-  DRAFT_UPDATED: 'employee_updated_draft',
-  SUBMITTED: 'employee_submitted_request',
   RESUBMITTED: 'employee_resubmitted_request',
   APPROVED: 'hod_approved_request',
   SENT_FOR_MODIFICATION: 'hod_sent_for_modification',
@@ -662,22 +658,17 @@ function approvalStagingDir(requestId) {
 
 function listStagedDocuments(requestId) {
   const dir = approvalStagingDir(requestId);
-  let names = [];
-  try {
-    if (!fs.existsSync(dir)) return [];
-    names = fs.readdirSync(dir);
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] list staged documents failed:', err.message);
-    return [];
-  }
-
-  const files = [];
-  for (const filename of names) {
-    if (!filename || filename.endsWith('.meta.json') || filename.startsWith('.')) continue;
-    try {
-      const abs = path.join(dir, filename);
-      const stat = fs.statSync(abs);
-      if (!stat.isFile()) continue;
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter((filename) => {
+      if (!filename || filename.endsWith('.meta.json') || filename.startsWith('.')) return false;
+      try {
+        return fs.statSync(path.join(dir, filename)).isFile();
+      } catch {
+        return false;
+      }
+    })
+    .map((filename) => {
       const metaPath = path.join(dir, `${filename}.meta.json`);
       let meta = {};
       if (fs.existsSync(metaPath)) {
@@ -687,45 +678,23 @@ function listStagedDocuments(requestId) {
           meta = {};
         }
       }
-      files.push({
+      const abs = path.join(dir, filename);
+      const stat = fs.statSync(abs);
+      return {
         filename,
         absPath: abs,
         displayName: meta.displayName || filename,
         originalName: meta.originalName || filename,
         mimeType: meta.mimeType || 'application/octet-stream',
         size: stat.size,
-      });
-    } catch (err) {
-      console.error('[maintenanceHistoryApproval] skip staged document:', filename, err.message);
-    }
-  }
-  return files;
+      };
+    });
 }
 
 function cleanupStagingDir(requestId) {
   const dir = approvalStagingDir(requestId);
-  try {
-    if (!fs.existsSync(dir)) return;
-    fs.rmSync(dir, { recursive: true, force: true });
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] staging cleanup failed:', err.message);
-  }
-}
-
-/** rename fails on Windows when a PDF is locked or the dest is on another drive. */
-function moveStagedFile(from, to) {
-  try {
-    fs.renameSync(from, to);
-    return;
-  } catch (err) {
-    if (!['EXDEV', 'EPERM', 'EBUSY', 'EACCES'].includes(err.code)) throw err;
-  }
-  fs.copyFileSync(from, to);
-  try {
-    fs.unlinkSync(from);
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] staged source remove failed:', err.message);
-  }
+  if (!fs.existsSync(dir)) return;
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 /** Remove one staged file (+ meta) for an approval request. Returns true if removed. */
@@ -760,47 +729,24 @@ async function moveStagedDocumentsToHistory(domain, equipId, historyId, requestI
   fs.mkdirSync(destDir, { recursive: true });
 
   const docs = [];
-  let movedAll = true;
   for (const file of staged.slice(0, MAX_HISTORY_DOCUMENTS)) {
     const ext = path.extname(file.filename) || extensionForUpload(file.mimeType, file.originalName) || '.bin';
     const destName = `${crypto.randomUUID()}${ext}`;
     const destAbs = path.join(destDir, destName);
-    try {
-      moveStagedFile(file.absPath, destAbs);
-      const metaPath = path.join(approvalStagingDir(requestId), `${file.filename}.meta.json`);
-      if (fs.existsSync(metaPath)) {
-        try { fs.unlinkSync(metaPath); } catch { /* leftover meta is removed with the staging dir */ }
-      }
-      docs.push({
-        storageKey: historyDocumentStorageKey(histTable, equipId, historyId, destName),
-        displayName: file.displayName,
-        originalName: file.originalName,
-        mimeType: file.mimeType,
-        size: file.size,
-      });
-    } catch (err) {
-      movedAll = false;
-      console.error('[maintenanceHistoryApproval] move staged document failed:', err.message);
-    }
-  }
-  if (movedAll) cleanupStagingDir(requestId);
-  return docs;
-}
+    fs.renameSync(file.absPath, destAbs);
+    const metaPath = path.join(approvalStagingDir(requestId), `${file.filename}.meta.json`);
+    if (fs.existsSync(metaPath)) fs.unlinkSync(metaPath);
 
-/** Write document keys only. A full history update rewrites photo blobs and can fail the approve response. */
-async function attachDocumentsToHistory(domain, equipId, historyId, documents) {
-  const { history: HIST } = DOMAIN_TABLES[domain];
-  const [[existingRow]] = await pool.execute(
-    `SELECT documents FROM \`${HIST}\` WHERE id=? AND equip_id=? LIMIT 1`,
-    [historyId, equipId],
-  );
-  if (!existingRow) throw new Error('Record not found.');
-  const parsed = parseHistoryDocuments(documents);
-  unlinkRemovedHistoryDocuments(historyDocumentsRemoved(existingRow.documents, parsed));
-  await pool.execute(
-    `UPDATE \`${HIST}\` SET documents = ? WHERE id = ? AND equip_id = ?`,
-    [serializeHistoryDocumentsColumn(parsed), historyId, equipId],
-  );
+    docs.push({
+      storageKey: historyDocumentStorageKey(histTable, equipId, historyId, destName),
+      displayName: file.displayName,
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      size: file.size,
+    });
+  }
+  cleanupStagingDir(requestId);
+  return docs;
 }
 
 async function applyHistoryCreate(domain, equipId, payload, conn) {
@@ -1110,21 +1056,16 @@ async function buildReviewDocuments(request, { acceptToken = null, useAuthUrl = 
       : documentViewUrl(acceptToken, source, name)
   );
   let stored = mapStoredDocsForReview(parseHistoryDocuments(docSource?.documents), makeUrl);
-  let staged = [];
-  if (request.action !== 'delete') {
-    try {
-      staged = listStagedDocuments(request.id).map((file) => ({
-        source: 'staged',
-        name: file.filename,
-        displayName: file.displayName,
-        mimeType: file.mimeType || 'application/octet-stream',
-        size: Number(file.size) || 0,
-        url: makeUrl('staged', file.filename),
-      }));
-    } catch (err) {
-      console.error('[maintenanceHistoryApproval] staged documents skipped:', err.message);
-    }
-  }
+  const staged = request.action === 'delete'
+    ? []
+    : listStagedDocuments(request.id).map((file) => ({
+      source: 'staged',
+      name: file.filename,
+      displayName: file.displayName,
+      mimeType: file.mimeType || 'application/octet-stream',
+      size: Number(file.size) || 0,
+      url: makeUrl('staged', file.filename),
+    }));
 
   // Approved creates/updates move staged files into history and clear staging;
   // fall back to the live history row when payload still has no document keys.
@@ -1311,7 +1252,6 @@ async function createPendingRequest({
   previousRow,
   reqUser,
   equipment,
-  initialStatus = STATUS.PENDING,
 }) {
   if (action === 'create' || action === 'update') {
     const dateError = historyDateRangeError(payload?.date_start, payload?.date_finish);
@@ -1359,13 +1299,12 @@ async function createPendingRequest({
     ? 0
     : Number(previousRow?.version || 1);
 
-  const status = initialStatus === STATUS.DRAFT ? STATUS.DRAFT : STATUS.PENDING;
   const [result] = await pool.execute(
     "INSERT INTO maintenance_history_approval_request "
     + "(module, entity_type, domain, action, equip_id, history_id, payload_json, previous_json, equipment_context_json, "
     + "requested_by_user_id, requested_by_email, requested_by_name, hod_user_id, hod_email, "
     + "status, base_version, token_accept, token_reject, token_expires_at) "
-    + "VALUES ('maintenance', 'maintenance_history', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    + "VALUES ('maintenance', 'maintenance_history', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)",
     [
       domain,
       action,
@@ -1379,7 +1318,6 @@ async function createPendingRequest({
       reqUser?.name || null,
       hod.id,
       hod.email,
-      status,
       baseVersion,
       tokens.tokenAccept,
       tokens.tokenReject,
@@ -1398,7 +1336,7 @@ async function createPendingRequest({
       performedByUserId: reqUser?.id,
       performedByEmail: reqUser?.email,
       previousStatus: null,
-      newStatus: status,
+      newStatus: STATUS.PENDING,
     });
   } catch (err) {
     console.error('[maintenanceHistoryApproval] audit create failed:', err.message);
@@ -1498,14 +1436,14 @@ async function ensureWorkflowSchema() {
        AND COLUMN_NAME = 'status'`,
   );
   const statusType = String(statusCol?.COLUMN_TYPE || '');
-  if (statusType && !statusType.includes('draft')) {
+  if (statusType && !statusType.includes('needs_modification')) {
     await pool.execute(
       `ALTER TABLE maintenance_history_approval_request
        MODIFY COLUMN status ENUM(
-         'draft','pending','needs_modification','resubmitted','approved','rejected','conflict','cancelled','expired'
+         'pending','needs_modification','resubmitted','approved','rejected','conflict','cancelled','expired'
        ) NOT NULL DEFAULT 'pending'`,
     );
-    console.log('[maintenanceHistoryApproval] expanded status enum with draft');
+    console.log('[maintenanceHistoryApproval] expanded status enum');
   }
 
   await pool.execute(`
@@ -1772,19 +1710,13 @@ async function bulkApproveByInboxToken(seedToken, ids) {
     try {
       const result = await approveByToken(entry.acceptToken);
       const conflict = result.status === STATUS.CONFLICT;
-      let equipmentName = entry.equipmentName;
-      try {
-        equipmentName = await equipmentDisplayNameFromRequest(result.request);
-      } catch (err) {
-        console.error('[maintenanceHistoryApproval] equipment name after approve failed:', err.message);
-      }
       results.push({
         id,
         ok: !conflict,
         status: result.status,
         alreadyResolved: Boolean(result.alreadyResolved),
         conflict: conflict || null,
-        equipmentName,
+        equipmentName: await equipmentDisplayNameFromRequest(result.request),
         message: conflict
           ? 'Version conflict — open Review for this row.'
           : null,
@@ -2169,12 +2101,7 @@ async function applyPendingRequestFiles(request, historyId) {
         payload,
       );
       if (nextPayload.documents !== payload.documents) {
-        await attachDocumentsToHistory(
-          request.domain,
-          request.equip_id,
-          targetId,
-          nextPayload.documents,
-        );
+        await applyHistoryUpdate(request.domain, request.equip_id, targetId, nextPayload);
       }
     }
   } else {
@@ -2370,11 +2297,7 @@ async function notifySubmitterInAppNeedsModification(request, comment) {
 }
 
 async function notifyApproved(request) {
-  try {
-    await notifySubmitterInAppApproved(request);
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] approved in-app notify failed:', err.message);
-  }
+  await notifySubmitterInAppApproved(request);
   if (!request.requested_by_email) return;
   try {
     await sendMaintenanceHistoryApprovedEmail({
@@ -2491,23 +2414,8 @@ async function approveRequest(request, actor = {}, { force = false } = {}) {
     console.error('[maintenanceHistoryApproval] post-approve files failed:', err.message);
   }
 
-  let updated = { ...request, status: STATUS.APPROVED, history_id: historyId || request.history_id };
-  try {
-    const fresh = await getRequestById(request.id);
-    updated = {
-      ...fresh,
-      status: fresh.status || STATUS.APPROVED,
-      history_id: fresh.history_id || historyId || request.history_id,
-    };
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] reload after approve failed:', err.message);
-  }
-
-  try {
-    await notifyApproved(updated);
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] approved notify failed:', err.message);
-  }
+  const updated = { ...request, status: STATUS.APPROVED, history_id: historyId };
+  await notifyApproved(updated);
   return { alreadyResolved: false, status: STATUS.APPROVED, request: updated };
 }
 
@@ -2669,127 +2577,6 @@ async function resubmitRequest(request, payload, user) {
   }
 
   return updated;
-}
-
-async function updateDraftRequest(request, payload, user) {
-  if (!request) {
-    const err = new Error('Approval request not found.');
-    err.status = 404;
-    throw err;
-  }
-  if (Number(request.requested_by_user_id) !== Number(user.id)) {
-    const err = new Error('You can only edit your own pending record.');
-    err.status = 403;
-    throw err;
-  }
-  if (request.status !== STATUS.DRAFT) {
-    const err = new Error('Only pending records that have not been submitted can be edited this way.');
-    err.status = 409;
-    throw err;
-  }
-  const dateError = historyDateRangeError(payload?.date_start, payload?.date_finish);
-  if (dateError) {
-    const err = new Error(dateError);
-    err.status = 400;
-    throw err;
-  }
-  await pool.execute(
-    `UPDATE maintenance_history_approval_request
-     SET payload_json = ?
-     WHERE id = ? AND status = 'draft'`,
-    [JSON.stringify(payload || {}), request.id],
-  );
-  try {
-    await insertAudit({
-      requestId: request.id,
-      action: AUDIT_ACTION.DRAFT_UPDATED,
-      performedByUserId: user.id,
-      performedByEmail: user.email,
-      previousStatus: STATUS.DRAFT,
-      newStatus: STATUS.DRAFT,
-    });
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] draft update audit failed:', err.message);
-  }
-  return getRequestById(request.id);
-}
-
-async function submitDraftRequest(request, user) {
-  if (!request) {
-    const err = new Error('Approval request not found.');
-    err.status = 404;
-    throw err;
-  }
-  if (Number(request.requested_by_user_id) !== Number(user.id)) {
-    const err = new Error('You can only submit your own pending record.');
-    err.status = 403;
-    throw err;
-  }
-  if (request.status !== STATUS.DRAFT) {
-    const err = new Error('This record is already submitted for approval.');
-    err.status = 409;
-    throw err;
-  }
-  const tokens = newTokenPair();
-  const [result] = await pool.execute(
-    `UPDATE maintenance_history_approval_request
-     SET status = 'pending',
-         token_accept = ?, token_reject = ?, token_expires_at = ?,
-         hod_notified_at = NULL
-     WHERE id = ? AND status = 'draft'`,
-    [tokens.tokenAccept, tokens.tokenReject, tokens.expires, request.id],
-  );
-  if (!result.affectedRows) {
-    const err = new Error('This record is already submitted for approval.');
-    err.status = 409;
-    throw err;
-  }
-  try {
-    await insertAudit({
-      requestId: request.id,
-      action: AUDIT_ACTION.SUBMITTED,
-      performedByUserId: user.id,
-      performedByEmail: user.email,
-      previousStatus: STATUS.DRAFT,
-      newStatus: STATUS.PENDING,
-    });
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] draft submit audit failed:', err.message);
-  }
-  const updated = await getRequestById(request.id);
-  try {
-    await notifyHodInAppPending(updated, { resubmitted: false });
-  } catch (err) {
-    console.error('[maintenanceHistoryApproval] draft submit notify failed:', err.message);
-  }
-  return updated;
-}
-
-async function submitEquipmentDrafts({ domain, equipId, user }) {
-  if (!DOMAIN_TABLES[domain]) {
-    const err = new Error('Unknown equipment plant.');
-    err.status = 400;
-    throw err;
-  }
-  const id = Number(equipId);
-  if (!id) {
-    const err = new Error('Equipment is required.');
-    err.status = 400;
-    throw err;
-  }
-  const [rows] = await pool.query(
-    `SELECT * FROM maintenance_history_approval_request
-     WHERE domain = ? AND equip_id = ? AND requested_by_user_id = ?
-       AND status = 'draft' AND action = 'create'
-     ORDER BY id ASC`,
-    [domain, id, user.id],
-  );
-  let submitted = 0;
-  for (const row of rows) {
-    await submitDraftRequest(row, user);
-    submitted += 1;
-  }
-  return { submitted };
 }
 
 async function resolveConflict(request, resolution, actor) {
@@ -3082,7 +2869,7 @@ async function overlayPendingHistory(domain, equipId, userId, records) {
     const [result] = await pool.query(
       `SELECT * FROM maintenance_history_approval_request
        WHERE domain = ? AND equip_id = ? AND requested_by_user_id = ?
-         AND status IN ('draft', 'pending', 'resubmitted', 'needs_modification', 'conflict')
+         AND status IN ('pending', 'resubmitted', 'needs_modification', 'conflict')
        ORDER BY created_at DESC`,
       [domain, equipId, userId],
     );
@@ -3172,7 +2959,7 @@ async function assertPendingRequestForUser(requestId, equipId, domain, userId) {
   const [[row]] = await pool.query(
     `SELECT * FROM maintenance_history_approval_request
      WHERE id = ? AND equip_id = ? AND domain = ?
-       AND status IN ('draft', 'pending', 'resubmitted', 'needs_modification')
+       AND status IN ('pending', 'resubmitted', 'needs_modification')
      LIMIT 1`,
     [requestId, equipId, domain],
   );
@@ -3245,9 +3032,6 @@ module.exports = {
   approveRequest,
   sendForModification,
   resubmitRequest,
-  updateDraftRequest,
-  submitDraftRequest,
-  submitEquipmentDrafts,
   resolveConflict,
   bulkApprove,
   listMyRequests,

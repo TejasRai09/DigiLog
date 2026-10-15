@@ -16,7 +16,7 @@ import useMaintenanceHistoryHodRefresh from '../../hooks/useMaintenanceHistoryHo
 import { withoutGsmaLabel } from '../../utils/displayLabels';
 import { trackEquipmentPdfDownload } from '../../utils/trackActivity';
 import { serializeSpecsForApi, buildEquipmentOptionsFromSpecs } from '../../utils/equipmentSpecModel';
-import { saveHistoryWithDocuments, saveDraftHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
+import { saveHistoryWithDocuments, resubmitHistoryWithDocuments } from '../../utils/historyDocuments';
 import {
   isProductionHouseSection,
   productionHouseSectionLabel,
@@ -260,18 +260,6 @@ const ProductionHouseEquipmentDetail = () => {
     if (!equipId) return;
     setSaving(true);
     try {
-      if (record?.pendingStatus === 'draft' && record.pendingRequestId) {
-        await saveDraftHistoryWithDocuments({
-          apiBase: API_BASE,
-          equipId,
-          form,
-          approvalRequestId: record.pendingRequestId,
-          previousDocuments: record.documents || [],
-        });
-        toast.success('Pending record updated. Submit it when you are ready for HOD approval.');
-        await loadHistory();
-        return;
-      }
       if (record?.pendingStatus === 'needs_modification' && record.pendingRequestId) {
         await resubmitHistoryWithDocuments({
           apiBase: API_BASE,
@@ -292,13 +280,8 @@ const ProductionHouseEquipmentDetail = () => {
         mode,
         recordId,
       });
-      if (result?.draft) {
-        toast.success('Saved as Pending. Review it, then submit it for HOD approval.');
-        await loadHistory();
-        return;
-      }
       if (result?.pending) {
-        toast.success('Sent to HOD for approval. It stays Approval pending until the HOD reviews it.');
+        toast.success('Sent to HOD for approval. Pending until the HOD reviews it.');
         await loadHistory();
         return;
       }
@@ -466,7 +449,6 @@ const ProductionHouseEquipmentDetail = () => {
         onToggle={() => setHistOpen((v) => !v)}
         onSave={saveMaintenanceRecord}
         onDelete={deleteMaintenanceRecord}
-        onRefresh={loadHistory}
         exportFileName={eq.name || 'Equipment_Maintenance_History'}
         equipmentOptions={equipmentOptions}
         defaultEquipmentKeys={equipmentOptions.map((opt) => opt.key)}
