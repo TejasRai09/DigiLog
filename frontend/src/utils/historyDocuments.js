@@ -126,6 +126,7 @@ export async function saveHistoryWithDocuments({
 
   if (response.status === 202 || response.data?.pending) {
     const approvalRequestId = response.data.approvalRequestId;
+    const isDraft = Boolean(response.data?.draft);
     const uploadErrors = [];
     let uploadedCount = 0;
     for (const doc of pendingDocs) {
@@ -146,19 +147,21 @@ export async function saveHistoryWithDocuments({
     if (uploadErrors.length) {
       const err = new Error(
         pendingDocs.length > 1 && uploadedCount > 0
-          ? `Sent for approval, but only ${uploadedCount} of ${pendingDocs.length} documents uploaded (${uploadErrors[0]}).`
-          : `Sent for approval, but document upload failed: ${uploadErrors[0]}`,
+          ? `Saved, but only ${uploadedCount} of ${pendingDocs.length} documents uploaded (${uploadErrors[0]}).`
+          : `Saved, but document upload failed: ${uploadErrors[0]}`,
       );
       err.pendingCreated = true;
       err.approvalRequestId = approvalRequestId;
       throw err;
     }
-    try {
-      await api.post(`/change-requests/${approvalRequestId}/notify-hod`);
-    } catch (err) {
-      console.error('[historyDocuments] HOD notify failed:', err.response?.data?.message || err.message);
+    if (!isDraft) {
+      try {
+        await api.post(`/change-requests/${approvalRequestId}/notify-hod`);
+      } catch (err) {
+        console.error('[historyDocuments] HOD notify failed:', err.response?.data?.message || err.message);
+      }
     }
-    return { pending: true, approvalRequestId };
+    return { pending: true, draft: isDraft, approvalRequestId };
   }
 
   let uploadedCount = 0;
@@ -249,6 +252,72 @@ export async function resubmitHistoryWithDocuments({
   body.documents = serializeHistoryDocumentsForApi(savedDocs);
   await api.put(`/change-requests/${approvalRequestId}/resubmit`, body);
   return { pending: true, approvalRequestId, resubmitted: true };
+}
+
+/** Update a not-yet-submitted history record and keep it Pending. */
+export async function saveDraftHistoryWithDocuments({
+  apiBase,
+  equipId,
+  form,
+  approvalRequestId,
+  previousDocuments = [],
+}) {
+  const oversized = getOversizedHistoryDocumentError(form?.documents);
+  if (oversized) {
+    const err = new Error(oversized);
+    err.status = 400;
+    throw err;
+  }
+
+  const keepStagedNames = new Set(
+    (form.documents || [])
+      .filter((doc) => doc?.staged && doc.stagedFileName)
+      .map((doc) => String(doc.stagedFileName)),
+  );
+  const previousStaged = (previousDocuments || []).filter(
+    (doc) => doc?.staged && doc.stagedFileName,
+  );
+  for (const doc of previousStaged) {
+    const name = String(doc.stagedFileName);
+    if (keepStagedNames.has(name)) continue;
+    await deleteApprovalStagedDocument(apiBase, equipId, approvalRequestId, name);
+  }
+
+  const savedDocs = (form.documents || []).filter((doc) => (
+    doc
+    && !doc.pending
+    && !doc.staged
+    && doc.storageKey
+    && !String(doc.storageKey).startsWith('staged:')
+  ));
+  const pendingDocs = (form.documents || []).filter((doc) => doc.pending && doc.file);
+  let uploadedCount = 0;
+  for (const doc of pendingDocs) {
+    if (savedDocs.length + keepStagedNames.size + uploadedCount >= MAX_HISTORY_DOCUMENTS) break;
+    await uploadApprovalHistoryDocument(
+      apiBase,
+      equipId,
+      approvalRequestId,
+      doc.file,
+      doc.displayName,
+    );
+    uploadedCount += 1;
+  }
+
+  const body = historyRecordToApi(form);
+  body.documents = serializeHistoryDocumentsForApi(savedDocs);
+  await api.put(`/change-requests/${approvalRequestId}/draft`, body);
+  return { pending: true, draft: true, approvalRequestId };
+}
+
+export async function submitHistoryDraft(approvalRequestId) {
+  const { data } = await api.post(`/change-requests/${approvalRequestId}/submit`);
+  return data;
+}
+
+export async function submitAllHistoryDrafts({ domain, equipId }) {
+  const { data } = await api.post('/change-requests/submit-drafts', { domain, equipId });
+  return data;
 }
 
 export { documentFileName };
