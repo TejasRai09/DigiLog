@@ -48,7 +48,7 @@ import {
   serviceLabel,
 } from '../../utils/equipmentHistoryModel';
 import { downloadMaintenanceHistoryExcel } from '../../utils/equipmentHistoryExcel';
-import { downloadHistoryDocument, downloadApprovalStagedDocument, submitAllHistoryDrafts, submitHistoryDraft } from '../../utils/historyDocuments';
+import { downloadHistoryDocument, downloadApprovalStagedDocument, submitAllHistoryDrafts, submitHistoryDraft, deleteHistoryDraft } from '../../utils/historyDocuments';
 import useAuth from '../../hooks/useAuth';
 import useFormsHubViewOnly from '../../hooks/useFormsHubViewOnly';
 import api from '../../api/axios';
@@ -323,7 +323,12 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const { user } = useAuth();
   const viewOnly = useFormsHubViewOnly();
-  const canDelete = !viewOnly && user?.role === 'admin' && typeof onDelete === 'function';
+  const canDeleteSaved = !viewOnly && user?.role === 'admin' && typeof onDelete === 'function';
+  const canDeleteRecord = (record) => {
+    if (viewOnly || !record) return false;
+    if (record.pendingStatus === 'draft' && record.pendingRequestId) return true;
+    return canDeleteSaved;
+  };
   const canEditRecord = (record) => (
     !viewOnly && (
       !record?.pendingRequestId
@@ -675,21 +680,37 @@ export default function EquipmentMaintenanceHistoryHub({
 
   const handleDelete = async (record, e) => {
     if (e) e.stopPropagation();
-    if (!canDelete || !record?.id) return;
+    if (!canDeleteRecord(record)) return;
+    const closeIfSelected = () => {
+      if (detailOpen && selectedRecord?.id === record.id) {
+        setDetailOpen(false);
+        setSelectedRecord(null);
+      }
+      if (formOpen && selectedRecord?.id === record.id) {
+        setFormOpen(false);
+      }
+    };
+    if (record.pendingStatus === 'draft' && record.pendingRequestId) {
+      if (!window.confirm('Delete this pending record? It has not been sent to the HOD yet.')) return;
+      try {
+        await deleteHistoryDraft(record.pendingRequestId);
+        toast.success('Pending record deleted.');
+        closeIfSelected();
+        await refreshAfterSubmit();
+      } catch (err) {
+        toast.error(err.response?.data?.message || 'Could not delete this pending record.');
+      }
+      return;
+    }
     if (record.pendingRequestId) {
       window.alert('This record already has a pending HOD request.');
       return;
     }
+    if (!record?.id) return;
     const label = formatEntryId(record.id);
     if (!window.confirm(`Delete maintenance history record ${label}? This cannot be undone.`)) return;
     await onDelete(record.id);
-    if (detailOpen && selectedRecord?.id === record.id) {
-      setDetailOpen(false);
-      setSelectedRecord(null);
-    }
-    if (formOpen && selectedRecord?.id === record.id) {
-      setFormOpen(false);
-    }
+    closeIfSelected();
   };
 
   const handleStartChange = (value) => {
@@ -1004,7 +1025,7 @@ export default function EquipmentMaintenanceHistoryHub({
                         <MdEdit className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {canDelete && (
+                    {canDeleteRecord(row) && (
                       <button type="button" onClick={(e) => handleDelete(row, e)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
                         <MdDelete className="w-3.5 h-3.5" />
                       </button>
@@ -1079,7 +1100,7 @@ export default function EquipmentMaintenanceHistoryHub({
                   <MdEdit className="w-3.5 h-3.5" />
                 </button>
               )}
-              {canDelete && (
+              {canDeleteRecord(row) && (
                 <button type="button" onClick={(e) => handleDelete(row, e)} className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-red-600">
                   <MdDelete className="w-3.5 h-3.5" />
                 </button>
@@ -1563,7 +1584,7 @@ export default function EquipmentMaintenanceHistoryHub({
             <MdEdit className="w-3.5 h-3.5" />
             Edit
           </button>
-          {canDelete && (
+          {canDeleteRecord(selectedRecord) && (
             <button
               type="button"
               onClick={(e) => handleDelete(selectedRecord, e)}
