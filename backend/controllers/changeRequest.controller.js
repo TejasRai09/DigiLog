@@ -7,9 +7,6 @@ const {
   approveRequest,
   sendForModification,
   resubmitRequest,
-  updateDraftRequest,
-  submitDraftRequest,
-  submitEquipmentDrafts,
   resolveConflict,
   bulkApprove,
   listMyRequests,
@@ -18,8 +15,6 @@ const {
   getDocumentForLoggedInUser,
   notifyHodPendingAfterClientSubmit,
 } = require('../services/maintenanceHistoryApproval.service');
-const { getFormHodAccess } = require('../services/formApproval.service');
-const { getNotesHodAccess } = require('../services/maintenanceNotes.service');
 const { sendServerError, MSG } = require('../utils/httpError');
 const path = require('path');
 const fs = require('fs');
@@ -31,14 +26,9 @@ function actorFromUser(user) {
 const getApprovalAccess = async (req, res) => {
   try {
     const access = await getHodAccess(req.user.id);
-    const formAccess = await getFormHodAccess(req.user.id);
-    const notesAccess = await getNotesHodAccess(req.user.id);
-    const maintenance = Boolean(access.sugar || access.power || access.production);
     res.json({
       ...access,
-      forms: Boolean(formAccess.enabled),
-      notes: Boolean(notesAccess.enabled),
-      enabled: Boolean(maintenance || formAccess.enabled || notesAccess.enabled),
+      enabled: Boolean(access.sugar || access.power || access.production),
     });
   } catch (err) {
     sendServerError(res, 'getApprovalAccess:', err, MSG.LOAD);
@@ -61,19 +51,13 @@ const approveChangeRequest = async (req, res) => {
     await assertHodForRequest(req.user, request);
     const result = await approveRequest(request, actorFromUser(req.user));
     const extra = result.conflict ? { conflict: result.conflict } : {};
-    let item = { id: result.request?.id, status: result.status, documents: [] };
-    try {
-      item = await serializeApprovalRequest(result.request, extra);
-    } catch (err) {
-      console.error('[approveChangeRequest] serialize after approve failed:', err.message);
-    }
     res.json({
       message: result.status === 'conflict'
         ? 'Version conflict detected. Review expected vs current vs requested values.'
         : (result.alreadyResolved ? 'Already approved.' : 'Approved.'),
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      item,
+      item: await serializeApprovalRequest(result.request, extra),
     });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -166,57 +150,6 @@ const resubmitChangeRequest = async (req, res) => {
   }
 };
 
-const updateDraftChangeRequest = async (req, res) => {
-  try {
-    const request = await getRequestById(req.params.id);
-    const updated = await updateDraftRequest(request, req.body || {}, req.user);
-    res.json({
-      message: 'Pending record updated.',
-      draft: true,
-      approvalRequestId: updated.id,
-      item: await serializeApprovalRequest(updated),
-    });
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    sendServerError(res, 'updateDraftChangeRequest:', err, MSG.SAVE);
-  }
-};
-
-const submitDraftChangeRequest = async (req, res) => {
-  try {
-    const request = await getRequestById(req.params.id);
-    const updated = await submitDraftRequest(request, req.user);
-    res.json({
-      message: 'Submitted for HOD approval.',
-      approvalRequestId: updated.id,
-      item: await serializeApprovalRequest(updated),
-    });
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    sendServerError(res, 'submitDraftChangeRequest:', err, MSG.SAVE);
-  }
-};
-
-const submitDraftChangeRequests = async (req, res) => {
-  try {
-    const result = await submitEquipmentDrafts({
-      domain: req.body?.domain,
-      equipId: req.body?.equipId,
-      user: req.user,
-    });
-    const count = result.submitted;
-    res.json({
-      submitted: count,
-      message: count
-        ? `Submitted ${count} record${count === 1 ? '' : 's'} for HOD approval.`
-        : 'No pending records to submit.',
-    });
-  } catch (err) {
-    if (err.status) return res.status(err.status).json({ message: err.message });
-    sendServerError(res, 'submitDraftChangeRequests:', err, MSG.SAVE);
-  }
-};
-
 const notifyHodChangeRequest = async (req, res) => {
   try {
     const result = await notifyHodPendingAfterClientSubmit(req.params.id, req.user);
@@ -262,9 +195,6 @@ module.exports = {
   getMyChangeRequests,
   getChangeRequestById,
   resubmitChangeRequest,
-  updateDraftChangeRequest,
-  submitDraftChangeRequest,
-  submitDraftChangeRequests,
   notifyHodChangeRequest,
   downloadApprovalDocument,
 };
