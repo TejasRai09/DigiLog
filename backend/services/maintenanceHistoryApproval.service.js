@@ -106,6 +106,7 @@ const HOD_QUEUE_STATUSES = [STATUS.PENDING, STATUS.RESUBMITTED, STATUS.CONFLICT]
 const AUDIT_ACTION = {
   CREATED: 'employee_created_request',
   DRAFT_UPDATED: 'employee_updated_draft',
+  DRAFT_CANCELLED: 'employee_cancelled_draft',
   SUBMITTED: 'employee_submitted_request',
   RESUBMITTED: 'employee_resubmitted_request',
   APPROVED: 'hod_approved_request',
@@ -2765,6 +2766,51 @@ async function submitDraftRequest(request, user) {
   return updated;
 }
 
+async function cancelDraftRequest(request, user) {
+  if (!request) {
+    const err = new Error('Approval request not found.');
+    err.status = 404;
+    throw err;
+  }
+  const isOwner = Number(request.requested_by_user_id) === Number(user.id);
+  const isAdmin = String(user.role || '') === 'admin';
+  if (!isOwner && !isAdmin) {
+    const err = new Error('You can only delete your own pending record.');
+    err.status = 403;
+    throw err;
+  }
+  if (request.status !== STATUS.DRAFT) {
+    const err = new Error('Only pending records that have not been submitted can be deleted this way.');
+    err.status = 409;
+    throw err;
+  }
+  const [result] = await pool.execute(
+    `UPDATE maintenance_history_approval_request
+     SET status = 'cancelled', resolved_at = NOW(), resolved_by = ?
+     WHERE id = ? AND status = 'draft'`,
+    [user.email || null, request.id],
+  );
+  if (!result.affectedRows) {
+    const err = new Error('Only pending records that have not been submitted can be deleted this way.');
+    err.status = 409;
+    throw err;
+  }
+  cleanupStagingDir(request.id);
+  try {
+    await insertAudit({
+      requestId: request.id,
+      action: AUDIT_ACTION.DRAFT_CANCELLED,
+      performedByUserId: user.id,
+      performedByEmail: user.email,
+      previousStatus: STATUS.DRAFT,
+      newStatus: STATUS.CANCELLED,
+    });
+  } catch (err) {
+    console.error('[maintenanceHistoryApproval] draft cancel audit failed:', err.message);
+  }
+  return { cancelled: true, id: request.id };
+}
+
 async function submitEquipmentDrafts({ domain, equipId, user }) {
   if (!DOMAIN_TABLES[domain]) {
     const err = new Error('Unknown equipment plant.');
@@ -3247,6 +3293,7 @@ module.exports = {
   resubmitRequest,
   updateDraftRequest,
   submitDraftRequest,
+  cancelDraftRequest,
   submitEquipmentDrafts,
   resolveConflict,
   bulkApprove,

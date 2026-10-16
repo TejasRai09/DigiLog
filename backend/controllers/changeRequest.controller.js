@@ -9,6 +9,7 @@ const {
   resubmitRequest,
   updateDraftRequest,
   submitDraftRequest,
+  cancelDraftRequest,
   submitEquipmentDrafts,
   resolveConflict,
   bulkApprove,
@@ -199,6 +200,17 @@ const submitDraftChangeRequest = async (req, res) => {
   }
 };
 
+const cancelDraftChangeRequest = async (req, res) => {
+  try {
+    const request = await getRequestById(req.params.id);
+    await cancelDraftRequest(request, req.user);
+    res.json({ message: 'Pending record deleted.', cancelled: true });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
+    sendServerError(res, 'cancelDraftChangeRequest:', err, MSG.DELETE);
+  }
+};
+
 const submitDraftChangeRequests = async (req, res) => {
   try {
     const result = await submitEquipmentDrafts({
@@ -266,6 +278,7 @@ module.exports = {
   resubmitChangeRequest,
   updateDraftChangeRequest,
   submitDraftChangeRequest,
+  cancelDraftChangeRequest,
   submitDraftChangeRequests,
   notifyHodChangeRequest,
   downloadApprovalDocument,
