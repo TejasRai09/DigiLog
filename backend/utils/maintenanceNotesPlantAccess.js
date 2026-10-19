@@ -10,7 +10,8 @@ function plantFromUserCategory(department) {
   const raw = normalizeCategory(department);
   if (!raw) return null;
   const compact = raw.replace(/\s+/g, '');
-  if (compact.includes('distill') || compact === 'sugar' || compact.includes('sugarhouse')) return 'sugar';
+  if (compact.includes('distill')) return null;
+  if (compact.includes('sugarhouse') || compact === 'sugar' || compact.startsWith('sugar')) return 'sugar';
   if (compact.includes('powerplant') || compact === 'power' || compact.startsWith('power')) return 'power';
   if (compact === 'production' || compact.startsWith('production') || compact.includes('producton')) return 'production';
   return null;
