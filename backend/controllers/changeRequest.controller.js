@@ -31,9 +31,9 @@ function actorFromUser(user) {
 
 const getApprovalAccess = async (req, res) => {
   try {
-    const access = await getHodAccess(req.user.id);
+    const access = await getHodAccess(req.user);
     const formAccess = await getFormHodAccess(req.user.id);
-    const notesAccess = await getNotesHodAccess(req.user.id);
+    const notesAccess = await getNotesHodAccess(req.user);
     const maintenance = Boolean(access.sugar || access.power || access.production);
     res.json({
       ...access,

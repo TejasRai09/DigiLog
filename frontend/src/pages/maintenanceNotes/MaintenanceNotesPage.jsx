@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import useAuth from '../../hooks/useAuth';
 import api from '../../api/axios';
+import { canUseMaintenanceNotes, lockedPlantForUser } from '../../utils/maintenanceNotesPlantAccess';
 import AppBreadcrumb from '../../components/AppBreadcrumb';
 import AppPageHeader from '../../components/AppPageHeader';
 import Spinner from '../../components/Spinner';
@@ -17,9 +18,9 @@ import CardOverflowMenu from '../../components/CardOverflowMenu';
 import MaintenanceNoteMobileList from './MaintenanceNoteMobileList';
 import NoteFilterBar from './NoteFilterBar';
 import { MdEdit, MdSend, MdVisibility } from 'react-icons/md';
-import { downloadNoteDocument } from './NoteAttachmentFields';
+import { noteDocumentsForViewer } from './NoteAttachmentFields';
+import ApprovalMediaAttachments from '../../components/approvals/ApprovalMediaAttachments';
 
-const EMPTY_FILTERS = { status: '', plant: '', search: '' };
 const PAGE_HEIGHT = isStagingEnv()
   ? 'h-[calc(100dvh-5.75rem)] sm:h-[calc(100dvh-6.5rem)]'
   : 'h-[calc(100dvh-3.75rem)] sm:h-[calc(100dvh-4rem)]';
@@ -27,8 +28,14 @@ const PAGE_HEIGHT = isStagingEnv()
 export default function MaintenanceNotesPage() {
   const { user } = useAuth();
   const viewOnly = Boolean(user?.formsHubViewOnly);
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [applied, setApplied] = useState(EMPTY_FILTERS);
+  const lockedPlant = lockedPlantForUser(user);
+  const allowed = canUseMaintenanceNotes(user);
+  const emptyFilters = useMemo(
+    () => ({ status: '', plant: lockedPlant || '', search: '' }),
+    [lockedPlant],
+  );
+  const [filters, setFilters] = useState(emptyFilters);
+  const [applied, setApplied] = useState(emptyFilters);
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,6 +45,10 @@ export default function MaintenanceNotesPage() {
   const [detail, setDetail] = useState(null);
 
   const load = useCallback(async ({ quiet = false } = {}) => {
+    if (!allowed) {
+      setLoading(false);
+      return;
+    }
     if (!quiet) setLoading(true);
     try {
       const params = { page, limit: 20 };
@@ -49,7 +60,7 @@ export default function MaintenanceNotesPage() {
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [applied, page]);
+  }, [allowed, applied, page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -76,7 +87,7 @@ export default function MaintenanceNotesPage() {
   const items = data?.items || [];
   const totalPages = Math.max(1, Math.ceil((data?.total || 0) / (data?.limit || 20)));
   const summary = data?.summary || {};
-  const canReset = Boolean(filters.search || filters.plant || filters.status);
+  const canReset = Boolean(filters.search || (!lockedPlant && filters.plant) || filters.status);
 
   const toggleStatus = (key) => {
     setFilters((f) => ({ ...f, status: f.status === key ? '' : key }));
@@ -97,8 +108,8 @@ export default function MaintenanceNotesPage() {
   };
 
   const resetFilters = () => {
-    setFilters(EMPTY_FILTERS);
-    setApplied(EMPTY_FILTERS);
+    setFilters(emptyFilters);
+    setApplied(emptyFilters);
     setPage(1);
   };
 
@@ -121,6 +132,24 @@ export default function MaintenanceNotesPage() {
     { label: 'Edit', icon: MdEdit, hidden: !item.canEdit, onClick: () => openNote(item, 'edit') },
     { label: 'Submit', icon: MdSend, hidden: !item.canSubmit, onClick: () => setSubmitting(item) },
   ]);
+
+  if (!allowed) {
+    return (
+      <main className={`app-main flex min-h-0 flex-col overflow-hidden !py-3 ${PAGE_HEIGHT}`}>
+        <AppBreadcrumb
+          bleed={false}
+          className="mb-0"
+          items={[DASHBOARD_CRUMB, { label: 'Maintenance Notes' }]}
+        />
+        <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center">
+          <h1 className="text-lg font-bold text-slate-900">Maintenance Notes is not available</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            This register is only for Power Plant, Distillery, and Production employees.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   const addNoteButton = (className) => (
     viewOnly ? null : (
@@ -211,6 +240,7 @@ export default function MaintenanceNotesPage() {
           plant={filters.plant}
           status={filters.status}
           canReset={canReset}
+          plantLocked={Boolean(lockedPlant)}
           onSearchChange={(search) => setFilters((f) => ({ ...f, search }))}
           onPlantChange={changePlant}
           onStatusChange={changeStatus}
@@ -305,28 +335,11 @@ export default function MaintenanceNotesPage() {
             {detail.activityDetails ? (
               <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{detail.activityDetails}</p>
             ) : null}
-            {detail.images?.length ? (
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {detail.images.map((img, index) => (
-                  <img key={index} src={img} alt="" className="aspect-square w-full rounded-xl border border-slate-200 object-cover" />
-                ))}
-              </div>
-            ) : null}
-            {detail.documents?.length ? (
-              <ul className="mt-4 space-y-1 text-sm">
-                {detail.documents.map((doc) => (
-                  <li key={doc.storageKey}>
-                    <button
-                      type="button"
-                      className="font-medium text-blue-700 hover:underline"
-                      onClick={() => downloadNoteDocument(detail.id, doc).catch(() => toast.error('Could not download the document.'))}
-                    >
-                      {doc.displayName}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+            <ApprovalMediaAttachments
+              photos={detail.images}
+              photosLabel="Photos"
+              documents={noteDocumentsForViewer(detail)}
+            />
             <dl className="mt-4 grid grid-cols-1 gap-2 text-sm">
               <div><span className="text-slate-500">Equipment: </span>{detail.equipmentName || 'Not linked'}</div>
               <div><span className="text-slate-500">Created by: </span>{detail.createdByName} · {formatNoteWhen(detail.createdAt)}</div>

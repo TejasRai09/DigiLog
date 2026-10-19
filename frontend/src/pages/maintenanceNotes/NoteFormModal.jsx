@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import useAuth from '../../hooks/useAuth';
 import Spinner from '../../components/Spinner';
 import { ACTIVITY_MAX_LENGTH, ACTIVITY_TYPES, PLANTS } from './noteStatus';
+import { lockedPlantForUser } from '../../utils/maintenanceNotesPlantAccess';
 import EquipmentTreeSelect from './EquipmentTreeSelect';
 import {
   MAX_NOTE_DOCUMENTS,
@@ -13,8 +15,11 @@ import {
 } from './NoteAttachmentFields';
 
 export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }) {
+  const { user } = useAuth();
+  const lockedPlant = lockedPlantForUser(user);
+  const plantLocked = Boolean(lockedPlant);
   const [savedId, setSavedId] = useState(null);
-  const [plant, setPlant] = useState('sugar');
+  const [plant, setPlant] = useState(lockedPlant || 'sugar');
   const [noEquipment, setNoEquipment] = useState(false);
   const [selectedId, setSelectedId] = useState('');
   const [equipmentNodeId, setEquipmentNodeId] = useState(null);
@@ -36,7 +41,7 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
     const rawActivity = note?.activityDescription || '';
     const existingDetails = note?.activityDetails || '';
     setSavedId(note?.id || null);
-    setPlant(note?.plant || 'sugar');
+    setPlant(note?.plant || lockedPlant || 'sugar');
     setNoEquipment(Boolean(note?.noEquipment));
     setEquipmentNodeId(note?.equipmentNodeId || null);
     setEquipmentId(note?.equipmentId || null);
@@ -52,7 +57,7 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
     }
     setPhotos(Array.isArray(note?.images) ? note.images : []);
     setDocuments((note?.documents || []).map((doc) => ({ ...doc, pending: false, file: null })));
-  }, [open, note]);
+  }, [open, note, lockedPlant]);
 
   useEffect(() => {
     if (!open || noEquipment) return undefined;
@@ -146,7 +151,9 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
           {viewOnly ? 'Maintenance note' : isEdit ? 'Edit maintenance note' : 'Add maintenance note'}
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Plant decides which HOD can close the note. Equipment comes from that plant’s hierarchy.
+          {plantLocked
+            ? 'Plant is set from your employee category. Equipment comes from that plant’s hierarchy.'
+            : 'Plant decides which HOD can close the note. Equipment comes from that plant’s hierarchy.'}
         </p>
 
         <label className="mt-4 block text-sm font-semibold text-slate-700">
@@ -154,7 +161,7 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
         </label>
         <select
           value={plant}
-          disabled={viewOnly}
+          disabled={viewOnly || plantLocked}
           onChange={(e) => {
             setPlant(e.target.value);
             setSelectedId('');
@@ -162,10 +169,10 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
             setEquipmentId(null);
             setEquipmentFallback('');
           }}
-          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm"
+          className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm disabled:bg-slate-50 disabled:text-slate-700"
           required
         >
-          {PLANTS.map((p) => (
+          {(plantLocked ? PLANTS.filter((p) => p.key === plant) : PLANTS).map((p) => (
             <option key={p.key} value={p.key}>{p.label}</option>
           ))}
         </select>

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import ChangeComparison from './ChangeComparison';
 import ApprovalActions from './ApprovalActions';
 import ApprovalMediaAttachments from './ApprovalMediaAttachments.jsx';
+import ChangeRequestCard from './ChangeRequestCard';
 import { StatusBadge, formatSubmittedAt } from './approvalDisplay.jsx';
 
 function ConflictPanel({ conflict }) {
@@ -222,16 +223,41 @@ export default function PendingChangeList({
     if (ok) closeReview();
   };
 
+  if (!items.length) {
+    return (
+      <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-base text-slate-400">
+        None
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      <ApprovalTable
-        rows={items}
-        selectedIds={selectedIds}
-        onToggle={onToggle}
-        onReview={setReviewItem}
-        startIndex={1}
-        source={source}
-      />
+      <div className="space-y-3 md:hidden">
+        {items.map((item) => (
+          <ChangeRequestCard
+            key={item.id}
+            item={item}
+            selected={selectedIds.includes(item.id)}
+            onToggle={onToggle}
+            busy={busy}
+            busyAction={busyAction}
+            onApprove={handleApprove}
+            onModify={handleModify}
+            onResolve={handleResolve}
+          />
+        ))}
+      </div>
+      <div className="hidden md:block">
+        <ApprovalTable
+          rows={items}
+          selectedIds={selectedIds}
+          onToggle={onToggle}
+          onReview={setReviewItem}
+          startIndex={1}
+          source={source}
+        />
+      </div>
 
       <ReviewModal
         item={reviewItem}

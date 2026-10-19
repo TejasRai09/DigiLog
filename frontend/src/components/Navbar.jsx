@@ -4,6 +4,7 @@ import { MdLogout, MdHome, MdUpload, MdMenu, MdSettings, MdFactCheck, MdNoteAlt 
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import useHodApprovalAccess from '../hooks/useHodApprovalAccess';
+import { canUseMaintenanceNotes } from '../utils/maintenanceNotesPlantAccess';
 import ProfileModal from './ProfileModal';
 import MobileNavDrawer from './MobileNavDrawer';
 import AuthenticatedImage from './AuthenticatedImage';
@@ -32,7 +33,7 @@ const Navbar = () => {
 
   const navItems = [
     { to: '/dashboard', label: 'Home', Icon: MdHome, show: true },
-    { to: '/forms-hub/maintenance-notes', label: 'Maintenance Notes', Icon: MdNoteAlt, show: true },
+    { to: '/forms-hub/maintenance-notes', label: 'Maintenance Notes', Icon: MdNoteAlt, show: canUseMaintenanceNotes(user) },
     { to: '/maintenance/approvals', label: 'Approvals', Icon: MdFactCheck, show: hodApprovalsEnabled },
     { to: '/data-upload', label: 'Data Upload', Icon: MdUpload, show: dataUploadEnabled },
     { to: '/admin/config', label: 'Config', Icon: MdSettings, show: user?.role === 'admin' },
