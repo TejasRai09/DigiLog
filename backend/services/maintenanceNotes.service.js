@@ -11,6 +11,12 @@ const {
   resolveNoteDocumentAbsPath,
   unlinkStoredNoteDocument,
 } = require('../utils/noteDocuments');
+const {
+  lockedPlantForUser,
+  canUseMaintenanceNotesRegister,
+  scopeHodPlantsByCategory,
+  userMayReceivePlantNotification,
+} = require('../utils/maintenanceNotesPlantAccess');
 
 const NOTIF_TYPE_PENDING = 'mn_pending_hod';
 const NOTIF_TYPE_APPROVED = 'mn_approved';
@@ -69,6 +75,32 @@ const NOTE_LIST_COLUMNS = `id, plant, equipment_id, equipment_node_id, equipment
 
 function plantLabel(plant) {
   return PLANTS[plant]?.label || plant || '—';
+}
+
+function resolveWritablePlant(user, requestedPlant, { existingPlant = null } = {}) {
+  if (user?.role === 'admin') {
+    const plant = String(requestedPlant || existingPlant || '').trim();
+    if (!PLANTS[plant]) throw httpError(400, 'Select Sugar House, Power Plant, or Production House.');
+    return plant;
+  }
+  const locked = lockedPlantForUser(user);
+  if (!locked) {
+    throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+  }
+  const requested = String(requestedPlant || '').trim();
+  if (requested && requested !== locked) {
+    throw httpError(403, `You can only add notes for ${plantLabel(locked)}.`);
+  }
+  if (existingPlant && existingPlant !== locked) {
+    throw httpError(403, `You can only edit notes for ${plantLabel(locked)}.`);
+  }
+  return locked;
+}
+
+function assertRegisterAccess(user) {
+  if (!canUseMaintenanceNotesRegister(user)) {
+    throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+  }
 }
 
 function noteRef(id) {
@@ -132,7 +164,16 @@ async function updateHodSettings({ sugar, power, production }) {
   return getHodSettings();
 }
 
-async function getNotesHodAccess(userId) {
+async function getNotesHodAccess(userOrId) {
+  const userId = userOrId && typeof userOrId === 'object' ? userOrId.id : userOrId;
+  let actor = userOrId && typeof userOrId === 'object' ? userOrId : null;
+  if (!actor && userId) {
+    const [[row]] = await pool.query(
+      'SELECT id, role, department FROM users WHERE id = ? LIMIT 1',
+      [userId],
+    );
+    actor = row || { id: userId };
+  }
   const settings = await getHodSettings();
   const access = {};
   let enabled = false;
@@ -141,11 +182,11 @@ async function getNotesHodAccess(userId) {
     access[plant] = match;
     if (match) enabled = true;
   }
-  return { ...access, enabled };
+  return scopeHodPlantsByCategory({ ...access, enabled }, actor);
 }
 
 async function assertHodForPlant(user, plant) {
-  const access = await getNotesHodAccess(user.id);
+  const access = await getNotesHodAccess(user);
   if (!access[plant]) {
     throw httpError(403, `Only the assigned ${plantLabel(plant)} HOD can approve or reject this note.`);
   }
@@ -170,6 +211,11 @@ async function notifyUsers(userIds, payload) {
 async function notifyHodPending(note, { actorId, resubmitted = false } = {}) {
   const hodId = Number(note.hod_user_id);
   if (!hodId || hodId === Number(actorId)) return;
+  const [[hod]] = await pool.query(
+    'SELECT id, role, department FROM users WHERE id = ? LIMIT 1',
+    [hodId],
+  );
+  if (!userMayReceivePlantNotification(hod, note.plant)) return;
   const who = note.submitted_by_name || note.created_by_name || 'A user';
   const ref = noteRef(note.id);
   await notifyUsers([hodId], {
@@ -272,8 +318,30 @@ function hierarchyPickerNodes(root, plant) {
   return trimmed.nodeType === 'equipment' ? [trimmed] : [];
 }
 
-async function getEquipmentTree(plant) {
-  const key = String(plant || '').trim();
+function plantsForUser(user) {
+  const all = Object.values(PLANTS).map((p) => ({ key: p.key, label: p.label }));
+  if (user?.role === 'admin') return { plants: all, lockedPlant: null };
+  const lockedPlant = lockedPlantForUser(user);
+  if (!lockedPlant) {
+    throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+  }
+  return {
+    plants: all.filter((p) => p.key === lockedPlant),
+    lockedPlant,
+  };
+}
+
+async function getEquipmentTree(plant, user) {
+  const requested = String(plant || '').trim();
+  let key = requested;
+  if (user && user.role !== 'admin') {
+    assertRegisterAccess(user);
+    const locked = lockedPlantForUser(user);
+    if (requested && requested !== locked) {
+      throw httpError(403, `You can only add notes for ${plantLabel(locked)}.`);
+    }
+    key = locked;
+  }
   if (!PLANTS[key]) throw httpError(400, 'Select Sugar House, Power Plant, or Production House.');
   if (key === 'production') {
     const [rows] = await pool.query(
@@ -462,19 +530,25 @@ function buildListWhere({ status, plant, equipment, search, hodPlants, submitted
 }
 
 async function listNotes(user, query = {}, { hodOnly = false } = {}) {
-  const hodAccess = await getNotesHodAccess(user.id);
-  const hodPlants = hodOnly
+  const hodAccess = await getNotesHodAccess(user);
+  let hodPlants = hodOnly
     ? Object.keys(PLANTS).filter((p) => hodAccess[p])
     : null;
   if (hodOnly && (!hodPlants || !hodPlants.length)) {
     throw httpError(403, 'You are not the assigned HOD for Maintenance Notes.');
   }
+  if (!hodOnly) assertRegisterAccess(user);
+  const lockedPlant = lockedPlantForUser(user);
+  if (hodOnly && lockedPlant) {
+    hodPlants = hodPlants.filter((p) => p === lockedPlant);
+  }
+  const plant = lockedPlant || query.plant;
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(10, Number(query.limit) || 20));
   const offset = (page - 1) * limit;
   const { where, params } = buildListWhere({
     status: query.status,
-    plant: query.plant,
+    plant,
     equipment: query.equipment,
     search: query.search,
     hodPlants,
@@ -488,12 +562,15 @@ async function listNotes(user, query = {}, { hodOnly = false } = {}) {
     `SELECT ${NOTE_LIST_COLUMNS} FROM maintenance_note ${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`,
     [...params, limit, offset],
   );
-  const plantFilter = hodPlants && hodPlants.length
-    ? `WHERE plant IN (${hodPlants.map(() => '?').join(',')})${hodOnly ? " AND status <> 'pending'" : ''}`
+  const summaryPlants = hodPlants && hodPlants.length
+    ? hodPlants
+    : (plant && PLANTS[plant] ? [plant] : null);
+  const plantFilter = summaryPlants
+    ? `WHERE plant IN (${summaryPlants.map(() => '?').join(',')})${hodOnly ? " AND status <> 'pending'" : ''}`
     : '';
   const [summaryRows] = await pool.query(
     `SELECT status, COUNT(*) AS c FROM maintenance_note ${plantFilter} GROUP BY status`,
-    hodPlants || [],
+    summaryPlants || [],
   );
   const summary = {
     pending: 0,
@@ -512,7 +589,7 @@ async function listNotes(user, query = {}, { hodOnly = false } = {}) {
 }
 
 async function getNote(user, id, { hodOnly = false } = {}) {
-  const hodAccess = await getNotesHodAccess(user.id);
+  const hodAccess = await getNotesHodAccess(user);
   const [[row]] = await pool.query('SELECT * FROM maintenance_note WHERE id = ? LIMIT 1', [id]);
   if (!row) throw httpError(404, 'Maintenance note not found.');
   if (hodOnly && !hodAccess[row.plant]) {
@@ -520,6 +597,15 @@ async function getNote(user, id, { hodOnly = false } = {}) {
   }
   if (hodOnly && row.status === 'pending') {
     throw httpError(404, 'Maintenance note not found.');
+  }
+  if (!hodOnly && user?.role !== 'admin' && !hodAccess[row.plant]) {
+    const locked = lockedPlantForUser(user);
+    if (!locked) {
+      throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+    }
+    if (row.plant !== locked) {
+      throw httpError(403, `You can only view notes for ${plantLabel(locked)}.`);
+    }
   }
   return {
     ...serializeNote(row, user, hodAccess, { includeImages: true }),
@@ -584,13 +670,13 @@ async function loadEditableNote(user, id) {
   if (!EDITABLE.has(row.status)) {
     throw httpError(409, 'This note can only be edited while it is Pending or Rework Required.');
   }
+  resolveWritablePlant(user, row.plant, { existingPlant: row.plant });
   return row;
 }
 
 async function createNote(user, body) {
   if (user.formsHubViewOnly) throw httpError(403, 'View-only access. You cannot add maintenance notes.');
-  const plant = String(body.plant || '').trim();
-  if (!PLANTS[plant]) throw httpError(400, 'Select Sugar House, Power Plant, or Production House.');
+  const plant = resolveWritablePlant(user, body.plant);
   const equipment = await resolveEquipment(plant, body);
   const { activityType, activity, details } = activityFields(body);
   const images = cleanImages(body.images);
@@ -626,8 +712,7 @@ async function createNote(user, body) {
 
 async function updateNote(user, id, body) {
   const row = await loadEditableNote(user, id);
-  const plant = body.plant ? String(body.plant).trim() : row.plant;
-  if (!PLANTS[plant]) throw httpError(400, 'Select a valid plant.');
+  const plant = resolveWritablePlant(user, body.plant, { existingPlant: row.plant });
   const equipment = await resolveEquipment(plant, body);
   const { activityType, activity, details } = activityFields({
     activityType: body.activityType ?? row.activity_type,
@@ -710,6 +795,7 @@ async function submitNote(user, id, body) {
   if (!isNoteOwner(row, user)) {
     throw httpError(403, 'Only the person who created this note can submit it for approval.');
   }
+  resolveWritablePlant(user, row.plant, { existingPlant: row.plant });
   if (!SUBMITTABLE.has(row.status)) {
     throw httpError(409, 'Only Pending or Rework Required notes can be submitted for completion.');
   }
@@ -804,6 +890,9 @@ module.exports = {
   getHodSettings,
   updateHodSettings,
   getNotesHodAccess,
+  lockedPlantForUser,
+  canUseMaintenanceNotesRegister,
+  plantsForUser,
   listNotes,
   getNote,
   getEquipmentTree,

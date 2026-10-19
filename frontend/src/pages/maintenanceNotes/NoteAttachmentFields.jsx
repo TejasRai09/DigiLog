@@ -179,11 +179,28 @@ export async function uploadNoteDocument(noteId, file, displayName) {
   return data.document;
 }
 
+export function noteDocumentsForViewer(note) {
+  const noteId = note?.id;
+  return (note?.documents || []).map((doc) => {
+    const name = String(doc?.storageKey || '').split('/').pop();
+    return {
+      source: 'stored',
+      name,
+      displayName: doc.displayName || name || 'Document',
+      mimeType: doc.mimeType || 'application/octet-stream',
+      size: Number(doc.size) || 0,
+      url: noteId && name
+        ? `/maintenance-notes/${noteId}/documents/${encodeURIComponent(name)}`
+        : '',
+    };
+  }).filter((doc) => doc.url);
+}
+
 export async function downloadNoteDocument(noteId, doc) {
   const fileName = String(doc?.storageKey || '').split('/').pop();
   if (!fileName) throw new Error('Invalid document.');
   const response = await api.get(
-    `/maintenance-notes/${noteId}/documents/${encodeURIComponent(fileName)}`,
+    `/maintenance-notes/${noteId}/documents/${encodeURIComponent(fileName)}?disposition=attachment`,
     { responseType: 'blob' },
   );
   const url = URL.createObjectURL(response.data);

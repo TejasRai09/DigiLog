@@ -239,7 +239,7 @@ export default function ApprovalDashboard() {
               : 'Review pending create, update, and delete requests for maintenance history. Approve them or send them back for modification.'}
         </p>
         {availableSources.length > 1 ? (
-          <div className="mt-3 inline-flex flex-wrap rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+          <div className="mt-3 flex w-full flex-wrap rounded-lg border border-slate-200 bg-slate-50 p-0.5 sm:inline-flex sm:w-auto">
             {mhEnabled ? (
               <button
                 type="button"
@@ -249,7 +249,7 @@ export default function ApprovalDashboard() {
                   setSearchParams(next, { replace: true });
                   setPage(1);
                 }}
-                className={`rounded-md px-3 py-1.5 text-sm font-semibold ${source === 'maintenance' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                className={`min-w-0 flex-1 rounded-md px-3 py-2 text-sm font-semibold sm:flex-none ${source === 'maintenance' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
               >
                 Maintenance
               </button>
@@ -263,7 +263,7 @@ export default function ApprovalDashboard() {
                   setSearchParams(next, { replace: true });
                   setPage(1);
                 }}
-                className={`rounded-md px-3 py-1.5 text-sm font-semibold ${source === 'forms' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                className={`min-w-0 flex-1 rounded-md px-3 py-2 text-sm font-semibold sm:flex-none ${source === 'forms' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
               >
                 Forms
               </button>
@@ -277,7 +277,7 @@ export default function ApprovalDashboard() {
                   setSearchParams(next, { replace: true });
                   setPage(1);
                 }}
-                className={`rounded-md px-3 py-1.5 text-sm font-semibold ${source === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                className={`min-w-0 flex-1 rounded-md px-3 py-2 text-sm font-semibold sm:flex-none ${source === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
               >
                 Maintenance Notes
               </button>

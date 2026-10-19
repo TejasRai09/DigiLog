@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import toast from 'react-hot-toast';
+import useAuth from '../../hooks/useAuth';
 import api from '../../api/axios';
+import { lockedPlantForUser } from '../../utils/maintenanceNotesPlantAccess';
 import Spinner from '../../components/Spinner';
 import { onRealtimeEvent, EVENT_NOTIFICATION_NEW } from '../../realtime/socket';
 import { NOTE_STATUS_LABEL, formatNoteWhen } from './noteStatus';
@@ -8,7 +11,8 @@ import { NoteStatusBadge } from './NoteStatusBadge';
 import NoteKpiCard from './NoteKpiCard';
 import NoteFilterBar from './NoteFilterBar';
 import HodDecisionButtons from './HodDecisionButtons';
-import { downloadNoteDocument } from './NoteAttachmentFields';
+import { noteDocumentsForViewer } from './NoteAttachmentFields';
+import ApprovalMediaAttachments from '../../components/approvals/ApprovalMediaAttachments';
 import { NOTE_STATUS_STYLES } from './noteStatus';
 
 const HOD_STATUSES = {
@@ -17,11 +21,69 @@ const HOD_STATUSES = {
   completed: NOTE_STATUS_LABEL.completed,
 };
 
-const DEFAULT_FILTERS = { status: 'approval_pending', plant: '', search: '' };
+function noteSubmitterLabel(item) {
+  const submitter = item.submittedByName || item.createdByName || 'Employee';
+  const showEmail = !(item.submittedByUserId && item.submittedByUserId !== item.createdByUserId);
+  const email = showEmail ? item.createdByEmail : '';
+  return email ? `${submitter} (${email})` : submitter;
+}
+
+function NotesApprovalMobileList({ items, startIndex, busy, onReview }) {
+  return (
+    <ul className="space-y-3 md:hidden">
+      {items.map((item, index) => {
+        const pill = NOTE_STATUS_STYLES[item.status] || 'bg-slate-50 text-slate-600 border-slate-200';
+        return (
+          <li key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400">#{startIndex + index}</span>
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide ${pill}`}>
+                    {item.statusLabel || NOTE_STATUS_LABEL[item.status] || item.status}
+                  </span>
+                </div>
+                <h3 className="mt-2 break-words text-base font-bold text-slate-900">
+                  {item.activityDescription}
+                </h3>
+                <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  {item.activityType || item.noteId} · Complete
+                </p>
+                <p className="mt-1 break-words text-sm text-slate-500">
+                  {item.equipmentName || 'Not linked'}
+                  {item.plantLabel ? ` · ${item.plantLabel}` : ''}
+                </p>
+                <p className="mt-1.5 break-words text-sm text-slate-500">
+                  {noteSubmitterLabel(item)}
+                  {' · '}
+                  {formatNoteWhen(item.submittedAt || item.createdAt)}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onReview(item)}
+                className="shrink-0 text-sm font-bold text-blue-600 hover:underline disabled:opacity-50"
+              >
+                Review
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export default function MaintenanceNotesHodPanel() {
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [applied, setApplied] = useState(DEFAULT_FILTERS);
+  const { user } = useAuth();
+  const lockedPlant = lockedPlantForUser(user);
+  const defaultFilters = useMemo(
+    () => ({ status: 'approval_pending', plant: lockedPlant || '', search: '' }),
+    [lockedPlant],
+  );
+  const [filters, setFilters] = useState(defaultFilters);
+  const [applied, setApplied] = useState(defaultFilters);
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,9 +124,9 @@ export default function MaintenanceNotesHodPanel() {
   const items = data?.items || [];
   const summary = data?.summary || {};
   const totalPages = Math.max(1, Math.ceil((data?.total || 0) / (data?.limit || 20)));
-  const canReset = filters.search !== DEFAULT_FILTERS.search
-    || filters.plant !== DEFAULT_FILTERS.plant
-    || filters.status !== DEFAULT_FILTERS.status;
+  const canReset = filters.search !== defaultFilters.search
+    || (!lockedPlant && filters.plant !== defaultFilters.plant)
+    || filters.status !== defaultFilters.status;
 
   const changePlant = (plant) => {
     setFilters((f) => ({ ...f, plant }));
@@ -79,8 +141,8 @@ export default function MaintenanceNotesHodPanel() {
   };
 
   const resetFilters = () => {
-    setFilters(DEFAULT_FILTERS);
-    setApplied(DEFAULT_FILTERS);
+    setFilters(defaultFilters);
+    setApplied(defaultFilters);
     setPage(1);
   };
 
@@ -128,10 +190,11 @@ export default function MaintenanceNotesHodPanel() {
     }
   };
 
+  const startIndex = ((page - 1) * (data?.limit || 20)) + 1;
+
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden max-h-[calc(100dvh-12rem)] sm:max-h-[calc(100dvh-13rem)]">
-      <div className="shrink-0 space-y-4">
-      <div className="grid grid-cols-3 gap-2">
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {[
           ['approval_pending', 'Awaiting you'],
           ['rework_required', 'Rework'],
@@ -157,6 +220,7 @@ export default function MaintenanceNotesHodPanel() {
         plant={filters.plant}
         status={filters.status}
         canReset={canReset}
+        plantLocked={Boolean(lockedPlant)}
         plantAllLabel="All your plants"
         statuses={HOD_STATUSES}
         searchPlaceholder="Search activity, person, or note"
@@ -165,9 +229,7 @@ export default function MaintenanceNotesHodPanel() {
         onStatusChange={changeStatus}
         onReset={resetFilters}
       />
-      </div>
 
-      <div className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4">
       {loading ? (
         <div className="flex justify-center py-16"><Spinner size="lg" /></div>
       ) : items.length === 0 ? (
@@ -175,86 +237,88 @@ export default function MaintenanceNotesHodPanel() {
           None
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full border-collapse text-left text-sm">
-            <thead>
-              <tr className="bg-blue-700 text-white">
-                <th className="w-12 border border-blue-800 px-3 py-2.5 text-center font-semibold">#</th>
-                <th className="border border-blue-800 px-3 py-2.5 font-semibold">Activity</th>
-                <th className="border border-blue-800 px-3 py-2.5 font-semibold">Equipment</th>
-                <th className="border border-blue-800 px-3 py-2.5 font-semibold">Action</th>
-                <th className="border border-blue-800 px-3 py-2.5 font-semibold">Status</th>
-                <th className="border border-blue-800 px-3 py-2.5 font-semibold">Created at</th>
-                <th className="border border-blue-800 px-3 py-2.5 font-semibold">Submitted by</th>
-                <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, index) => {
-                const submitter = item.submittedByName || item.createdByName || 'Employee';
-                const submitterEmail = item.submittedByUserId && item.submittedByUserId !== item.createdByUserId
-                  ? ''
-                  : item.createdByEmail;
-                const rowNumber = ((page - 1) * (data?.limit || 20)) + index + 1;
-                const pill = NOTE_STATUS_STYLES[item.status] || 'bg-slate-50 text-slate-600 border-slate-200';
-                return (
-                  <tr key={item.id} className={index % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
-                    <td className="border border-slate-200 px-3 py-2.5 text-center align-top text-slate-500">
-                      {rowNumber}
-                    </td>
-                    <td className="max-w-[16rem] break-words border border-slate-200 px-3 py-2.5 align-top font-bold text-slate-900">
-                      {item.activityDescription}
-                      <div className="mt-1 text-xs font-semibold text-slate-400">
-                        {item.activityType || item.noteId}
-                      </div>
-                    </td>
-                    <td className="min-w-[12rem] max-w-[22rem] break-words border border-slate-200 px-3 py-2.5 align-top text-slate-600">
-                      {item.equipmentName || 'Not linked'}
-                      <div className="mt-1 text-xs font-semibold text-slate-400">{item.plantLabel}</div>
-                    </td>
-                    <td className="whitespace-nowrap border border-slate-200 px-3 py-2.5 align-top text-slate-700">
-                      Complete
-                    </td>
-                    <td className="border border-slate-200 px-3 py-2.5 align-top">
-                      <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide sm:text-sm ${pill}`}>
-                        {item.statusLabel || NOTE_STATUS_LABEL[item.status] || item.status}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap border border-slate-200 px-3 py-2.5 align-top text-slate-600">
-                      {formatNoteWhen(item.submittedAt || item.createdAt)}
-                    </td>
-                    <td className="max-w-[14rem] break-words border border-slate-200 px-3 py-2.5 align-top text-slate-600">
-                      {submitterEmail ? `${submitter} (${submitterEmail})` : submitter}
-                    </td>
-                    <td className="border border-slate-200 px-3 py-2.5 text-center align-top">
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => openDetail(item)}
-                        className="text-sm font-bold text-blue-600 hover:underline disabled:opacity-50"
-                      >
-                        Review
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <NotesApprovalMobileList
+            items={items}
+            startIndex={startIndex}
+            busy={busy}
+            onReview={openDetail}
+          />
+          <div className="hidden overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm md:block">
+            <table className="min-w-full border-collapse text-left text-sm">
+              <thead>
+                <tr className="bg-blue-700 text-white">
+                  <th className="w-12 border border-blue-800 px-3 py-2.5 text-center font-semibold">#</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Activity</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Equipment</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Action</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Status</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Created at</th>
+                  <th className="border border-blue-800 px-3 py-2.5 font-semibold">Submitted by</th>
+                  <th className="border border-blue-800 px-3 py-2.5 text-center font-semibold">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => {
+                  const pill = NOTE_STATUS_STYLES[item.status] || 'bg-slate-50 text-slate-600 border-slate-200';
+                  return (
+                    <tr key={item.id} className={index % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
+                      <td className="border border-slate-200 px-3 py-2.5 text-center align-top text-slate-500">
+                        {startIndex + index}
+                      </td>
+                      <td className="max-w-[16rem] break-words border border-slate-200 px-3 py-2.5 align-top font-bold text-slate-900">
+                        {item.activityDescription}
+                        <div className="mt-1 text-xs font-semibold text-slate-400">
+                          {item.activityType || item.noteId}
+                        </div>
+                      </td>
+                      <td className="min-w-[12rem] max-w-[22rem] break-words border border-slate-200 px-3 py-2.5 align-top text-slate-600">
+                        {item.equipmentName || 'Not linked'}
+                        <div className="mt-1 text-xs font-semibold text-slate-400">{item.plantLabel}</div>
+                      </td>
+                      <td className="whitespace-nowrap border border-slate-200 px-3 py-2.5 align-top text-slate-700">
+                        Complete
+                      </td>
+                      <td className="border border-slate-200 px-3 py-2.5 align-top">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide sm:text-sm ${pill}`}>
+                          {item.statusLabel || NOTE_STATUS_LABEL[item.status] || item.status}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap border border-slate-200 px-3 py-2.5 align-top text-slate-600">
+                        {formatNoteWhen(item.submittedAt || item.createdAt)}
+                      </td>
+                      <td className="max-w-[14rem] break-words border border-slate-200 px-3 py-2.5 align-top text-slate-600">
+                        {noteSubmitterLabel(item)}
+                      </td>
+                      <td className="border border-slate-200 px-3 py-2.5 text-center align-top">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => openDetail(item)}
+                          className="text-sm font-bold text-blue-600 hover:underline disabled:opacity-50"
+                        >
+                          Review
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {totalPages > 1 ? (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm sm:justify-end">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-sm sm:justify-end">
           <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Previous</button>
           <span>Page {page} of {totalPages}</span>
           <button type="button" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} className="rounded-lg border px-3 py-2 disabled:opacity-40">Next</button>
         </div>
       ) : null}
-      </div>
 
-      {rejectItem ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6" onClick={() => setRejectItem(null)}>
+      {rejectItem ? createPortal(
+        <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-4" onClick={() => setRejectItem(null)}>
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={reject}
@@ -280,67 +344,80 @@ export default function MaintenanceNotesHodPanel() {
               </button>
             </div>
           </form>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
-      {detail ? (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6" onClick={() => setDetail(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+      {detail ? createPortal(
+        <div className="fixed inset-0 z-[110] flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:items-center">
+          <div
+            className="my-auto flex max-h-[min(100dvh-2rem,100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="notes-approval-review-title"
+          >
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-5">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{detail.noteId}</p>
-                <h2 className="text-lg font-bold text-slate-900">{detail.plantLabel}</h2>
+                <h3 id="notes-approval-review-title" className="text-lg font-bold text-slate-900">
+                  {detail.plantLabel}
+                </h3>
               </div>
-              <NoteStatusBadge status={detail.status} />
+              <div className="flex shrink-0 items-center gap-2">
+                <NoteStatusBadge status={detail.status} />
+                <button
+                  type="button"
+                  onClick={() => setDetail(null)}
+                  disabled={busy}
+                  className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-50"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-            {detail.activityType ? (
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-500">{detail.activityType}</p>
-            ) : null}
-            <p className={`${detail.activityType ? 'mt-1' : 'mt-4'} whitespace-pre-wrap text-sm font-medium text-slate-800`}>{detail.activityDescription}</p>
-            {detail.activityDetails ? (
-              <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{detail.activityDetails}</p>
-            ) : null}
-            {detail.images?.length ? (
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {detail.images.map((img, index) => (
-                  <img key={index} src={img} alt="" className="aspect-square w-full rounded-xl border border-slate-200 object-cover" />
-                ))}
-              </div>
-            ) : null}
-            {detail.documents?.length ? (
-              <ul className="mt-4 space-y-1 text-sm">
-                {detail.documents.map((doc) => (
-                  <li key={doc.storageKey}>
-                    <button
-                      type="button"
-                      className="font-medium text-blue-700 hover:underline"
-                      onClick={() => downloadNoteDocument(detail.id, doc).catch(() => toast.error('Could not download the document.'))}
-                    >
-                      {doc.displayName}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <dl className="mt-4 space-y-1 text-sm">
-              <div>Equipment: {detail.equipmentName || 'Not linked'}</div>
-              <div>Created by: {detail.createdByName} · {formatNoteWhen(detail.createdAt)}</div>
-              {detail.submittedAt ? <div>Submitted by: {detail.submittedByName} · {formatNoteWhen(detail.submittedAt)}</div> : null}
-              {detail.completionRemarks ? <div>Completion remarks: {detail.completionRemarks}</div> : null}
-              {detail.hodRemarks ? <div>HOD remarks: {detail.hodRemarks}</div> : null}
-            </dl>
-            <HodDecisionButtons
-              item={detail}
-              busy={busy}
-              className="mt-5"
-              onApprove={(note) => { setDetail(null); approve(note); }}
-              onReject={(note) => { openReject(note); setDetail(null); }}
-            />
-            <div className="mt-2">
-              <button type="button" onClick={() => setDetail(null)} className="w-full rounded-lg border px-4 py-2.5 text-sm font-semibold sm:w-auto">Close</button>
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+              {detail.activityType ? (
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{detail.activityType}</p>
+              ) : null}
+              <p className="whitespace-pre-wrap text-sm font-medium text-slate-800">{detail.activityDescription}</p>
+              {detail.activityDetails ? (
+                <p className="whitespace-pre-wrap text-sm text-slate-600">{detail.activityDetails}</p>
+              ) : null}
+              <ApprovalMediaAttachments
+                photos={detail.images}
+                photosLabel="Photos"
+                documents={noteDocumentsForViewer(detail)}
+              />
+              <dl className="space-y-1 break-words text-sm text-slate-600">
+                <div>Equipment: {detail.equipmentName || 'Not linked'}</div>
+                <div>Created by: {detail.createdByName} · {formatNoteWhen(detail.createdAt)}</div>
+                {detail.submittedAt ? <div>Submitted by: {detail.submittedByName} · {formatNoteWhen(detail.submittedAt)}</div> : null}
+                {detail.completionRemarks ? <div>Completion remarks: {detail.completionRemarks}</div> : null}
+                {detail.hodRemarks ? <div>HOD remarks: {detail.hodRemarks}</div> : null}
+              </dl>
+            </div>
+
+            <div className="shrink-0 space-y-2 border-t border-slate-100 px-4 py-4 sm:px-5">
+              <HodDecisionButtons
+                item={detail}
+                busy={busy}
+                className="flex-col-reverse sm:flex-row sm:justify-end"
+                onApprove={(note) => { setDetail(null); approve(note); }}
+                onReject={(note) => { openReject(note); setDetail(null); }}
+              />
+              <button
+                type="button"
+                onClick={() => setDetail(null)}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm font-semibold sm:hidden"
+              >
+                Close
+              </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );

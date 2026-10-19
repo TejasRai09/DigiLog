@@ -53,7 +53,7 @@ export function BiKeyMetricBox({ value, title, subtitle, isDarkMode, tooltip, co
 
 export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact = false, alignEnd = false, nowrap = false }) {
   return (
-    <div className={`flex min-w-0 flex-col px-0.5 ${alignEnd ? 'ml-auto w-auto max-w-full' : 'w-full'} ${compact ? 'gap-0 py-0' : 'gap-2 py-1 lg:py-1.5'}`}>
+    <div className={`flex min-w-0 flex-col px-0.5 ${alignEnd ? 'ml-auto w-auto max-w-full' : 'w-full'} ${compact ? 'gap-0' : 'gap-1'}`}>
         <div
           className={`distillery-filter-bar relative z-20 flex min-w-0 max-w-full items-center overflow-visible border shadow-sm backdrop-blur-md ${
             alignEnd ? 'ml-auto w-auto justify-end' : 'w-full'
@@ -61,8 +61,8 @@ export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact
             nowrap ? 'distillery-filter-bar--nowrap flex-nowrap overflow-x-auto' : 'flex-wrap'
           } ${
             compact
-              ? 'gap-1 rounded-lg p-1 sm:gap-1.5'
-              : 'gap-2 rounded-2xl p-2 sm:gap-2.5 sm:p-2.5'
+              ? 'gap-0.5 rounded-md p-0.5 sm:gap-1'
+              : 'gap-1 rounded-lg p-1 sm:gap-1.5 sm:p-1.5'
           } ${
             isDarkMode
               ? 'border-purple-500/30 bg-slate-800/80 shadow-purple-900/20'
@@ -74,18 +74,16 @@ export function BiFilterBarLayout({ isDarkMode, setIsDarkMode, children, compact
               <button
                 type="button"
                 onClick={() => setIsDarkMode(!isDarkMode)}
-                className={`shrink-0 rounded-lg border transition-colors ${
-                  compact ? 'p-1' : 'rounded-xl p-1.5 sm:p-2'
-                } ${
+                className={`shrink-0 rounded-md border p-1 transition-colors ${
                   isDarkMode
                     ? 'border-slate-700 bg-slate-800 text-yellow-400 hover:bg-slate-700'
                     : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'
                 }`}
               >
-                {isDarkMode ? <MdLightMode className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} /> : <MdDarkMode className={compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />}
+                {isDarkMode ? <MdLightMode className="h-3.5 w-3.5" /> : <MdDarkMode className="h-3.5 w-3.5" />}
               </button>
 
-              <div className={`mx-0.5 hidden w-px shrink-0 sm:block ${compact ? 'h-4' : 'h-6'} ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
+              <div className={`mx-0.5 hidden h-4 w-px shrink-0 sm:block ${isDarkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
             </>
           )}
 

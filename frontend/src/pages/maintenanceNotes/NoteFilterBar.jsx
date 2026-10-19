@@ -12,6 +12,7 @@ export default function NoteFilterBar({
   onStatusChange,
   onReset,
   plantAllLabel = 'All plants',
+  plantLocked = false,
   statusAllLabel = 'All statuses',
   statuses = NOTE_STATUS_LABEL,
   searchPlaceholder = 'Search note, person, or activity',
@@ -26,17 +27,25 @@ export default function NoteFilterBar({
         placeholder={searchPlaceholder}
         className="min-w-0 w-full flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm"
       />
-      <div className="flex gap-2">
-        <select
-          value={plant}
-          onChange={(e) => onPlantChange(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">{plantAllLabel}</option>
-          {PLANTS.map((p) => (
-            <option key={p.key} value={p.key}>{p.label}</option>
-          ))}
-        </select>
+      <div className="flex min-w-0 flex-wrap gap-2 sm:flex-nowrap">
+        {plantLocked ? (
+          <select value={plant} disabled className={`${selectClass} disabled:bg-slate-50 disabled:text-slate-700`}>
+            {PLANTS.filter((p) => p.key === plant).map((p) => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
+          </select>
+        ) : (
+          <select
+            value={plant}
+            onChange={(e) => onPlantChange(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">{plantAllLabel}</option>
+            {PLANTS.map((p) => (
+              <option key={p.key} value={p.key}>{p.label}</option>
+            ))}
+          </select>
+        )}
         <select
           value={status}
           onChange={(e) => onStatusChange(e.target.value)}

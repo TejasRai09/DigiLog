@@ -5,6 +5,13 @@
  */
 const { pool } = require('../config/mysql');
 const { emitToUser, EVENT_NOTIFICATION_NEW } = require('./realtime.service');
+const {
+  lockedPlantForUser,
+  userMayReceivePlantNotification,
+} = require('../utils/maintenanceNotesPlantAccess');
+
+/** HOD-facing maintenance toasts must follow the same category plant lock as Approvals. */
+const HOD_PLANT_NOTIF_TYPES = ['mn_pending_hod', 'mh_pending_hod'];
 
 const LIST_LIMIT_DEFAULT = 50;
 const LIST_LIMIT_MAX = 100;
@@ -31,6 +38,42 @@ function toApiUtcIso(value) {
   }
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function plantFromNotificationMeta(meta) {
+  const raw = meta?.plant || meta?.domain;
+  const plant = String(raw || '').trim();
+  return plant || null;
+}
+
+async function loadUserPlantProfile(userId) {
+  const [[row]] = await pool.query(
+    'SELECT id, role, department FROM users WHERE id = ? LIMIT 1',
+    [userId],
+  );
+  return row || null;
+}
+
+function hodPlantVisibilityClause(user) {
+  if (!user || user.role === 'admin') return { sql: '', params: [] };
+  const locked = lockedPlantForUser(user);
+  if (!locked) {
+    return {
+      sql: ` AND type NOT IN (?, ?)`,
+      params: HOD_PLANT_NOTIF_TYPES,
+    };
+  }
+  return {
+    sql: ` AND (
+      type NOT IN (?, ?)
+      OR COALESCE(
+        JSON_UNQUOTE(JSON_EXTRACT(meta_json, '$.plant')),
+        JSON_UNQUOTE(JSON_EXTRACT(meta_json, '$.domain')),
+        ?
+      ) = ?
+    )`,
+    params: [...HOD_PLANT_NOTIF_TYPES, locked, locked],
+  };
 }
 
 function serializeNotification(row) {
@@ -71,6 +114,14 @@ async function createUserNotification(input) {
   const title = String(input.title || '').trim().slice(0, 255);
   if (!type || !title) return null;
 
+  const recipient = await loadUserPlantProfile(userId);
+  if (HOD_PLANT_NOTIF_TYPES.includes(type)) {
+    const plant = plantFromNotificationMeta(input.meta);
+    if (!userMayReceivePlantNotification(recipient, plant)) {
+      return null;
+    }
+  }
+
   const body = input.body != null ? String(input.body) : null;
   const linkUrl = input.linkUrl != null ? String(input.linkUrl).slice(0, 500) : null;
   const ctaLabel = input.ctaLabel != null ? String(input.ctaLabel).slice(0, 64) : null;
@@ -102,7 +153,7 @@ async function createUserNotification(input) {
     });
 
     try {
-      const unread = await getUnreadCount(userId);
+      const unread = await getUnreadCount(userId, recipient);
       emitToUser(userId, EVENT_NOTIFICATION_NEW, {
         ...serialized,
         unreadCount: unread.count,
@@ -118,26 +169,30 @@ async function createUserNotification(input) {
   }
 }
 
-async function listNotificationsForUser(userId, query = {}) {
+async function listNotificationsForUser(userId, query = {}, user = null) {
   const limit = Math.min(
     LIST_LIMIT_MAX,
     Math.max(1, parseInt(query.limit || String(LIST_LIMIT_DEFAULT), 10) || LIST_LIMIT_DEFAULT),
   );
+  const actor = user || await loadUserPlantProfile(userId);
+  const visibility = hodPlantVisibilityClause(actor);
   const [rows] = await pool.query(
     `SELECT * FROM user_notification
-     WHERE user_id = ?
+     WHERE user_id = ?${visibility.sql}
      ORDER BY created_at DESC, id DESC
      LIMIT ${limit}`,
-    [userId],
+    [userId, ...visibility.params],
   );
   return { items: rows.map(serializeNotification) };
 }
 
-async function getUnreadCount(userId) {
+async function getUnreadCount(userId, user = null) {
+  const actor = user || await loadUserPlantProfile(userId);
+  const visibility = hodPlantVisibilityClause(actor);
   const [[{ count }]] = await pool.query(
     `SELECT COUNT(*) AS count FROM user_notification
-     WHERE user_id = ? AND read_at IS NULL`,
-    [userId],
+     WHERE user_id = ? AND read_at IS NULL${visibility.sql}`,
+    [userId, ...visibility.params],
   );
   return { count: Number(count) || 0 };
 }

@@ -1,8 +1,11 @@
 const fs = require('fs');
+const path = require('path');
 const { sendServerError, MSG } = require('../utils/httpError');
 const {
-  PLANTS,
   getNotesHodAccess,
+  plantsForUser,
+  lockedPlantForUser,
+  canUseMaintenanceNotesRegister,
   listNotes,
   getNote,
   getEquipmentTree,
@@ -21,23 +24,30 @@ function handleKnown(res, err, label) {
 
 const equipmentTree = async (req, res) => {
   try {
-    const tree = await getEquipmentTree(req.query.plant);
+    const tree = await getEquipmentTree(req.query.plant, req.user);
     res.json(tree);
   } catch (err) {
     handleKnown(res, err, 'maintenanceNotes.equipmentTree:');
   }
 };
 
-const getPlants = async (_req, res) => {
-  res.json({
-    plants: Object.values(PLANTS).map((p) => ({ key: p.key, label: p.label })),
-  });
+const getPlants = async (req, res) => {
+  try {
+    res.json(plantsForUser(req.user));
+  } catch (err) {
+    handleKnown(res, err, 'maintenanceNotes.getPlants:');
+  }
 };
 
 const getAccess = async (req, res) => {
   try {
-    const access = await getNotesHodAccess(req.user.id);
-    res.json(access);
+    const access = await getNotesHodAccess(req.user);
+    const lockedPlant = lockedPlantForUser(req.user);
+    res.json({
+      ...access,
+      lockedPlant,
+      canUseRegister: canUseMaintenanceNotesRegister(req.user),
+    });
   } catch (err) {
     handleKnown(res, err, 'maintenanceNotes.getAccess:');
   }
@@ -107,7 +117,14 @@ const uploadDocument = async (req, res) => {
 const downloadDocument = async (req, res) => {
   try {
     const { abs, doc } = await getNoteDocumentFile(req.user, req.params.id, req.params.fileName);
-    res.download(abs, doc.displayName || 'document');
+    const disposition = String(req.query.disposition || 'inline').trim() === 'attachment'
+      ? 'attachment'
+      : 'inline';
+    const safeName = path.basename(doc.displayName || req.params.fileName || 'document');
+    res.setHeader('Content-Type', doc.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `${disposition}; filename="${safeName.replace(/"/g, '')}"`);
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    return fs.createReadStream(abs).pipe(res);
   } catch (err) {
     handleKnown(res, err, 'maintenanceNotes.downloadDocument:');
   }
