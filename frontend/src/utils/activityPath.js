@@ -31,7 +31,7 @@ function titleFromSlug(slug) {
     .trim();
 }
 
-export function classifyPath(pathname) {
+export function classifyPath(pathname, state = {}) {
   const raw = String(pathname || '/');
   const path = raw.split('?')[0] || '/';
   const query = raw.includes('?') ? raw.slice(raw.indexOf('?') + 1) : '';
@@ -43,18 +43,26 @@ export function classifyPath(pathname) {
     queryParams = null;
   }
 
-  let section = 'Dashboard';
+  let section = 'Home';
   let card = null;
   let form_or_dashboard = null;
   let event_type = 'page_view';
-  const crumbs = ['Dashboard'];
+  const crumbs = ['Home'];
 
   if (path === '/' || path === '/dashboard') {
-    section = 'Dashboard';
+    section = 'Home';
   } else if (path.startsWith('/maintenance/approvals')) {
     section = 'Approvals';
     crumbs.push('Approvals');
     event_type = 'page_view';
+    const source = queryParams?.get('source');
+    if (source === 'notes') {
+      card = 'Maintenance Notes';
+      crumbs.push(card);
+    } else if (source === 'forms') {
+      card = 'Forms';
+      crumbs.push(card);
+    }
     const domain = queryParams?.get('domain') || queryParams?.get('dept');
     if (domain) {
       const map = {
@@ -73,6 +81,11 @@ export function classifyPath(pathname) {
       form_or_dashboard = 'Sent for modification';
       crumbs.push(form_or_dashboard);
     }
+  } else if (path.startsWith('/forms-hub/maintenance-notes')) {
+    section = 'Maintenance Notes';
+    card = 'Maintenance Notes';
+    crumbs.push('Maintenance Notes');
+    event_type = 'section_open';
   } else if (path.startsWith('/forms-hub')) {
     section = 'Forms Hub';
     crumbs.push('Forms Hub');
@@ -93,19 +106,24 @@ export function classifyPath(pathname) {
     crumbs.push('BI Control Tower');
     event_type = path === '/bi' ? 'section_open' : 'dashboard_open';
     if (BI_DASHBOARDS[path]) {
-      card = 'BI Dashboards';
-      form_or_dashboard = BI_DASHBOARDS[path];
-      crumbs.push(form_or_dashboard);
+      card = BI_DASHBOARDS[path];
+      crumbs.push(card);
     } else if (parts.length > 1) {
-      card = 'BI Dashboards';
-      form_or_dashboard = titleFromSlug(parts.slice(1).join(' '));
-      crumbs.push(form_or_dashboard);
+      card = titleFromSlug(parts.slice(1).join(' '));
+      crumbs.push(card);
     }
   } else if (path.startsWith('/power-plant-equipment-new') || path.startsWith('/power')) {
     section = 'Power Plant Equipment';
-    crumbs.push('Power Plant Equipment');
+    crumbs.push('Forms Hub', 'Power Plant Equipment');
     event_type = parts.length <= 1 ? 'section_open' : 'page_view';
-    if (path.startsWith('/power/') && parts[1]) {
+    if (state?.hierarchyLabels?.length) {
+      const labelsToInject = state.hierarchyLabels.slice(1);
+      crumbs.push(...labelsToInject);
+      card = state.equipmentName || labelsToInject[labelsToInject.length - 1];
+    } else if (state?.equipmentName) {
+      card = state.equipmentName;
+      crumbs.push(card);
+    } else if (path.startsWith('/power/') && parts[1]) {
       card = titleFromSlug(parts[1]);
       crumbs.push(card);
     }
@@ -122,8 +140,19 @@ export function classifyPath(pathname) {
     }
   } else if (path.startsWith('/sugar-house-equipment-new')) {
     section = 'Sugar House Equipment';
-    crumbs.push('Sugar House Equipment');
+    crumbs.push('Forms Hub', 'Sugar House Equipment');
     event_type = parts.length <= 1 ? 'section_open' : 'page_view';
+    if (state?.hierarchyLabels?.length) {
+      const labelsToInject = state.hierarchyLabels.slice(1);
+      crumbs.push(...labelsToInject);
+      card = state.equipmentName || labelsToInject[labelsToInject.length - 1];
+    } else if (state?.equipmentName) {
+      card = state.equipmentName;
+      crumbs.push(card);
+    } else if (parts[1] && /^\d+$/.test(parts[1])) {
+      card = `Equipment #${parts[1]}`;
+      crumbs.push(card);
+    }
     if (parts[2] === 'specs' || parts[2] === 'schedule' || parts[2] === 'history') {
       form_or_dashboard = parts[2] === 'specs' ? 'Specs'
         : parts[2] === 'schedule' ? 'OEM Schedule'
@@ -136,9 +165,16 @@ export function classifyPath(pathname) {
     }
   } else if (path.startsWith('/production-house-equipment')) {
     section = 'Production House Equipment';
-    crumbs.push('Production House Equipment');
+    crumbs.push('Forms Hub', 'Production House Equipment');
     event_type = parts.length <= 1 ? 'section_open' : 'page_view';
-    if (parts[1] && /^\d+$/.test(parts[1])) {
+    if (state?.hierarchyLabels?.length) {
+      const labelsToInject = state.hierarchyLabels.slice(1);
+      crumbs.push(...labelsToInject);
+      card = state.equipmentName || labelsToInject[labelsToInject.length - 1];
+    } else if (state?.equipmentName) {
+      card = state.equipmentName;
+      crumbs.push(card);
+    } else if (parts[1] && /^\d+$/.test(parts[1])) {
       card = `Equipment #${parts[1]}`;
       crumbs.push(card);
     }

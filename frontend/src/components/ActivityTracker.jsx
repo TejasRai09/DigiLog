@@ -153,7 +153,7 @@ export default function ActivityTracker() {
         return;
       }
       if (!sid) return;
-      const meta = classifyPath(pathWithSearch);
+      const meta = classifyPath(pathWithSearch, location.state);
       try {
         const { data } = await api.post('/activity/page-view', {
           session_id: sid,

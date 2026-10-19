@@ -197,8 +197,6 @@ function buildManagementSeries(payload, from, to, dma = 7) {
     powerRows = [],
     steamRows = [],
     distilleryRows = [],
-    brixYardRows = [],
-    brixFieldRows = [],
     dmrRows = [],
   } = payload;
 
@@ -302,9 +300,6 @@ function buildManagementSeries(payload, from, to, dma = 7) {
   const fMolPurityRsDaily = mapByDatePick(dmrRows, ['Purity C HEAVY MOL. Ref'], 'avg');
   const yardBalDaily = mapByDatePick(dmrRows, ['YARD BAL  8 AM'], 'avg');
 
-  const brixYardDaily = sumByDate(brixYardRows, 'Date', 'MiddleBrix', 'avg');
-  const brixFieldDaily = sumByDate(brixFieldRows, 'Date', 'MiddleBrix', 'avg');
-
   const powerGenDaily = mapByDate(powerRows, 'Date', (r) => {
     const v =
       (finiteNum(r.PowerGen30) || 0) +
@@ -394,8 +389,6 @@ function buildManagementSeries(payload, from, to, dma = 7) {
     canePurchase: purchaseDaily,
     polInCane: polDaily,
     yardBal: yardBalDaily,
-    brixYard: brixYardDaily,
-    brixField: brixFieldDaily,
     crush: crushDaily,
     mixedJuice: mixjDaily,
     maceration: macerationDaily,

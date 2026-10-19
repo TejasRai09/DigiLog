@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MdLogout, MdHome, MdUpload, MdMenu, MdSettings, MdFactCheck } from 'react-icons/md';
+import { MdLogout, MdHome, MdUpload, MdMenu, MdSettings, MdFactCheck, MdNoteAlt } from 'react-icons/md';
 import useAuth from '../hooks/useAuth';
 import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import useHodApprovalAccess from '../hooks/useHodApprovalAccess';
+import { canUseMaintenanceNotes } from '../utils/maintenanceNotesPlantAccess';
 import ProfileModal from './ProfileModal';
 import MobileNavDrawer from './MobileNavDrawer';
 import AuthenticatedImage from './AuthenticatedImage';
@@ -32,12 +33,16 @@ const Navbar = () => {
 
   const navItems = [
     { to: '/dashboard', label: 'Home', Icon: MdHome, show: true },
+    { to: '/forms-hub/maintenance-notes', label: 'Maintenance Notes', Icon: MdNoteAlt, show: canUseMaintenanceNotes(user) },
     { to: '/maintenance/approvals', label: 'Approvals', Icon: MdFactCheck, show: hodApprovalsEnabled },
     { to: '/data-upload', label: 'Data Upload', Icon: MdUpload, show: dataUploadEnabled },
     { to: '/admin/config', label: 'Config', Icon: MdSettings, show: user?.role === 'admin' },
   ].filter((item) => item.show);
 
   const isNavActive = (to) => {
+    if (to === '/forms-hub/maintenance-notes') {
+      return pathname === '/forms-hub/maintenance-notes' || pathname.startsWith('/forms-hub/maintenance-notes');
+    }
     if (to === '/maintenance/approvals') {
       return pathname === '/maintenance/approvals' || pathname.startsWith('/maintenance/approvals');
     }

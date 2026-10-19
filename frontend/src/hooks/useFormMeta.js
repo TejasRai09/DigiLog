@@ -10,12 +10,13 @@ export function useFormMeta(formKey, { fallbackTitle = '', fallbackDescription =
   const [meta, setMeta] = useState({
     name: fallbackTitle,
     description: fallbackDescription,
+    approvalRequired: false,
     loading: Boolean(formKey),
   });
 
   useEffect(() => {
     if (!formKey) {
-      setMeta({ name: fallbackTitle, description: fallbackDescription, loading: false });
+      setMeta({ name: fallbackTitle, description: fallbackDescription, approvalRequired: false, loading: false });
       return undefined;
     }
 
@@ -29,6 +30,7 @@ export function useFormMeta(formKey, { fallbackTitle = '', fallbackDescription =
         setMeta({
           name: withoutGsmaLabel(data.name) || fallbackTitle,
           description: data.description ? withoutGsmaLabel(data.description) : fallbackDescription,
+          approvalRequired: Boolean(data.approvalRequired),
           loading: false,
         });
       } catch {
@@ -36,6 +38,7 @@ export function useFormMeta(formKey, { fallbackTitle = '', fallbackDescription =
         setMeta({
           name: fallbackTitle,
           description: fallbackDescription,
+          approvalRequired: false,
           loading: false,
         });
       }

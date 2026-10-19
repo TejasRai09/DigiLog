@@ -216,13 +216,13 @@ export function useHierarchyManage({
     [getAddAction, tree, pathIds, activeEquipment],
   );
 
-  const openAddModal = () => {
-    if (!addAction || !tree) return;
-    const currentNode = findNodeByPath(tree, pathIds);
-    const sugarLeafFields = Boolean(addAction.sugarLeafFields);
-    const existing = existingChildrenForKind(currentNode, addAction.kind).map((child, index) =>
+  const openAddWithAction = (ids, action) => {
+    if (viewOnly || !action || !tree) return;
+    const currentNode = findNodeByPath(tree, ids);
+    const sugarLeafFields = Boolean(action.sugarLeafFields);
+    const existing = existingChildrenForKind(currentNode, action.kind).map((child, index) =>
       childToSlot(child, {
-        kind: addAction.kind,
+        kind: action.kind,
         tree,
         apiBase,
         sugarLeafFields,
@@ -244,10 +244,17 @@ export function useHierarchyManage({
     setModal({
       mode: 'manage',
       existingIds,
-      ...addAction,
+      ...action,
     });
     setVisibleCount(initialVisible);
     setSlots(nextSlots.slice(0, MAX_SLOTS));
+  };
+
+  const openAddModal = () => openAddWithAction(pathIds, addAction);
+
+  const openAddAtPath = (ids) => {
+    if (!Array.isArray(ids) || !ids.length) return;
+    openAddWithAction(ids, getAddAction(tree, ids, null));
   };
 
   const openEdit = (node) => {
@@ -655,7 +662,7 @@ export function useHierarchyManage({
   ) : null;
 
   const manageModal = modal?.mode === 'manage' ? (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
@@ -831,7 +838,7 @@ export function useHierarchyManage({
   ) : null;
 
   const editModal = modal?.mode === 'edit' ? (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Edit</h3>
@@ -922,6 +929,9 @@ export function useHierarchyManage({
     manageModal: viewOnly ? null : (manageModal || editModal),
     openEdit: viewOnly ? undefined : openEdit,
     deleteNode: viewOnly ? undefined : deleteNode,
+    openAddAtPath: viewOnly ? undefined : openAddAtPath,
+    canAdd: !viewOnly && isDbTree,
+    manageOpen: Boolean(modal) && !viewOnly,
     isDbTree,
   };
 }

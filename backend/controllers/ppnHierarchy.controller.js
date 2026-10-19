@@ -12,9 +12,14 @@ const {
   findSiblingNameConflict,
   NODE_SELECT,
   rowToPayload,
+  fetchAllActiveNodes,
+  buildTreeFromFlat,
 } = require('../utils/ppnHierarchyLib');
 const { isProtectedSeededNodeId } = require('../utils/ppnHierarchyProtection');
 const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
+const { moveHierarchyNodes } = require('../utils/hierarchyMove');
+const { listStarNodeIds, addStar, removeStar } = require('../utils/hierarchyStars');
+const { listMoveHistory } = require('../utils/hierarchyMoveHistory');
 
 async function assertPowerLockedDenied(req, nodeId, tree, actionLabel) {
   if (!(await isProtectedSeededNodeId(nodeId, tree))) return null;
@@ -414,6 +419,82 @@ const getCards = async (req, res) => {
   }
 };
 
+const moveNodes = async (req, res) => {
+  try {
+    const result = await moveHierarchyNodes({
+      house: 'power',
+      nodeIds: req.body?.nodeIds,
+      targetParentId: req.body?.targetParentId,
+      user: req.user,
+      pool,
+      fetchTree: async (conn) => {
+        const flat = await fetchAllActiveNodes(conn || pool);
+        return flat.length ? buildTreeFromFlat(flat) : null;
+      },
+      findNodeById,
+      pathIdsForNodeId,
+      categorySubcategoryFromPath,
+      findSiblingNameConflict,
+      isProtectedSeededNodeId,
+      table: 'ppn_hierarchy_node',
+      equipTable: 'ppn_equipment',
+      refreshLocation: false,
+    });
+    if (result.error) {
+      return res.status(result.error.status).json({ message: result.error.message });
+    }
+    res.json({
+      message: result.moved === 1 ? 'Moved 1 item.' : `Moved ${result.moved} items.`,
+      moved: result.moved,
+      targetParentId: result.targetParentId,
+    });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.moveNodes:', err, MSG.SAVE);
+  }
+};
+
+const listStars = async (req, res) => {
+  try {
+    const nodeIds = await listStarNodeIds(req.user.id, 'power');
+    res.json({ nodeIds });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.listStars:', err, MSG.LOAD);
+  }
+};
+
+const listMoveHistoryEntries = async (req, res) => {
+  try {
+    const entries = await listMoveHistory('power');
+    res.json({ entries });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.listMoveHistory:', err, MSG.LOAD);
+  }
+};
+
+const addStarNode = async (req, res) => {
+  try {
+    const nodeId = parseInt(req.body?.nodeId, 10);
+    if (!nodeId) return res.status(400).json({ message: 'Invalid node id.' });
+    const existing = await getNodeById(nodeId);
+    if (!existing) return res.status(404).json({ message: 'Node not found.' });
+    await addStar(req.user.id, 'power', nodeId);
+    res.json({ starred: true, nodeId });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.addStar:', err, MSG.SAVE);
+  }
+};
+
+const removeStarNode = async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.nodeId, 10);
+    if (!nodeId) return res.status(400).json({ message: 'Invalid node id.' });
+    await removeStar(req.user.id, 'power', nodeId);
+    res.json({ starred: false, nodeId });
+  } catch (err) {
+    sendServerError(res, 'ppnHierarchy.removeStar:', err, MSG.SAVE);
+  }
+};
+
 module.exports = {
   getTree,
   getPath,
@@ -423,4 +504,9 @@ module.exports = {
   deleteNode,
   linkNode,
   syncNodeName,
+  moveNodes,
+  listStars,
+  listMoveHistoryEntries,
+  addStarNode,
+  removeStarNode,
 };

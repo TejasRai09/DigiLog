@@ -701,7 +701,6 @@ export default function AuditLogSection() {
                 <th className="px-2 py-2 font-medium">Event</th>
                 <th className="px-2 py-2 font-medium">Section</th>
                 <th className="px-2 py-2 font-medium">Card</th>
-                <th className="px-2 py-2 font-medium">Form / Dashboard</th>
                 <th className="px-2 py-2 font-medium">Path</th>
                 <th className="px-2 py-2 font-medium">Stay time</th>
               </tr>
@@ -716,7 +715,6 @@ export default function AuditLogSection() {
                   <td className="px-2 py-2.5 text-gray-700">{row.event_type}</td>
                   <td className="px-2 py-2.5 text-gray-800">{row.section || '—'}</td>
                   <td className="px-2 py-2.5 text-gray-800">{row.card || '—'}</td>
-                  <td className="px-2 py-2.5 text-gray-800">{row.form_or_dashboard || '—'}</td>
                   <td className="max-w-[18rem] px-2 py-2.5 text-gray-600" title={row.display_path || row.page_path}>
                     <div className="line-clamp-2 text-sm">{row.display_path || row.page_path || '—'}</div>
                   </td>

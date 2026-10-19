@@ -12,8 +12,13 @@ const {
   findGlobalSubEquipmentNameConflict,
   NODE_SELECT,
   rowToPayload,
+  fetchAllActiveNodes,
+  buildTreeFromFlat,
 } = require('../utils/shnHierarchyLib');
 const { canManageLockedCards } = require('../services/lockedCardManageAccess.service');
+const { moveHierarchyNodes } = require('../utils/hierarchyMove');
+const { listStarNodeIds, addStar, removeStar } = require('../utils/hierarchyStars');
+const { listMoveHistory } = require('../utils/hierarchyMoveHistory');
 
 async function assertCanEditImportedSugarNode(req, existing) {
   if (!existing?.isImported) return false;
@@ -433,6 +438,82 @@ const getCards = async (req, res) => {
   }
 };
 
+const moveNodes = async (req, res) => {
+  try {
+    const result = await moveHierarchyNodes({
+      house: 'sugar',
+      nodeIds: req.body?.nodeIds,
+      targetParentId: req.body?.targetParentId,
+      user: req.user,
+      pool,
+      fetchTree: async (conn) => {
+        const flat = await fetchAllActiveNodes(conn || pool);
+        return flat.length ? buildTreeFromFlat(flat) : null;
+      },
+      findNodeById,
+      pathIdsForNodeId,
+      categorySubcategoryFromPath,
+      findSiblingNameConflict,
+      findGlobalSubEquipmentNameConflict,
+      table: 'shn_hierarchy_node',
+      equipTable: 'shn_equipment',
+      refreshLocation: true,
+    });
+    if (result.error) {
+      return res.status(result.error.status).json({ message: result.error.message });
+    }
+    res.json({
+      message: result.moved === 1 ? 'Moved 1 item.' : `Moved ${result.moved} items.`,
+      moved: result.moved,
+      targetParentId: result.targetParentId,
+    });
+  } catch (err) {
+    sendServerError(res, 'shnHierarchy.moveNodes:', err, MSG.SAVE);
+  }
+};
+
+const listStars = async (req, res) => {
+  try {
+    const nodeIds = await listStarNodeIds(req.user.id, 'sugar');
+    res.json({ nodeIds });
+  } catch (err) {
+    sendServerError(res, 'shnHierarchy.listStars:', err, MSG.LOAD);
+  }
+};
+
+const listMoveHistoryEntries = async (req, res) => {
+  try {
+    const entries = await listMoveHistory('sugar');
+    res.json({ entries });
+  } catch (err) {
+    sendServerError(res, 'shnHierarchy.listMoveHistory:', err, MSG.LOAD);
+  }
+};
+
+const addStarNode = async (req, res) => {
+  try {
+    const nodeId = parseInt(req.body?.nodeId, 10);
+    if (!nodeId) return res.status(400).json({ message: 'Invalid node id.' });
+    const existing = await getNodeById(nodeId);
+    if (!existing) return res.status(404).json({ message: 'Node not found.' });
+    await addStar(req.user.id, 'sugar', nodeId);
+    res.json({ starred: true, nodeId });
+  } catch (err) {
+    sendServerError(res, 'shnHierarchy.addStar:', err, MSG.SAVE);
+  }
+};
+
+const removeStarNode = async (req, res) => {
+  try {
+    const nodeId = parseInt(req.params.nodeId, 10);
+    if (!nodeId) return res.status(400).json({ message: 'Invalid node id.' });
+    await removeStar(req.user.id, 'sugar', nodeId);
+    res.json({ starred: false, nodeId });
+  } catch (err) {
+    sendServerError(res, 'shnHierarchy.removeStar:', err, MSG.SAVE);
+  }
+};
+
 module.exports = {
   getTree,
   getPath,
@@ -441,4 +522,9 @@ module.exports = {
   updateNode,
   deleteNode,
   syncNodeName,
+  moveNodes,
+  listStars,
+  listMoveHistoryEntries,
+  addStarNode,
+  removeStarNode,
 };

@@ -25,6 +25,10 @@ const {
 } = require('./email.service');
 const { createUserNotification } = require('./userNotification.service');
 const { CLIENT_ORIGIN } = require('../config/env');
+const {
+  scopeHodPlantsByCategory,
+  userMayReceivePlantNotification,
+} = require('../utils/maintenanceNotesPlantAccess');
 
 const NOTIF_REF_APPROVAL = 'maintenance_history_approval_request';
 const NOTIF_TYPE_MH_APPROVED = 'mh_approved';
@@ -2109,7 +2113,16 @@ async function serializeApprovalRequest(request, extra = {}) {
   };
 }
 
-async function getHodAccess(userId) {
+async function getHodAccess(userOrId) {
+  const userId = userOrId && typeof userOrId === 'object' ? userOrId.id : userOrId;
+  let actor = userOrId && typeof userOrId === 'object' ? userOrId : null;
+  if (!actor && userId) {
+    const [[row]] = await pool.query(
+      'SELECT id, role, department FROM users WHERE id = ? LIMIT 1',
+      [userId],
+    );
+    actor = row || { id: userId };
+  }
   const settings = await getApprovalSettings();
   const access = {};
   for (const domain of APPROVAL_DOMAINS) {
@@ -2117,11 +2130,11 @@ async function getHodAccess(userId) {
       settings[domain].enabled && Number(settings[domain].hodUserId) === Number(userId),
     );
   }
-  return access;
+  return scopeHodPlantsByCategory(access, actor);
 }
 
 async function assertHodForRequest(user, request) {
-  const access = await getHodAccess(user.id);
+  const access = await getHodAccess(user);
   if (!access[request.domain]) {
     const err = new Error('Only the assigned HOD can review this request.');
     err.status = 403;
@@ -2132,7 +2145,7 @@ async function assertHodForRequest(user, request) {
 async function assertCanViewRequest(user, request) {
   const isOwner = Number(request.requested_by_user_id) === Number(user.id);
   if (isOwner) return;
-  const access = await getHodAccess(user.id);
+  const access = await getHodAccess(user);
   if (access[request.domain]) return;
   const err = new Error('Not allowed to view this change request.');
   err.status = 403;
@@ -2255,6 +2268,14 @@ async function notifyHodInAppPending(request, { resubmitted = false } = {}) {
   const userId = Number(request.hod_user_id);
   if (!userId) return null;
 
+  const [[hod]] = await pool.query(
+    'SELECT id, role, department FROM users WHERE id = ? LIMIT 1',
+    [userId],
+  );
+  if (!userMayReceivePlantNotification(hod, request.domain)) {
+    return { skipped: true, reason: 'plant-mismatch' };
+  }
+
   // Create/submit notify is deferred until uploads finish — avoid duplicate toasts
   // if the client calls notify-hod more than once for the same pending request.
   if (!resubmitted) {
@@ -2290,6 +2311,7 @@ async function notifyHodInAppPending(request, { resubmitted = false } = {}) {
     refId: request.id,
     meta: {
       domain: request.domain,
+      plant: request.domain,
       action: request.action,
       equipId: request.equip_id,
       status: resubmitted ? STATUS.RESUBMITTED : STATUS.PENDING,
@@ -2946,7 +2968,7 @@ async function listMyRequests(userId, query = {}) {
 }
 
 async function listPendingForHod(user, query = {}) {
-  const access = await getHodAccess(user.id);
+  const access = await getHodAccess(user);
   const domains = APPROVAL_DOMAINS.filter((d) => access[d]);
   if (!domains.length) {
     const err = new Error('You are not the assigned HOD for maintenance history approval.');

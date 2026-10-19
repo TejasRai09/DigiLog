@@ -9,7 +9,7 @@ const { sendServerError, MSG } = require('../utils/httpError');
 
 const listMyNotifications = async (req, res) => {
   try {
-    const data = await listNotificationsForUser(req.user.id, req.query);
+    const data = await listNotificationsForUser(req.user.id, req.query, req.user);
     res.json(data);
   } catch (err) {
     sendServerError(res, 'listMyNotifications:', err, MSG.LOAD);
@@ -18,7 +18,7 @@ const listMyNotifications = async (req, res) => {
 
 const getMyUnreadNotificationCount = async (req, res) => {
   try {
-    const data = await getUnreadCount(req.user.id);
+    const data = await getUnreadCount(req.user.id, req.user);
     res.json(data);
   } catch (err) {
     sendServerError(res, 'getMyUnreadNotificationCount:', err, MSG.LOAD);

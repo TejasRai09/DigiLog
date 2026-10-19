@@ -17,7 +17,7 @@ const FormPageHeader = ({
   breadcrumbClassName = 'mb-6',
   className = 'mb-6',
 }) => {
-  const { name, description, loading } = useFormMeta(formKey, {
+  const { name, description, approvalRequired, loading } = useFormMeta(formKey, {
     fallbackTitle,
     fallbackDescription,
   });
@@ -37,6 +37,11 @@ const FormPageHeader = ({
         />
       )}
       <FormsHubViewOnlyBanner />
+      {approvalRequired ? (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          This form needs HOD approval. After you submit, it stays pending until the assigned HOD approves it.
+        </p>
+      ) : null}
       {showTitleBlock && (
         <AppPageHeader className={className}>
           {showTitle && (

@@ -260,11 +260,71 @@ function underDisciplineClause(disciplines) {
   return ` under ${disciplines.slice(0, -1).join(', ')}, and ${last} disciplines`;
 }
 
+function diffSubgroupMeta(beforeVal, afterVal) {
+  const before = typeof beforeVal === 'string' ? tryParseJson(beforeVal) : (beforeVal || {});
+  const after = typeof afterVal === 'string' ? tryParseJson(afterVal) : (afterVal || {});
+  const lines = [];
+
+  for (const [dept, afterSubGroups] of Object.entries(after)) {
+    if (!afterSubGroups || typeof afterSubGroups !== 'object') continue;
+    const beforeSubGroups = before[dept] || {};
+    
+    for (const [subName, afterMeta] of Object.entries(afterSubGroups)) {
+      if (!afterMeta || typeof afterMeta !== 'object') continue;
+      const beforeMeta = beforeSubGroups[subName] || {};
+      
+      const group = `${disciplineDisplayName(dept)} › ${subName} Metadata`;
+      
+      const scalarKeys = ['tagNo', 'equipNo', 'location', 'commissioned'];
+      for (const key of scalarKeys) {
+        const oldVal = beforeMeta[key] || '';
+        const newVal = afterMeta[key] || '';
+        if (oldVal !== newVal) {
+           lines.push({
+             field: humanizeKey(key),
+             value: newVal || '—',
+             group
+           });
+        }
+      }
+
+      const oldImages = Array.isArray(beforeMeta.images) ? beforeMeta.images : [];
+      const newImages = Array.isArray(afterMeta.images) ? afterMeta.images : [];
+      for (let i = 0; i < newImages.length; i++) {
+        const newImg = newImages[i];
+        const oldImg = oldImages[i] || {};
+        
+        const newSrc = newImg?.src || null;
+        const oldSrc = oldImg?.src || null;
+        const newCap = newImg?.caption || '';
+        const oldCap = oldImg?.caption || '';
+
+        if (newSrc !== oldSrc || newCap !== oldCap) {
+          let value = '';
+          if (newSrc && !oldSrc) value = '[New image added]';
+          else if (!newSrc && oldSrc) value = '[Image removed]';
+          else if (newSrc && oldSrc && newSrc !== oldSrc) value = '[Image updated]';
+          else if (newSrc && oldSrc && newCap !== oldCap) value = '[Caption updated]';
+
+          if (value) {
+            lines.push({
+              field: `Gallery Image ${i + 1}`,
+              value: `${value}${newCap ? ` (Caption: ${newCap})` : ''}`,
+              group
+            });
+          }
+        }
+      }
+    }
+  }
+  return lines.length ? lines : null;
+}
+
 /**
  * Convert API payloads (especially equipment specs) into field/value rows
  * similar to what users see on the frontend forms.
  * @param {object} [opts]
- * @param {string|object|null} [opts.beforeSubsections] prior __subsections__ for diffing
+ * @param {Array|null} [opts.beforeSpecs] prior rows from the specs table for diffing
  */
 function toReadableAuditPayload(body, opts = {}) {
   if (body == null) return null;
@@ -273,7 +333,8 @@ function toReadableAuditPayload(body, opts = {}) {
   }
 
   const fields = [];
-  const beforeSubsections = opts.beforeSubsections ?? null;
+  const beforeSpecs = Array.isArray(opts.beforeSpecs) ? opts.beforeSpecs : null;
+  const beforeSubsections = beforeSpecs?.find(r => r.lbl === '__subsections__')?.val ?? null;
 
   // ── Specs (Specifications section) ─────────────────────────
   if (Array.isArray(body.specs)) {
@@ -303,6 +364,16 @@ function toReadableAuditPayload(body, opts = {}) {
       }
 
       if (META_LBL_RE.test(lbl) || lbl === '__subgroup_meta__') {
+        const oldRow = beforeSpecs?.find(r => r.lbl === lbl);
+        if (oldRow && JSON.stringify(oldRow.val) === JSON.stringify(row.val)) continue;
+
+        if (lbl === '__subgroup_meta__') {
+          const metaDiff = diffSubgroupMeta(oldRow?.val, row.val);
+          if (metaDiff) {
+            for (const line of metaDiff) fields.push(line);
+          }
+        }
+        
         fields.push({
           field: 'Sub-group layout metadata',
           value: '[Updated — binary layout omitted]',
@@ -314,14 +385,31 @@ function toReadableAuditPayload(body, opts = {}) {
       const section = row.section != null && String(row.section).trim() ? String(row.section).trim() : '';
       const sub = (row.sub_section || row.subSection);
       const subSection = sub != null && String(sub).trim() ? String(sub).trim() : '';
+      
+      const oldRow = beforeSpecs?.find(r => 
+        r.lbl === row.lbl &&
+        (r.section || '') === section &&
+        (r.sub_section || r.subSection || '') === subSection
+      );
+
+      if (oldRow && JSON.stringify(oldRow.val) === JSON.stringify(row.val)) {
+        continue; // Skip unchanged fields
+      }
+
       const scope = [section, subSection].filter(Boolean);
       const group = scope.length
         ? `${disciplineDisplayName(section || scope[0])}${subSection ? ` › ${subSection}` : ''}`
         : 'Other specification fields';
 
       let value = row.val;
+      let oldValue = oldRow ? oldRow.val : null;
+
       if (typeof value === 'string' && isDataUrlOrHugeString(value)) {
-        value = '[Image / long text omitted]';
+        if (!oldValue || (typeof oldValue === 'string' && !isDataUrlOrHugeString(oldValue))) {
+          value = '[New image added]';
+        } else {
+          value = '[Image updated]';
+        }
       } else if (value != null && typeof value === 'object') {
         value = JSON.stringify(sanitizeValue(value));
       } else if (value == null) {
@@ -758,6 +846,16 @@ function buildChangeDescription({
     if (parts.includes('link')) {
       return `Linked equipment to hierarchy node${name ? ` ${quoteName(name)}` : ''}`.slice(0, 255);
     }
+    if (parts.includes('move')) {
+      const ids = Array.isArray(body?.nodeIds) ? body.nodeIds : [];
+      const n = ids.length;
+      return `Moved ${n || 'selected'} hierarchy item${n === 1 ? '' : 's'}`.slice(0, 255);
+    }
+    if (parts.includes('stars')) {
+      if (m === 'DELETE') return 'Removed a hierarchy star'.slice(0, 255);
+      if (m === 'POST') return 'Starred a hierarchy item'.slice(0, 255);
+      return 'Updated hierarchy stars'.slice(0, 255);
+    }
     if (parts.includes('sync-name')) {
       return `Synced hierarchy name${name ? ` to ${quoteName(name)}` : ''}${equip ? ` for ${equip}` : ''}`.slice(0, 255);
     }
@@ -868,6 +966,12 @@ function buildChangeDescription({
     const base = `Updated Life History Card details${equip ? ` for ${equip}` : ''}`;
     if (detailFields) return `${base} — ${detailFields}`.slice(0, 255);
     return base.slice(0, 255);
+  }
+
+  if (moduleKey === 'production-house' && parts[1] === 'move' && m === 'POST') {
+    const ids = Array.isArray(body?.equipmentIds) ? body.equipmentIds : [];
+    const n = ids.length;
+    return `Moved ${n || 'selected'} production equipment card${n === 1 ? '' : 's'}`.slice(0, 255);
   }
 
   if (['power-new', 'power', 'sugar-new', 'equipment', 'production-house'].includes(moduleKey)
@@ -1225,10 +1329,10 @@ async function captureSpecsBefore(pool, rawPath) {
 
   try {
     const [rows] = await pool.query(
-      `SELECT val FROM \`${table}\` WHERE equip_id = ? AND lbl = '__subsections__' LIMIT 1`,
+      `SELECT lbl, val, section, sub_section FROM \`${table}\` WHERE equip_id = ?`,
       [equipId],
     );
-    return rows[0]?.val ?? null;
+    return rows;
   } catch (err) {
     console.error('[auditLog.captureSpecsBefore]', err.message);
     return null;

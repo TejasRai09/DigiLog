@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { MdArrowForward, MdPrecisionManufacturing, MdSearch, MdSettings } from 'react-icons/md';
+import {
+  MdArrowForward,
+  MdPrecisionManufacturing,
+  MdSearch,
+  MdSettings,
+} from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
@@ -32,13 +37,12 @@ const ProductionHouseEquipment = () => {
         const { data } = await api.get('/production-house', {
           params: { limit: LIMIT, q: query },
         });
-        if (!cancelled) {
-          const rows = (data.equipment || []).sort((a, b) =>
-            String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
-          );
-          setEquipment(rows);
-          setTotal(data.total || 0);
-        }
+        if (cancelled) return;
+        const rows = (data.equipment || []).sort((a, b) =>
+          String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' }),
+        );
+        setEquipment(rows);
+        setTotal(data.total || 0);
       } catch {
         if (!cancelled) toast.error('Failed to load equipment.');
       } finally {
@@ -71,7 +75,7 @@ const ProductionHouseEquipment = () => {
         className="mb-6"
       />
 
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
+      <form onSubmit={handleSearch} className="flex flex-wrap gap-2 mb-6">
         <input
           type="text"
           value={search}
@@ -102,10 +106,17 @@ const ProductionHouseEquipment = () => {
           <p className="text-sm text-gray-500 mb-3">{total} equipment cards</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {equipment.map((eq) => (
-              <button
+              <div
                 key={eq.id}
-                type="button"
+                role="button"
+                tabIndex={0}
                 onClick={() => openCard(eq)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openCard(eq);
+                  }
+                }}
                 className="card p-4 text-left w-full hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -134,7 +145,7 @@ const ProductionHouseEquipment = () => {
                   </div>
                   <MdArrowForward className="h-5 w-5 text-gray-400 group-hover:text-violet-600 mt-0.5 shrink-0" />
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         </>

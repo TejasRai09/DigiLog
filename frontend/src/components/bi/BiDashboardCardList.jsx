@@ -49,7 +49,7 @@ export default function BiDashboardCardList({ forms, appId }) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5">
-      {forms.map((form) => {
+      {forms.filter((f) => f.formKey !== 'bi_brix_sampling').map((form) => {
         const Icon = getDashboardIcon(form.formKey);
         const imageUrl = getDashboardImage(form.formKey);
         

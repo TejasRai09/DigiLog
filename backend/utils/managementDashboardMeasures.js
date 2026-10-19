@@ -11,8 +11,6 @@ const { totalCaneRow, sugarOutputRow, sugarProdRow } = require('./dmrDailyMeasur
  * | steam          | ph_steam                            | Date                    |
  * | Cane Indent    | centre_indent_data                  | indent_date             |
  * | Cane Purchase  | centre_purchase_data                | purchase_date           |
- * | YardBrix       | brix_yard_sampling                  | Date                    |
- * | FieldBrix      | brix_field_sampling                 | Date                    |
  * | Distillery     | distillery_operations               | Date                    |
  * | Outage         | (not imported)                      | Date                    |
  *
@@ -21,7 +19,7 @@ const { totalCaneRow, sugarOutputRow, sugarProdRow } = require('./dmrDailyMeasur
  *
  * 7DMA pattern (mirror DAX): rolling agg over 7 days ending PREVIOUSDAY(LASTDATE(Date)).
  * Date calendar: ALL 7DMA measures use DMR_SS24[Date] in DATESINPERIOD — even when the
- * metric value comes from Cane Indent, Distillery, power, steam, YardBrix, or FieldBrix.
+ * metric value comes from Cane Indent, Distillery, power, or steam.
  * Join fact date columns per relationships.tmdl (see frontend catalog dateJoin fields).
  * Frontend catalog: frontend/src/data/managementDashboardMeta.js
  */
@@ -246,8 +244,6 @@ const KPI_TITLE_TO_ID = {
   'Cane Purchase (Q)': 'cane_purchase',
   'Yard Bal. (8AM)': 'yard_bal',
   'Pol in Cane %': 'pol_in_cane',
-  'Middle Brix % Yard': 'brix_yard',
-  'Middle Brix % Field': 'brix_field',
   'Cane Crush (Q)': 'cane_crush',
   'Masceration %': 'maceration',
   'Mixed Juice (Q)': 'mixed_juice',
@@ -293,8 +289,6 @@ function buildRows(payload) {
     canePurchase,
     yardBal,
     polInCane,
-    brixYard,
-    brixField,
     overrunGatePct,
     overrunCenterPct,
     overrunCenterQty,
@@ -416,18 +410,6 @@ function buildRows(payload) {
           chart: 'line',
           chartColor: '#3b82f6',
           series: series.polInCane,
-        }),
-        kpi('Middle Brix % Yard', brixYard, {
-          rightVal: rv('brixYard'),
-          chart: 'bar',
-          chartColor: '#3b82f6',
-          series: series.brixYard,
-        }),
-        kpi('Middle Brix % Field', brixField, {
-          rightVal: rv('brixField'),
-          chart: 'line',
-          chartColor: '#3b82f6',
-          series: series.brixField,
         }),
       ],
     },

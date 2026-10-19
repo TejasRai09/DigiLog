@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../Spinner';
@@ -9,6 +10,7 @@ import ModificationDialog from './ModificationDialog';
 import BusyButton from './BusyButton.jsx';
 import useHodApprovalAccess from '../../hooks/useHodApprovalAccess';
 import { onRealtimeEvent, EVENT_NOTIFICATION_NEW } from '../../realtime/socket';
+import MaintenanceNotesHodPanel from '../../pages/maintenanceNotes/MaintenanceNotesHodPanel';
 
 const DEFAULT_FILTERS = {
   search: '',
@@ -19,7 +21,18 @@ const DEFAULT_FILTERS = {
 };
 
 export default function ApprovalDashboard() {
-  const { enabled, loading: accessLoading } = useHodApprovalAccess();
+  const { sugar, power, production, forms: formsAccess, notes: notesAccess, enabled, loading: accessLoading } = useHodApprovalAccess();
+  const mhEnabled = Boolean(sugar || power || production);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const availableSources = [
+    mhEnabled ? 'maintenance' : null,
+    formsAccess ? 'forms' : null,
+    notesAccess ? 'notes' : null,
+  ].filter(Boolean);
+  const sourceFromUrl = searchParams.get('source');
+  const source = availableSources.includes(sourceFromUrl)
+    ? sourceFromUrl
+    : (availableSources[0] || 'maintenance');
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [applied, setApplied] = useState(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
@@ -31,6 +44,11 @@ export default function ApprovalDashboard() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [modifyItem, setModifyItem] = useState(null);
 
+  const pendingPath = source === 'forms' ? '/form-approvals/pending' : '/approvals/pending';
+  const itemPath = (id, action) => (
+    source === 'forms' ? `/form-approvals/${id}/${action}` : `/approvals/${id}/${action}`
+  );
+
   const load = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     try {
@@ -38,7 +56,7 @@ export default function ApprovalDashboard() {
       Object.entries(applied).forEach(([key, value]) => {
         if (value) params[key] = value;
       });
-      const { data: payload } = await api.get('/approvals/pending', { params });
+      const { data: payload } = await api.get(pendingPath, { params });
       setData(payload);
       if (!quiet) setSelectedIds([]);
     } catch (err) {
@@ -48,29 +66,29 @@ export default function ApprovalDashboard() {
     } finally {
       if (!quiet) setLoading(false);
     }
-  }, [applied, page]);
+  }, [applied, page, pendingPath]);
 
   useEffect(() => {
     if (!loading) setFiltering(false);
   }, [loading]);
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || source === 'notes') {
       setLoading(false);
       return;
     }
     load();
-  }, [enabled, load]);
+  }, [enabled, load, source]);
 
   // Live refresh when employee submits/resubmits (Socket.IO notification)
   useEffect(() => {
     if (!enabled) return undefined;
     return onRealtimeEvent(EVENT_NOTIFICATION_NEW, (payload) => {
-      if (payload?.type === 'mh_pending_hod') {
-        load({ quiet: true });
+      if (payload?.type === 'mh_pending_hod' || payload?.type === 'form_pending_hod') {
+        if (source !== 'notes') load({ quiet: true });
       }
     });
-  }, [enabled, load]);
+  }, [enabled, load, source]);
 
   // Backup refresh when HOD returns to the tab
   useEffect(() => {
@@ -112,7 +130,7 @@ export default function ApprovalDashboard() {
     setBusy(true);
     setBusyAction('approve');
     try {
-      const { data: result } = await api.post(`/approvals/${item.id}/approve`);
+      const { data: result } = await api.post(itemPath(item.id, 'approve'));
       if (result.status === 'conflict') {
         toast.error('Version conflict — review expected vs current values.');
         await load();
@@ -135,7 +153,10 @@ export default function ApprovalDashboard() {
     setBusy(true);
     setBusyAction('bulk');
     try {
-      const { data: result } = await api.post('/approvals/bulk-approve', { ids: selectedIds });
+      const { data: result } = await api.post(
+        source === 'forms' ? '/form-approvals/bulk-approve' : '/approvals/bulk-approve',
+        { ids: selectedIds },
+      );
       const failed = (result.results || []).filter((row) => !row.ok);
       if (failed.length) {
         toast.error(`${failed.length} item(s) were not approved. Check conflicts.`);
@@ -156,7 +177,7 @@ export default function ApprovalDashboard() {
     setBusy(true);
     setBusyAction('modify');
     try {
-      await api.post(`/approvals/${modifyItem.id}/send-for-modification`, { comment });
+      await api.post(itemPath(modifyItem.id, 'send-for-modification'), { comment });
       toast.success('Sent for modification.');
       setModifyItem(null);
       await load();
@@ -194,7 +215,7 @@ export default function ApprovalDashboard() {
       <div className="mx-auto max-w-lg px-4 py-16 text-center">
         <h1 className="text-2xl font-bold text-slate-800">Approvals</h1>
         <p className="mt-2 text-base text-slate-500">
-          You are not the assigned HOD for Sugar House, Power Plant, or Production House maintenance history.
+          You are not the assigned HOD for maintenance history, Forms Hub, or Maintenance Notes.
         </p>
       </div>
     );
@@ -203,12 +224,69 @@ export default function ApprovalDashboard() {
   return (
     <div className="w-full px-3 py-6 space-y-5 sm:px-4 lg:px-6 text-base">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Pending maintenance changes</h1>
+        <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          {source === 'forms'
+            ? 'Pending form submissions'
+            : source === 'notes'
+              ? 'Maintenance notes approval'
+              : 'Pending maintenance changes'}
+        </h1>
         <p className="mt-1 text-base text-slate-500">
-          Review pending create, update, and delete requests for maintenance history. Approve them or send them back for modification.
+          {source === 'forms'
+            ? 'Review pending form submits. Approve them or send them back for modification. The operator can submit the same form again to resubmit.'
+            : source === 'notes'
+              ? 'Review completion requests from the shared Maintenance Notes register. Approve to mark Completed, or reject with a reason so the team can rework.'
+              : 'Review pending create, update, and delete requests for maintenance history. Approve them or send them back for modification.'}
         </p>
+        {availableSources.length > 1 ? (
+          <div className="mt-3 flex w-full flex-wrap rounded-lg border border-slate-200 bg-slate-50 p-0.5 sm:inline-flex sm:w-auto">
+            {mhEnabled ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete('source');
+                  setSearchParams(next, { replace: true });
+                  setPage(1);
+                }}
+                className={`min-w-0 flex-1 rounded-md px-3 py-2 text-sm font-semibold sm:flex-none ${source === 'maintenance' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Maintenance
+              </button>
+            ) : null}
+            {formsAccess ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set('source', 'forms');
+                  setSearchParams(next, { replace: true });
+                  setPage(1);
+                }}
+                className={`min-w-0 flex-1 rounded-md px-3 py-2 text-sm font-semibold sm:flex-none ${source === 'forms' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Forms
+              </button>
+            ) : null}
+            {notesAccess ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set('source', 'notes');
+                  setSearchParams(next, { replace: true });
+                  setPage(1);
+                }}
+                className={`min-w-0 flex-1 rounded-md px-3 py-2 text-sm font-semibold sm:flex-none ${source === 'notes' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}
+              >
+                Maintenance Notes
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
-
+      {source === 'notes' ? <MaintenanceNotesHodPanel /> : (
+      <>
       <ApprovalSummary summary={summary} />
 
       <form
@@ -223,7 +301,7 @@ export default function ApprovalDashboard() {
         <input
           value={filters.search}
           onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-          placeholder="Search employee or equipment"
+          placeholder={source === 'forms' ? 'Search employee or form' : 'Search employee or equipment'}
           className="rounded-lg border border-slate-200 px-3 py-2.5 text-base"
         />
         <select
@@ -316,6 +394,7 @@ export default function ApprovalDashboard() {
           onApprove={approveOne}
           onModify={setModifyItem}
           onResolve={resolveConflict}
+          source={source}
         />
       )}
 
@@ -347,6 +426,8 @@ export default function ApprovalDashboard() {
         onSubmit={submitModification}
         busy={busy && busyAction === 'modify'}
       />
+      </>
+      )}
     </div>
   );
 }

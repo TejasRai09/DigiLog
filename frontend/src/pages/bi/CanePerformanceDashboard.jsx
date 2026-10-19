@@ -26,6 +26,7 @@ import {
   getCockpitSeasonLabels,
   resolveCockpitCompareRange,
 } from "../../utils/biCockpitDateFilters";
+import { millOperatingDays } from "../../utils/millingBiComparison";
 import useTrackBiInteraction from "../../hooks/useTrackBiInteraction";
 import { BI_DASHBOARDS } from "../../utils/activityPath";
 import ChartCardToolbar from "../../components/bi/ChartCardToolbar";
@@ -1458,6 +1459,11 @@ export default function CanePerformanceDashboard(){
   const[rangePreset, setRangePreset] = useState("STD"); // MTD | STD | WTD | Custom
   const[comparisonType, setComparisonType] = useState("PP");
   const[seasonMapping, setSeasonMapping] = useState({});
+
+  const operatingDays = useMemo(
+    () => millOperatingDays(fromDate, toDate),
+    [fromDate, toDate]
+  );
   const[dbMinDateStr, setDbMinDateStr] = useState("");
   const[dbMaxDateStr, setDbMaxDateStr] = useState("");
   const[dbMaxDate, setDbMaxDate] = useState(null);
@@ -1511,7 +1517,7 @@ export default function CanePerformanceDashboard(){
 
   const comparisonOptions = useMemo(() => {
     const refIso = toDate || dbMaxDateStr || formatYMD(new Date());
-    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso);
+    return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, toDate, dbMaxDateStr]);
 
   React.useEffect(() => {
@@ -1619,7 +1625,7 @@ export default function CanePerformanceDashboard(){
     const prevKey = prevFilterKeyRef.current;
     const filtersChanged = prevKey !== filterKey;
     // First response seeds from/to → filterKey changes once. That follow-up fetch
-    // must NOT flash the full-page loader (it remount-feels the 3D scene).
+    // must NOT flash the full-page loader (it remounts the process map).
     const prevHadDates = /(?:^|&)from=/.test(prevKey) && /(?:^|&)to=/.test(prevKey);
     const nextHasDates = /(?:^|&)from=/.test(filterKey) && /(?:^|&)to=/.test(filterKey);
     const isDateBootstrap = filtersChanged && !prevHadDates && nextHasDates;
@@ -1833,42 +1839,6 @@ export default function CanePerformanceDashboard(){
     };
   }, [liveData]);
 
-  /** Stage totals for the procurement flow ribbon (display only). */
-  const flowStats = React.useMemo(() => {
-    const gate = liveData?.gateYard || [];
-    const centers = (liveData?.procurementFlow || []).filter(x => n(x.isCenter) === 1);
-    const gateVeh = gate.reduce((a, b) => a + n(b.vehicles), 0);
-    const gateCane = gate.reduce((a, b) => a + n(b.cane), 0);
-    const centerVeh = centers.reduce((a, b) => a + n(b.trips), 0);
-    const centerCane = centers.reduce((a, b) => a + n(b.cane), 0);
-    const lastDev = (rows) => (rows?.length ? rows[rows.length - 1].dev : null);
-    return {
-      gateVeh, gateCane, centerVeh, centerCane,
-      totalVeh: gateVeh + centerVeh,
-      totalCane: gateCane + centerCane,
-      yardDev: lastDev(proc?.yardGate),
-      millDev: lastDev(proc?.mill),
-    };
-  }, [liveData, proc]);
-
-  /** Prior-period counterparts of flowStats (for real "vs last period" deltas on the summary KPI strip). */
-  const priorFlowStats = React.useMemo(() => {
-    if (!prior) return null;
-    const gate = prior?.gateYard || [];
-    const centers = (prior?.procurementFlow || []).filter(x => n(x.isCenter) === 1);
-    const gateCane = gate.reduce((a, b) => a + n(b.cane), 0);
-    const centerVeh = centers.reduce((a, b) => a + n(b.trips), 0);
-    const centerCane = centers.reduce((a, b) => a + n(b.cane), 0);
-    const sumField = (rows, key) => (rows || []).reduce((a, b) => a + n(b[key]), 0);
-    return {
-      totalCane: gateCane + centerCane,
-      centerVeh,
-      avgYardWait: n(prior?.kpis?.yardWaiting),
-      yardDev: sumField(prior?.gateYard, 'devOver8H'),
-      millDev: sumField(prior?.gateMill, 'devOver05H'),
-    };
-  }, [prior]);
-
   const bg=dm?"bg-slate-950 text-slate-100":"bg-transparent text-slate-800";
   const hdr=dm?"bg-slate-900 border-slate-800":"bg-white border-slate-200/80";
 
@@ -1877,49 +1847,50 @@ export default function CanePerformanceDashboard(){
       <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <BiDashboardHeader
-            title="Cane Performance Analytics"
-            subtitle="Procurement · Gate · Transit · Holding"
+            title="Cane Operations"
+            subtitle="Cut to crush · Gate · Transit · Holding"
             icon={Activity}
             iconColor="#10b981"
             isDarkMode={dm}
           />
           <div className="flex items-center gap-4">
             <BiKeyMetricBox
-              value={liveData?.dbRows?.length ?? 0}
+              value={operatingDays}
               title="Operating Days"
-              subtitle={rangePreset}
+              subtitle={rangePreset === 'Custom' ? 'All' : rangePreset}
+              tooltip={`${operatingDays} calendar days in this period.`}
               isDarkMode={dm}
             />
           </div>
         </div>
 
         <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm}>
-          <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-0.5 rounded-xl border p-0.5 sm:w-auto sm:basis-auto sm:flex-nowrap ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+          <div className={`flex min-w-0 w-full basis-full flex-wrap items-center gap-px rounded-lg border p-px sm:w-auto sm:basis-auto sm:flex-nowrap ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
             {TABS.map(t => {
               const I = t.icon;
               return (
                 <button key={t.id} onClick={() => setTab(t.id)}
-                  className={`shrink-0 whitespace-nowrap flex items-center gap-1.5 rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  className={`shrink-0 whitespace-nowrap flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[9px] font-black leading-tight transition-all sm:px-2 sm:text-[10px] ${
                     tab === t.id
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
                   }`}>
-                  <I className="w-3.5 h-3.5"/>{t.label}
+                  <I className="w-3 h-3"/>{t.label}
                 </button>
               );
             })}
           </div>
 
-          <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
+          <div className={`mx-0.5 hidden h-4 w-px shrink-0 sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
-          <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+          <div className={`flex shrink-0 flex-wrap items-center gap-0.5 rounded-lg border p-px sm:gap-1 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
             {['WTD', 'MTD', 'STD'].map(type => (
               <button
                 key={type}
                 type="button"
                 onClick={() => handleQuickDate(type)}
                 aria-pressed={rangePreset === type}
-                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black leading-tight transition-all sm:px-2 sm:text-[10px] ${
                   rangePreset === type
                     ? 'bg-blue-600 text-white shadow-md'
                     : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -1932,7 +1903,7 @@ export default function CanePerformanceDashboard(){
               type="button"
               onClick={() => handleQuickDate('Custom')}
               aria-pressed={rangePreset === 'Custom'}
-              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+              className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black leading-tight transition-all sm:px-2 sm:text-[10px] ${
                 rangePreset === 'Custom'
                   ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
                   : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -1942,12 +1913,12 @@ export default function CanePerformanceDashboard(){
             </button>
           </div>
 
-          <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1">
             {showModeFilter && (
-              <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Mode</span>
+              <div className="flex shrink-0 flex-col">
+                <span className={`text-[8px] font-bold uppercase leading-none tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Mode</span>
                 <select value={modeFilter} onChange={e => setModeFilter(e.target.value)}
-                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`mt-0.5 w-[5.5rem] min-w-0 rounded-md border px-1 py-0.5 text-[9px] font-semibold leading-tight shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[6.5rem] sm:text-[10px] ${
                     dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                   }`}>
                   <option value="All">All</option>
@@ -1956,10 +1927,10 @@ export default function CanePerformanceDashboard(){
               </div>
             )}
             {showCenterFilter && (
-              <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Center</span>
+              <div className="flex shrink-0 flex-col">
+                <span className={`text-[8px] font-bold uppercase leading-none tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Center</span>
                 <select value={centerFilter} onChange={e => setCenterFilter(e.target.value)}
-                  className={`w-[7rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[8rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`mt-0.5 w-[6.5rem] min-w-0 rounded-md border px-1 py-0.5 text-[9px] font-semibold leading-tight shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.5rem] sm:text-[10px] ${
                     dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                   }`}>
                   <option value="All">All</option>
@@ -1968,18 +1939,18 @@ export default function CanePerformanceDashboard(){
               </div>
             )}
             {showChallanFilter && (
-              <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Challan No.</span>
+              <div className="flex shrink-0 flex-col">
+                <span className={`text-[8px] font-bold uppercase leading-none tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>Challan No.</span>
                 <input type="text" placeholder="All" value={challanFilter}
                   onChange={e => setChallanFilter(e.target.value)}
-                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[6rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`mt-0.5 w-[5.5rem] min-w-0 rounded-md border px-1 py-0.5 text-[9px] font-semibold leading-tight shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:text-[10px] ${
                     dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                   }`} />
               </div>
             )}
 
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
+            <div className="flex shrink-0 flex-col">
+              <span className={`text-[8px] font-bold uppercase leading-none tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
               <input
                 type="date"
                 value={fromDate}
@@ -1989,13 +1960,13 @@ export default function CanePerformanceDashboard(){
                   setRangePreset("Custom");
                   setFromDate(clampToDb(e.target.value));
                 }}
-                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input mt-0.5 min-w-0 rounded-md border px-1 py-0.5 text-[9px] font-semibold leading-tight shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:text-[10px] ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
             </div>
-            <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
+            <div className="flex shrink-0 flex-col">
+              <span className={`text-[8px] font-bold uppercase leading-none tracking-wide ${dm ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
               <input
                 type="date"
                 value={toDate}
@@ -2005,24 +1976,24 @@ export default function CanePerformanceDashboard(){
                   setRangePreset("Custom");
                   setToDate(clampToDb(e.target.value));
                 }}
-                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input mt-0.5 min-w-0 rounded-md border px-1 py-0.5 text-[9px] font-semibold leading-tight shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:text-[10px] ${
                   dm ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                 }`}
               />
             </div>
           </div>
 
-          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
+          <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-0.5 rounded-lg border p-px sm:gap-1 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+            <span className={`ml-0.5 shrink-0 text-[8px] font-bold uppercase tracking-wide sm:text-[9px] ${dm ? 'text-slate-500' : 'text-slate-400'}`}>
               Compare
             </span>
-            <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
+            <div className="flex min-w-0 flex-wrap gap-px">
               {comparisonOptions.map((comp) => (
                 <button
                   key={comp.id}
                   type="button"
                   onClick={() => onCompareSelect(comp.id)}
-                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[9px] font-black leading-tight transition-all sm:px-2 sm:text-[10px] ${
                     comparisonType === comp.id
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -2052,48 +2023,11 @@ export default function CanePerformanceDashboard(){
           const holdRows = (proc?.centerHolding || []).filter((r) => r.mode !== "Total");
           const yardRows = proc?.yardGate || [];
           const millRows = proc?.mill || [];
-          const summaryKpis = [
-            {
-              title: "Total Cane (Q)",
-              value: proc ? n(flowStats.totalCane).toLocaleString("en-IN", { maximumFractionDigits: 0 }) : "—",
-              delta: priorFlowStats ? pctChange(flowStats.totalCane, priorFlowStats.totalCane) : null,
-              icon: Sprout, color: "#16a34a",
-            },
-            {
-              title: "Total Trips",
-              value: proc ? n(flowStats.centerVeh || proc.centerTrips).toLocaleString("en-IN") : "—",
-              delta: priorFlowStats ? pctChange(flowStats.centerVeh || proc.centerTrips, priorFlowStats.centerVeh) : null,
-              icon: Truck, color: "#2563eb",
-            },
-            {
-              title: "Avg Waiting Time (Hrs)",
-              value: proc ? fmt(proc.avgYardWait) : "—",
-              delta: priorFlowStats ? pctChange(proc.avgYardWait, priorFlowStats.avgYardWait) : null,
-              lowerBetter: true,
-              icon: Clock, color: "#7c3aed",
-            },
-            {
-              title: "Yard Dev. (>8H)",
-              value: proc && flowStats.yardDev != null ? n(flowStats.yardDev).toLocaleString("en-IN") : "—",
-              delta: (priorFlowStats && flowStats.yardDev != null) ? pctChange(flowStats.yardDev, priorFlowStats.yardDev) : null,
-              lowerBetter: true,
-              icon: BarChart2, color: "#ea580c",
-            },
-            {
-              title: "Mill Dev. (>0.5H)",
-              value: proc && flowStats.millDev != null ? n(flowStats.millDev).toLocaleString("en-IN") : "—",
-              delta: (priorFlowStats && flowStats.millDev != null) ? pctChange(flowStats.millDev, priorFlowStats.millDev) : null,
-              lowerBetter: true,
-              icon: Cog, color: "#6d28d9",
-            },
-          ];
 
           return (
           <div className="w-full h-[calc(100vh-10.5rem)] min-h-[480px]">
             <ProcurementCutToCrushScene
               key="procurement-cut-to-crush"
-              fromDate={fromDate}
-              toDate={toDate}
               gateRows={gateRows}
               centerVehRows={centerVehRows}
               holdRows={holdRows}
@@ -2105,7 +2039,6 @@ export default function CanePerformanceDashboard(){
               caneHolding={proc?.caneHolding}
               avgDongaWait={proc?.avgDongaWait}
               millRows={millRows}
-              summaryKpis={summaryKpis}
             />
           </div>
           );

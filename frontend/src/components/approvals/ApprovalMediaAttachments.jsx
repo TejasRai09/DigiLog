@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { MdClose, MdDownload } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 
@@ -34,12 +36,23 @@ async function fetchDocumentBlob(doc, disposition = 'inline') {
   const path = toApiPath(doc.url);
   if (!path) throw new Error('Document link missing.');
   const sep = path.includes('?') ? '&' : '?';
+  const mode = disposition === 'attachment' ? 'attachment' : 'inline';
   const { data, headers } = await api.get(
-    `${path}${disposition === 'attachment' ? `${sep}disposition=attachment` : ''}`,
+    `${path}${sep}disposition=${mode}`,
     { responseType: 'blob' },
   );
   const mime = headers['content-type'] || doc.mimeType || 'application/octet-stream';
   return data instanceof Blob ? data : new Blob([data], { type: mime });
+}
+
+function downloadFromSrc(src, caption) {
+  if (!src) return;
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = `${String(caption || 'file').replace(/\s+/g, '_').toLowerCase()}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function MediaLightbox({ open, kind, src, caption, onClose }) {
@@ -57,11 +70,11 @@ function MediaLightbox({ open, kind, src, caption, onClose }) {
     };
   }, [open, onClose]);
 
-  if (!open || !src) return null;
+  if (!open || !src || typeof document === 'undefined' || !document.body) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 p-3 sm:p-6"
+      className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/80 p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-label={caption || 'Media viewer'}
@@ -75,13 +88,24 @@ function MediaLightbox({ open, kind, src, caption, onClose }) {
           <span className="min-w-0 truncate text-sm font-semibold text-slate-100">
             {caption || 'Preview'}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-lg bg-slate-700 px-3 py-1.5 text-sm font-bold text-white hover:bg-slate-600"
-          >
-            Close
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => downloadFromSrc(src, caption)}
+              className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20"
+            >
+              <MdDownload className="h-3.5 w-3.5" />
+              Download
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-slate-700 p-1.5 text-white hover:bg-slate-600"
+              aria-label="Close"
+            >
+              <MdClose className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <div className="flex flex-1 items-center justify-center overflow-auto bg-slate-950 p-3">
           {kind === 'iframe' ? (
@@ -99,7 +123,8 @@ function MediaLightbox({ open, kind, src, caption, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -180,11 +205,19 @@ function DocumentList({ documents, onView, busyKey }) {
   );
 }
 
-/** Photos + documents for logged-in approval Review modal (lightbox like no-login inbox). */
-export default function ApprovalMediaAttachments({ item }) {
-  const before = item?.photosBefore || [];
-  const after = item?.photosAfter || [];
-  const documents = item?.documents || [];
+/** Photos + documents for logged-in approval Review modal (lightbox like maintenance history). */
+export default function ApprovalMediaAttachments({
+  item,
+  photos,
+  photosLabel = 'Photos',
+  photosBefore,
+  photosAfter,
+  documents: documentsProp,
+}) {
+  const extraPhotos = photos || [];
+  const before = photosBefore ?? item?.photosBefore ?? [];
+  const after = photosAfter ?? item?.photosAfter ?? [];
+  const documents = documentsProp ?? item?.documents ?? [];
   const [lightbox, setLightbox] = useState({ open: false, kind: 'image', src: '', caption: '' });
   const [busyKey, setBusyKey] = useState(null);
   const [objectUrl, setObjectUrl] = useState(null);
@@ -248,10 +281,11 @@ export default function ApprovalMediaAttachments({ item }) {
     }
   };
 
-  if (!before.length && !after.length && !documents.length) return null;
+  if (!extraPhotos.length && !before.length && !after.length && !documents.length) return null;
 
   return (
     <div className="border-t border-slate-100 pt-3">
+      <PhotoGrid label={photosLabel} sources={extraPhotos} onOpen={openPhoto} />
       <PhotoGrid label="Before photos" sources={before} onOpen={openPhoto} />
       <PhotoGrid label="After photos" sources={after} onOpen={openPhoto} />
       <DocumentList documents={documents} onView={handleDocument} busyKey={busyKey} />

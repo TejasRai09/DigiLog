@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   MdAdd,
   MdCheck,
@@ -71,7 +72,9 @@ export default function OemMaintenanceScheduleHub({
   hideBulkActions = false,
   equipmentOptions = [],
   disciplineSection = null,
+  displayPath = null,
 }) {
+  const location = useLocation();
   const viewOnly = useFormsHubViewOnly();
   const scopedEquipmentOptions = useMemo(() => {
     if (!disciplineSection) return equipmentOptions;
@@ -107,8 +110,8 @@ export default function OemMaintenanceScheduleHub({
   useEffect(() => {
     if (!bodyOpen || sectionTrackedRef.current) return;
     sectionTrackedRef.current = true;
-    trackEquipmentSectionOpen('schedule');
-  }, [bodyOpen]);
+    trackEquipmentSectionOpen('schedule', location.state, displayPath);
+  }, [bodyOpen, displayPath]);
 
   useEffect(() => {
     const parsed = parseScheduleFromApi(apiSchedule);

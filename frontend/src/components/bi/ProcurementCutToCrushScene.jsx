@@ -1,894 +1,597 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { X, Maximize2, Minimize2 } from "lucide-react";
-import BiKpiCard from "./BiKpiCard";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 
-const YARD_POS = new THREE.Vector3(25, 0, 0);
-/** Local offsets of yard entry gates (west side, facing Farm / Centers). */
-const GATE_VEHICLES_LOCAL = new THREE.Vector3(-18, 0, -14);
-const CENTER_VEHICLES_LOCAL = new THREE.Vector3(-18, 0, 14);
+/* ==================================================================
+   Cut to Crush Process KPIs — 2D process map (no Three.js).
+   Fixed 1400 x 790 canvas, scaled to the host. Live cane data.
+   ================================================================== */
 
-const NODES_META = {
-  farm: { id: "farm", label: "Farm", pos: new THREE.Vector3(-55, 0, -35) },
-  center: { id: "center", label: "Collection Centers", pos: new THREE.Vector3(-25, 0, 32) },
-  yard: { id: "yard", label: "Yard", pos: YARD_POS.clone() },
-  gateVehicles: {
-    id: "gateVehicles",
-    label: "Gate Vehicles",
-    pos: YARD_POS.clone().add(GATE_VEHICLES_LOCAL),
-  },
-  centerVehiclesGate: {
-    id: "centerVehiclesGate",
-    label: "Center Vehicles",
-    pos: YARD_POS.clone().add(CENTER_VEHICLES_LOCAL),
-  },
-  mill: { id: "mill", label: "Mill Premise", pos: new THREE.Vector3(105, 0, 0) },
+const C = {
+  navy: "#0b1f5c",
+  navy2: "#1c3d91",
+  blue: "#2f80ed",
+  text: "#1b2540",
+  sub: "#5d6a82",
+  border: "#d9e0eb",
+  stripe: "#f3f6fa",
+  over: "#d0392b",
+  road: "#e1e7f0",
+  amber: "#f4b740",
 };
+const FONT = "'Inter', 'Segoe UI', system-ui, Arial, sans-serif";
+const NUM = { fontVariantNumeric: "tabular-nums" };
+const SHADOW = "0 1px 2px rgba(15,30,70,.06), 0 4px 14px rgba(15,30,70,.06)";
+const CANVAS_W = 1400;
+const CANVAS_H = 790;
 
-/** Entry gate booth + boom barrier for Yard. */
-function createYardEntryGate(label, accent = 0xf59e0b) {
-  const g = new THREE.Group();
-  const concrete = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.65 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: accent, metalness: 0.25, roughness: 0.45 });
-  const metal = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.5, roughness: 0.4 });
-
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(6, 0.2, 8), concrete);
-  pad.position.y = 0.1;
-  pad.receiveShadow = true;
-  g.add(pad);
-
-  // Twin pillars
-  [-2.2, 2.2].forEach((z) => {
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 4.2, 0.55), concrete);
-    pillar.position.set(-0.5, 2.2, z);
-    pillar.castShadow = true;
-    g.add(pillar);
-  });
-
-  // Cross beam
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.4, 5.2), accentMat);
-  beam.position.set(-0.5, 4.2, 0);
-  beam.castShadow = true;
-  g.add(beam);
-
-  // Boom arm
-  const boom = new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.18, 0.18), accentMat);
-  boom.position.set(2.2, 2.4, 0);
-  boom.castShadow = true;
-  g.add(boom);
-  const boomTip = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), metal);
-  boomTip.position.set(4.9, 2.4, 0);
-  g.add(boomTip);
-
-  // Guard cabin
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.2, 2.4, 2.2), concrete);
-  cabin.position.set(-2.4, 1.3, 0);
-  cabin.castShadow = true;
-  g.add(cabin);
-  const win = new THREE.Mesh(
-    new THREE.BoxGeometry(1.4, 0.9, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.25, transparent: true, opacity: 0.8 })
-  );
-  win.position.set(-1.25, 1.5, 0);
-  win.rotation.y = Math.PI / 2;
-  g.add(win);
-
-  // Sign board (canvas sprite-like mesh via colored plate + we'll add 3D label via createLabel at scene level)
-  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.1, 3.6), accentMat);
-  sign.position.set(-0.5, 5.1, 0);
-  g.add(sign);
-
-  return g;
-}
-
-function createTruck() {
-  const truckGroup = new THREE.Group();
-
-  const chassis = new THREE.Mesh(
-    new THREE.BoxGeometry(2.6, 0.15, 0.9),
-    new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.5 })
-  );
-  chassis.position.set(-0.1, 0.4, 0);
-  chassis.castShadow = true;
-  truckGroup.add(chassis);
-
-  const bumperMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.9, roughness: 0.2 });
-  const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.0), bumperMat);
-  bumper.position.set(1.15, 0.4, 0);
-  bumper.castShadow = true;
-  truckGroup.add(bumper);
-
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(0.7, 0.9, 0.86),
-    new THREE.MeshStandardMaterial({ color: 0xcc0000, metalness: 0.2, roughness: 0.4 })
-  );
-  cabin.position.set(0.8, 0.9, 0);
-  cabin.castShadow = true;
-  truckGroup.add(cabin);
-
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
-  const windshield = new THREE.Mesh(new THREE.PlaneGeometry(0.65, 0.45), glassMat);
-  windshield.position.set(1.16, 1.05, 0);
-  windshield.rotation.y = Math.PI / 2;
-  truckGroup.add(windshield);
-
-  const sideWinL = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), glassMat);
-  sideWinL.position.set(0.8, 1.05, 0.44);
-  truckGroup.add(sideWinL);
-  const sideWinR = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.35), glassMat);
-  sideWinR.position.set(0.8, 1.05, -0.44);
-  sideWinR.rotation.y = Math.PI;
-  truckGroup.add(sideWinR);
-
-  const grille = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), bumperMat);
-  grille.position.set(1.16, 0.65, 0);
-  grille.rotation.y = Math.PI / 2;
-  truckGroup.add(grille);
-
-  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.2), bumperMat);
-  exhaust.position.set(0.4, 1.2, 0.45);
-  exhaust.castShadow = true;
-  truckGroup.add(exhaust);
-
-  const bedMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.8 });
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.9), bedMat);
-  bed.position.set(-0.55, 0.5, 0);
-  bed.castShadow = true;
-  truckGroup.add(bed);
-
-  const guard = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.9), bedMat);
-  guard.position.set(0.25, 0.9, 0);
-  truckGroup.add(guard);
-
-  const loadGroup = new THREE.Group();
-  loadGroup.position.set(-0.55, 0.6, 0);
-  const core = new THREE.Mesh(
-    new THREE.BoxGeometry(1.6, 0.7, 0.8),
-    new THREE.MeshStandardMaterial({ color: 0x4d7c0f })
-  );
-  core.position.y = 0.35;
-  loadGroup.add(core);
-
-  const stalkGeo = new THREE.CylinderGeometry(0.025, 0.025, 1.6, 5);
-  const stalkMat1 = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.8 });
-  const stalkMat2 = new THREE.MeshStandardMaterial({ color: 0x84cc16, roughness: 0.8 });
-  for (let i = 0; i < 50; i++) {
-    const stalk = new THREE.Mesh(stalkGeo, Math.random() > 0.5 ? stalkMat1 : stalkMat2);
-    stalk.rotation.z = Math.PI / 2;
-    const face = Math.floor(Math.random() * 3);
-    if (face === 0) stalk.position.set((Math.random() - 0.5) * 0.1, 0.7 + Math.random() * 0.1, (Math.random() - 0.5) * 0.8);
-    else if (face === 1) stalk.position.set((Math.random() - 0.5) * 0.1, Math.random() * 0.7, 0.4 + Math.random() * 0.05);
-    else stalk.position.set((Math.random() - 0.5) * 0.1, Math.random() * 0.7, -0.4 - Math.random() * 0.05);
-    stalk.rotation.y = (Math.random() - 0.5) * 0.05;
-    stalk.rotation.x = (Math.random() - 0.5) * 0.05;
-    loadGroup.add(stalk);
+function cellStr(value) {
+  if (value == null || value === "" || value === "-") return "";
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Number.isInteger(value)
+      ? value.toLocaleString("en-IN")
+      : value.toLocaleString("en-IN", { maximumFractionDigits: 2 });
   }
-
-  const ropeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-  const rope1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.85, 0.95), ropeMat);
-  rope1.position.set(-0.4, 0.4, 0);
-  loadGroup.add(rope1);
-  const rope2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.85, 0.95), ropeMat);
-  rope2.position.set(0.4, 0.4, 0);
-  loadGroup.add(rope2);
-  truckGroup.add(loadGroup);
-
-  const wheelGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.15, 16);
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-  const hubGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.17, 12);
-  const hubMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.4 });
-  [
-    [0.7, 0.28, 0.45], [0.7, 0.28, -0.45],
-    [-0.4, 0.28, 0.45], [-0.4, 0.28, -0.45],
-    [-1.1, 0.28, 0.45], [-1.1, 0.28, -0.45],
-  ].forEach((pos) => {
-    const tire = new THREE.Mesh(wheelGeo, wheelMat);
-    tire.rotation.x = Math.PI / 2;
-    tire.position.set(...pos);
-    tire.castShadow = true;
-    const hub = new THREE.Mesh(hubGeo, hubMat);
-    hub.rotation.x = Math.PI / 2;
-    hub.position.set(...pos);
-    truckGroup.add(tire);
-    truckGroup.add(hub);
-  });
-
-  truckGroup.rotation.y = -Math.PI / 2;
-  const truckContainer = new THREE.Group();
-  truckContainer.add(truckGroup);
-  truckContainer.scale.set(0.5, 0.5, 0.5);
-  return truckContainer;
+  return String(value);
 }
 
-function createFarm(pos) {
-  const group = new THREE.Group();
-  group.position.copy(pos);
+function hrs(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return n.toFixed(2);
+}
 
-  // Raised soil pad
-  const baseMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.95, metalness: 0 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(14, 1, 14), baseMat);
-  base.position.y = 0.5;
-  base.receiveShadow = true;
-  base.castShadow = true;
-  group.add(base);
+function intFmt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  return n.toLocaleString("en-IN");
+}
 
-  // Grass border
-  const grass = new THREE.Mesh(
-    new THREE.BoxGeometry(15.2, 0.15, 15.2),
-    new THREE.MeshStandardMaterial({ color: 0x3f7d2c, roughness: 1 })
+function splitTable(rows, columns, fields) {
+  const list = Array.isArray(rows) ? rows : [];
+  const body = list.filter((r) => r.mode !== "Total");
+  const totalRow = list.find((r) => r.mode === "Total");
+  return {
+    columns,
+    rows: body.map((r) => fields.map((f) => cellStr(r[f]))),
+    total: totalRow
+      ? fields.map((f) => cellStr(totalRow[f]))
+      : [columns[0] === "Mode" ? "Total" : columns[0], ...fields.slice(1).map(() => "")],
+  };
+}
+
+const Abs = ({ x, y, w, h, style, children, className }) => (
+  <div
+    className={className}
+    style={{ position: "absolute", left: x, top: y, width: w, height: h, boxSizing: "border-box", ...style }}
+  >
+    {children}
+  </div>
+);
+
+const Card = (p) => (
+  <Abs
+    {...p}
+    style={{
+      background: "#fff",
+      border: `1px solid ${C.border}`,
+      borderRadius: 12,
+      boxShadow: SHADOW,
+      overflow: "hidden",
+      ...p.style,
+    }}
+  />
+);
+
+function DataTable({ data, colWidths, limit }) {
+  const { columns, rows, total } = data;
+  const cell = (i) => ({
+    width: colWidths[i],
+    flex: "none",
+    textAlign: i === 0 ? "left" : "right",
+    paddingRight: i === 0 ? 0 : 8,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    boxSizing: "border-box",
+    ...NUM,
+  });
+  return (
+    <div style={{ padding: "4px 10px 0", fontSize: 12.5, color: C.text }}>
+      <div
+        style={{
+          display: "flex",
+          height: 30,
+          alignItems: "center",
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: C.sub,
+          borderBottom: `1.5px solid ${C.blue}`,
+        }}
+      >
+        {columns.map((c, i) => (
+          <div key={`${c}-${i}`} style={{ ...cell(i), paddingLeft: i === 0 ? 6 : 0 }}>{c}</div>
+        ))}
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ height: 42, display: "flex", alignItems: "center", paddingLeft: 6, color: C.sub, fontSize: 12 }}>
+          No data for selected range
+        </div>
+      ) : rows.map((r, ri) => (
+        <div
+          key={ri}
+          className="ctc-trow"
+          style={{
+            display: "flex",
+            height: 21,
+            alignItems: "center",
+            background: ri % 2 ? C.stripe : "transparent",
+            borderRadius: 4,
+          }}
+        >
+          {r.map((v, i) => {
+            const over = limit && i === 1 && parseFloat(String(v).replace(/,/g, "")) > limit;
+            return (
+              <div
+                key={i}
+                style={{
+                  ...cell(i),
+                  paddingLeft: i === 0 ? 6 : 0,
+                  color: over ? C.over : undefined,
+                  fontWeight: over ? 600 : 400,
+                }}
+              >
+                {v}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+      {total ? (
+        <div
+          style={{
+            display: "flex",
+            height: 26,
+            alignItems: "center",
+            fontWeight: 700,
+            borderTop: `1.5px solid ${C.blue}`,
+            marginTop: 1,
+          }}
+        >
+          {total.map((v, i) => (
+            <div key={i} style={{ ...cell(i), paddingLeft: i === 0 ? 6 : 0 }}>{v}</div>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
-  grass.position.y = 0.08;
-  grass.receiveShadow = true;
-  group.add(grass);
+}
 
-  const stalkMatA = new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 0.65 });
-  const stalkMatB = new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.7 });
-  const leafMat = new THREE.MeshStandardMaterial({ color: 0x86efac, roughness: 0.8, side: THREE.DoubleSide });
+const Tag = ({ x, y, w, h, children }) => (
+  <Abs
+    x={x}
+    y={y}
+    w={w}
+    h={h}
+    style={{
+      background: "linear-gradient(180deg,#fff6d8,#ffe9a8)",
+      border: "1px solid #e2b84a",
+      borderRadius: 8,
+      boxShadow: "0 2px 6px rgba(226,184,74,.35)",
+      fontSize: 11,
+      fontWeight: 600,
+      lineHeight: "13px",
+      color: "#6b4e00",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      textAlign: "center",
+    }}
+  >
+    {children}
+  </Abs>
+);
 
-  for (let i = -5.5; i <= 5.5; i += 1.6) {
-    const ridge = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.28, 0.32, 12, 10),
-      new THREE.MeshStandardMaterial({ color: 0x6b4423, roughness: 1 })
-    );
-    ridge.rotation.x = Math.PI / 2;
-    ridge.position.set(i, 1.05, 0);
-    ridge.castShadow = true;
-    group.add(ridge);
+const ZoneLabel = ({ x, y, w, children, solid = true }) => (
+  <Abs
+    x={x}
+    y={y}
+    w={w}
+    h={30}
+    style={{
+      borderRadius: 999,
+      fontSize: 13.5,
+      fontWeight: 600,
+      letterSpacing: ".02em",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: solid ? `linear-gradient(90deg, ${C.navy}, ${C.navy2})` : "#fff",
+      color: solid ? "#fff" : C.navy,
+      border: solid ? "none" : `1px solid ${C.border}`,
+      boxShadow: solid ? "0 4px 10px rgba(11,31,92,.25)" : SHADOW,
+    }}
+  >
+    {children}
+  </Abs>
+);
 
-    for (let j = -5.5; j <= 5.5; j += 1.15) {
-      const height = 2.2 + Math.random() * 1.4;
-      const stalk = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.08, height, 6),
-        Math.random() > 0.5 ? stalkMatA : stalkMatB
+const ClockIco = ({ color = C.blue }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+  </svg>
+);
+
+const Kpi = ({ x, y, w, h, value, label, size = 44, accent = C.blue }) => (
+  <Card
+    x={x}
+    y={y}
+    w={w}
+    h={h}
+    style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 3,
+        background: `linear-gradient(90deg, ${accent}, ${C.navy2})`,
+      }}
+    />
+    <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, fontWeight: 600, color: C.sub }}>
+      <ClockIco color={accent} />{label}
+    </div>
+    <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
+      <span style={{ fontSize: size, fontWeight: 700, color: C.navy, letterSpacing: "-.03em", lineHeight: 1.1, ...NUM }}>
+        {value}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: C.sub }}>hrs</span>
+    </div>
+  </Card>
+);
+
+function FarmIcon({ uid }) {
+  const stalks = [];
+  for (let row = 0; row < 5; row += 1) {
+    for (let k = 0; k < 6; k += 1) {
+      const x = 24 + k * 11 + row * 8;
+      const y = 60 - k * 5 + row * 5.5;
+      const h = 34 + ((k * 7 + row * 3) % 9);
+      stalks.push(
+        <g key={`${row}-${k}`}>
+          <path
+            d={`M${x} ${y} C${x + 1} ${y - h / 2} ${x - 1} ${y - h * 0.8} ${x + 1} ${y - h}`}
+            stroke={`url(#${uid}-stalk)`}
+            strokeWidth="2.2"
+            fill="none"
+            strokeLinecap="round"
+          />
+          <path d={`M${x} ${y - h * 0.45} q-9 -5 -12 -15`} stroke="#58b947" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <path d={`M${x} ${y - h * 0.65} q9 -5 11 -14`} stroke="#7ccf5a" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+          <path d={`M${x} ${y - h * 0.28} q8 -2 11 -9`} stroke="#3f9e36" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+        </g>,
       );
-      stalk.position.set(i + (Math.random() * 0.25 - 0.12), 1 + height / 2, j + (Math.random() * 0.2 - 0.1));
-      stalk.rotation.z = (Math.random() - 0.5) * 0.15;
-      stalk.castShadow = true;
-      group.add(stalk);
-
-      // Leaf tuft
-      const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.55, 5), leafMat);
-      leaf.position.set(stalk.position.x, 1 + height + 0.1, stalk.position.z);
-      leaf.rotation.z = (Math.random() - 0.5) * 0.4;
-      group.add(leaf);
     }
   }
-
-  // Small farm shed for scale/realism
-  const shed = new THREE.Mesh(
-    new THREE.BoxGeometry(2.4, 1.8, 2.2),
-    new THREE.MeshStandardMaterial({ color: 0xd6b98c, roughness: 0.85 })
+  return (
+    <svg width="116" height="104" viewBox="0 0 116 104">
+      <defs>
+        <linearGradient id={`${uid}-stalk`} x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stopColor="#2f7d2a" /><stop offset="1" stopColor="#9be06c" />
+        </linearGradient>
+        <linearGradient id={`${uid}-soilTop`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#a8683a" /><stop offset="1" stopColor="#7d4521" />
+        </linearGradient>
+      </defs>
+      <ellipse cx="58" cy="96" rx="48" ry="6" fill="#0b1f5c" opacity=".08" />
+      <path d="M8 64 58 40 108 64 58 88z" fill={`url(#${uid}-soilTop)`} />
+      <path d="M8 64v10l50 24V88z" fill="#6b3818" />
+      <path d="M108 64v10L58 98V88z" fill="#4f2911" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <path key={i} d={`M${18 + i * 8} ${69 + i * 4.4 - 4} l46 -22`} stroke="#5e3217" strokeWidth="1" opacity=".55" />
+      ))}
+      {stalks}
+    </svg>
   );
-  shed.position.set(5.2, 1.9, -5);
-  shed.castShadow = true;
-  group.add(shed);
-  const shedRoof = new THREE.Mesh(
-    new THREE.ConeGeometry(2.0, 0.9, 4),
-    new THREE.MeshStandardMaterial({ color: 0xb45309, roughness: 0.7 })
-  );
-  shedRoof.position.set(5.2, 3.2, -5);
-  shedRoof.rotation.y = Math.PI / 4;
-  shedRoof.castShadow = true;
-  group.add(shedRoof);
-
-  // Accent ring so pad reads clearly from distance
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(7.4, 7.7, 48),
-    new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 1.02;
-  group.add(ring);
-
-  return { group, base, id: "farm" };
 }
 
-function createCenter(pos) {
-  const group = new THREE.Group();
-  group.position.copy(pos);
+const CentersIcon = ({ uid }) => (
+  <svg width="118" height="104" viewBox="0 0 118 104">
+    <defs>
+      <linearGradient id={`${uid}-roofL`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#6fd46a" /><stop offset="1" stopColor="#3fae47" />
+      </linearGradient>
+      <linearGradient id={`${uid}-wallL`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#f1f4f9" /><stop offset="1" stopColor="#d7deea" />
+      </linearGradient>
+    </defs>
+    <ellipse cx="60" cy="96" rx="50" ry="6" fill="#0b1f5c" opacity=".08" />
+    <path d="M16 42 56 62v28L16 70z" fill={`url(#${uid}-wallL)`} />
+    <path d="M56 62 100 40v28L56 90z" fill="#c6cfdd" />
+    <path d="M12 40 54 18 104 38 58 62z" fill={`url(#${uid}-roofL)`} />
+    <path d="M12 40 58 62v5L12 45z" fill="#2f8f3a" />
+    <path d="M58 62 104 38v5L58 67z" fill="#277a31" />
+    <path d="M24 56 42 65v19L24 75z" fill="#8e9bb3" />
+    {[0, 1, 2, 3].map((i) => (
+      <path key={i} d={`M24 ${59 + i * 4} 42 ${68 + i * 4}`} stroke="#7a879f" strokeWidth=".8" />
+    ))}
+    <g transform="translate(52 66)">
+      <path d="M0 10 34 -6 50 2 16 18z" fill="#e53935" />
+      <path d="M0 10v9l16 8v-9z" fill="#b71c1c" />
+      <path d="M16 18 50 2v9L16 27z" fill="#d32f2f" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <path key={i} d={`M${3 + i * 6} ${7 - i * 3} l14 7`} stroke="#8bc34a" strokeWidth="2.4" strokeLinecap="round" />
+      ))}
+      <path d="M38 8 50 2 58 6v9l-12 6z" fill="#f4c430" />
+      <path d="M46 14l10-5" stroke="#2c3e50" strokeWidth="2" />
+      <circle cx="10" cy="25" r="3.6" fill="#2b2f36" /><circle cx="44" cy="19" r="3.6" fill="#2b2f36" />
+    </g>
+    <path d="M4 82 18 89 28 84 14 77z" fill="#e9b44c" />
+    <path d="M4 82v4l14 7v-4z" fill="#c58c28" />
+  </svg>
+);
 
-  const baseMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.75, metalness: 0.1 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(12, 0.55, 14), baseMat);
-  base.position.y = 0.275;
-  base.receiveShadow = true;
-  base.castShadow = true;
-  group.add(base);
+const BoomGate = () => (
+  <svg width="70" height="46" viewBox="0 0 70 46">
+    <ellipse cx="14" cy="42" rx="12" ry="3" fill="#0b1f5c" opacity=".1" />
+    <rect x="6" y="14" width="14" height="28" rx="2" fill="#f4b740" />
+    <rect x="6" y="22" width="14" height="5" fill="#2b2f36" />
+    <rect x="6" y="32" width="14" height="5" fill="#2b2f36" />
+    <rect x="16" y="15" width="52" height="6" rx="3" fill="#fff" stroke="#c9ced8" />
+    {[0, 1, 2, 3, 4].map((i) => (
+      <rect key={i} x={22 + i * 9} y="15" width="5" height="6" fill="#e53935" />
+    ))}
+    <circle cx="13" cy="18" r="3" fill="#2b2f36" />
+  </svg>
+);
 
-  const ramp = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.45, 4.5), baseMat);
-  ramp.rotation.x = Math.PI / 14;
-  ramp.position.set(0, 0.28, 8);
-  ramp.castShadow = true;
-  group.add(ramp);
-
-  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.35, roughness: 0.45 });
-  [[-4.5, 4.5], [4.5, 4.5], [-4.5, -4.5], [4.5, -4.5]].forEach((p) => {
-    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 4.2, 10), pillarMat);
-    pillar.position.set(p[0], 2.35, p[1]);
-    pillar.castShadow = true;
-    group.add(pillar);
-  });
-
-  // Blue metal canopy with slight overhang
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(12.5, 0.25, 12.5),
-    new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.35, roughness: 0.4 })
+const CaneCarrier = ({ uid, h = 372 }) => {
+  const slats = Math.floor(h / 18);
+  return (
+    <svg width="44" height={h} viewBox={`0 0 44 ${h}`}>
+      <defs>
+        <linearGradient id={`${uid}-rail`} x1="0" x2="1">
+          <stop offset="0" stopColor="#8794a8" /><stop offset=".5" stopColor="#d6dce6" /><stop offset="1" stopColor="#7a879c" />
+        </linearGradient>
+        <linearGradient id={`${uid}-bed`} x1="0" x2="1">
+          <stop offset="0" stopColor="#1f2a3a" /><stop offset=".5" stopColor="#2e3b50" /><stop offset="1" stopColor="#1f2a3a" />
+        </linearGradient>
+      </defs>
+      <rect x="6" y="0" width="32" height={h} rx="6" fill={`url(#${uid}-bed)`} />
+      <g className="ctc-carrier">
+        {Array.from({ length: slats + 2 }).map((_, i) => (
+          <g key={i} transform={`translate(0 ${i * 18 - 18})`}>
+            <rect x="8" y="0" width="28" height="2" fill="#4b5a72" />
+            {i % 2 === 0 && (
+              <>
+                <path d="M12 7 l20 4" stroke="#9ccc65" strokeWidth="2.6" strokeLinecap="round" />
+                <path d="M13 12 l18 3" stroke="#c5e1a5" strokeWidth="2.2" strokeLinecap="round" />
+              </>
+            )}
+          </g>
+        ))}
+      </g>
+      <rect x="2" y="0" width="5" height={h} rx="2.5" fill={`url(#${uid}-rail)`} />
+      <rect x="37" y="0" width="5" height={h} rx="2.5" fill={`url(#${uid}-rail)`} />
+    </svg>
   );
-  roof.position.y = 4.5;
-  roof.castShadow = true;
-  group.add(roof);
-  const roofEdge = new THREE.Mesh(
-    new THREE.BoxGeometry(12.7, 0.35, 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x1d4ed8, metalness: 0.4, roughness: 0.35 })
-  );
-  roofEdge.position.set(0, 4.35, 6.25);
-  group.add(roofEdge);
-
-  // Cane heap under shed
-  const heap = new THREE.Mesh(
-    new THREE.SphereGeometry(1.4, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.9 })
-  );
-  heap.position.set(-3.2, 0.55, -2);
-  heap.scale.set(1.4, 0.7, 1.1);
-  heap.castShadow = true;
-  group.add(heap);
-
-  // Office cabin
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(3.2, 2.4, 2.6),
-    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55 })
-  );
-  cabin.position.set(3.5, 1.75, -4.5);
-  cabin.castShadow = true;
-  group.add(cabin);
-  const cabinWin = new THREE.Mesh(
-    new THREE.BoxGeometry(1.4, 0.9, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0ea5e9, emissiveIntensity: 0.25, transparent: true, opacity: 0.85 })
-  );
-  cabinWin.position.set(3.5, 1.9, -3.15);
-  group.add(cabinWin);
-
-  const truck = createTruck();
-  truck.position.set(0, 0.55, 1);
-  group.add(truck);
-
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(7.2, 7.5, 48),
-    new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.58;
-  group.add(ring);
-
-  return { group, base, id: "center" };
-}
-
-function createYard(pos) {
-  const group = new THREE.Group();
-  group.position.copy(pos);
-
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(36, 0.28, 42),
-    new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.88, metalness: 0.05 })
-  );
-  base.position.y = 0.22;
-  base.receiveShadow = true;
-  base.castShadow = true;
-  group.add(base);
-
-  const curb = new THREE.Mesh(
-    new THREE.BoxGeometry(36.6, 0.38, 42.6),
-    new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.7 })
-  );
-  curb.position.y = 0.06;
-  group.add(curb);
-
-  const lineMat = new THREE.MeshBasicMaterial({ color: 0xfde047 });
-  const slotZs = [-14, -9, -4, 1, 6, 11];
-  slotZs.forEach((z, idx) => {
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(28, 0.2), lineMat);
-    line.rotation.x = -Math.PI / 2;
-    line.position.set(2, 0.38, z + 1.8);
-    group.add(line);
-
-    const truck = createTruck();
-    truck.rotation.y = Math.PI / 2;
-    truck.position.set((idx % 2 === 0 ? 0 : 4), 0.38, z);
-    group.add(truck);
-  });
-
-  const office = new THREE.Mesh(
-    new THREE.BoxGeometry(4, 2.8, 3.4),
-    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.55 })
-  );
-  office.position.set(12, 1.65, -16);
-  office.castShadow = true;
-  group.add(office);
-
-  [[-14, 16], [14, 16], [-14, -17], [14, -17]].forEach(([x, z]) => {
-    const pole = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.12, 7, 8),
-      new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.5, roughness: 0.4 })
-    );
-    pole.position.set(x, 3.6, z);
-    pole.castShadow = true;
-    group.add(pole);
-    const lamp = new THREE.Mesh(
-      new THREE.SphereGeometry(0.28, 10, 10),
-      new THREE.MeshStandardMaterial({ color: 0xfef08a, emissive: 0xfacc15, emissiveIntensity: 0.7 })
-    );
-    lamp.position.set(x, 7.1, z);
-    group.add(lamp);
-  });
-
-  const gateVeh = createYardEntryGate("Gate Vehicles", 0xf59e0b);
-  gateVeh.position.copy(GATE_VEHICLES_LOCAL);
-  gateVeh.rotation.y = Math.PI / 2;
-  group.add(gateVeh);
-
-  const centerVeh = createYardEntryGate("Center Vehicles", 0x3b82f6);
-  centerVeh.position.copy(CENTER_VEHICLES_LOCAL);
-  centerVeh.rotation.y = Math.PI / 2;
-  group.add(centerVeh);
-
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(20, 20.5, 64),
-    new THREE.MeshBasicMaterial({ color: 0xf43f5e, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.4;
-  group.add(ring);
-
-  return {
-    group,
-    base,
-    id: "yard",
-    gates: [
-      { id: "gateVehicles", local: GATE_VEHICLES_LOCAL.clone() },
-      { id: "centerVehiclesGate", local: CENTER_VEHICLES_LOCAL.clone() },
-    ],
-  };
-}
-
-function createMill(pos) {
-  const group = new THREE.Group();
-  group.position.copy(pos);
-
-  // Lighter concrete compound so mill is visible
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(42, 0.5, 30),
-    new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.8, metalness: 0.08 })
-  );
-  base.position.y = 0.25;
-  base.receiveShadow = true;
-  base.castShadow = true;
-  group.add(base);
-
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.75, metalness: 0.15 });
-  const wallH = 4.2;
-  const wallT = 0.45;
-  const halfX = 20.8;
-  const halfZ = 14.8;
-
-  const backW = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, 30), wallMat);
-  backW.position.set(halfX, wallH / 2, 0);
-  backW.castShadow = true;
-  group.add(backW);
-
-  const sideW1 = new THREE.Mesh(new THREE.BoxGeometry(42, wallH, wallT), wallMat);
-  sideW1.position.set(0, wallH / 2, halfZ);
-  sideW1.castShadow = true;
-  group.add(sideW1);
-  const sideW2 = new THREE.Mesh(new THREE.BoxGeometry(42, wallH, wallT), wallMat);
-  sideW2.position.set(0, wallH / 2, -halfZ);
-  sideW2.castShadow = true;
-  group.add(sideW2);
-
-  const frontW1 = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, 11), wallMat);
-  frontW1.position.set(-halfX, wallH / 2, 9.5);
-  frontW1.castShadow = true;
-  group.add(frontW1);
-  const frontW2 = new THREE.Mesh(new THREE.BoxGeometry(wallT, wallH, 11), wallMat);
-  frontW2.position.set(-halfX, wallH / 2, -9.5);
-  frontW2.castShadow = true;
-  group.add(frontW2);
-
-  // Gate posts
-  [-4.5, 4.5].forEach((z) => {
-    const post = new THREE.Mesh(
-      new THREE.BoxGeometry(0.7, 5, 0.7),
-      new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 })
-    );
-    post.position.set(-halfX, 2.5, z);
-    post.castShadow = true;
-    group.add(post);
-  });
-
-  // Integrated weighbridge
-  const wbGroup = new THREE.Group();
-  wbGroup.position.set(-14, 0.5, 0);
-  const deck = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 0.25, 2.8),
-    new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.55, roughness: 0.35 })
-  );
-  deck.position.set(0, 0.12, 0);
-  deck.castShadow = true;
-  wbGroup.add(deck);
-  const booth = new THREE.Mesh(
-    new THREE.BoxGeometry(2.2, 3.1, 2.2),
-    new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.5 })
-  );
-  booth.position.set(0, 1.55, -3.8);
-  booth.castShadow = true;
-  wbGroup.add(booth);
-  const win = new THREE.Mesh(
-    new THREE.BoxGeometry(2.3, 1.1, 1.9),
-    new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7, emissiveIntensity: 0.2, transparent: true, opacity: 0.65 })
-  );
-  win.position.set(0, 1.9, -3.8);
-  wbGroup.add(win);
-  group.add(wbGroup);
-
-  const carrier = new THREE.Mesh(
-    new THREE.BoxGeometry(9, 1.1, 2.2),
-    new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.4, roughness: 0.45 })
-  );
-  carrier.rotation.z = Math.PI / 6;
-  carrier.position.set(-1, 2.6, 0);
-  carrier.castShadow = true;
-  group.add(carrier);
-
-  const conveyorCanes = [];
-  const caneBundleGeo = new THREE.BoxGeometry(0.85, 0.65, 1.25);
-  const caneBundleMat = new THREE.MeshStandardMaterial({ color: 0x65a30d, roughness: 0.8 });
-  for (let i = 0; i < 4; i++) {
-    const bundle = new THREE.Mesh(caneBundleGeo, caneBundleMat);
-    bundle.position.set(-3.2 + i * 2, 0.65, 0);
-    bundle.castShadow = true;
-    carrier.add(bundle);
-    conveyorCanes.push(bundle);
-  }
-
-  const dongaGroup = new THREE.Group();
-  dongaGroup.position.set(-6, 0.5, 4.5);
-  const craneMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.45, roughness: 0.4 });
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.65, 9.5, 10), craneMat);
-  mast.position.y = 4.75;
-  mast.castShadow = true;
-  dongaGroup.add(mast);
-
-  const boomGroup = new THREE.Group();
-  boomGroup.position.set(0, 9, 0);
-  dongaGroup.add(boomGroup);
-
-  const boom = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.65, 0.65), craneMat);
-  boom.position.set(-3.6, 0, 0);
-  boom.castShadow = true;
-  boomGroup.add(boom);
-
-  const cableGroup = new THREE.Group();
-  cableGroup.position.set(-6.8, 0, 0);
-  boomGroup.add(cableGroup);
-
-  const cable = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.035, 0.035, 5),
-    new THREE.MeshStandardMaterial({ color: 0x1f2937, metalness: 0.6, roughness: 0.4 })
-  );
-  cable.position.set(0, -2.5, 0);
-  cableGroup.add(cable);
-
-  const metalMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.85, roughness: 0.25 });
-  const clawBase = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.4, 10), metalMat);
-  clawBase.position.y = -5;
-  cableGroup.add(clawBase);
-
-  const teethPivots = [];
-  const toothGeo = new THREE.CylinderGeometry(0.09, 0.02, 1.25);
-  for (let i = 0; i < 4; i++) {
-    const angle = (i * Math.PI) / 2;
-    const pivot = new THREE.Group();
-    pivot.position.set(Math.cos(angle) * 0.42, -0.2, Math.sin(angle) * 0.42);
-    pivot.rotation.y = -angle;
-    const tooth = new THREE.Mesh(toothGeo, metalMat);
-    tooth.position.set(0, -0.5, 0);
-    tooth.rotation.x = 0.2;
-    pivot.add(tooth);
-    clawBase.add(pivot);
-    teethPivots.push(pivot);
-  }
-
-  const grabbedCane = new THREE.Mesh(caneBundleGeo, caneBundleMat);
-  grabbedCane.position.y = -0.8;
-  grabbedCane.visible = false;
-  clawBase.add(grabbedCane);
-  group.add(dongaGroup);
-
-  const plant = new THREE.Mesh(
-    new THREE.BoxGeometry(13, 6.5, 11),
-    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.55, metalness: 0.05 })
-  );
-  plant.position.set(5, 3.75, 0);
-  plant.castShadow = true;
-  group.add(plant);
-
-  // Window strips on plant
-  for (let wy = 0; wy < 3; wy++) {
-    const wstrip = new THREE.Mesh(
-      new THREE.BoxGeometry(10, 0.7, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0369a1, emissiveIntensity: 0.35, transparent: true, opacity: 0.8 })
-    );
-    wstrip.position.set(5, 2.2 + wy * 1.5, 5.55);
-    group.add(wstrip);
-  }
-
-  for (let i = -4.5; i <= 4.5; i += 3) {
-    const roof = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.6, 1.6, 13, 3),
-      new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.25, roughness: 0.45 })
-    );
-    roof.rotation.z = Math.PI / 2;
-    roof.rotation.x = Math.PI / 2;
-    roof.position.set(5 + i, 7.5, 0);
-    roof.castShadow = true;
-    group.add(roof);
-  }
-
-  const boiler = new THREE.Mesh(
-    new THREE.BoxGeometry(7, 8.2, 7),
-    new THREE.MeshStandardMaterial({ color: 0x9a3412, roughness: 0.7 })
-  );
-  boiler.position.set(14, 4.6, -4);
-  boiler.castShadow = true;
-  group.add(boiler);
-
-  const chimney = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.05, 0.7, 16, 18),
-    new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.45 })
-  );
-  chimney.position.set(14, 12.5, -4);
-  chimney.castShadow = true;
-  const stripeMat = new THREE.MeshStandardMaterial({ color: 0xef4444, roughness: 0.5 });
-  const stripe1 = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 2, 18), stripeMat);
-  stripe1.position.y = 4;
-  chimney.add(stripe1);
-  const stripe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 2, 18), stripeMat);
-  stripe2.position.y = -2;
-  chimney.add(stripe2);
-  group.add(chimney);
-
-  for (let i = 0; i < 3; i++) {
-    const tankGroup = new THREE.Group();
-    const cylinder = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.55, 1.55, 6.2, 18),
-      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.75, roughness: 0.2 })
-    );
-    cylinder.position.y = 3.6;
-    cylinder.castShadow = true;
-    tankGroup.add(cylinder);
-    const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(1.55, 18, 14, 0, Math.PI * 2, 0, Math.PI / 2),
-      new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.7, roughness: 0.25 })
-    );
-    dome.position.y = 6.7;
-    tankGroup.add(dome);
-    tankGroup.position.set(13.5, 0.5, 3.5 + i * 3.6);
-    group.add(tankGroup);
-  }
-
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(18, 18.5, 64),
-    new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.4, side: THREE.DoubleSide })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.52;
-  group.add(ring);
-
-  return {
-    group, base, id: "mill",
-    boomGroup, cableGroup, teethPivots, grabbedCane, conveyorCanes,
-  };
-}
-
-const LABEL_THEME = {
-  farm: { accent: "#16a34a", soft: "#bbf7d0", pin: "#22c55e" },
-  center: { accent: "#0284c7", soft: "#bae6fd", pin: "#0ea5e9" },
-  yard: { accent: "#e11d48", soft: "#fecdd3", pin: "#f43f5e" },
-  mill: { accent: "#7c3aed", soft: "#ddd6fe", pin: "#8b5cf6" },
-  gateVehicles: { accent: "#d97706", soft: "#fde68a", pin: "#f59e0b", compact: true },
-  centerVehiclesGate: { accent: "#2563eb", soft: "#bfdbfe", pin: "#3b82f6", compact: true },
 };
 
-function roundRectPath(ctx, x, y, w, h, r) {
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.arcTo(x + w, y, x + w, y + h, radius);
-  ctx.arcTo(x + w, y + h, x, y + h, radius);
-  ctx.arcTo(x, y + h, x, y, radius);
-  ctx.arcTo(x, y, x + w, y, radius);
-  ctx.closePath();
-}
-
-/** Draw a map location pin (teardrop + inner circle). */
-function drawLocationPin(ctx, cx, cy, size, fill, stroke) {
-  const s = size;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.beginPath();
-  // Classic pin silhouette
-  ctx.moveTo(0, s * 0.95);
-  ctx.bezierCurveTo(-s * 0.95, s * 0.15, -s * 0.75, -s * 0.85, 0, -s * 0.85);
-  ctx.bezierCurveTo(s * 0.75, -s * 0.85, s * 0.95, s * 0.15, 0, s * 0.95);
-  ctx.closePath();
-  ctx.fillStyle = fill;
-  ctx.shadowColor = "rgba(0,0,0,0.35)";
-  ctx.shadowBlur = 12;
-  ctx.shadowOffsetY = 4;
-  ctx.fill();
-  ctx.shadowColor = "transparent";
-  ctx.lineWidth = Math.max(2, s * 0.08);
-  ctx.strokeStyle = stroke || "#ffffff";
-  ctx.stroke();
-  // Inner hole
-  ctx.beginPath();
-  ctx.arc(0, -s * 0.28, s * 0.28, 0, Math.PI * 2);
-  ctx.fillStyle = "#ffffff";
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(0, -s * 0.28, s * 0.14, 0, Math.PI * 2);
-  ctx.fillStyle = fill;
-  ctx.fill();
-  ctx.restore();
-}
-
-/**
- * Beautiful billboard label with location pin — always faces camera.
- * @param {string} text
- * @param {THREE.Vector3} position
- * @param {{ id?: string, accent?: string }} [opts]
- */
-function createLabel(text, position, opts = {}) {
-  const theme = LABEL_THEME[opts.id] || { accent: "#0284c7", soft: "#e0f2fe", pin: "#38bdf8" };
-  const compact = Boolean(theme.compact || opts.compact);
-  const W = compact ? 640 : 900;
-  const H = compact ? 160 : 220;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-
-  // Soft outer glow plate
-  ctx.fillStyle = "rgba(15, 23, 42, 0.25)";
-  roundRectPath(ctx, 8, 8, W - 16, H - 16, compact ? 28 : 40);
-  ctx.fill();
-
-  // Main card
-  const padX = compact ? 18 : 24;
-  const padY = compact ? 18 : 22;
-  const cardX = padX;
-  const cardY = padY;
-  const cardW = W - padX * 2;
-  const cardH = H - padY * 2 - (compact ? 0 : 18);
-  const grad = ctx.createLinearGradient(cardX, cardY, cardX + cardW, cardY + cardH);
-  grad.addColorStop(0, "rgba(15, 23, 42, 0.96)");
-  grad.addColorStop(1, "rgba(30, 41, 59, 0.94)");
-  ctx.fillStyle = grad;
-  roundRectPath(ctx, cardX, cardY, cardW, cardH, compact ? 26 : 36);
-  ctx.fill();
-
-  // Accent border
-  ctx.strokeStyle = theme.accent;
-  ctx.lineWidth = compact ? 4 : 6;
-  roundRectPath(ctx, cardX + 2, cardY + 2, cardW - 4, cardH - 4, compact ? 24 : 32);
-  ctx.stroke();
-
-  // Soft accent strip on left
-  ctx.fillStyle = theme.accent;
-  roundRectPath(ctx, cardX + 4, cardY + 10, compact ? 10 : 14, cardH - 20, 8);
-  ctx.fill();
-
-  // Location pin
-  const pinSize = compact ? 36 : 52;
-  const pinX = cardX + (compact ? 58 : 78);
-  const pinY = cardY + cardH / 2 + (compact ? 4 : 6);
-  drawLocationPin(ctx, pinX, pinY, pinSize, theme.pin, "#ffffff");
-
-  // Title text
-  const textX = pinX + pinSize + (compact ? 28 : 36);
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#f8fafc";
-  ctx.font = `800 ${compact ? 52 : 72}px Inter, system-ui, sans-serif`;
-  // slight text shadow for readability
-  ctx.shadowColor = "rgba(0,0,0,0.55)";
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetY = 2;
-  ctx.fillText(text, textX, cardY + cardH / 2 - (compact ? 0 : 8));
-  ctx.shadowColor = "transparent";
-
-  if (!compact) {
-    ctx.fillStyle = theme.soft;
-    ctx.font = "700 28px Inter, system-ui, sans-serif";
-    ctx.fillText("PROCESS NODE", textX, cardY + cardH / 2 + 38);
-  }
-
-  // Tiny pointer triangle under card (map marker feel)
-  if (!compact) {
-    const tipX = W / 2;
-    const tipY = cardY + cardH;
-    ctx.beginPath();
-    ctx.moveTo(tipX - 18, tipY - 2);
-    ctx.lineTo(tipX + 18, tipY - 2);
-    ctx.lineTo(tipX, tipY + 22);
-    ctx.closePath();
-    ctx.fillStyle = "rgba(15, 23, 42, 0.96)";
-    ctx.fill();
-    ctx.strokeStyle = theme.accent;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(tipX - 16, tipY);
-    ctx.lineTo(tipX, tipY + 20);
-    ctx.lineTo(tipX + 16, tipY);
-    ctx.stroke();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 8;
-  texture.needsUpdate = true;
-  const sprite = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: texture,
-      depthTest: false,
-      transparent: true,
-      opacity: 1,
-    })
-  );
-  sprite.position.copy(position);
-  if (compact) {
-    sprite.scale.set(28, 7, 1);
-  } else {
-    // Large world-space billboards so names stay readable from orbit distance
-    sprite.scale.set(40, 10, 1);
-  }
-  sprite.renderOrder = 20;
-  return sprite;
-}
-
-function MiniRows({ cols, rows }) {
-  const list = rows?.length ? rows : [];
-  return (
-    <table className="w-full text-left text-xs mb-1">
-      <thead className="text-slate-400 border-b border-slate-600">
-        <tr>
-          {cols.map((c) => (
-            <th key={c.key} className={`py-1 pr-2 font-semibold ${c.cls || ""}`}>{c.label}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="text-slate-300">
-        {list.slice(0, 8).map((r, i) => (
-          <tr key={i} className={r.mode === "Total" || r.cls ? "font-bold border-t border-slate-600 text-slate-100" : ""}>
-            {cols.map((c) => (
-              <td key={c.key} className={`py-0.5 pr-2 ${c.cls || ""}`}>{r[c.key] ?? "—"}</td>
-            ))}
-          </tr>
+const MillRollers = ({ uid }) => {
+  const Roller = ({ cx, cy, r }) => (
+    <g>
+      <circle cx={cx} cy={cy} r={r} fill={`url(#${uid}-steel)`} stroke="#4b5a72" strokeWidth="1" />
+      <g className="ctc-spin" style={{ transformOrigin: `${cx}px ${cy}px` }}>
+        {Array.from({ length: 10 }).map((_, i) => (
+          <line
+            key={i}
+            x1={cx}
+            y1={cy - r + 2}
+            x2={cx}
+            y2={cy - r + 6}
+            stroke="#5d6b80"
+            strokeWidth="1.4"
+            transform={`rotate(${i * 36} ${cx} ${cy})`}
+          />
         ))}
-        {!list.length && (
-          <tr><td colSpan={cols.length} className="py-2 text-slate-500">No data for selected range</td></tr>
-        )}
-      </tbody>
-    </table>
+      </g>
+      <circle cx={cx} cy={cy} r={r * 0.3} fill="#2b3648" />
+    </g>
+  );
+  return (
+    <svg width="66" height="72" viewBox="0 0 66 72">
+      <defs>
+        <radialGradient id={`${uid}-steel`} cx=".35" cy=".35" r=".8">
+          <stop offset="0" stopColor="#f1f4f8" /><stop offset=".6" stopColor="#a9b4c4" /><stop offset="1" stopColor="#6c7a90" />
+        </radialGradient>
+      </defs>
+      <rect x="4" y="54" width="58" height="10" rx="3" fill={C.navy} />
+      <rect x="10" y="64" width="46" height="5" rx="2" fill="#2f80ed" opacity=".6" />
+      <Roller cx={33} cy={17} r={14} />
+      <Roller cx={17} cy={41} r={13} />
+      <Roller cx={49} cy={41} r={13} />
+    </svg>
+  );
+};
+
+const YardParking = () => {
+  const bays = 9;
+  const parked = [0, 1, 3, 4, 5, 7, 8, 10, 11, 13, 15, 16];
+  return (
+    <svg width="236" height="150" viewBox="0 0 236 150">
+      {[0, 1].map((row) => (
+        <g key={row} transform={`translate(4 ${row * 78})`}>
+          <line x1="0" y1="0" x2="226" y2="0" stroke="#cdd6e3" strokeWidth="1.5" />
+          {Array.from({ length: bays + 1 }).map((_, i) => (
+            <line key={i} x1={i * 25.1} y1="0" x2={i * 25.1} y2="54" stroke="#cdd6e3" strokeWidth="1.5" />
+          ))}
+          {Array.from({ length: bays }).map((_, i) => (
+            parked.includes(row * bays + i) ? (
+              <g key={i} transform={`translate(${i * 25.1 + 5} 6)`}>
+                <rect x="0" y="0" width="15" height="34" rx="3" fill={(i + row) % 3 === 0 ? "#9ccc65" : "#c5d3e6"} />
+                <rect x="1.5" y="36" width="12" height="11" rx="3" fill={(i + row) % 4 === 0 ? "#e53935" : "#1c3d91"} />
+              </g>
+            ) : null
+          ))}
+        </g>
+      ))}
+    </svg>
+  );
+};
+
+const ROADS = [
+  "M163 186 H668",
+  "M103 277 V553 H290",
+  "M397 553 H445",
+  "M510 624 V655 H668",
+];
+
+function Roads({ uid }) {
+  return (
+    <svg width="1400" height="790" style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+      <defs>
+        <linearGradient id={`${uid}-arrowG`} x1="0" x2="1">
+          <stop offset="0" stopColor="#7db4ff" /><stop offset="1" stopColor="#1f6fe0" />
+        </linearGradient>
+        <filter id={`${uid}-soft`} x="-20%" y="-50%" width="140%" height="200%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#1f6fe0" floodOpacity=".25" />
+        </filter>
+      </defs>
+      {ROADS.map((d, i) => (
+        <g key={i}>
+          <path d={d} stroke={C.road} strokeWidth="12" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={d} stroke="#fff" strokeWidth="1.4" fill="none" strokeDasharray="6 7" />
+          {[0, 1, 2].map((k) => (
+            <g key={k}>
+              <rect x="-6" y="-3.5" width="12" height="7" rx="2.5" fill={k === 1 ? "#e53935" : C.navy2} stroke="#fff" strokeWidth="1">
+                <animateMotion dur={`${7 + i}s`} repeatCount="indefinite" rotate="auto" begin={`${-k * (7 + i) / 3}s`} path={d} />
+              </rect>
+            </g>
+          ))}
+        </g>
+      ))}
+      <g filter={`url(#${uid}-soft)`}>
+        <path d="M958 284h50v-10l22 17-22 17v-10h-50z" fill={`url(#${uid}-arrowG)`} />
+        <path d="M968 426h22v-8l16 13-16 13v-8h-22z" fill={`url(#${uid}-arrowG)`} />
+        <path d="M940 646h86v-10l24 17-24 17v-10h-86z" fill={`url(#${uid}-arrowG)`} />
+      </g>
+    </svg>
   );
 }
 
-/**
- * Full 3D Cut-to-Crush procurement scene (updated map controls, asphalt roads, mill donga).
- * Scene WebGL mounts once; KPI/tooltip props update without rebuilding the world.
- */
+const zoneStyle = {
+  background: "linear-gradient(180deg, #ffffff 0%, #f7f9fd 100%)",
+  border: `1px solid ${C.border}`,
+  borderRadius: 28,
+  boxShadow: SHADOW,
+};
+
+function Canvas({
+  uid,
+  gateTable,
+  farmTable,
+  yardTable,
+  millTable,
+  holdingTable,
+  centerTrips,
+  avgCenterWait,
+  truckHolding,
+  avgYardWait,
+  caneHolding,
+  avgDongaWait,
+}) {
+  return (
+    <div
+      className="ctc-canvas"
+      style={{
+        position: "relative",
+        width: CANVAS_W,
+        height: CANVAS_H,
+        fontFamily: FONT,
+        color: C.text,
+        overflow: "hidden",
+        backgroundColor: "#f4f6fa",
+        backgroundImage: "radial-gradient(#d7deea 1px, transparent 1px)",
+        backgroundSize: "18px 18px",
+      }}
+    >
+      <Abs x={0} y={0} w={1400} h={80} style={{ background: "#fff", borderBottom: `1px solid ${C.border}` }} />
+      <Abs
+        x={16}
+        y={14}
+        w={1368}
+        h={52}
+        style={{
+          borderRadius: 14,
+          background: `linear-gradient(100deg, ${C.navy} 0%, ${C.navy2} 70%, #2a55b8 100%)`,
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 20,
+          fontWeight: 600,
+          letterSpacing: ".01em",
+          boxShadow: "0 6px 18px rgba(11,31,92,.25)",
+        }}
+      >
+        Cut to Crush Process KPIs
+      </Abs>
+
+      <Abs x={668} y={110} w={292} h={664} style={zoneStyle} />
+      <Abs x={1028} y={110} w={362} h={664} style={zoneStyle} />
+
+      <Roads uid={uid} />
+
+      <Abs x={46} y={126}><FarmIcon uid={uid} /></Abs>
+      <ZoneLabel x={53} y={246} w={100} solid={false}>Farm</ZoneLabel>
+
+      <Card x={235} y={100} w={333} h={150}>
+        <DataTable data={gateTable} colWidths={[86, 64, 84, 76]} />
+      </Card>
+      <Tag x={612} y={167} w={78} h={38}>Gate<br />Vehicles</Tag>
+
+      <Card x={11} y={322} w={335} h={150}>
+        <DataTable data={farmTable} colWidths={[86, 66, 82, 78]} />
+      </Card>
+
+      <Abs x={282} y={488}><CentersIcon uid={uid} /></Abs>
+      <ZoneLabel x={296} y={590} w={92} solid={false}>Centers</ZoneLabel>
+      <Card x={445} y={507} w={123} h={117} style={{ padding: "12px 0 0 16px" }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: C.navy, ...NUM }}>{centerTrips}</div>
+        <div style={{ fontSize: 11.5, color: C.sub, fontWeight: 500 }}>Trips</div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: C.navy, marginTop: 6, ...NUM }}>{avgCenterWait}</div>
+        <div style={{ fontSize: 11.5, color: C.sub, fontWeight: 500 }}>Avg Time (Hrs)</div>
+      </Card>
+      <Tag x={612} y={636} w={78} h={38}>Center<br />Vehicles</Tag>
+
+      <Card x={56} y={628} w={209} h={152}>
+        <DataTable data={holdingTable} colWidths={[90, 99]} />
+      </Card>
+      <Kpi x={275} y={628} w={160} h={152} value={truckHolding} label="Truck Holding" size={38} accent={C.amber} />
+
+      <ZoneLabel x={764} y={95} w={100}>Yard</ZoneLabel>
+      <Card x={682} y={150} w={264} h={174}>
+        <DataTable data={yardTable} colWidths={[86, 66, 88]} limit={8} />
+      </Card>
+      <Abs x={696} y={356} style={{ opacity: 0.5 }}><YardParking /></Abs>
+      <Abs x={700} y={530} w={228} h={1} style={{ background: C.border }} />
+      <Kpi x={704} y={582} w={220} h={142} value={avgYardWait} label="Waiting Time" size={50} />
+      <Abs x={1002} y={404}><BoomGate /></Abs>
+
+      <ZoneLabel x={1139} y={95} w={140}>Mill Premise</ZoneLabel>
+      <Card x={1042} y={150} w={272} h={174}>
+        <DataTable data={millTable} colWidths={[86, 64, 102]} limit={0.5} />
+      </Card>
+      <Abs x={1328} y={150}><CaneCarrier uid={uid} h={520} /></Abs>
+      <Abs x={1317} y={668}><MillRollers uid={uid} /></Abs>
+
+      <Kpi x={1060} y={548} w={238} h={106} value={caneHolding} label="Cane Holding Time" size={44} />
+      <Kpi x={1060} y={664} w={238} h={106} value={avgDongaWait} label="Time at Donga" size={44} />
+    </div>
+  );
+}
+
 function ProcurementCutToCrushScene({
-  fromDate,
-  toDate,
   gateRows = [],
   centerVehRows = [],
   holdRows = [],
@@ -900,652 +603,104 @@ function ProcurementCutToCrushScene({
   caneHolding,
   avgDongaWait,
   millRows = [],
-  summaryKpis = [],
   className = "",
 }) {
   const hostRef = useRef(null);
-  const canvasHostRef = useRef(null);
-  const kpiRefs = useRef({ center: null, yard: null, mill: null });
-  const dataRef = useRef({});
-  const pointerDownRef = useRef({ x: 0, y: 0 });
-
-  const [tooltip, setTooltip] = useState(null);
+  const rawId = useId();
+  const uid = `ctc${String(rawId).replace(/[^a-zA-Z0-9]/g, "")}`;
+  const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  dataRef.current = {
-    gateRows, centerVehRows, holdRows, centerTrips, avgCenterWait,
-    truckHolding, yardRows, avgYardWait, caneHolding, avgDongaWait, millRows,
-  };
+  const gateTable = useMemo(
+    () => splitTable(gateRows, ["Mode", "Vehicles", "Cane (Q)", "Time (Hrs)"], ["mode", "veh", "cane", "time"]),
+    [gateRows],
+  );
+  const farmTable = useMemo(
+    () => splitTable(centerVehRows, ["Mode", "Vehicles", "Cane (Q)", "Time (Hrs)"], ["mode", "veh", "cane", "time"]),
+    [centerVehRows],
+  );
+  const yardTable = useMemo(
+    () => splitTable(yardRows, ["Mode", "Avg Time", "Dev. (>8H)"], ["mode", "avg", "dev"]),
+    [yardRows],
+  );
+  const millTable = useMemo(
+    () => splitTable(millRows, ["Mode", "Avg Time", "Dev (>0.5H)"], ["mode", "avg", "dev"]),
+    [millRows],
+  );
+  const holdingTable = useMemo(
+    () => splitTable(holdRows, ["Mode", "Holding Time (H)"], ["mode", "h"]),
+    [holdRows],
+  );
 
-  const floating = useMemo(() => ({
-    truckHolding: truckHolding != null && truckHolding !== "" ? Number(truckHolding).toFixed(2) : "—",
-    yardWait: avgYardWait != null && avgYardWait !== "" ? Number(avgYardWait).toFixed(2) : "—",
-    caneHolding: caneHolding != null && caneHolding !== "" ? Number(caneHolding).toFixed(2) : "—",
-  }), [truckHolding, avgYardWait, caneHolding]);
-
-  const hideTooltip = useCallback(() => setTooltip(null), []);
-
-  const toggleFullscreen = useCallback(async () => {
+  useEffect(() => {
     const el = hostRef.current;
-    if (!el) return;
-    try {
-      if (!document.fullscreenElement) {
-        await el.requestFullscreen?.();
-      } else {
-        await document.exitFullscreen?.();
-      }
-    } catch {
-      /* ignore fullscreen errors */
-    }
+    if (!el) return undefined;
+    const fit = () => {
+      const w = el.clientWidth || CANVAS_W;
+      const h = el.clientHeight || CANVAS_H;
+      setScale(Math.max(0.35, Math.min(w / CANVAS_W, h / CANVAS_H, 2)));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   useEffect(() => {
-    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement === hostRef.current));
     document.addEventListener("fullscreenchange", onFs);
     return () => document.removeEventListener("fullscreenchange", onFs);
   }, []);
 
-  useEffect(() => {
-    const canvasHost = canvasHostRef.current;
-    if (!canvasHost) return undefined;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1e293b);
-    scene.fog = new THREE.FogExp2(0x1e293b, 0.0012);
-
-    const camera = new THREE.PerspectiveCamera(42, 1, 1, 3000);
-    // Start in front of layout center (Farm −55 → Mill 105)
-    camera.position.set(25, 62, 130);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    renderer.domElement.style.width = "100%";
-    renderer.domElement.style.height = "100%";
-    renderer.domElement.style.display = "block";
-    canvasHost.appendChild(renderer.domElement);
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.minDistance = 10;
-    controls.maxDistance = 1000;
-    controls.target.set(25, 1, 0);
-    // Map-style: left = pan, right = rotate
-    controls.mouseButtons = {
-      LEFT: THREE.MOUSE.PAN,
-      MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.ROTATE,
-    };
-    controls.screenSpacePanning = false;
-    // Gentle orbit around vertical axis; pauses while user interacts
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.45;
-    controls.addEventListener("start", () => { controls.autoRotate = false; });
-    controls.addEventListener("end", () => { controls.autoRotate = true; });
-
-    const ambient = new THREE.AmbientLight(0xcbd5e1, 0.55);
-    scene.add(ambient);
-
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0x64748b, 0.75);
-    hemiLight.position.set(0, 200, 0);
-    scene.add(hemiLight);
-
-    const dirLight = new THREE.DirectionalLight(0xfff4e5, 1.35);
-    dirLight.position.set(40, 120, 30);
-    dirLight.castShadow = true;
-    dirLight.shadow.camera.top = 90;
-    dirLight.shadow.camera.bottom = -90;
-    dirLight.shadow.camera.left = -90;
-    dirLight.shadow.camera.right = 90;
-    dirLight.shadow.camera.near = 0.1;
-    dirLight.shadow.camera.far = 320;
-    dirLight.shadow.mapSize.set(2048, 2048);
-    dirLight.shadow.bias = -0.00015;
-    scene.add(dirLight);
-
-    const fill = new THREE.DirectionalLight(0x93c5fd, 0.45);
-    fill.position.set(-60, 40, -40);
-    scene.add(fill);
-
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(1200, 1200),
-      new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.95, metalness: 0.02 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    const gridHelper = new THREE.GridHelper(1200, 120, 0xcbd5e1, 0x94a3b8);
-    gridHelper.position.y = 0.02;
-    gridHelper.material.opacity = 0.35;
-    gridHelper.material.transparent = true;
-    scene.add(gridHelper);
-
-    const interactiveObjects = [];
-    const flows = [];
-    const nodes = {};
-    const factories = { farm: createFarm, center: createCenter, yard: createYard, mill: createMill };
-
-    ["farm", "center", "yard", "mill"].forEach((id) => {
-      const data = NODES_META[id];
-      const node = factories[id](data.pos);
-      scene.add(node.group);
-      const labelY = id === "mill" ? 30 : id === "yard" ? 26 : 22;
-      scene.add(createLabel(data.label, new THREE.Vector3(data.pos.x, labelY, data.pos.z), { id }));
-
-      const hitSize = id === "mill" ? 40 : id === "yard" ? 24 : 15;
-      const hitBox = new THREE.Mesh(
-        new THREE.BoxGeometry(hitSize, 15, hitSize),
-        new THREE.MeshBasicMaterial({ visible: false })
-      );
-      hitBox.position.copy(data.pos);
-      // Keep yard hit volume on parking side so entry gates stay clickable
-      if (id === "yard") hitBox.position.x += 6;
-      hitBox.position.y = 7.5;
-      hitBox.userData = { id, isNode: true };
-      scene.add(hitBox);
-      interactiveObjects.push(hitBox);
-      nodes[id] = { ...node, object: hitBox };
-
-      // Register clickable yard entry gates (visuals live inside yard group)
-      if (id === "yard" && node.gates) {
-        node.gates.forEach((g) => {
-          const meta = NODES_META[g.id];
-          if (!meta) return;
-          scene.add(createLabel(meta.label, new THREE.Vector3(meta.pos.x, 14, meta.pos.z), { id: g.id }));
-          const gHit = new THREE.Mesh(
-            new THREE.BoxGeometry(12, 12, 12),
-            new THREE.MeshBasicMaterial({ visible: false })
-          );
-          gHit.position.copy(meta.pos);
-          gHit.position.y = 5;
-          gHit.userData = { id: g.id, isNode: true };
-          scene.add(gHit);
-          interactiveObjects.push(gHit);
-          const plate = new THREE.Mesh(
-            new THREE.BoxGeometry(5.5, 0.12, 7.5),
-            new THREE.MeshStandardMaterial({
-              color: g.id === "gateVehicles" ? 0xf59e0b : 0x3b82f6,
-              roughness: 0.55,
-              transparent: true,
-              opacity: 0.55,
-            })
-          );
-          plate.position.copy(meta.pos);
-          plate.position.y = 0.42;
-          scene.add(plate);
-          nodes[g.id] = { group: null, base: plate, id: g.id, object: gHit };
-        });
-      }
-    });
-
-    const createFlow = (fromId, toId, startOffset, endOffset, startHeight, endHeight) => {
-      const start = NODES_META[fromId].pos.clone().add(startOffset);
-      const end = NODES_META[toId].pos.clone().add(endOffset);
-      start.y = startHeight;
-      end.y = endHeight;
-      const midPoint = new THREE.Vector3(
-        (start.x + end.x) / 2,
-        (startHeight + endHeight) / 2,
-        (start.z + end.z) / 2
-      );
-      const curve = new THREE.QuadraticBezierCurve3(start, midPoint, end);
-
-      const road = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 100, 1.8, 8, false),
-        new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.9 })
-      );
-      road.scale.y = 0.03;
-      road.position.y = 0.02;
-      road.receiveShadow = true;
-      scene.add(road);
-
-      const particles = [];
-      for (let i = 0; i < 3; i++) {
-        const truck = createTruck();
-        scene.add(truck);
-        particles.push(truck);
-      }
-      flows.push({ curve, particles, speed: 0.15 + Math.random() * 0.05 });
-    };
-
-    // Roads: Farm → Gate Vehicles; Centers → Center Vehicles; Yard → Mill
-    createFlow("farm", "center", new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0), 1.0, 0.55);
-    createFlow("farm", "gateVehicles", new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0), 1.0, 0.4);
-    createFlow("center", "centerVehiclesGate", new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0), 0.55, 0.4);
-    createFlow("yard", "mill", new THREE.Vector3(0, 0, 0), new THREE.Vector3(-12, 0, 0), 0.38, 0.5);
-
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    let hoveredNode = null;
-    let raf = 0;
-    let disposed = false;
-
-    const setSize = () => {
-      const host = hostRef.current || canvasHost;
-      const w = Math.max(1, host.clientWidth || canvasHost.clientWidth || 800);
-      const h = Math.max(1, host.clientHeight || canvasHost.clientHeight || 600);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
-      renderer.domElement.style.width = "100%";
-      renderer.domElement.style.height = "100%";
-    };
-    setSize();
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => setSize()) : null;
-    ro?.observe(canvasHost);
-    if (hostRef.current && hostRef.current !== canvasHost) ro?.observe(hostRef.current);
-    window.addEventListener("resize", setSize);
-
-    const getLocalPoint = (event) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      return {
-        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-        clientX: event.clientX - rect.left,
-        clientY: event.clientY - rect.top,
-      };
-    };
-
-    const pickNodeId = (intersects) => {
-      if (!intersects?.length) return null;
-      const gateHit = intersects.find((x) => {
-        const id = x.object?.userData?.id;
-        return id === "gateVehicles" || id === "centerVehiclesGate";
-      });
-      return (gateHit || intersects[0]).object.userData.id;
-    };
-
-    const onMouseMove = (event) => {
-      const p = getLocalPoint(event);
-      mouse.x = p.x;
-      mouse.y = p.y;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(interactiveObjects);
-      if (intersects.length > 0) {
-        renderer.domElement.style.cursor = "pointer";
-        const id = pickNodeId(intersects);
-        if (hoveredNode !== id && nodes[id]?.base) {
-          if (hoveredNode && nodes[hoveredNode]?.base?.material?.emissive) {
-            nodes[hoveredNode].base.material.emissive.setHex(0x000000);
-          }
-          hoveredNode = id;
-          if (nodes[id].base.material.emissive) {
-            nodes[id].base.material.emissive.setHex(0x1e3a8a);
-          }
-        }
-      } else {
-        renderer.domElement.style.cursor = "default";
-        if (hoveredNode && nodes[hoveredNode]?.base?.material?.emissive) {
-          nodes[hoveredNode].base.material.emissive.setHex(0x000000);
-          hoveredNode = null;
-        }
-      }
-    };
-
-    const onPointerDown = (event) => {
-      pointerDownRef.current = { x: event.clientX, y: event.clientY };
-    };
-
-    const onPointerUp = (event) => {
-      // Ignore if user dragged the map
-      const dx = Math.abs(event.clientX - pointerDownRef.current.x);
-      const dy = Math.abs(event.clientY - pointerDownRef.current.y);
-      if (dx > 4 || dy > 4) return;
-
-      const p = getLocalPoint(event);
-      mouse.x = p.x;
-      mouse.y = p.y;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(interactiveObjects);
-      if (intersects.length > 0) {
-        const id = pickNodeId(intersects);
-        setTooltip({ id, x: p.clientX + 16, y: p.clientY + 16 });
-      } else {
-        setTooltip(null);
-      }
-    };
-
-    renderer.domElement.addEventListener("mousemove", onMouseMove);
-    renderer.domElement.addEventListener("pointerdown", onPointerDown);
-    renderer.domElement.addEventListener("pointerup", onPointerUp);
-    renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
-
-    // Beside nodes, just above building height (not mid-mesh, not sky-high)
-    const floatingKpiConfig = [
-      { key: "center", targetId: "center", offset: new THREE.Vector3(-12, 18, 4) },
-      { key: "yard", targetId: "yard", offset: new THREE.Vector3(12, 20, -4) },
-      { key: "mill", targetId: "mill", offset: new THREE.Vector3(-12, 22, 4) },
-    ];
-
-    const animate = () => {
-      if (disposed) return;
-      raf = requestAnimationFrame(animate);
-      const time = Date.now() * 0.001;
-
-      flows.forEach((flow) => {
-        flow.particles.forEach((truckContainer, index) => {
-          const t = ((time * flow.speed) + (index / flow.particles.length)) % 1;
-          const point = flow.curve.getPointAt(t);
-          truckContainer.position.copy(point);
-          const nextT = Math.min(t + 0.01, 1);
-          const nextPoint = flow.curve.getPointAt(nextT);
-          if (nextPoint.distanceTo(point) > 0.001) truckContainer.lookAt(nextPoint);
-        });
-      });
-
-      // Advanced donga + conveyor
-      const mill = nodes.mill;
-      if (mill?.boomGroup) {
-        mill.conveyorCanes?.forEach((cane) => {
-          cane.position.x += 0.02;
-          if (cane.position.x > 3.8) cane.position.x = -3.8;
-        });
-
-        const cycleTime = time % 6.0;
-        let targetAngle = 0;
-        let targetCableYScale = 1;
-        let targetTeethRot = 0.2;
-        let hasCane = false;
-
-        if (cycleTime < 1.0) {
-          targetAngle = Math.PI / 4.5;
-          targetCableYScale = 1;
-          targetTeethRot = 0.2;
-        } else if (cycleTime < 1.5) {
-          targetAngle = Math.PI / 4.5;
-          targetCableYScale = 2.4;
-          targetTeethRot = 0.2;
-        } else if (cycleTime < 2.0) {
-          targetAngle = Math.PI / 4.5;
-          targetCableYScale = 2.4;
-          targetTeethRot = 0.8;
-          hasCane = true;
-        } else if (cycleTime < 2.5) {
-          targetAngle = Math.PI / 4.5;
-          targetCableYScale = 1;
-          targetTeethRot = 0.8;
-          hasCane = true;
-        } else if (cycleTime < 4.0) {
-          targetAngle = -Math.PI / 2.2;
-          targetCableYScale = 1;
-          targetTeethRot = 0.8;
-          hasCane = true;
-        } else if (cycleTime < 4.5) {
-          targetAngle = -Math.PI / 2.2;
-          targetCableYScale = 1.0;
-          targetTeethRot = 0.2;
-          hasCane = false;
-        } else {
-          targetAngle = -Math.PI / 2.2;
-          targetCableYScale = 1;
-          targetTeethRot = 0.2;
-        }
-
-        mill.boomGroup.rotation.y += (targetAngle - mill.boomGroup.rotation.y) * 0.1;
-        mill.cableGroup.scale.y += (targetCableYScale - mill.cableGroup.scale.y) * 0.2;
-        mill.teethPivots.forEach((pivot) => {
-          pivot.rotation.x += (targetTeethRot - pivot.rotation.x) * 0.25;
-        });
-        mill.grabbedCane.visible = hasCane;
-      }
-
-      const w = canvasHost.clientWidth || 1;
-      const h = canvasHost.clientHeight || 1;
-      floatingKpiConfig.forEach((kpi) => {
-        const el = kpiRefs.current[kpi.key];
-        if (!el || !NODES_META[kpi.targetId]) return;
-        const targetPos = NODES_META[kpi.targetId].pos.clone().add(kpi.offset);
-        targetPos.project(camera);
-        if (targetPos.z < 1) {
-          const x = (targetPos.x * 0.5 + 0.5) * w;
-          const y = (targetPos.y * -0.5 + 0.5) * h;
-          el.style.display = "block";
-          el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
-        } else {
-          el.style.display = "none";
-        }
-      });
-
-      controls.update();
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    return () => {
-      disposed = true;
-      cancelAnimationFrame(raf);
-      ro?.disconnect();
-      window.removeEventListener("resize", setSize);
-      renderer.domElement.removeEventListener("mousemove", onMouseMove);
-      renderer.domElement.removeEventListener("pointerdown", onPointerDown);
-      renderer.domElement.removeEventListener("pointerup", onPointerUp);
-      controls.dispose();
-      renderer.dispose();
-      if (renderer.domElement.parentNode) {
-        renderer.domElement.parentNode.removeChild(renderer.domElement);
-      }
-      scene.traverse((obj) => {
-        if (obj.geometry) obj.geometry.dispose?.();
-        if (obj.material) {
-          if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose?.());
-          else obj.material.dispose?.();
-        }
-      });
-    };
-  }, []);
-
-  const tipId = tooltip?.id;
-  const tipBody = useMemo(() => {
-    if (!tipId) return null;
-    const d = dataRef.current;
-    if (tipId === "farm") {
-      return (
-        <p className="text-slate-300 text-sm">
-          Cane origin. Vehicles split to <span className="text-amber-400 font-semibold">Gate Vehicles</span> (direct)
-          or via <span className="text-sky-400 font-semibold">Collection Centers</span>.
-        </p>
-      );
+  const toggleFullscreen = async () => {
+    const el = hostRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement === el) await document.exitFullscreen?.();
+      else await el.requestFullscreen?.();
+    } catch {
+      /* ignore */
     }
-    if (tipId === "gateVehicles") {
-      return (
-        <MiniRows
-          cols={[
-            { key: "mode", label: "Mode" },
-            { key: "veh", label: "Vehicles", cls: "text-right" },
-            { key: "cane", label: "Cane (Q)", cls: "text-right" },
-            { key: "time", label: "Time(H)", cls: "text-right" },
-          ]}
-          rows={d.gateRows}
-        />
-      );
-    }
-    if (tipId === "centerVehiclesGate") {
-      return (
-        <MiniRows
-          cols={[
-            { key: "mode", label: "Mode" },
-            { key: "veh", label: "Veh", cls: "text-right" },
-            { key: "cane", label: "Cane", cls: "text-right" },
-          ]}
-          rows={d.centerVehRows}
-        />
-      );
-    }
-    if (tipId === "center") {
-      return (
-        <div className="flex flex-col gap-2">
-          <div className="bg-slate-700 p-2 rounded flex justify-between gap-4 border border-slate-600">
-            <span className="text-slate-400">Total Trips</span>
-            <span className="font-bold text-slate-100">{d.centerTrips != null ? Number(d.centerTrips).toLocaleString("en-IN") : "—"}</span>
-          </div>
-          <div className="bg-slate-700 p-2 rounded flex justify-between gap-4 border border-slate-600">
-            <span className="text-slate-400">Avg Time</span>
-            <span className="font-bold text-amber-500">{d.avgCenterWait != null ? `${Number(d.avgCenterWait).toFixed(2)} Hrs` : "—"}</span>
-          </div>
-          {d.holdRows?.length > 0 && (
-            <MiniRows
-              cols={[
-                { key: "mode", label: "Mode" },
-                { key: "h", label: "Hold (H)", cls: "text-right" },
-              ]}
-              rows={d.holdRows}
-            />
-          )}
-          <p className="text-[10px] text-slate-400">Click the blue <strong className="text-sky-400">Center Vehicles</strong> gate for mode-wise vehicles &amp; cane.</p>
-        </div>
-      );
-    }
-    if (tipId === "yard") {
-      return (
-        <div>
-          <div className="text-center mb-3">
-            <div className="text-3xl font-bold text-rose-500">{d.avgYardWait != null ? Number(d.avgYardWait).toFixed(2) : "—"}</div>
-            <div className="text-xs text-slate-400">Waiting Time (Hrs)</div>
-          </div>
-          <MiniRows
-            cols={[
-              { key: "mode", label: "Mode" },
-              { key: "avg", label: "Avg Time", cls: "text-right" },
-              { key: "dev", label: "Dev(>8H)", cls: "text-right" },
-            ]}
-            rows={d.yardRows}
-          />
-        </div>
-      );
-    }
-    if (tipId === "mill") {
-      return (
-        <div>
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="bg-slate-700 p-2 rounded text-center border border-slate-600">
-              <div className="text-xl font-bold text-amber-500">{d.caneHolding != null ? Number(d.caneHolding).toFixed(2) : "—"}</div>
-              <div className="text-[10px] text-slate-400">Holding Time (H)</div>
-            </div>
-            <div className="bg-slate-700 p-2 rounded text-center border border-slate-600">
-              <div className="text-xl font-bold text-emerald-500">{d.avgDongaWait != null ? Number(d.avgDongaWait).toFixed(2) : "—"}</div>
-              <div className="text-[10px] text-slate-400">Time at Donga (H)</div>
-            </div>
-          </div>
-          <MiniRows
-            cols={[
-              { key: "mode", label: "Mode" },
-              { key: "avg", label: "Avg Time", cls: "text-right" },
-              { key: "dev", label: "Dev(>0.5H)", cls: "text-right" },
-            ]}
-            rows={d.millRows}
-          />
-        </div>
-      );
-    }
-    return <p className="text-slate-400 text-sm">No data available</p>;
-  }, [tipId, gateRows, centerVehRows, holdRows, centerTrips, avgCenterWait, yardRows, avgYardWait, caneHolding, avgDongaWait, millRows]);
-
-  const tipStyle = useMemo(() => {
-    if (!tooltip || !hostRef.current) return { display: "none" };
-    const w = hostRef.current.clientWidth;
-    const h = hostRef.current.clientHeight;
-    let x = tooltip.x;
-    let y = tooltip.y;
-    if (x + 320 > w) x = Math.max(8, w - 320);
-    if (y + 260 > h) y = Math.max(8, h - 260);
-    return { left: x, top: y };
-  }, [tooltip]);
+  };
 
   return (
     <div
       ref={hostRef}
-      className={`relative w-full h-full min-h-[420px] overflow-hidden rounded-2xl border border-slate-700 bg-slate-950 text-slate-200 shadow-xl ${className}`}
+      className={`relative flex h-full min-h-[420px] w-full items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-[#f4f6fa] ${className}`}
     >
-      <div ref={canvasHostRef} className="absolute inset-0 z-[1]" />
-
-      <div className="absolute inset-0 z-10 pointer-events-none">
-        <div
-          ref={(el) => { kpiRefs.current.center = el; }}
-          className="absolute hidden bg-slate-900/70 backdrop-blur-sm border border-slate-600/80 border-l-4 border-l-amber-500 rounded-lg px-2.5 py-1.5 shadow-lg shadow-black/40 text-center"
-          style={{ minWidth: 110 }}
-        >
-          <div className="text-xl font-bold text-amber-500">{floating.truckHolding}</div>
-          <div className="text-[9px] text-slate-400 uppercase font-semibold tracking-wider">Truck Holding (H)</div>
-        </div>
-        <div
-          ref={(el) => { kpiRefs.current.yard = el; }}
-          className="absolute hidden bg-slate-900/70 backdrop-blur-sm border border-slate-600/80 border-l-4 border-l-rose-500 rounded-lg px-2.5 py-1.5 shadow-lg shadow-black/40 text-center"
-          style={{ minWidth: 110 }}
-        >
-          <div className="text-xl font-bold text-rose-500">{floating.yardWait}</div>
-          <div className="text-[9px] text-slate-400 uppercase font-semibold tracking-wider">Waiting Time (Hrs)</div>
-        </div>
-        <div
-          ref={(el) => { kpiRefs.current.mill = el; }}
-          className="absolute hidden bg-slate-900/70 backdrop-blur-sm border border-slate-600/80 border-l-4 border-l-emerald-500 rounded-lg px-2.5 py-1.5 shadow-lg shadow-black/40 text-center"
-          style={{ minWidth: 120 }}
-        >
-          <div className="text-xl font-bold text-emerald-500">{floating.caneHolding}</div>
-          <div className="text-[9px] text-slate-400 uppercase font-semibold tracking-wider">Cane Holding (Hrs)</div>
-        </div>
-
-        {/* Top strip: 5 summary KPIs + fullscreen */}
-        <div className="absolute top-3 left-3 right-3 flex items-start gap-2 pointer-events-auto">
-          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2 min-w-0">
-            {summaryKpis.map((k) => {
-              // BiKpiCard derives its % badge from (value, pyValue) — since k.value is already a
-              // formatted display string, encode the real delta via a matching mock pair (same
-              // trick as Gate1KpiCard elsewhere in Cane Performance) so the badge/color is real.
-              const hasDelta = k.delta != null && Number.isFinite(k.delta);
-              const mockValue = 100;
-              const mockPyValue = hasDelta ? 100 / (1 + k.delta / 100) : 0;
-              return (
-                <BiKpiCard
-                  key={k.title}
-                  title={k.title}
-                  displayValue={k.value}
-                  value={mockValue}
-                  pyValue={mockPyValue}
-                  isDarkMode={true}
-                  inverseColor={k.lowerBetter}
-                  comparisonLabel="last period"
-                />
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={toggleFullscreen}
-            className="shrink-0 rounded-xl border border-slate-700 bg-slate-800/90 backdrop-blur-md p-2.5 text-slate-200 hover:text-white hover:border-sky-500/60 transition-colors shadow-lg"
-            title={isFullscreen ? "Exit fullscreen" : "Expand fullscreen"}
-            aria-label={isFullscreen ? "Exit fullscreen" : "Expand fullscreen"}
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        </div>
-
-        {tooltip && (
-          <div
-            className="absolute bg-slate-800/95 backdrop-blur-md border border-slate-700 p-3 rounded-xl shadow-2xl pointer-events-auto min-w-[280px] max-w-[340px] z-20"
-            style={tipStyle}
-          >
-            <div className="flex justify-between items-center mb-2 pb-2 border-b border-slate-700">
-              <h3 className="text-sm font-bold text-sky-400">{NODES_META[tipId]?.label || tipId}</h3>
-              <button type="button" onClick={hideTooltip} className="text-slate-400 hover:text-slate-200 transition-colors p-0.5">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="text-sm text-slate-300 max-h-[240px] overflow-auto">{tipBody}</div>
-          </div>
-        )}
-
-        <div className="absolute bottom-3 right-3 bg-slate-800/90 backdrop-blur-md border border-slate-700 p-2.5 rounded-lg pointer-events-auto shadow-lg">
-          <p className="text-[10px] text-slate-300 font-medium mb-0.5"><span className="text-sky-400 font-semibold">Left drag:</span> Pan map</p>
-          <p className="text-[10px] text-slate-300 font-medium mb-0.5"><span className="text-sky-400 font-semibold">Right drag:</span> Rotate</p>
-          <p className="text-[10px] text-slate-300 font-medium mb-0.5"><span className="text-sky-400 font-semibold">Scroll:</span> Zoom</p>
-          <p className="text-[10px] text-slate-300 font-medium"><span className="text-sky-400 font-semibold">Click:</span> View data</p>
+      <style>{`
+        .ctc-canvas .ctc-trow { transition: background .15s; }
+        .ctc-canvas .ctc-trow:hover { background: #e7f0ff !important; }
+        .ctc-carrier { animation: ctc-carry 2.4s linear infinite; }
+        @keyframes ctc-carry { from { transform: translateY(0) } to { transform: translateY(36px) } }
+        .ctc-spin { animation: ctc-spin 3s linear infinite; }
+        @keyframes ctc-spin { to { transform: rotate(360deg) } }
+      `}</style>
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        className="absolute right-3 top-3 z-20 rounded-xl border border-slate-200 bg-white/90 p-2 text-slate-600 shadow-sm backdrop-blur-md transition-colors hover:border-blue-400 hover:text-blue-700"
+        title={isFullscreen ? "Exit fullscreen" : "Expand fullscreen"}
+        aria-label={isFullscreen ? "Exit fullscreen" : "Expand fullscreen"}
+      >
+        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+      </button>
+      <div style={{ width: CANVAS_W * scale, height: CANVAS_H * scale, overflow: "hidden" }}>
+        <div style={{ transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+          <Canvas
+            uid={uid}
+            gateTable={gateTable}
+            farmTable={farmTable}
+            yardTable={yardTable}
+            millTable={millTable}
+            holdingTable={holdingTable}
+            centerTrips={intFmt(centerTrips)}
+            avgCenterWait={hrs(avgCenterWait)}
+            truckHolding={hrs(truckHolding)}
+            avgYardWait={hrs(avgYardWait)}
+            caneHolding={hrs(caneHolding)}
+            avgDongaWait={hrs(avgDongaWait)}
+          />
         </div>
       </div>
     </div>

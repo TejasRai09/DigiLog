@@ -19,9 +19,8 @@ const {
   getDocumentForLoggedInUser,
   notifyHodPendingAfterClientSubmit,
 } = require('../services/maintenanceHistoryApproval.service');
-// Not on main — these files are from Forms Approval / Maintenance Notes.
-// const { getFormHodAccess } = require('../services/formApproval.service');
-// const { getNotesHodAccess } = require('../services/maintenanceNotes.service');
+const { getFormHodAccess } = require('../services/formApproval.service');
+const { getNotesHodAccess } = require('../services/maintenanceNotes.service');
 const { sendServerError, MSG } = require('../utils/httpError');
 const path = require('path');
 const fs = require('fs');
@@ -32,16 +31,15 @@ function actorFromUser(user) {
 
 const getApprovalAccess = async (req, res) => {
   try {
-    const access = await getHodAccess(req.user.id);
-    // const formAccess = await getFormHodAccess(req.user.id);
-    // const notesAccess = await getNotesHodAccess(req.user.id);
+    const access = await getHodAccess(req.user);
+    const formAccess = await getFormHodAccess(req.user.id);
+    const notesAccess = await getNotesHodAccess(req.user);
     const maintenance = Boolean(access.sugar || access.power || access.production);
     res.json({
       ...access,
-      // forms: Boolean(formAccess.enabled),
-      // notes: Boolean(notesAccess.enabled),
-      enabled: maintenance,
-      // enabled: Boolean(maintenance || formAccess.enabled || notesAccess.enabled),
+      forms: Boolean(formAccess.enabled),
+      notes: Boolean(notesAccess.enabled),
+      enabled: Boolean(maintenance || formAccess.enabled || notesAccess.enabled),
     });
   } catch (err) {
     sendServerError(res, 'getApprovalAccess:', err, MSG.LOAD);

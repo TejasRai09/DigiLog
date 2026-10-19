@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { MdApps } from 'react-icons/md';
 import AppBreadcrumb from '../components/AppBreadcrumb';
 import { buildAppDetailTrail } from '../utils/breadcrumbTrail';
@@ -15,6 +15,7 @@ import { withoutGsmaLabel } from '../utils/displayLabels';
 const AppDetail = () => {
   const { appId } = useParams();
   const navigate  = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [app, setApp]       = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +33,9 @@ const AppDetail = () => {
           navigate('/dashboard');
           return;
         }
+        const wantsViewData = searchParams.get('viewForm') || searchParams.get('approvalRequestId');
         const singleHub = getSingleHubRoute(found.forms);
-        if (singleHub) {
+        if (singleHub && !wantsViewData) {
           skipLoadingDone = true;
           navigate(singleHub.path, {
             state: hubNavState(singleHub.formKey, { appId: String(appId) }),
@@ -52,7 +54,7 @@ const AppDetail = () => {
     return () => {
       cancelled = true;
     };
-  }, [appId, navigate]);
+  }, [appId, navigate, searchParams]);
 
   if (loading) return <div className="flex justify-center py-24"><Spinner size="lg" /></div>;
   if (!app)    return null;
