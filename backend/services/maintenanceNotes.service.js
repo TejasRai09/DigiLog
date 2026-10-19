@@ -37,6 +37,9 @@ const SETTING_KEYS = {
   production: 'mn_hod_production',
 };
 
+const NOTES_ACCESS_MESSAGE = 'Maintenance Notes is only available for Sugar House, Power Plant, and Production employees.';
+const NOTES_PLANT_SELECT_MESSAGE = 'Select Sugar House, Power Plant, or Production House.';
+
 const STATUS_LABEL = {
   pending: 'Pending',
   approval_pending: 'Approval Pending',
@@ -80,12 +83,12 @@ function plantLabel(plant) {
 function resolveWritablePlant(user, requestedPlant, { existingPlant = null } = {}) {
   if (user?.role === 'admin') {
     const plant = String(requestedPlant || existingPlant || '').trim();
-    if (!PLANTS[plant]) throw httpError(400, 'Select Sugar House, Power Plant, or Production House.');
+    if (!PLANTS[plant]) throw httpError(400, NOTES_PLANT_SELECT_MESSAGE);
     return plant;
   }
   const locked = lockedPlantForUser(user);
   if (!locked) {
-    throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+    throw httpError(403, NOTES_ACCESS_MESSAGE);
   }
   const requested = String(requestedPlant || '').trim();
   if (requested && requested !== locked) {
@@ -99,7 +102,7 @@ function resolveWritablePlant(user, requestedPlant, { existingPlant = null } = {
 
 function assertRegisterAccess(user) {
   if (!canUseMaintenanceNotesRegister(user)) {
-    throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+    throw httpError(403, NOTES_ACCESS_MESSAGE);
   }
 }
 
@@ -323,7 +326,7 @@ function plantsForUser(user) {
   if (user?.role === 'admin') return { plants: all, lockedPlant: null };
   const lockedPlant = lockedPlantForUser(user);
   if (!lockedPlant) {
-    throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+    throw httpError(403, NOTES_ACCESS_MESSAGE);
   }
   return {
     plants: all.filter((p) => p.key === lockedPlant),
@@ -342,7 +345,7 @@ async function getEquipmentTree(plant, user) {
     }
     key = locked;
   }
-  if (!PLANTS[key]) throw httpError(400, 'Select Sugar House, Power Plant, or Production House.');
+  if (!PLANTS[key]) throw httpError(400, NOTES_PLANT_SELECT_MESSAGE);
   if (key === 'production') {
     const [rows] = await pool.query(
       `SELECT id, house_section, name, equip_no
@@ -601,7 +604,7 @@ async function getNote(user, id, { hodOnly = false } = {}) {
   if (!hodOnly && user?.role !== 'admin' && !hodAccess[row.plant]) {
     const locked = lockedPlantForUser(user);
     if (!locked) {
-      throw httpError(403, 'Maintenance Notes is only available for Power Plant, Distillery, and Production employees.');
+      throw httpError(403, NOTES_ACCESS_MESSAGE);
     }
     if (row.plant !== locked) {
       throw httpError(403, `You can only view notes for ${plantLabel(locked)}.`);

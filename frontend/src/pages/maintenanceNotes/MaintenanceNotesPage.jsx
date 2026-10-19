@@ -144,7 +144,7 @@ export default function MaintenanceNotesPage() {
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-10 text-center">
           <h1 className="text-lg font-bold text-slate-900">Maintenance Notes is not available</h1>
           <p className="mt-2 text-sm text-slate-600">
-            This register is only for Power Plant, Distillery, and Production employees.
+            This register is only for Sugar House, Power Plant, and Production employees.
           </p>
         </div>
       </main>
