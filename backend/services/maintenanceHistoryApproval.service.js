@@ -1431,6 +1431,66 @@ async function fetchPendingForDigest(domain, _istDate) {
   return rows;
 }
 
+async function fetchAllPendingHistoryRequests() {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM maintenance_history_approval_request
+       WHERE status IN ('pending', 'resubmitted')
+       ORDER BY created_at ASC, id ASC`,
+    );
+    return rows;
+  } catch (err) {
+    if (err?.code === 'ER_NO_SUCH_TABLE') return [];
+    throw err;
+  }
+}
+
+async function refreshHistoryDigestTokens(rows) {
+  const refreshed = [];
+  for (const row of rows) {
+    const tokens = newTokenPair();
+    await pool.execute(
+      `UPDATE maintenance_history_approval_request
+       SET token_accept = ?,
+           token_reject = ?,
+           token_expires_at = ?
+       WHERE id = ?`,
+      [tokens.tokenAccept, tokens.tokenReject, tokens.expires, row.id],
+    );
+    refreshed.push({
+      ...row,
+      token_accept: tokens.tokenAccept,
+      token_reject: tokens.tokenReject,
+      token_expires_at: tokens.expires,
+    });
+  }
+  return refreshed;
+}
+
+async function markHistoryRequestsNotified(ids, hod = null) {
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  if (hod?.id && hod?.email) {
+    await pool.execute(
+      `UPDATE maintenance_history_approval_request
+       SET hod_notified_at = NOW(),
+           notification_count = IFNULL(notification_count, 0) + 1,
+           hod_user_id = ?,
+           hod_email = ?
+       WHERE id IN (${placeholders})`,
+      [hod.id, hod.email, ...ids],
+    );
+    return;
+  }
+  await pool.execute(
+    `UPDATE maintenance_history_approval_request
+     SET hod_notified_at = NOW(),
+         notification_count = IFNULL(notification_count, 0) + 1
+     WHERE id IN (${placeholders})`,
+    ids,
+  );
+}
+
 async function addColumnIfMissing(table, column, ddl) {
   const [[col]] = await pool.query(
     `SELECT COUNT(*) AS n FROM information_schema.COLUMNS
@@ -1678,24 +1738,7 @@ async function sendDigestForDomain(domain, options = {}) {
     [hod.id, hod.email, domain],
   );
 
-  const refreshed = [];
-  for (const row of pendingRows) {
-    const tokens = newTokenPair();
-    await pool.execute(
-      `UPDATE maintenance_history_approval_request
-       SET token_accept = ?,
-           token_reject = ?,
-           token_expires_at = ?
-       WHERE id = ?`,
-      [tokens.tokenAccept, tokens.tokenReject, tokens.expires, row.id],
-    );
-    refreshed.push({
-      ...row,
-      token_accept: tokens.tokenAccept,
-      token_reject: tokens.tokenReject,
-      token_expires_at: tokens.expires,
-    });
-  }
+  const refreshed = await refreshHistoryDigestTokens(pendingRows);
 
   const entries = [];
   for (const row of refreshed) {
@@ -3244,6 +3287,10 @@ module.exports = {
   equipmentDisplayPartsFromRequest,
   resendDigestByToken,
   fetchPendingForDigest,
+  fetchAllPendingHistoryRequests,
+  refreshHistoryDigestTokens,
+  markHistoryRequestsNotified,
+  buildDigestEntry,
   sendDigestForDomain,
   runDigestSchedulerTick,
   runEmployeeModificationReminderTick,

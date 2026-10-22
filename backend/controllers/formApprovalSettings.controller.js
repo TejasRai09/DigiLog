@@ -1,6 +1,7 @@
 const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
-const { listSettingsTree, saveSettingsTree, sendDigestForCard } = require('../services/formApproval.service');
+const { listSettingsTree, saveSettingsTree, loadCardSetting } = require('../services/formApproval.service');
+const { sendCombinedDigestForFormCard } = require('../services/combinedApprovalDigest.service');
 
 const getFormApprovalSettings = async (_req, res) => {
   try {
@@ -42,18 +43,24 @@ const postResendFormApprovalDigest = async (req, res) => {
     if (!appId) {
       return res.status(400).json({ message: 'appId is required.' });
     }
-    const result = await sendDigestForCard(appId, { force: true, mode });
+    const result = await sendCombinedDigestForFormCard(appId, { force: true, mode });
     if (!result.sent) {
       return res.status(200).json({
         message: result.message || 'No digest sent.',
         ...result,
       });
     }
-    const label = result.cardLabel || 'this card';
+    let label = 'HOD';
+    try {
+      const card = await loadCardSetting(appId);
+      if (card?.appName) label = card.appName;
+    } catch {
+      /* keep default */
+    }
     return res.json({
       message: mode === 'new'
-        ? `Emailed ${result.count} new pending item(s) to the ${label} HOD.`
-        : `Resent digest with ${result.count} pending item(s) to the ${label} HOD.`,
+        ? `Emailed ${result.count} new pending item(s) (forms, history, and notes) to the ${label} HOD.`
+        : `Resent combined digest with ${result.count} pending item(s) to the ${label} HOD.`,
       ...result,
     });
   } catch (err) {

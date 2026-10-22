@@ -1,6 +1,11 @@
 const fs = require('fs');
 const { pool } = require('../config/mysql');
+const { CLIENT_ORIGIN } = require('../config/env');
 const { createUserNotification } = require('./userNotification.service');
+const {
+  sendMaintenanceNotesApprovedEmail,
+  sendMaintenanceNotesModificationEmail,
+} = require('./email.service');
 const { validHistoryImageField } = require('../utils/historyImages');
 const ppnHierarchy = require('../utils/ppnHierarchyLib');
 const shnHierarchy = require('../utils/shnHierarchyLib');
@@ -15,7 +20,6 @@ const {
   lockedPlantForUser,
   canUseMaintenanceNotesRegister,
   scopeHodPlantsByCategory,
-  userMayReceivePlantNotification,
 } = require('../utils/maintenanceNotesPlantAccess');
 
 const NOTIF_TYPE_PENDING = 'mn_pending_hod';
@@ -35,6 +39,22 @@ const SETTING_KEYS = {
   sugar: 'mn_hod_sugar',
   power: 'mn_hod_power',
   production: 'mn_hod_production',
+};
+
+const DEFAULT_DIGEST_TIME = '22:00';
+const DIGEST_KEYS = {
+  sugar: {
+    digestTime: 'mn_digest_sugar_time',
+    digestTime2: 'mn_digest_sugar_time_2',
+  },
+  power: {
+    digestTime: 'mn_digest_power_time',
+    digestTime2: 'mn_digest_power_time_2',
+  },
+  production: {
+    digestTime: 'mn_digest_production_time',
+    digestTime2: 'mn_digest_production_time_2',
+  },
 };
 
 const NOTES_ACCESS_MESSAGE = 'Maintenance Notes is only available for Sugar House, Power Plant, and Production employees.';
@@ -124,8 +144,43 @@ function httpError(status, message) {
   return err;
 }
 
+function normalizeDigestTime(value) {
+  const raw = String(value == null || value === '' ? DEFAULT_DIGEST_TIME : value).trim();
+  const match = /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/.exec(raw);
+  if (!match) return null;
+  return `${String(match[1]).padStart(2, '0')}:${match[2]}`;
+}
+
+function normalizeOptionalDigestTime(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  return normalizeDigestTime(raw) || '';
+}
+
+function validateDigestTime(value) {
+  return normalizeDigestTime(value) != null;
+}
+
+function validateOptionalDigestTime(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return true;
+  return normalizeDigestTime(raw) != null;
+}
+
+function configuredNotesDigestTimes(plantSettings) {
+  const times = [];
+  const t1 = normalizeDigestTime(plantSettings?.digestTime) || DEFAULT_DIGEST_TIME;
+  const t2 = normalizeOptionalDigestTime(plantSettings?.digestTime2);
+  times.push(t1);
+  if (t2 && t2 !== t1) times.push(t2);
+  return times;
+}
+
 async function getSettingMap() {
-  const keys = Object.values(SETTING_KEYS);
+  const keys = [
+    ...Object.values(SETTING_KEYS),
+    ...Object.values(DIGEST_KEYS).flatMap((k) => [k.digestTime, k.digestTime2]),
+  ];
   const [rows] = await pool.query(
     `SELECT setting_key, setting_value FROM portal_settings WHERE setting_key IN (${keys.map(() => '?').join(',')})`,
     keys,
@@ -135,13 +190,25 @@ async function getSettingMap() {
   return map;
 }
 
+async function setPortalSetting(key, value) {
+  await pool.execute(
+    `INSERT INTO portal_settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    [key, value],
+  );
+}
+
 async function getHodSettings() {
   const map = await getSettingMap();
   const out = {};
   for (const plant of Object.keys(PLANTS)) {
     const raw = map[SETTING_KEYS[plant]];
     const hodUserId = raw && String(raw).trim() ? Number(raw) : null;
-    out[plant] = { hodUserId: Number.isFinite(hodUserId) ? hodUserId : null };
+    out[plant] = {
+      hodUserId: Number.isFinite(hodUserId) ? hodUserId : null,
+      digestTime: normalizeDigestTime(map[DIGEST_KEYS[plant].digestTime]) || DEFAULT_DIGEST_TIME,
+      digestTime2: normalizeOptionalDigestTime(map[DIGEST_KEYS[plant].digestTime2]),
+    };
   }
   return out;
 }
@@ -158,6 +225,10 @@ async function updateHodSettings({ sugar, power, production }) {
       );
       if (!user) throw httpError(400, `Selected HOD for ${plantLabel(plant)} is invalid or inactive.`);
     }
+    const digestTime = normalizeDigestTime(cfg.digestTime) || DEFAULT_DIGEST_TIME;
+    const digestTime2 = normalizeOptionalDigestTime(cfg.digestTime2);
+    await setPortalSetting(DIGEST_KEYS[plant].digestTime, digestTime);
+    await setPortalSetting(DIGEST_KEYS[plant].digestTime2, digestTime2);
     await pool.query(
       `INSERT INTO portal_settings (setting_key, setting_value) VALUES (?, ?)
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
@@ -211,14 +282,11 @@ async function notifyUsers(userIds, payload) {
   }
 }
 
-async function notifyHodPending(note, { actorId, resubmitted = false } = {}) {
+async function notifyHodPending(note, { resubmitted = false } = {}) {
   const hodId = Number(note.hod_user_id);
-  if (!hodId || hodId === Number(actorId)) return;
-  const [[hod]] = await pool.query(
-    'SELECT id, role, department FROM users WHERE id = ? LIMIT 1',
-    [hodId],
-  );
-  if (!userMayReceivePlantNotification(hod, note.plant)) return;
+  if (!hodId) return;
+  const access = await getNotesHodAccess(hodId);
+  if (!access[note.plant]) return;
   const who = note.submitted_by_name || note.created_by_name || 'A user';
   const ref = noteRef(note.id);
   await notifyUsers([hodId], {
@@ -233,6 +301,17 @@ async function notifyHodPending(note, { actorId, resubmitted = false } = {}) {
   });
 }
 
+async function loadActiveUsersByIds(ids) {
+  const unique = [...new Set(ids.map((id) => Number(id)).filter(Boolean))];
+  if (!unique.length) return [];
+  const [rows] = await pool.query(
+    `SELECT id, name, email FROM users
+     WHERE id IN (${unique.map(() => '?').join(',')}) AND is_active = 1`,
+    unique,
+  );
+  return rows;
+}
+
 async function notifyTeamDecision(note, { actorId, decision, remarks } = {}) {
   const recipients = [note.submitted_by_user_id, note.created_by_user_id].filter(
     (id) => Number(id) && Number(id) !== Number(actorId),
@@ -240,6 +319,8 @@ async function notifyTeamDecision(note, { actorId, decision, remarks } = {}) {
   if (!recipients.length) return;
   const ref = noteRef(note.id);
   const plant = plantLabel(note.plant);
+  const publicBase = String(CLIENT_ORIGIN || '').replace(/\/+$/, '');
+  const openUrl = publicBase ? `${publicBase}${REGISTER_PATH}` : REGISTER_PATH;
   if (decision === 'approved') {
     await notifyUsers(recipients, {
       type: NOTIF_TYPE_APPROVED,
@@ -251,6 +332,21 @@ async function notifyTeamDecision(note, { actorId, decision, remarks } = {}) {
       refId: note.id,
       meta: { plant: note.plant, status: 'completed' },
     });
+    const users = await loadActiveUsersByIds(recipients);
+    for (const user of users) {
+      if (!user.email) continue;
+      try {
+        await sendMaintenanceNotesApprovedEmail({
+          to: user.email,
+          submitterName: user.name || 'there',
+          plantLabel: plant,
+          noteRef: ref,
+          activityDescription: note.activity_description,
+        });
+      } catch (err) {
+        console.error('[maintenanceNotes] approved email failed:', err.message);
+      }
+    }
     return;
   }
   const reason = String(remarks || '').trim();
@@ -266,6 +362,23 @@ async function notifyTeamDecision(note, { actorId, decision, remarks } = {}) {
     refId: note.id,
     meta: { plant: note.plant, status: 'rework_required' },
   });
+  const users = await loadActiveUsersByIds(recipients);
+  for (const user of users) {
+    if (!user.email) continue;
+    try {
+      await sendMaintenanceNotesModificationEmail({
+        to: user.email,
+        submitterName: user.name || 'there',
+        plantLabel: plant,
+        noteRef: ref,
+        activityDescription: note.activity_description,
+        comment: reason,
+        openUrl,
+      });
+    } catch (err) {
+      console.error('[maintenanceNotes] rework email failed:', err.message);
+    }
+  }
 }
 
 async function recordEvent({ noteId, action, user, fromStatus, toStatus, remarks }) {
@@ -890,6 +1003,8 @@ module.exports = {
   PLANTS,
   STATUS_LABEL,
   plantLabel,
+  noteRef,
+  parseNoteImages,
   getHodSettings,
   updateHodSettings,
   getNotesHodAccess,
@@ -905,4 +1020,8 @@ module.exports = {
   getNoteDocumentFile,
   submitNote,
   decideNote,
+  validateDigestTime,
+  validateOptionalDigestTime,
+  configuredNotesDigestTimes,
+  DEFAULT_DIGEST_TIME,
 };
