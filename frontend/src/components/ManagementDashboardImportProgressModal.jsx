@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalPortal from './ModalPortal';
 import { MdCheckCircle, MdClose, MdError, MdHourglassEmpty } from 'react-icons/md';
 import api from '../api/axios';
 import Spinner from './Spinner';
@@ -73,6 +74,7 @@ export default function ManagementDashboardImportProgressModal({
   const totals = job?.totals;
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
       <div className="card flex max-h-[85vh] w-full max-w-lg flex-col shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
@@ -141,5 +143,6 @@ export default function ManagementDashboardImportProgressModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

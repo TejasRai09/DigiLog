@@ -405,7 +405,8 @@ function parseNoteImages(value) {
 
 function cleanImages(value) {
   if (value == null || value === '') return null;
-  const rawList = Array.isArray(value) ? value : null;
+  const rawList = Array.isArray(value) ? value.filter(Boolean) : null;
+  if (rawList && rawList.length === 0) return null;
   const stored = validHistoryImageField(rawList ? JSON.stringify(rawList) : value);
   if (!stored) throw httpError(400, 'Photos must be image files.');
   const list = parseNoteImages(stored);

@@ -171,7 +171,7 @@ const formDefs = [
     sort_order: 2,
   },
   {
-    name: 'Purchy Analysis',
+    name: 'Grower Intelligence',
     description: 'Grower performance year-wise summary and purchy dishonour analysis',
     formKey: 'bi_purchy_analysis',
     app: 'BI Control Tower',

@@ -1,6 +1,11 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
-const { query2025Facts, growerFactJoinSql, extraWhere } = require('./purchyPbiFacts');
+const {
+  query2025Facts,
+  growerFactJoinSql,
+  ensureGrowerFacts,
+  extraWhere,
+} = require('./purchyPbiFacts');
 
 /** PBI page filter: No of Indent Failer purchy is not null. */
 function withDishonourPageFilter(ctx) {
@@ -56,44 +61,46 @@ async function getDetail(query) {
   const joins = staffJoins(ctx);
   const dishonourWhere = ctx.whereSql;
 
-  const countRow = await queryOne(
-    `SELECT
-      COUNT(*) AS total,
-      IFNULL(SUM(gs.no_of_purchy_indent), 0) AS no_of_purchy_indent,
-      IFNULL(SUM(gs.no_of_indent_failer_purchy), 0) AS no_of_indent_failer_purchy,
-      IFNULL(SUM(ind.indent_qty), 0) AS indent_qty,
-      IFNULL(SUM(sup.supply_count), 0) AS supply_count_2025,
-      IFNULL(SUM(sup.supply_qty), 0) AS supply_qty_2025,
-      IFNULL(SUM(dh.dishonour_qty), 0) AS dishonour_qty_2025
-     FROM purchy_grower_summary_v gs
-     ${joins}
-     ${growerFactJoinSql()}
-     ${dishonourWhere}`,
-    ctx.params,
-  );
-
-  const [rows] = await pool.query(
-    `SELECT
-      gs.society_name,
-      gs.village_name_key,
-      gs.grower_name_key,
-      fs.village_staff,
-      gs.no_of_purchy_indent,
-      gs.no_of_indent_failer_purchy,
-      IFNULL(ind.indent_qty, 0) AS indent_qty,
-      IFNULL(sup.supply_count, 0) AS supply_count_2025,
-      IFNULL(sup.supply_qty, 0) AS supply_qty_2025,
-      IFNULL(dh.dishonour_qty, 0) AS dishonour_qty_2025
-    FROM purchy_grower_summary_v gs
-    ${joins}
-    ${growerFactJoinSql()}
-    ${dishonourWhere}
-    ORDER BY
-      CASE WHEN IFNULL(ind.indent_qty, 0) > 0 THEN IFNULL(dh.dishonour_qty, 0) / ind.indent_qty ELSE 0 END DESC,
-      IFNULL(dh.dishonour_qty, 0) DESC
-    LIMIT ? OFFSET ?`,
-    [...ctx.params, pageSize, offset],
-  );
+  await ensureGrowerFacts();
+  const [countRow, [rows]] = await Promise.all([
+    queryOne(
+      `SELECT
+        COUNT(*) AS total,
+        IFNULL(SUM(gs.no_of_purchy_indent), 0) AS no_of_purchy_indent,
+        IFNULL(SUM(gs.no_of_indent_failer_purchy), 0) AS no_of_indent_failer_purchy,
+        IFNULL(SUM(f.indent_qty), 0) AS indent_qty,
+        IFNULL(SUM(f.supply_count), 0) AS supply_count_2025,
+        IFNULL(SUM(f.supply_qty), 0) AS supply_qty_2025,
+        IFNULL(SUM(f.dishonour_qty), 0) AS dishonour_qty_2025
+       FROM purchy_grower_summary_v gs
+       ${joins}
+       ${growerFactJoinSql()}
+       ${dishonourWhere}`,
+      ctx.params,
+    ),
+    pool.query(
+      `SELECT
+        gs.society_name,
+        gs.village_name_key,
+        gs.grower_name_key,
+        fs.village_staff,
+        gs.no_of_purchy_indent,
+        gs.no_of_indent_failer_purchy,
+        IFNULL(f.indent_qty, 0) AS indent_qty,
+        IFNULL(f.supply_count, 0) AS supply_count_2025,
+        IFNULL(f.supply_qty, 0) AS supply_qty_2025,
+        IFNULL(f.dishonour_qty, 0) AS dishonour_qty_2025
+      FROM purchy_grower_summary_v gs
+      ${joins}
+      ${growerFactJoinSql()}
+      ${dishonourWhere}
+      ORDER BY
+        CASE WHEN IFNULL(f.indent_qty, 0) > 0 THEN IFNULL(f.dishonour_qty, 0) / f.indent_qty ELSE 0 END DESC,
+        IFNULL(f.dishonour_qty, 0) DESC
+      LIMIT ? OFFSET ?`,
+      [...ctx.params, pageSize, offset],
+    ),
+  ]);
 
   const mapped = rows.map((r) => {
     const indentQty = Number(r.indent_qty) || 0;

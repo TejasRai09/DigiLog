@@ -632,6 +632,7 @@ export default function MillLubeRollerTab({
           isDarkMode={isDarkMode}
           axisStyle={axisStyle}
           gridStyle={gridStyle}
+          compareLabel={comparisonLabel}
           onClose={() => setExpandedChart(null)}
         />
       )}

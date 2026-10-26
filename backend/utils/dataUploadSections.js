@@ -2,7 +2,7 @@
 const { pool } = require('../config/mysql');
 
 const DATA_UPLOAD_SECTIONS = [
-  { key: 'purchy', label: 'Purchy Analysis' },
+  { key: 'purchy', label: 'Grower Intelligence' },
   { key: 'management', label: 'Management Dashboard' },
   { key: 'milling', label: 'Milling Operations' },
 ];

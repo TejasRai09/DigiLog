@@ -13,6 +13,7 @@ import {
   AlertTriangle, FileText, Info
 } from "lucide-react";
 import api from "../../api/axios";
+import ModalPortal from "../../components/ModalPortal";
 import BiDashboardHeader from "../../components/bi/BiDashboardHeader";
 import BiKpiCard from "../../components/bi/BiKpiCard";
 import { BiKeyMetricBox, BiFilterBarLayout } from "../../components/bi/BiLayoutElements";
@@ -24,6 +25,7 @@ import {
   ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
 } from "../../utils/biCockpitDateFilters";
 import { millOperatingDays } from "../../utils/millingBiComparison";
@@ -31,6 +33,7 @@ import useTrackBiInteraction from "../../hooks/useTrackBiInteraction";
 import { BI_DASHBOARDS } from "../../utils/activityPath";
 import ChartCardToolbar from "../../components/bi/ChartCardToolbar";
 import BiChartExpandModal from "../../components/bi/BiChartExpandModal";
+import CompareRangeBadge from "../../components/bi/CompareRangeBadge";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
@@ -966,7 +969,8 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
 
       {/* Detail drawer */}
       {drawer && (
-        <div className="fixed inset-0 z-50 flex justify-end">
+        <ModalPortal>
+        <div className="fixed inset-0 z-[80] flex justify-end">
           <button type="button" aria-label="Close drawer" className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setDrawer(null)} />
           <div className={`relative w-full max-w-md h-full border-l shadow-2xl flex flex-col ${dm ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
             <div className={`p-5 border-b flex items-start justify-between ${dm ? "border-slate-800 bg-slate-800/40" : "border-slate-100 bg-slate-50/60"}`}>
@@ -1003,6 +1007,7 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );
@@ -1057,11 +1062,14 @@ const donutLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => 
   );
 };
 
-const Gate1KpiCard = ({ title, value, delta, lowerBetter = false, icon: Icon, iconBg, iconColor, dm, info }) => {
+const Gate1KpiCard = ({
+  title, value, delta, lowerBetter = false, icon: Icon, iconBg, iconColor, dm, info,
+  comparisonLabel = "", timeFilter = "",
+}) => {
   const hasDelta = delta != null && Number.isFinite(delta);
   const mockValue = 100;
   const mockPyValue = hasDelta ? 100 / (1 + delta / 100) : 0;
-  
+
   return (
     <BiKpiCard
       title={title}
@@ -1069,7 +1077,10 @@ const Gate1KpiCard = ({ title, value, delta, lowerBetter = false, icon: Icon, ic
       value={mockValue}
       pyValue={mockPyValue}
       isDarkMode={dm}
-      comparisonLabel="vs last period"
+      comparisonLabel={comparisonLabel}
+      timeFilter={timeFilter}
+      hideComparison={!comparisonLabel}
+      showDelta={hasDelta}
       inverseColor={lowerBetter}
       definition={resolveSectionInfo(title, info)}
     />
@@ -1077,13 +1088,13 @@ const Gate1KpiCard = ({ title, value, delta, lowerBetter = false, icon: Icon, ic
 };
 
 /** Soft white chart panel (no gradient header) */
-const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassName = "", accent = false, info, onExpand }) => {
+const Gate1Panel = ({ title, subtitle, compareLabel, children, dm, className = "", bodyClassName = "", accent = false, info, onExpand }) => {
   const tip = resolveSectionInfo(title, info);
   return (
   <div className={`rounded-2xl border flex flex-col transition-all duration-200 hover:-translate-y-0.5 overflow-visible
     ${dm ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"} ${className}`}
     style={{ boxShadow: cardShadow(dm) }}>
-    {(title || subtitle || tip) && (
+    {(title || subtitle || compareLabel || tip) && (
       <div className="px-4 pt-3.5 pb-1 flex items-start justify-between gap-2">
         <div className="min-w-0">
           {title && <p className={`text-[13px] font-bold ${dm ? "text-slate-100" : "text-[#1e3a5f]"}`}>{title}</p>}
@@ -1091,6 +1102,7 @@ const Gate1Panel = ({ title, subtitle, children, dm, className = "", bodyClassNa
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {subtitle && <p className={`text-[10px] font-medium ${dm ? "text-slate-500" : "text-slate-400"}`}>{subtitle}</p>}
+          <CompareRangeBadge label={compareLabel} isDarkMode={dm} />
           {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
           <InfoTip text={tip} dm={dm} />
         </div>
@@ -1709,7 +1721,13 @@ export default function CanePerformanceDashboard(){
 
   const showCompare = Boolean(pyRange);
   const prior = showCompare ? liveData?.prior : null;
-  const pyLabel = pyRange?.label ? `vs ${pyRange.label}` : "vs PY";
+  const kpiCompareLabel = formatKpiComparePeriodLabel({
+    label: pyRange?.label,
+    start: pyRange?.from,
+    end: pyRange?.to,
+  });
+  const kpiTimeFilter = rangePreset === "Custom" ? "" : rangePreset;
+  const pyLabel = kpiCompareLabel ? `vs ${kpiCompareLabel}` : "vs PY";
   const priorOverrun = useMemo(() => overrunMap(prior?.overruns), [prior]);
   const priorCntOverrun = useMemo(() => overrunMap(prior?.cntOverruns), [prior]);
   const priorHoldByMode = useMemo(() => {
@@ -2089,7 +2107,7 @@ export default function CanePerformanceDashboard(){
           <div className="flex flex-col gap-4">
             {/* KPI row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Total Cane Purchased (Qtls)"
                 value={sb ? compact(sb.totalCanePurchased) : "—"}
@@ -2098,7 +2116,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#ccfbf1"
                 iconColor="#0d9488"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="No. of Parchy"
                 value={sb ? n(sb.noOfPurchy).toLocaleString("en-IN") : "—"}
@@ -2107,7 +2125,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#e0e7ff"
                 iconColor="#4f46e5"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Avg Parchy Size (Qtls)"
                 value={sb ? fmt(sb.avgPurchySize) : "—"}
@@ -2116,7 +2134,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#ede9fe"
                 iconColor="#7c3aed"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Avg Parchy Overrun (Qtls)"
                 value={avgOverrun != null ? fmt(avgOverrun) : "—"}
@@ -2132,6 +2150,7 @@ export default function CanePerformanceDashboard(){
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
               <Gate1Panel
                 title="Purchase Split - Modewise"
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 accent
                 className="xl:col-span-5 min-h-[440px]"
@@ -2151,6 +2170,7 @@ export default function CanePerformanceDashboard(){
               <div className="xl:col-span-7 flex flex-col gap-4">
                 <Gate1Panel
                   title="Cane Purchase Trend"
+                  compareLabel={kpiCompareLabel}
                   dm={dm}
                   className="min-h-[260px]"
                   bodyClassName="px-2 pb-3 pt-1"
@@ -2200,6 +2220,7 @@ export default function CanePerformanceDashboard(){
                 <Gate1Panel
                   title="Parchi Overrun Trend (Qtls)"
                   subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                   dm={dm}
                   className="min-h-[220px]"
                   bodyClassName="px-2 pb-3 pt-1"
@@ -2321,6 +2342,14 @@ export default function CanePerformanceDashboard(){
             ? [g2.cart18, g2.trolly36, g2.trolly63, g2.truck99]
                 .reduce((s, m) => s + n(m.devGateYard) + n(m.devCenterYard), 0)
             : null;
+          const pyYard = prior?.gateYard || [];
+          const priorTotalVeh = pyYard.reduce((s, x) => s + n(x.vehicles), 0) || null;
+          const priorAvgHold = (() => {
+            const vals = pyYard.map((x) => n(x.avgYardHrs)).filter((v) => v > 0);
+            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+          })();
+          const priorMaxHold = pyYard.length ? Math.max(...pyYard.map((x) => n(x.maxYardHrs))) : null;
+          const priorExceed = pyYard.reduce((s, x) => s + n(x.devOver8H), 0);
 
           const holdingSeries = (() => {
             const byDate = {};
@@ -2364,36 +2393,40 @@ export default function CanePerformanceDashboard(){
           <div className="flex flex-col gap-4">
             {/* Summary KPI row — same language as Gate 1 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Total Vehicles"
                 value={totalVeh != null ? totalVeh.toLocaleString("en-IN") : "—"}
+                delta={pctChange(totalVeh, priorTotalVeh)}
                 icon={Truck}
                 iconBg="#dbeafe"
                 iconColor="#2563eb"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Avg Yard Holding (Hrs)"
                 value={avgHold != null ? fmt(avgHold) : "—"}
+                delta={pctChange(avgHold, priorAvgHold)}
                 lowerBetter
                 icon={Clock}
                 iconBg="#ccfbf1"
                 iconColor="#0d9488"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Max Yard Holding (Hrs)"
                 value={maxHold != null ? fmt(maxHold) : "—"}
+                delta={pctChange(maxHold, priorMaxHold)}
                 lowerBetter
                 icon={Activity}
                 iconBg="#ffedd5"
                 iconColor="#ea580c"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Vehicles Exceeding (>8 Hrs)"
                 value={exceedTotal != null ? exceedTotal.toLocaleString("en-IN") : "—"}
+                delta={pctChange(exceedTotal, priorExceed)}
                 lowerBetter
                 icon={AlertTriangle}
                 iconBg="#fee2e2"
@@ -2413,6 +2446,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Average Yard Holding Time"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 className="min-h-[280px]"
                 bodyClassName="px-2 pb-3 pt-1"
@@ -2455,6 +2489,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Vehicles Exceeding Standard Holding Time"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 className="min-h-[280px]"
                 bodyClassName="px-2 pb-3 pt-1"
@@ -2556,7 +2591,7 @@ export default function CanePerformanceDashboard(){
           <div className="flex flex-col gap-4">
             {/* KPI row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Cane Purchased (Qtls)"
                 value={cs ? compact(cs.totalCanePurchased) : "—"}
@@ -2565,7 +2600,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#ccfbf1"
                 iconColor="#0d9488"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="No. of Purchy"
                 value={cs ? n(cs.noOfPurchy).toLocaleString("en-IN") : "—"}
@@ -2574,7 +2609,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#e0e7ff"
                 iconColor="#4f46e5"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Avg Parchi Size (Qtls)"
                 value={cs ? fmt(cs.avgParchiSize) : "—"}
@@ -2583,7 +2618,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#ede9fe"
                 iconColor="#7c3aed"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Trips (C to G)"
                 value={cs ? n(cs.trips).toLocaleString("en-IN") : "—"}
@@ -2592,7 +2627,7 @@ export default function CanePerformanceDashboard(){
                 iconBg="#ffedd5"
                 iconColor="#ea580c"
               />
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Avg Parchi Overrun (Qtls)"
                 value={avgOverrun != null ? fmt(avgOverrun) : "—"}
@@ -2635,6 +2670,7 @@ export default function CanePerformanceDashboard(){
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
               <Gate1Panel
                 title="Purchase Split - Modewise"
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 accent
                 className="xl:col-span-5 min-h-[400px]"
@@ -2655,6 +2691,7 @@ export default function CanePerformanceDashboard(){
                 <Gate1Panel
                   title="Cane Purchase Trend"
                   subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                   dm={dm}
                   className="min-h-[240px]"
                   bodyClassName="px-2 pb-3 pt-1"
@@ -2704,6 +2741,7 @@ export default function CanePerformanceDashboard(){
                 <Gate1Panel
                   title="Parchi Overrun Trend (Qtls)"
                   subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                   dm={dm}
                   className="min-h-[220px]"
                   bodyClassName="px-2 pb-3 pt-1"
@@ -2752,6 +2790,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Top 10 Centers - Cane Purchase"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 className="min-h-[300px]"
                 bodyClassName="px-2 pb-3 pt-1"
@@ -2800,6 +2839,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Bottom 10 Centers - Cane Purchase"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 className="min-h-[300px]"
                 bodyClassName="px-2 pb-3 pt-1"
@@ -2882,7 +2922,7 @@ export default function CanePerformanceDashboard(){
           const topModes = [...modeRows].sort((a, b) => b.vehicles - a.vehicles).slice(0, 3);
 
           const SoftTable = ({ title, rows }) => (
-            <Gate1Panel title={title} subtitle={rangeLabel} dm={dm} className="min-h-[280px]" bodyClassName="p-0">
+            <Gate1Panel title={title} subtitle={rangeLabel} compareLabel={kpiCompareLabel} dm={dm} className="min-h-[280px]" bodyClassName="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px] text-center">
                   <thead className={`uppercase text-[9.5px] tracking-wider ${dm ? "bg-slate-800/50 text-slate-400 border-b border-slate-700" : "bg-slate-50 text-slate-500 border-b border-slate-100"}`}>
@@ -2919,7 +2959,7 @@ export default function CanePerformanceDashboard(){
           <div className="flex flex-col gap-4">
             {/* KPI row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Vehicles Handled"
                 value={handled != null ? (n(handled) >= 1000 ? compact(handled) : n(handled).toLocaleString("en-IN")) : "—"}
@@ -2929,7 +2969,7 @@ export default function CanePerformanceDashboard(){
                 iconColor="#2563eb"
               />
               {topModes.map((m) => (
-                <Gate1KpiCard
+                <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                   key={m.full}
                   dm={dm}
                   title={m.full}
@@ -2946,6 +2986,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Mode wise Split"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 accent
                 className="xl:col-span-5 min-h-[280px]"
@@ -2989,6 +3030,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Vehicle Handling Trend (Mode wise)"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 className="xl:col-span-7 min-h-[280px]"
                 bodyClassName="px-2 pb-3 pt-1"
@@ -3084,7 +3126,7 @@ export default function CanePerformanceDashboard(){
           <div className="flex flex-col gap-4">
             {/* Overall + mode holding KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-              <Gate1KpiCard
+              <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                 dm={dm}
                 title="Avg Holding Time (Hrs)"
                 value={overallAvg != null ? fmt(overallAvg) : "—"}
@@ -3095,7 +3137,7 @@ export default function CanePerformanceDashboard(){
                 iconColor="#0d9488"
               />
               {holdModes.map((m) => (
-                <Gate1KpiCard
+                <Gate1KpiCard comparisonLabel={kpiCompareLabel} timeFilter={kpiTimeFilter}
                   key={m.mode}
                   dm={dm}
                   title={m.mode}
@@ -3114,6 +3156,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Avg Holding Time at Centers - Trend"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 className="xl:col-span-7 min-h-[300px]"
                 bodyClassName="px-2 pb-3 pt-1"
@@ -3158,6 +3201,7 @@ export default function CanePerformanceDashboard(){
               <Gate1Panel
                 title="Vehicle vs Center Holding Time"
                 subtitle={rangeLabel}
+                compareLabel={kpiCompareLabel}
                 dm={dm}
                 accent
                 className="xl:col-span-5 min-h-[300px]"
@@ -3270,7 +3314,7 @@ export default function CanePerformanceDashboard(){
 
       </main>
       <BiChartExpandModal
-        config={expandedChart}
+        config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel } : null}
         isDarkMode={dm}
         onClose={() => setExpandedChart(null)}
       />

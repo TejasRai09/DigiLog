@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 import { usePurchyCachedGet } from './purchyQueryCache';
 
+export const DISHONOUR_KPIS_PATH = '/bi/purchy/dishonour/kpis';
+export const DISHONOUR_DETAIL_PATH = '/bi/purchy/dishonour/detail';
+export const DISHONOUR_DEFAULT_PAGE_SIZE = 25;
+
 export default function usePurchyDishonour(queryParams, { enabled = true } = {}) {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(DISHONOUR_DEFAULT_PAGE_SIZE);
 
   useEffect(() => {
     setPage(1);
   }, [queryParams, pageSize]);
 
   const kpiQ = usePurchyCachedGet(
-    '/bi/purchy/dishonour/kpis',
+    DISHONOUR_KPIS_PATH,
     queryParams,
     {
       enabled,
@@ -19,7 +23,7 @@ export default function usePurchyDishonour(queryParams, { enabled = true } = {})
   );
 
   const detailQ = usePurchyCachedGet(
-    '/bi/purchy/dishonour/detail',
+    DISHONOUR_DETAIL_PATH,
     { ...queryParams, page, pageSize },
     {
       enabled,

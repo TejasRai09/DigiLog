@@ -9,6 +9,8 @@ const {
   streamGrowerWorkbook,
   streamStaffWorkbook,
 } = require('../../utils/purchyExcelStream');
+const { rebuildGrowerFacts } = require('./purchyGrowerFacts');
+const { clearPurchyCache } = require('./purchyResponseCache');
 
 const BATCH = 500;
 
@@ -94,6 +96,10 @@ function formatProgressMessage(stage, detail = {}) {
       return 'Tables cleared.';
     case 'batch_insert':
       return `${detail.label}: ${Number(detail.total || 0).toLocaleString()} rows inserted`;
+    case 'facts_rebuild_start':
+      return 'Rebuilding grower dashboard facts…';
+    case 'facts_rebuild_done':
+      return `Grower facts rebuilt — ${Number(detail.growers || 0).toLocaleString()} growers in ${((detail.ms || 0) / 1000).toFixed(1)}s`;
     case 'complete':
       return 'Import finished successfully.';
     case 'error':
@@ -218,14 +224,17 @@ async function runPurchyGrowerImport(opts = {}) {
       dishonour: (totals.dishonour || 0).toLocaleString(),
       staff: (totals.staff || 0).toLocaleString(),
     });
-    emit('complete', { totals });
-
     try {
-      const { clearPurchyCache } = require('./purchyResponseCache');
+      if (!staffOnly) {
+        emit('facts_rebuild_start');
+        const facts = await rebuildGrowerFacts();
+        emit('facts_rebuild_done', facts);
+      }
+    } finally {
       clearPurchyCache();
-    } catch (cacheErr) {
-      console.warn('Purchy cache clear after import failed:', cacheErr.message);
     }
+
+    emit('complete', { totals });
 
     return {
       totals: {

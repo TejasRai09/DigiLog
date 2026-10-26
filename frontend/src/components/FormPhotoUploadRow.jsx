@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalPortal from './ModalPortal';
 import { MdClose, MdDeleteOutline } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { resizeImage } from '../utils/resizeImage';
@@ -164,6 +165,7 @@ export default function FormPhotoUploadRow({
       </div>
 
       {previewOpen && value ? (
+        <ModalPortal>
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6"
           role="dialog"
@@ -205,6 +207,7 @@ export default function FormPhotoUploadRow({
             </div>
           </div>
         </div>
+        </ModalPortal>
       ) : null}
     </>
   );

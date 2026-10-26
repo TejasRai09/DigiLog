@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalPortal from './ModalPortal';
 import { MdCheckCircle, MdClose, MdError, MdHourglassEmpty } from 'react-icons/md';
 import api from '../api/axios';
 import Spinner from './Spinner';
@@ -76,6 +77,7 @@ export default function PurchyImportProgressModal({
   const title = importType === 'staff' ? 'Purchy staff import' : 'Purchy grower import';
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
       <div className="card flex max-h-[90vh] w-full max-w-lg flex-col shadow-xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-6 py-4">
@@ -150,5 +152,6 @@ export default function PurchyImportProgressModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

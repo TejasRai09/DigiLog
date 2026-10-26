@@ -135,7 +135,6 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
           <td style="padding: 8px;">${escapeHtml(tempPassword)}</td>
         </tr>
       </table>
-      <p>Please log in and change your password immediately.</p>
       <p style="color:#6b7280; font-size:12px;">This is an automated message. Do not reply.</p>
     </div>
   `;

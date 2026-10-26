@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdAdd, MdClose, MdCloudUpload } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { resizeImage } from '../../utils/resizeImage';
@@ -108,6 +109,7 @@ export default function StoppagePhotoSlots({ photos, onChange, maxPhotos = 2 }) 
       </div>
 
       {preview ? (
+        <ModalPortal>
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/90 p-4"
           onClick={() => setPreview(null)}
@@ -130,6 +132,7 @@ export default function StoppagePhotoSlots({ photos, onChange, maxPhotos = 2 }) 
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+        </ModalPortal>
       ) : null}
     </>
   );

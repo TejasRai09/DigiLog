@@ -24,6 +24,7 @@ import {
   ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
 import { millOperatingDays } from '../../utils/millingBiComparison';
@@ -201,16 +202,10 @@ export default function ManagementDashboard() {
     };
   }, [compareType, from, to, preset, seasonLabels, seasonMapping]);
 
-  // Compute compare label for display
-  const compareLabel = useMemo(() => {
-    if (!priorRange) return null;
-    const fmt = (d) => {
-      if (!d) return '';
-      const dt = new Date(`${d}T12:00:00`);
-      return Number.isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    };
-    return `${priorRange.label} (${fmt(priorRange.start)} – ${fmt(priorRange.end)})`;
-  }, [priorRange]);
+  const compareLabel = useMemo(
+    () => (priorRange ? formatKpiComparePeriodLabel(priorRange) : null),
+    [priorRange],
+  );
 
   // Fetch prior-period data whenever priorRange changes
   useEffect(() => {
@@ -508,6 +503,7 @@ export default function ManagementDashboard() {
         kpi={expandedKpi}
         series={expandedSeries}
         periodLabel={periodLabel}
+        compareLabel={compareLabel}
         isDarkMode={dm}
         onClose={handleCloseExpand}
       />

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdSave } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -33,6 +34,7 @@ export default function EmployeeFormsHubAccessModal({ user, onClose, onSaved }) 
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <div className="card flex max-h-[90vh] w-full max-w-lg flex-col shadow-xl">
         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
@@ -108,5 +110,6 @@ export default function EmployeeFormsHubAccessModal({ user, onClose, onSaved }) 
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

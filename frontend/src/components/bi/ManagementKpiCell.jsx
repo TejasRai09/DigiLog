@@ -317,7 +317,7 @@ function Sparkline({ kpi, data, isDarkMode }) {
 }
 
 /** Distillery-style delta chip + "vs <label>" — only as wide as content. */
-function CompareChip({ pct, inverseGood, isDarkMode, label, compact = false }) {
+export function CompareChip({ pct, inverseGood, isDarkMode, label, compact = false, large = false }) {
   if (pct == null || !Number.isFinite(pct)) return null;
   const isPositive = pct > 0;
   const isNeutral = Math.abs(pct) < 0.05;
@@ -330,23 +330,29 @@ function CompareChip({ pct, inverseGood, isDarkMode, label, compact = false }) {
       : isDarkMode ? 'bg-rose-500/20 text-rose-400' : 'bg-rose-100 text-rose-700';
 
   const labelCls = isDarkMode ? 'text-slate-500' : 'text-slate-400';
+  const textCls = large
+    ? 'text-[11px]'
+    : compact
+      ? 'text-[7px] sm:text-[8px]'
+      : 'text-[8px] sm:text-[9px]';
+  const iconCls = large ? 'h-3.5 w-3.5' : 'h-2.5 w-2.5';
 
   return (
-    <div className={`${compact ? '' : 'mt-0.5'} flex min-w-0 shrink-0 items-center gap-0.5 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
+    <div className={`${compact ? '' : 'mt-0.5'} flex min-w-0 shrink-0 items-center gap-1 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
       <span
-        className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-0.5 ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[8px] sm:text-[9px]'} font-bold tabular-nums leading-none ${chipCls}`}
+        className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1.5 py-0.5 ${textCls} font-bold tabular-nums leading-none ${chipCls}`}
         title={label ? `vs ${label}` : 'vs prior period'}
       >
         {isNeutral
-          ? <MdRemove className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5'} />
+          ? <MdRemove className={iconCls} />
           : isPositive
-            ? <MdTrendingUp className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5'} />
-            : <MdTrendingDown className={compact ? 'h-2.5 w-2.5' : 'h-2.5 w-2.5'} />}
+            ? <MdTrendingUp className={iconCls} />
+            : <MdTrendingDown className={iconCls} />}
         {Math.abs(pct).toFixed(1)}%
       </span>
       {label && !compact && (
         <span
-          className={`truncate ${compact ? 'text-[7px] sm:text-[8px]' : 'text-[7px] sm:text-[8px]'} font-semibold leading-none ${labelCls}`}
+          className={`truncate ${large ? 'text-[11px]' : 'text-[7px] sm:text-[8px]'} font-semibold leading-none ${labelCls}`}
           title={`vs ${label}`}
         >
           vs {label}

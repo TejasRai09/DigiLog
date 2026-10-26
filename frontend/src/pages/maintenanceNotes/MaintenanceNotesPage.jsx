@@ -20,6 +20,7 @@ import NoteFilterBar from './NoteFilterBar';
 import { MdEdit, MdSend, MdVisibility } from 'react-icons/md';
 import { noteDocumentsForViewer } from './NoteAttachmentFields';
 import ApprovalMediaAttachments from '../../components/approvals/ApprovalMediaAttachments';
+import ModalPortal from '../../components/ModalPortal';
 
 const PAGE_HEIGHT = isStagingEnv()
   ? 'h-[calc(100dvh-5.75rem)] sm:h-[calc(100dvh-6.5rem)]'
@@ -319,6 +320,7 @@ export default function MaintenanceNotesPage() {
       <SubmitNoteModal note={submitting} onClose={() => setSubmitting(null)} onDone={load} />
 
       {detail ? (
+        <ModalPortal>
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6" onClick={() => setDetail(null)}>
           <div onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl sm:rounded-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3">
@@ -368,6 +370,7 @@ export default function MaintenanceNotesPage() {
             </div>
           </div>
         </div>
+        </ModalPortal>
       ) : null}
     </main>
   );

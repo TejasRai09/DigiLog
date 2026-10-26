@@ -45,12 +45,14 @@ import {
   ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import ChartCardToolbar from '../../components/bi/ChartCardToolbar';
 import BiChartExpandModal from '../../components/bi/BiChartExpandModal';
+import CompareRangeBadge from '../../components/bi/CompareRangeBadge';
 
 // ─── FIELD MOCK DATA (unchanged) ────────────────────────────────
 const fieldBrixTrendData = [
@@ -407,9 +409,13 @@ export default function BrixSamplingDashboard() {
     [resolveCompareRange, dateFrom, dateTo],
   );
 
-  const compareBadgeLabel = activeCompareRange?.label
-    ? `vs ${activeCompareRange.label}`
-    : undefined;
+  const kpiCompareLabel = formatKpiComparePeriodLabel({
+    label: activeCompareRange?.label,
+    start: activeCompareRange?.from,
+    end: activeCompareRange?.to,
+  });
+  const kpiTimeFilter = rangePreset === 'Custom' ? '' : rangePreset;
+  const compareBadgeLabel = kpiCompareLabel ? `vs ${kpiCompareLabel}` : undefined;
 
   // ─── Field live-data state ──────────────────────────────────────
   const [fieldTestType, setFieldTestType] = useState('All');
@@ -776,7 +782,8 @@ export default function BrixSamplingDashboard() {
                     value={parseFloat(fieldStats?.avgMidBrix?.value ?? 19.46)}
                     pyValue={parseFloat(fieldStats?.avgMidBrix?.pyValue ?? 0)}
                     unit="%"
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
                     dataKey="midBrix"
@@ -789,7 +796,8 @@ export default function BrixSamplingDashboard() {
                     value={parseFloat(fieldStats?.avgMaturity?.value ?? 1.0)}
                     pyValue={parseFloat(fieldStats?.avgMaturity?.pyValue ?? 0)}
                     unit="ratio"
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
                     dataKey="midBrix"
@@ -802,7 +810,8 @@ export default function BrixSamplingDashboard() {
                     value={parseFloat(fieldStats?.totalSamples?.value ?? 2645)}
                     pyValue={parseFloat(fieldStats?.totalSamples?.pyValue ?? 0)}
                     unit="samples"
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
                     dataKey="midBrix"
@@ -816,7 +825,8 @@ export default function BrixSamplingDashboard() {
                     pyValue={parseFloat(fieldStats?.pctBottomBrixLt18?.pyValue ?? 0)}
                     unit="%"
                     inverseColor
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={fieldTrend.length ? fieldTrend : fieldBrixTrendData}
                     dataKey="bottomBrix"
@@ -843,6 +853,7 @@ export default function BrixSamplingDashboard() {
                         <span className="flex items-center gap-1 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span>Bottom</span>
                         <span className="flex items-center gap-1 text-emerald-500"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Middle</span>
                         <span className="flex items-center gap-1 text-indigo-500"><span className="w-2 h-2 rounded-full bg-indigo-500"></span>Top</span>
+                        <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
                           isDarkMode={darkMode}
@@ -901,7 +912,8 @@ export default function BrixSamplingDashboard() {
                         </h3>
                         <div className="flex items-center gap-1">
                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">HEALTH</span>
-                          <ChartCardToolbar
+                          <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
+                        <ChartCardToolbar
                             compact
                             isDarkMode={darkMode}
                             onExpand={() => {
@@ -970,7 +982,8 @@ export default function BrixSamplingDashboard() {
                         </h3>
                         <div className="flex items-center gap-1">
                           <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">TYPE</span>
-                          <ChartCardToolbar
+                          <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
+                        <ChartCardToolbar
                             compact
                             isDarkMode={darkMode}
                             onExpand={() => {
@@ -1045,6 +1058,7 @@ export default function BrixSamplingDashboard() {
                         <span className="text-amber-500">■ No Water</span>
                         <span className="text-slate-400">-- Avg</span>
                         <span className="text-cyan-500">■ Waterlogged</span>
+                        <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
                           isDarkMode={darkMode}
@@ -1095,6 +1109,7 @@ export default function BrixSamplingDashboard() {
                       <h3 className="text-xs font-bold text-slate-900 dark:text-white">Maturity by Soil Type</h3>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-slate-400">Count &amp; Ratio</span>
+                        <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
                           isDarkMode={darkMode}
@@ -1147,6 +1162,7 @@ export default function BrixSamplingDashboard() {
                       <h3 className="text-xs font-bold text-slate-900 dark:text-white">Maturity by Crop Variety</h3>
                       <div className="flex items-center gap-1">
                         <span className="text-[9px] text-slate-400">Cultivars</span>
+                        <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
                           isDarkMode={darkMode}
@@ -1224,7 +1240,8 @@ export default function BrixSamplingDashboard() {
                     value={parseFloat(yardStats?.totalSamples?.value ?? 0)}
                     pyValue={parseFloat(yardStats?.totalSamples?.pyValue ?? 0)}
                     unit="Lots"
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={yardTrend}
                     dataKey="avgBrix"
@@ -1237,7 +1254,8 @@ export default function BrixSamplingDashboard() {
                     value={parseFloat(yardStats?.avgBrix?.value ?? 0)}
                     pyValue={parseFloat(yardStats?.avgBrix?.pyValue ?? 0)}
                     unit="%"
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={yardTrend}
                     dataKey="avgBrix"
@@ -1250,7 +1268,8 @@ export default function BrixSamplingDashboard() {
                     value={parseFloat(yardStats?.pctBrixGt18?.value ?? 0)}
                     pyValue={parseFloat(yardStats?.pctBrixGt18?.pyValue ?? 0)}
                     unit="%"
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={yardTrend}
                     dataKey="avgBrix"
@@ -1264,7 +1283,8 @@ export default function BrixSamplingDashboard() {
                     pyValue={parseFloat(yardStats?.pctDiseased?.pyValue ?? 0)}
                     unit="%"
                     inverseColor
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={yardTrend}
                     dataKey="avgBrix"
@@ -1278,7 +1298,8 @@ export default function BrixSamplingDashboard() {
                     pyValue={parseFloat(yardStats?.pctStale?.pyValue ?? 0)}
                     unit="%"
                     inverseColor
-                    comparisonLabel={compareBadgeLabel || 'Prev. Period'}
+                    comparisonLabel={kpiCompareLabel || 'Prev. Period'}
+                    timeFilter={kpiTimeFilter}
                     isDarkMode={darkMode}
                     chartData={yardTrend}
                     dataKey="avgBrix"
@@ -1342,7 +1363,8 @@ export default function BrixSamplingDashboard() {
                           Bars = samples with Brix &gt; {yardStats?.brixThreshold ?? 18} · Line = avg Brix % (secondary axis, min 16)
                         </p>
                       </div>
-                      <ChartCardToolbar
+                      <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
+                        <ChartCardToolbar
                         compact
                         isDarkMode={darkMode}
                         onExpand={() => openBrixChart({
@@ -1393,6 +1415,7 @@ export default function BrixSamplingDashboard() {
                     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex-1 flex flex-col">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
                         <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % by Carrier</h3>
+                        <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
                           isDarkMode={darkMode}
@@ -1445,7 +1468,8 @@ export default function BrixSamplingDashboard() {
                             <h3 className="text-xs font-bold text-slate-900 dark:text-white">Consignment Condition</h3>
                             <p className="text-[9px] text-slate-500 dark:text-slate-400">Excl. affected cane (PBI formula)</p>
                           </div>
-                          <ChartCardToolbar
+                          <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
+                        <ChartCardToolbar
                             compact
                             isDarkMode={darkMode}
                             onExpand={() => openBrixChart({
@@ -1546,7 +1570,7 @@ export default function BrixSamplingDashboard() {
           </div>
       </main>
       <BiChartExpandModal
-        config={expandedChart}
+        config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel } : null}
         isDarkMode={darkMode}
         onClose={() => setExpandedChart(null)}
       />

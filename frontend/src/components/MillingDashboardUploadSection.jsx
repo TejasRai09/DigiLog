@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { MdSettings, MdRefresh, MdUpload } from 'react-icons/md';
+import { MdChevronRight, MdExpandMore, MdSettings, MdRefresh, MdUpload } from 'react-icons/md';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -81,6 +81,7 @@ const META = [
 
 export default function MillingDashboardUploadSection({ files = [], onUploaded }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
+  const [open, setOpen] = useState(true);
 
   // Find latest file for each slot from the parent files array
   const slots = {};
@@ -109,17 +110,30 @@ export default function MillingDashboardUploadSection({ files = [], onUploaded }
 
   return (
     <div className="card mt-6 overflow-hidden border-sky-200/80 shadow-sm">
-      <div className="border-b border-sky-100 bg-gradient-to-r from-sky-50 to-white px-4 py-4 sm:px-6">
+      <div className={`${open ? 'border-b border-sky-100' : ''} bg-gradient-to-r from-sky-50 to-white px-4 py-4 sm:px-6`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <MdSettings className="h-5 w-5 text-sky-600" />
-              <h2 className="text-sm font-bold text-gray-900">Milling Operations Dashboard</h2>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-start gap-2 text-left"
+            aria-expanded={open}
+            aria-controls="data-upload-milling-panel"
+          >
+            {open ? (
+              <MdExpandMore className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
+            ) : (
+              <MdChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-sky-600" />
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <MdSettings className="h-5 w-5 text-sky-600" />
+                <h2 className="text-sm font-bold text-gray-900">Milling Operations Dashboard</h2>
+              </div>
+              <p className="mt-1 max-w-2xl text-xs text-gray-600">
+                Upload equipment mapping reference files here. The system will automatically sync the mapping tables when a recognized file is uploaded.
+              </p>
             </div>
-            <p className="mt-1 max-w-2xl text-xs text-gray-600">
-              Upload equipment mapping reference files here. The system will automatically sync the mapping tables when a recognized file is uploaded.
-            </p>
-          </div>
+          </button>
           <Link
             to="/bi/milling-operations"
             className="text-xs font-bold text-sky-700 hover:text-sky-900"
@@ -129,17 +143,19 @@ export default function MillingDashboardUploadSection({ files = [], onUploaded }
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 lg:grid-cols-3 sm:p-6">
-        {META.map((m) => (
-          <SlotCard
-            key={m.slot}
-            meta={m}
-            file={slots[m.slot]}
-            uploading={uploadingSlot === m.slot}
-            onUpload={handleUpload}
-          />
-        ))}
-      </div>
+      {open && (
+        <div id="data-upload-milling-panel" className="grid gap-4 p-4 lg:grid-cols-3 sm:p-6">
+          {META.map((m) => (
+            <SlotCard
+              key={m.slot}
+              meta={m}
+              file={slots[m.slot]}
+              uploading={uploadingSlot === m.slot}
+              onUpload={handleUpload}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
