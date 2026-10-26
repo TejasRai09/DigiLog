@@ -4,7 +4,10 @@ import {
 } from 'recharts';
 import PurchyFilterBar from './PurchyFilterBar';
 import PurchyTablePagination from './PurchyTablePagination';
-import usePurchyFailureDate from '../../../hooks/usePurchyFailureDate';
+import usePurchyFailureDate, {
+  FAILURE_DATE_DEFAULT_FROM,
+  FAILURE_DATE_DEFAULT_TO,
+} from '../../../hooks/usePurchyFailureDate';
 import { purchyFiltersToParams } from '../../../hooks/usePurchyFilters';
 import Spinner from '../../Spinner';
 import ChartCardToolbar from '../ChartCardToolbar';
@@ -124,8 +127,8 @@ export default function PurchyFailureDateDrilldownTab({
   filterOptions = {},
 }) {
   const [filters, setFilters] = useState({ societyName: [] });
-  const [dateFrom, setDateFrom] = useState('2025-10-24');
-  const [dateTo, setDateTo] = useState('2026-03-06');
+  const [dateFrom, setDateFrom] = useState(FAILURE_DATE_DEFAULT_FROM);
+  const [dateTo, setDateTo] = useState(FAILURE_DATE_DEFAULT_TO);
   const [expandedChart, setExpandedChart] = useState(null);
 
   const mergedParams = useMemo(

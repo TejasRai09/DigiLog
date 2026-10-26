@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MdInsights, MdUpload } from 'react-icons/md';
+import { MdChevronRight, MdExpandMore, MdInsights, MdUpload } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
@@ -149,6 +149,7 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [histories, setHistories] = useState({ centre_indent_purchase: [], dmr_workbook: [] });
   const [loadingHist, setLoadingHist] = useState(true);
+  const [open, setOpen] = useState(true);
 
   const fetchHistories = useCallback(async () => {
     setLoadingHist(true);
@@ -211,17 +212,30 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
 
   return (
     <div className="card mt-6 overflow-hidden border-indigo-200/80 shadow-sm">
-      <div className="border-b border-indigo-100 bg-gradient-to-r from-indigo-50 to-white px-4 py-4 sm:px-6">
+      <div className={`${open ? 'border-b border-indigo-100' : ''} bg-gradient-to-r from-indigo-50 to-white px-4 py-4 sm:px-6`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <MdInsights className="h-5 w-5 text-indigo-600" />
-              <h2 className="text-sm font-bold text-gray-900">Management Dashboard data</h2>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-start gap-2 text-left"
+            aria-expanded={open}
+            aria-controls="data-upload-management-panel"
+          >
+            {open ? (
+              <MdExpandMore className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
+            ) : (
+              <MdChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <MdInsights className="h-5 w-5 text-indigo-600" />
+                <h2 className="text-sm font-bold text-gray-900">Management Dashboard data</h2>
+              </div>
+              <p className="mt-1 max-w-2xl text-xs text-gray-600">
+                Upload one indent+purchase workbook (1st sheet indent, 2nd sheet purchase) or a DMR workbook. Column names must match the template exactly; mismatches are shown in the import dialog. Each upload appends new dates; existing dates are skipped.
+              </p>
             </div>
-            <p className="mt-1 max-w-2xl text-xs text-gray-600">
-              Upload one indent+purchase workbook (1st sheet indent, 2nd sheet purchase) or a DMR workbook. Column names must match the template exactly; mismatches are shown in the import dialog. Each upload appends new dates; existing dates are skipped.
-            </p>
-          </div>
+          </button>
           <Link
             to="/bi/management-dashboard"
             className="text-xs font-bold text-indigo-700 hover:text-indigo-900"
@@ -231,27 +245,31 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
         </div>
       </div>
 
-      <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
-        {SLOTS.map((meta) => (
-          <UploadCard
-            key={meta.slot}
-            meta={meta}
-            uploading={uploadingSlot === meta.slot}
-            onUpload={handleUpload}
-          />
-        ))}
-      </div>
-
-      <div className="space-y-6 border-t border-indigo-100 px-4 pb-6 pt-4 sm:px-6">
-        {SLOTS.map((meta) => (
-          <div key={meta.dataset}>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
-              {meta.label} — uploaded files
-            </h3>
-            <FileHistoryTable files={histories[meta.dataset] || []} loading={loadingHist} />
+      {open && (
+        <div id="data-upload-management-panel">
+          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
+            {SLOTS.map((meta) => (
+              <UploadCard
+                key={meta.slot}
+                meta={meta}
+                uploading={uploadingSlot === meta.slot}
+                onUpload={handleUpload}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+
+          <div className="space-y-6 border-t border-indigo-100 px-4 pb-6 pt-4 sm:px-6">
+            {SLOTS.map((meta) => (
+              <div key={meta.dataset}>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                  {meta.label} — uploaded files
+                </h3>
+                <FileHistoryTable files={histories[meta.dataset] || []} loading={loadingHist} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

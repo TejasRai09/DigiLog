@@ -1,4 +1,4 @@
-const APP_VERSION = 'v1';
+const APP_VERSION = 'v2';
 
 function brandTitleHtml({
   color = '#1d4ed8',

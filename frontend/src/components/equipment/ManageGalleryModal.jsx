@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdDelete, MdPhotoLibrary } from 'react-icons/md';
 import { resizeImage } from '../../utils/resizeImage';
 import {
@@ -130,6 +131,7 @@ export default function ManageGalleryModal({
   const currentImages = draftImages.filter((img) => img.src);
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
       <div
         className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
@@ -273,6 +275,7 @@ export default function ManageGalleryModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

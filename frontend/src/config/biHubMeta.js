@@ -64,7 +64,7 @@ export const BI_HUB_META = {
     Icon: MdScience,
   },
   bi_purchy_analysis: {
-    title: 'Purchy Analysis',
+    title: 'Grower Intelligence',
     subtitle: 'Grower & dishonour',
     description: 'Grower performance, indent vs supply, dishonour %, staff drilldown, and failure by date.',
     Icon: MdShoppingCart,

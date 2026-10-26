@@ -51,6 +51,7 @@ import {
   ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
   resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
@@ -568,18 +569,16 @@ export default function MillingOperationsDashboard() {
   }, [comparisonType, priorRange, seasonLabels, fromDate, toDate, seasonMapping, rangePreset]);
 
   const comparisonLabel = useMemo(() => {
-    const fOpt = { month: 'short', day: 'numeric' };
-    const friendly = (dStr) => {
-      const d = new Date(`${dStr}T12:00:00`);
-      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', fOpt);
-    };
-
     if (comparisonType === 'PP') {
-      return `${priorRange.label} (${friendly(priorRange.start)} - ${friendly(priorRange.end)})`;
+      return formatKpiComparePeriodLabel(priorRange);
     }
 
     if (!activeSeasonLabel || !compareRange.start) return '';
-    return `${activeSeasonLabel} (${friendly(compareRange.start)} - ${friendly(compareRange.end)})`;
+    return formatKpiComparePeriodLabel({
+      label: activeSeasonLabel,
+      start: compareRange.start,
+      end: compareRange.end,
+    });
   }, [comparisonType, priorRange, activeSeasonLabel, compareRange]);
 
   const compareAlign = useMemo(
@@ -1388,7 +1387,7 @@ function MillOutageTab({
       </div>
       </div>
       <BiChartExpandModal
-        config={expandedChart}
+        config={expandedChart ? { ...expandedChart, compareBadge: comparisonLabel } : null}
         isDarkMode={isDarkMode}
         onClose={() => setExpandedChart(null)}
       />

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 
-const TTL_MS = 120_000;
+const TTL_MS = 30 * 60_000;
+const MAX_ENTRIES = 300;
 const store = new Map();
 const inflight = new Map();
 
@@ -34,10 +35,15 @@ export function setPurchyCached(key, data, aliasKeys = []) {
   aliasKeys.forEach((alias) => {
     if (alias && alias !== key) store.set(alias, entry);
   });
-  if (store.size > 80) {
+  if (store.size > MAX_ENTRIES) {
     const now = Date.now();
     for (const [k, v] of store) {
       if (now - v.at > TTL_MS) store.delete(k);
+    }
+    // Map iterates in insertion order, so this drops the oldest entries first.
+    for (const k of store.keys()) {
+      if (store.size <= MAX_ENTRIES) break;
+      store.delete(k);
     }
   }
 }
@@ -48,7 +54,34 @@ export function clearPurchyQueryCache() {
 }
 
 /**
- * GET with a 2-minute TTL cache. Cache hits skip the network and never flash a spinner.
+ * Cached GET shared by hooks and background prefetch: resolves from the cache,
+ * joins an identical in-flight request, or fetches and stores the result.
+ */
+export function fetchPurchyCached(path, params, { mapResponse, aliasKeys } = {}) {
+  const key = purchyCacheKey({ path, ...(params || {}) });
+  const cached = getPurchyCached(key);
+  if (cached !== undefined) return Promise.resolve(cached);
+  let pending = inflight.get(key);
+  if (!pending) {
+    pending = api.get(path, { params }).then(({ data: res }) => {
+      const next = mapResponse ? mapResponse(res) : res;
+      const aliases = aliasKeys
+        ? aliasKeys(next, params).map((p) => purchyCacheKey({ path, ...p }))
+        : [];
+      setPurchyCached(key, next, aliases);
+      inflight.delete(key);
+      return next;
+    }).catch((err) => {
+      inflight.delete(key);
+      throw err;
+    });
+    inflight.set(key, pending);
+  }
+  return pending;
+}
+
+/**
+ * GET with a 30-minute TTL cache (cleared after Purchy uploads). Cache hits skip the network and never flash a spinner.
  * When `enabled` is false the last data is kept (keep-alive tabs).
  */
 export function usePurchyCachedGet(path, params, {
@@ -88,23 +121,10 @@ export function usePurchyCachedGet(path, params, {
     const run = async () => {
       try {
         setLoading(true);
-        let pending = inflight.get(paramsKey);
-        if (!pending) {
-          pending = api.get(path, { params: paramsRef.current }).then(({ data: res }) => {
-            const next = mapRef.current ? mapRef.current(res) : res;
-            const aliases = aliasRef.current
-              ? aliasRef.current(next, paramsRef.current).map((p) => purchyCacheKey({ path, ...p }))
-              : [];
-            setPurchyCached(paramsKey, next, aliases);
-            inflight.delete(paramsKey);
-            return next;
-          }).catch((err) => {
-            inflight.delete(paramsKey);
-            throw err;
-          });
-          inflight.set(paramsKey, pending);
-        }
-        const mapped = await pending;
+        const mapped = await fetchPurchyCached(path, paramsRef.current, {
+          mapResponse: mapRef.current,
+          aliasKeys: aliasRef.current,
+        });
         if (!cancelled) {
           setData(mapped);
           setError(null);

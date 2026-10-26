@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MdInsights, MdRefresh, MdUpload } from 'react-icons/md';
+import { MdChevronRight, MdExpandMore, MdInsights, MdRefresh, MdUpload } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
@@ -83,6 +83,7 @@ export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 
   const [slots, setSlots] = useState({ grower: null, staff: null });
   const [loading, setLoading] = useState(true);
   const [uploadingSlot, setUploadingSlot] = useState(null);
+  const [open, setOpen] = useState(true);
 
   const fetchSlots = useCallback(async () => {
     setLoading(true);
@@ -136,32 +137,45 @@ export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 
 
   return (
     <div className="card mt-6 overflow-hidden border-violet-200/80 shadow-sm">
-      <div className="border-b border-violet-100 bg-gradient-to-r from-violet-50 to-white px-4 py-4 sm:px-6">
+      <div className={`${open ? 'border-b border-violet-100' : ''} bg-gradient-to-r from-violet-50 to-white px-4 py-4 sm:px-6`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2">
-              <MdInsights className="h-5 w-5 text-violet-600" />
-              <h2 className="text-sm font-bold text-gray-900">Purchy Analysis</h2>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            className="flex min-w-0 flex-1 items-start gap-2 text-left"
+            aria-expanded={open}
+            aria-controls="data-upload-grower-panel"
+          >
+            {open ? (
+              <MdExpandMore className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+            ) : (
+              <MdChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <MdInsights className="h-5 w-5 text-violet-600" />
+                <h2 className="text-sm font-bold text-gray-900">Grower Intelligence</h2>
+              </div>
+              <p className="mt-1 max-w-2xl text-xs text-gray-600">
+                Upload grower and staff workbooks here. Re-uploading replaces the previous file and re-imports data into the Grower Intelligence dashboard.
+              </p>
             </div>
-            <p className="mt-1 max-w-2xl text-xs text-gray-600">
-              Upload grower and staff workbooks here. Re-uploading replaces the previous file and re-imports data into the Purchy BI dashboard.
-            </p>
-          </div>
+          </button>
           <Link
             to="/bi/purchy-analysis"
             className="text-xs font-bold text-violet-700 hover:text-violet-900"
           >
-            Open Purchy Analysis →
+            Open Grower Intelligence →
           </Link>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12">
+      {open && (loading ? (
+        <div id="data-upload-grower-panel" className="flex justify-center py-12">
           <Spinner size="lg" />
         </div>
       ) : (
-        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
+        <div id="data-upload-grower-panel" className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
           {displayMeta.map((m) => (
             <SlotCard
               key={m.slot}
@@ -172,7 +186,7 @@ export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 
             />
           ))}
         </div>
-      )}
+      ))}
     </div>
   );
 }

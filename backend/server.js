@@ -29,18 +29,22 @@ const approvalRoutes = require('./routes/approval.routes');
 const formApprovalRoutes = require('./routes/formApproval.routes');
 const formApprovalInboxRoutes = require('./routes/formApprovalInbox.routes');
 const maintenanceNotesRoutes = require('./routes/maintenanceNotes.routes');
+const maintenanceNotesApprovalRoutes = require('./routes/maintenanceNotesApproval.routes');
 const userNotificationRoutes = require('./routes/userNotification.routes');
 const { expireStaleSessions } = require('./utils/sessionActivity');
 const {
-  runDigestSchedulerTick,
   runEmployeeModificationReminderTick,
   ensureDigestSchema,
 } = require('./services/maintenanceHistoryApproval.service');
 const {
-  runFormDigestSchedulerTick,
   runFormEmployeeModificationReminderTick,
   ensureFormApprovalMailSchema,
 } = require('./services/formApproval.service');
+const { ensureNotesMailSchema } = require('./services/maintenanceNotesMail.service');
+const {
+  runCombinedDigestSchedulerTick,
+  ensureCombinedDigestSchema,
+} = require('./services/combinedApprovalDigest.service');
 const { attachRealtime } = require('./services/realtimeSocket.service');
 
 const app = express();
@@ -60,16 +64,13 @@ setInterval(() => {
   });
 }, 60 * 1000);
 
-// Daily HOD digest (IST times from admin config) + employee needs-modification reminders (09:00 IST)
+// One combined HOD digest (Forms + History + Notes) at Config IST times + employee reminders (09:00 IST)
 const runApprovalSchedulers = () => {
-  runDigestSchedulerTick().catch((err) => {
-    console.error('[maintenanceDigestScheduler]', err.message);
+  runCombinedDigestSchedulerTick().catch((err) => {
+    console.error('[combinedDigestScheduler]', err.message);
   });
   runEmployeeModificationReminderTick().catch((err) => {
     console.error('[maintenanceEmployeeReminderScheduler]', err.message);
-  });
-  runFormDigestSchedulerTick().catch((err) => {
-    console.error('[formDigestScheduler]', err.message);
   });
   runFormEmployeeModificationReminderTick().catch((err) => {
     console.error('[formEmployeeReminderScheduler]', err.message);
@@ -77,6 +78,8 @@ const runApprovalSchedulers = () => {
 };
 ensureDigestSchema()
   .then(() => ensureFormApprovalMailSchema())
+  .then(() => ensureNotesMailSchema())
+  .then(() => ensureCombinedDigestSchema())
   .then(() => {
     runApprovalSchedulers();
     setInterval(runApprovalSchedulers, 60 * 1000);
@@ -133,6 +136,7 @@ app.use('/api/approvals', approvalRoutes);
 app.use('/api/form-approvals', formApprovalRoutes);
 app.use('/api/form-approval', formApprovalInboxRoutes);
 app.use('/api/maintenance-notes', maintenanceNotesRoutes);
+app.use('/api/maintenance-notes-approval', maintenanceNotesApprovalRoutes);
 app.use('/api/notifications', userNotificationRoutes);
 app.use('/api/locked-card-manage-access', require('./routes/lockedCardManageAccess.routes'));
 

@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import { downloadChartCsv, downloadContainerChartPng, inferCsvColumns, slugifyChartTitle } from '../../utils/chartExport';
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
+import CompareRangeBadge from './CompareRangeBadge';
 
 /**
  * Generic expand modal for BI charts (same actions as Distillery).
@@ -72,6 +74,7 @@ export default function BiChartExpandModal({ config, isDarkMode = false, onClose
   const hasData = Array.isArray(config.data) ? config.data.length > 0 : true;
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 z-[500] flex items-center justify-center p-3 sm:p-6"
       role="dialog"
@@ -89,9 +92,12 @@ export default function BiChartExpandModal({ config, isDarkMode = false, onClose
       >
         <div className={`flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 ${border}`}>
           <div className="min-w-0 flex-1">
-            <h2 id="bi-chart-expand-title" className="text-lg font-black tracking-tight">
-              {title}
-            </h2>
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <h2 id="bi-chart-expand-title" className="text-lg font-black tracking-tight">
+                {title}
+              </h2>
+              <CompareRangeBadge label={config.compareBadge} isDarkMode={isDarkMode} />
+            </div>
             {config.definition ? (
               <p className={`mt-1 text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 {config.definition}
@@ -154,5 +160,6 @@ export default function BiChartExpandModal({ config, isDarkMode = false, onClose
         </p>
       </div>
     </div>
+    </ModalPortal>
   );
 }

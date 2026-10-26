@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdPictureAsPdf } from 'react-icons/md';
 import Spinner from '../Spinner';
 
@@ -52,6 +53,7 @@ export default function EquipmentPdfExportModal({
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <button
         type="button"
@@ -120,5 +122,6 @@ export default function EquipmentPdfExportModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

@@ -121,11 +121,11 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
         <div className="lg:col-span-8 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(4, minmax(0, 1fr))' }}>
           {rows.map((r) => (
             <div key={r.title} className="min-h-0 grid grid-cols-[minmax(10.5rem,12rem)_minmax(0,1fr)] gap-1.5">
-              <BandCard title={r.title} dm={dm} className="h-full overflow-visible" bodyClassName="flex flex-col justify-center gap-1 overflow-visible px-2.5 pb-2">
+              <BandCard compareLabel={comparisonLabel} title={r.title} dm={dm} className="h-full overflow-visible" bodyClassName="flex flex-col justify-center gap-1 overflow-visible px-2.5 pb-2">
                 <MetricLine label="PLF (%)" value={r.plf != null ? formatNum(r.plf, 1) : '—'} dm={dm} emphasize />
                 <MetricLine label="Power Gen." value={r.gen} dm={dm} emphasize />
               </BandCard>
-              <BandCard
+              <BandCard compareLabel={comparisonLabel}
                 title={`${r.title.replace('Total ', '')} — Gen & PLF`}
                 dm={dm}
                 className="h-full min-h-0"
@@ -157,7 +157,7 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
         </div>
 
         <div className="lg:col-span-4 min-h-0 grid gap-1.5" style={{ gridTemplateRows: '1.2fr auto auto 1fr' }}>
-          <BandCard
+          <BandCard compareLabel={comparisonLabel}
             title="Power Generation — TG wise break-up"
             dm={dm}
             className="min-h-0"
@@ -189,7 +189,7 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
             </ResponsiveContainer>
           </BandCard>
 
-          <BandCard title="DG Power Generation" dm={dm} bodyClassName="grid grid-cols-2 gap-1 p-1.5">
+          <BandCard compareLabel={comparisonLabel} title="DG Power Generation" dm={dm} bodyClassName="grid grid-cols-2 gap-1 p-1.5">
             {[
               ['625KVA DG1', p.GenDG30],
               ['DG 3 Old', p.GenDG3Old],
@@ -205,7 +205,7 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
 
           <div className="grid grid-cols-2 gap-1.5">
             <KPICard compact label="Import Instances" value={p.Import_Instances} compareValue={cp.Import_Instances} compareLabel={comparisonLabel} dm={dm} color="amber" icon={Plug} info="Count of days with grid import." />
-            <BandCard
+            <BandCard compareLabel={comparisonLabel}
               title="Total Import"
               dm={dm}
               className="min-h-0"
@@ -228,7 +228,7 @@ export function PowerGenerationView({ powerKpis, comparePowerKpis, comparisonLab
             </BandCard>
           </div>
 
-          <BandCard title="Remarks" dm={dm}>
+          <BandCard compareLabel={comparisonLabel} title="Remarks" dm={dm}>
             <DTableCompact
               dm={dm}
               cols={[
@@ -269,7 +269,7 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
         <div className="lg:col-span-3 min-h-0 grid gap-1.5" style={{ gridTemplateRows: '1fr 1fr' }}>
-          <BandCard
+          <BandCard compareLabel={comparisonLabel}
             title="External & Internal — Breakup"
             dm={dm}
             className="min-h-0"
@@ -292,7 +292,7 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
               </PieChart>
             </ResponsiveContainer>
           </BandCard>
-          <BandCard
+          <BandCard compareLabel={comparisonLabel}
             title="Internal Consumption — Breakup"
             dm={dm}
             className="min-h-0"
@@ -321,7 +321,7 @@ export function PowerConsumptionView({ powerKpis, comparePowerKpis, comparisonLa
           {trendRows.map((r) => (
             <div key={r.key} className="min-h-0 grid grid-cols-[11.5rem_minmax(0,1fr)] gap-1.5">
               <KPICard compact label={r.label} value={r.value} dm={dm} color="blue" icon={Plug} />
-              <BandCard
+              <BandCard compareLabel={comparisonLabel}
                 title={`${r.label} — Day wise trend`}
                 dm={dm}
                 className="min-h-0"
@@ -418,13 +418,13 @@ export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel,
       <div className="flex-1 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(3, minmax(0, 1fr))' }}>
         {bands.map((b) => (
           <div key={b.tph} className="min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
-            <BandCard title={b.tph} dm={dm} className="lg:col-span-2 h-full" bodyClassName="flex flex-col justify-center gap-1">
+            <BandCard compareLabel={comparisonLabel} title={b.tph} dm={dm} className="lg:col-span-2 h-full" bodyClassName="flex flex-col justify-center gap-1">
               <MetricLine label="Steam Generation" value={b.gen} dm={dm} emphasize />
               <MetricLine label="Bagasse (MT)" value={b.bag} dm={dm} />
               <MetricLine label="Steam to Bagasse" value={b.sb != null ? formatNum(b.sb, 2) : '—'} dm={dm} />
             </BandCard>
 
-            <BandCard
+            <BandCard compareLabel={comparisonLabel}
               title={`Steam Generation & Bagasse — ${b.tph}`}
               dm={dm}
               className="h-full min-h-0 lg:col-span-5"
@@ -453,7 +453,7 @@ export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel,
             </BandCard>
 
             <div className="lg:col-span-5 min-h-0 grid grid-cols-[minmax(11.5rem,13.5rem)_minmax(0,1fr)] gap-1.5">
-              <BandCard
+              <BandCard compareLabel={comparisonLabel}
                 title={`Steam to TG — ${b.tph}`}
                 titleWrap
                 dm={dm}
@@ -464,7 +464,7 @@ export function SteamSummaryView({ steamKpis, compareSteamKpis, comparisonLabel,
                   <MetricLine key={lab} label={lab} value={val} dm={dm} />
                 ))}
               </BandCard>
-              <BandCard
+              <BandCard compareLabel={comparisonLabel}
                 title={`Steam to Turbine from ${b.tph}`}
                 dm={dm}
                 className="h-full min-h-0"
@@ -563,7 +563,7 @@ export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLa
       </div>
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5">
-        <BandCard title="Steam to Process" tone="amber" dm={dm} className="lg:col-span-7 h-full" bodyClassName="p-1.5 flex flex-col gap-1.5 min-h-0">
+        <BandCard compareLabel={comparisonLabel} title="Steam to Process" tone="amber" dm={dm} className="lg:col-span-7 h-full" bodyClassName="p-1.5 flex flex-col gap-1.5 min-h-0">
           <div className="flex-1 min-h-0 grid gap-1.5" style={{ gridTemplateRows: 'repeat(3, minmax(0, 1fr))' }}>
             {processRows.map((row) => (
               <div key={row.tag} className="min-h-0 grid grid-cols-[minmax(10rem,12rem)_minmax(0,1fr)] gap-2">
@@ -577,7 +577,7 @@ export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLa
                     ))}
                   </div>
                 </div>
-                <BandCard
+                <BandCard compareLabel={comparisonLabel}
                   title={`Steam to Process — ${row.tag} TPH`}
                   dm={dm}
                   className="h-full min-h-0"
@@ -608,7 +608,7 @@ export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLa
         </BandCard>
 
         <div className="lg:col-span-5 min-h-0 flex flex-col gap-1.5">
-          <BandCard
+          <BandCard compareLabel={comparisonLabel}
             title="Steam to Process Trend"
             dm={dm}
             className="flex-[1.1] min-h-0"
@@ -644,7 +644,7 @@ export function SteamConsumptionView({ steamKpis, compareSteamKpis, comparisonLa
             ))}
           </div>
 
-          <BandCard title="Extraction Steam 150 TPH" dm={dm} className="shrink-0" bodyClassName="p-2">
+          <BandCard compareLabel={comparisonLabel} title="Extraction Steam 150 TPH" dm={dm} className="shrink-0" bodyClassName="p-2">
             <p className="text-xl font-black tabular-nums mb-1.5">{formatCompact(s.ExtractionStm30MW)}</p>
             <div className="grid grid-cols-3 gap-2">
               <MetricLine label="HP Heater 2" value={s.Bleed1HPH2Stm} dm={dm} />
@@ -734,7 +734,7 @@ export function PowerOutageView({
         className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-1.5"
         style={{ gridTemplateRows: 'minmax(0,1.15fr) minmax(0,1fr) minmax(0,0.95fr)' }}
       >
-        <BandCard
+        <BandCard compareLabel={comparisonLabel}
           title="Outage Duration (Hrs) — Daily Trend"
           dm={dm}
           className="lg:col-span-7 min-h-0 h-full"
@@ -755,7 +755,7 @@ export function PowerOutageView({
             </LineChart>
           </ResponsiveContainer>
         </BandCard>
-        <BandCard
+        <BandCard compareLabel={comparisonLabel}
           title="Sub-Section — Boiler"
           dm={dm}
           className="lg:col-span-5 min-h-0 h-full"
@@ -782,7 +782,7 @@ export function PowerOutageView({
           </ResponsiveContainer>
         </BandCard>
 
-        <BandCard
+        <BandCard compareLabel={comparisonLabel}
           title="Total Outage (Hours) — Section Wise"
           dm={dm}
           className="lg:col-span-7 min-h-0 h-full"
@@ -809,7 +809,7 @@ export function PowerOutageView({
             </BarChart>
           </ResponsiveContainer>
         </BandCard>
-        <BandCard
+        <BandCard compareLabel={comparisonLabel}
           title="Sub-Section — Turbine"
           dm={dm}
           className="lg:col-span-5 min-h-0 h-full"
@@ -836,7 +836,7 @@ export function PowerOutageView({
           </ResponsiveContainer>
         </BandCard>
 
-        <BandCard title="Remarks" dm={dm} className="lg:col-span-4 min-h-0 h-full">
+        <BandCard compareLabel={comparisonLabel} title="Remarks" dm={dm} className="lg:col-span-4 min-h-0 h-full">
           <DTableCompact
             dm={dm}
             cols={[
@@ -846,7 +846,7 @@ export function PowerOutageView({
             rows={remarks}
           />
         </BandCard>
-        <BandCard title="Machinery — Boilers" dm={dm} className="lg:col-span-4 min-h-0 h-full">
+        <BandCard compareLabel={comparisonLabel} title="Machinery — Boilers" dm={dm} className="lg:col-span-4 min-h-0 h-full">
           <DTableCompact
             dm={dm}
             cols={[
@@ -857,7 +857,7 @@ export function PowerOutageView({
             rows={machBoiler}
           />
         </BandCard>
-        <BandCard title="Machinery — Turbines" dm={dm} className="lg:col-span-4 min-h-0 h-full">
+        <BandCard compareLabel={comparisonLabel} title="Machinery — Turbines" dm={dm} className="lg:col-span-4 min-h-0 h-full">
           <DTableCompact
             dm={dm}
             cols={[

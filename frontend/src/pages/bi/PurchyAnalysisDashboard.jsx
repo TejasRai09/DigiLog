@@ -5,6 +5,7 @@ import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutE
 import usePurchyFilters from '../../hooks/usePurchyFilters';
 import usePurchyGrowerPerformance from '../../hooks/usePurchyGrowerPerformance';
 import usePurchyDishonour from '../../hooks/usePurchyDishonour';
+import usePurchyTabPrefetch from '../../hooks/usePurchyTabPrefetch';
 import PurchyFilterBar from '../../components/bi/purchy/PurchyFilterBar';
 import PurchySummaryTable from '../../components/bi/purchy/PurchySummaryTable';
 import PurchyDetailTable from '../../components/bi/purchy/PurchyDetailTable';
@@ -107,6 +108,10 @@ export default function PurchyAnalysisDashboard() {
   const grower = usePurchyGrowerPerformance(debouncedParams, { enabled: needsGrowerData });
   const dishonour = usePurchyDishonour(debouncedParams, { enabled: needsDishonourData });
 
+  usePurchyTabPrefetch(debouncedParams, {
+    enabled: !filtersLoading && !grower.loadingSummary && grower.summary.length > 0,
+  });
+
   const filterOptions = useMemo(
     () => resolveFilterOptions(options, { preferStatic: false }),
     [options],
@@ -135,7 +140,7 @@ export default function PurchyAnalysisDashboard() {
       <div className="mb-2 flex shrink-0 flex-col gap-2 p-2 sm:p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <BiDashboardHeader
-            title="Purchy Analysis"
+            title="Grower Intelligence"
             subtitle="Grower Performance & Dishonour Intelligence"
             icon={MdShoppingCart}
             iconColor="#7c3aed"

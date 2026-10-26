@@ -117,10 +117,9 @@ async function get2025TransactionMetrics(ctx) {
 
 async function getSummary(query) {
   const ctx = buildFilterContext(query);
-  // Grower summary only needs indent + supply counts; skip unused dishonour fact scan.
   const [aggRow, tx] = await Promise.all([
     queryOne(buildGrowerSummaryAggregateSql(ctx), ctx.params),
-    query2025Facts(ctx, { includeDishonour: false }),
+    query2025Facts(ctx),
   ]);
 
   const rows = ['2021', '2022', '2023', '2024'].map((year) => buildHistoricalYearRow(year, aggRow));

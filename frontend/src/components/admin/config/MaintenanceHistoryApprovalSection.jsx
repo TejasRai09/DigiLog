@@ -65,7 +65,7 @@ function ApprovalCard({
 
       <div className="space-y-3">
         <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-          Full digest times (IST)
+          Combined digest times (IST)
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -92,8 +92,8 @@ function ApprovalCard({
           </div>
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-          Sends a full pending digest email to the HOD at each time (IST). Leave Time 2 blank to send only once per day.
-          The email opens a no-login approvals inbox.
+          The HOD receives one email covering Forms, Maintenance History, and Maintenance Notes at each time (IST).
+          Leave Time 2 blank to send only once per day.
         </p>
       </div>
 
@@ -192,7 +192,7 @@ export default function MaintenanceHistoryApprovalSection() {
   return (
     <ConfigSectionPanel
       title="Maintenance History Approval"
-      description="When enabled, maintenance history add/edit/delete on Sugar House, Power Plant, and Production House equipment cards is held pending until the configured HOD reviews them from the daily digest email inbox — no DigiLog login required."
+      description="When enabled, maintenance history add/edit/delete is held pending until the HOD reviews it. Digest times feed one combined email (Forms + History + Notes) with a no-login inbox."
       actions={
         loading ? <Spinner size="sm" /> : (
           <button

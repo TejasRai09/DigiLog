@@ -1192,6 +1192,63 @@ async function fetchPendingForCard(appId, hodUserId = null) {
   return rows;
 }
 
+async function fetchAllPendingFormRequests() {
+  try {
+    const [rows] = await pool.query(
+      `SELECT * FROM form_approval_request
+       WHERE status IN ('pending', 'resubmitted')
+       ORDER BY created_at ASC, id ASC`,
+    );
+    return rows;
+  } catch (err) {
+    if (isMissingTable(err)) return [];
+    throw err;
+  }
+}
+
+async function markFormRequestsNotified(ids, hod = null) {
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  if (hod?.id && hod?.email) {
+    await pool.execute(
+      `UPDATE form_approval_request
+       SET hod_notified_at = NOW(),
+           notification_count = IFNULL(notification_count, 0) + 1,
+           hod_user_id = ?,
+           hod_email = ?
+       WHERE id IN (${placeholders})`,
+      [hod.id, hod.email, ...ids],
+    );
+    return;
+  }
+  await pool.execute(
+    `UPDATE form_approval_request
+     SET hod_notified_at = NOW(),
+         notification_count = IFNULL(notification_count, 0) + 1
+     WHERE id IN (${placeholders})`,
+    ids,
+  );
+}
+
+async function listFormDigestSchedules() {
+  try {
+    const [rows] = await pool.query(
+      `SELECT app_id, hod_user_id, digest_time, digest_time_2
+       FROM form_approval_card_setting
+       WHERE enabled = 1 AND hod_user_id IS NOT NULL`,
+    );
+    return rows.map((row) => ({
+      appId: Number(row.app_id),
+      hodUserId: Number(row.hod_user_id),
+      digestTime: normalizeDigestTime(row.digest_time) || DEFAULT_DIGEST_TIME,
+      digestTime2: normalizeOptionalDigestTime(row.digest_time_2) || '',
+    }));
+  } catch (err) {
+    if (isMissingTable(err)) return [];
+    throw err;
+  }
+}
+
 function splitDigestByIstDate(rows, istDate) {
   const previous = [];
   const today = [];
@@ -1743,6 +1800,12 @@ module.exports = {
   saveSettingsTree,
   ensureFormApprovalMailSchema,
   sendDigestForCard,
+  fetchAllPendingFormRequests,
+  refreshTokensForRows,
+  buildDigestEntry,
+  markFormRequestsNotified,
+  listFormDigestSchedules,
+  loadCardSetting,
   runFormDigestSchedulerTick,
   runFormEmployeeModificationReminderTick,
   getReviewByToken,

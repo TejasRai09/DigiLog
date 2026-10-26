@@ -14,6 +14,8 @@ import { clearPurchyQueryCache } from '../hooks/purchyQueryCache';
 import AppPageHeader from '../components/AppPageHeader';
 
 const PURCHY_CATEGORIES = new Set([
+  'Grower Intelligence — Grower Details',
+  'Grower Intelligence — Staff Mapping',
   'Purchy Analysis — Grower Details',
   'Purchy Analysis — Staff Mapping',
 ]);
@@ -119,7 +121,7 @@ export default function DataIngestionCenter() {
           onClose={() => setPurchyImport(null)}
           onComplete={() => {
             clearPurchyQueryCache();
-            toast.success('Purchy data imported. Open Purchy Analysis in Live mode.');
+            toast.success('Purchy data imported. Open Grower Intelligence in Live mode.');
             fetchFiles();
             setPurchyRefresh((n) => n + 1);
           }}

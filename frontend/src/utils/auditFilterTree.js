@@ -10,7 +10,7 @@ import { isRetiredFormsHubApp } from '../config/retiredFormsHubApps';
 export const BI_DASHBOARD_FILTER_LABELS = [
   'Distillery Operations — Analytics',
   'Milling Division Cockpit',
-  'Purchy Analysis',
+  'Grower Intelligence',
   'Brix Sampling Analytics',
   'Centre Maturity Dashboard',
   'Cane Performance Dashboard',

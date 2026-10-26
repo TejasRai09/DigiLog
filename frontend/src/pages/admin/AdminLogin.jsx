@@ -70,7 +70,7 @@ const AdminLogin = () => {
                   required
                   value={form.email}
                   onChange={handleChange}
-                  placeholder="admin@company.com"
+                  placeholder="admin@gsma.com"
                   className="w-full bg-slate-700 border border-slate-600 text-white placeholder-slate-500
                              rounded-lg py-2.5 pl-9 pr-4 text-sm
                              focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent

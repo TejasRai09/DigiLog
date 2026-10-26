@@ -1,9 +1,9 @@
-export const APP_VERSION = 'v1';
+export const APP_VERSION = 'v2';
 
 const VERSION_LETTER = APP_VERSION.replace(/[0-9].*$/, '') || 'v';
 const VERSION_NUMBER = APP_VERSION.replace(/^[^0-9]*/, '') || '1';
 
-/** "DigiLog" title with version label (v1) — same size as DigiLog letters, grey, not bold. */
+/** "DigiLog" title with version label (v2) — same size as DigiLog letters, grey, not bold. */
 export function DigiLogTitle({
   className = '',
   titleClassName = '',

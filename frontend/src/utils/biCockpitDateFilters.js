@@ -271,3 +271,22 @@ export function clampIsoToBounds(iso, minStr, maxStr) {
   if (maxStr && v > maxStr) v = maxStr;
   return v;
 }
+
+/** Distillery KPI date: "Apr 1". */
+export function formatFriendlyCompareDate(iso) {
+  if (!iso) return '';
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Distillery-style compare window for KPI cards.
+ * "Prev. Month (Apr 1 - Apr 10)" or "2023-24 (Oct 15 - Oct 22)"
+ */
+export function formatKpiComparePeriodLabel({ label, start, end, from, to } = {}) {
+  const a = formatFriendlyCompareDate(start || from);
+  const b = formatFriendlyCompareDate(end || to);
+  const prefix = String(label || '').trim();
+  if (a && b) return prefix ? `${prefix} (${a} - ${b})` : `${a} - ${b}`;
+  return prefix;
+}

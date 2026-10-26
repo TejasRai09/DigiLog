@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
-import { ManagementKpiExpandedChart } from './ManagementKpiCell';
+import { CompareChip, ManagementKpiExpandedChart } from './ManagementKpiCell';
 import { formatCompact, formatNum } from '../../utils/powerHouseMeasures';
 
 const MODAL_CHART_HEIGHT = 420;
@@ -21,6 +22,7 @@ export default function ManagementKpiExpandModal({
   kpi,
   series,
   periodLabel,
+  compareLabel,
   isDarkMode,
   onClose,
 }) {
@@ -77,6 +79,7 @@ export default function ManagementKpiExpandModal({
   const definition = kpi.glossary || kpi.definition;
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 z-[500] flex items-center justify-center p-3 sm:p-6"
       role="dialog"
@@ -149,6 +152,13 @@ export default function ManagementKpiExpandModal({
                   </span>
                 )}
               </p>
+              <CompareChip
+                pct={kpi.compareVal}
+                inverseGood={kpi.inverseGood}
+                isDarkMode={isDarkMode}
+                label={compareLabel}
+                large
+              />
             </div>
             {kpi.rightVal != null && kpi.rightVal !== '' && (
               <div>
@@ -178,5 +188,6 @@ export default function ManagementKpiExpandModal({
         </p>
       </div>
     </div>
+    </ModalPortal>
   );
 }

@@ -13,6 +13,7 @@ import {
 import { Leaf, Sprout } from 'lucide-react';
 import { formatCompact, formatNum, formatPct } from '../../utils/powerHouseMeasures';
 import { KPICard, TG_COLORS, axisStroke, cardShadow } from './powerHouseUi';
+import CompareRangeBadge from './CompareRangeBadge';
 import ChartCardToolbar from './ChartCardToolbar';
 
 const TG = TG_COLORS;
@@ -44,11 +45,14 @@ function ChartTip({ active, payload, label, dm, suffix = '' }) {
   );
 }
 
-function ChartHead({ title, muted, onExpand, dm }) {
+function ChartHead({ title, muted, onExpand, dm, compareLabel }) {
   return (
     <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
       <p className={`text-[10px] font-bold uppercase tracking-wide ${muted}`}>{title}</p>
-      {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
+      <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+        <CompareRangeBadge label={compareLabel} isDarkMode={dm} />
+        {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
+      </div>
     </div>
   );
 }
@@ -128,6 +132,7 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
                 title="Day-wise Power Generation"
                 muted={muted}
                 dm={dm}
+                compareLabel={comparisonLabel}
                 onExpand={() => onExpand?.({
                   title: 'Day-wise Power Generation',
                   kind: 'area',
@@ -184,6 +189,7 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
                 title="Plant Load Factor (%)"
                 muted={muted}
                 dm={dm}
+                compareLabel={comparisonLabel}
                 onExpand={() => onExpand?.({
                   title: 'Plant Load Factor (%)',
                   kind: 'line',
@@ -251,6 +257,7 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
                 title="Export vs Inhouse (% of Generation)"
                 muted={muted}
                 dm={dm}
+                compareLabel={comparisonLabel}
                 onExpand={() => onExpand?.({
                   title: 'Export vs Inhouse (% of Generation)',
                   kind: 'area',
@@ -294,6 +301,7 @@ export default function PowerSummaryView({ powerKpis, comparePowerKpis, comparis
                 title="Inhouse Consumption — Breakup"
                 muted={muted}
                 dm={dm}
+                compareLabel={comparisonLabel}
                 onExpand={() => onExpand?.({
                   title: 'Inhouse Consumption — Breakup',
                   kind: 'area-percent',

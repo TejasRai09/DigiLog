@@ -1,0 +1,39 @@
+# 12. Glossary
+
+- **A / B / C** — shift codes on mill, lab, and many sheets.
+- **AIRACANE** — mill cane database for Cane Operations.
+- **Approvals** — HOD inbox for Forms, Maintenance, Notes.
+- **Bagasse pol** — sugar left in bagasse; lower is better.
+- **BI Control Tower** — home of the eight dashboards.
+- **BL** — bulk litres (ethanol).
+- **Brix** — dissolved solids; cane quality.
+- **CBM / CM / PdM / PM / RM / RCM** — maintenance types on history.
+- **Compare** — prior date window for dashboard %.
+- **Config** — administrator settings (chapter 8).
+- **CSV** — download of form rows (phone: Excel Download).
+- **DE / NDE** — driving end / non-driving end.
+- **Discipline** — Mechanical, Civil, Electrical, Instrument.
+- **DMR workbook** — daily manufacturing report upload.
+- **DMA** — day moving average (Management **7 DMA**).
+- **DS / RS** — double sulphitation / refined sugar.
+- **ESY / FY / SS** — Ethanol Supplier Year / Financial Year / Sugar Season.
+- **Forms Hub** — operation forms and equipment registers.
+- **HOD** — head of department who approves.
+- **Indent** — planned cane from a centre.
+- **Kg/Sq.Cm** — pressure unit.
+- **Locked card** — equipment node that needs extra grant to rename/move/delete.
+- **Maturity %** — purchase ÷ indent.
+- **MTBF** — mean time between mill stoppages.
+- **MTD / WTD / STD** — month / week / season to date.
+- **OEM schedule** — maker’s maintenance plan on Power/Sugar cards.
+- **Overrun** — purchase above indent.
+- **Parchy / Purchy** — cane purchase slip.
+- **PLF** — plant load factor.
+- **Pol** — sucrose measure.
+- **Q / Qtls** — quintals.
+- **SLA** — holding or transit time target.
+- **Starred** — personal shortlist of equipment cards.
+- **TCD** — tonnes cane per day.
+- **TRS / FS** — total reducing sugar / fermentable sugar.
+- **View only** — read forms; cannot submit or edit.
+- **Yard Bal. (8AM)** — cane in the factory yard at 8 AM on Management.

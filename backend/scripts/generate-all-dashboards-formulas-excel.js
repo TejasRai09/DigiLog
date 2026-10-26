@@ -36,7 +36,7 @@ const DASHBOARD_ORDER = [
   ['power-house', 'Power House'],
   ['distillery-analytics', 'Distillery Analytics'],
   ['management-dashboard', 'Management Dashboard'],
-  ['purchy-analysis', 'Purchy Analysis'],
+  ['purchy-analysis', 'Grower Intelligence'],
 ];
 
 const COLUMNS = [

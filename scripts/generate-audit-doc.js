@@ -195,7 +195,7 @@ const FORMS_HUB_TREE = [
 const BI_DASHBOARDS = [
   ['Distillery Operations — Analytics', 'bi_distillery_operations'],
   ['Milling Division Cockpit', 'bi_milling_operations'],
-  ['Purchy Analysis', 'bi_purchy_analysis'],
+  ['Grower Intelligence', 'bi_purchy_analysis'],
   ['Brix Sampling Analytics', 'bi_brix_sampling'],
   ['Centre Maturity Dashboard', 'bi_centre_maturity'],
   ['Cane Performance Dashboard', 'bi_cane_performance'],
@@ -880,7 +880,7 @@ async function main() {
           heading('17.3 BI Control Tower — Dashboard List', HeadingLevel.HEADING_2),
           bulletBold('Distillery Operations — Analytics', 'Analytics dashboard for distillery operations data'),
           bulletBold('Milling Division Cockpit', 'Milling operations overview and KPIs'),
-          bulletBold('Purchy Analysis', 'Purchase analysis dashboard'),
+          bulletBold('Grower Intelligence', 'Grower performance and purchy dishonour dashboard'),
           bulletBold('Brix Sampling Analytics', 'Brix sampling data analytics and trends'),
           bulletBold('Centre Maturity Dashboard', 'Centre maturity tracking and metrics'),
           bulletBold('Cane Performance Dashboard', 'Cane performance with sub-tabs: Procurement Summary, Gate 1, Gate 2, Center Purchase, Vehicle Handling, Vehicle Holding, Vehicle Holding 2, Truck Transit, Truck Holding, Database'),
@@ -900,7 +900,7 @@ async function main() {
           para('Equipment detail sections are identical to Power Plant: Specs, OEM Schedule, Maintenance History, across the same four disciplines.'),
 
           heading('17.6 Other Sections', HeadingLevel.HEADING_2),
-          bulletBold('Data Upload', 'General file uploads, Purchy Analysis workbook upload. Accessible from the navbar (role-gated).'),
+          bulletBold('Data Upload', 'General file uploads, Grower Intelligence workbook upload. Accessible from the navbar (role-gated).'),
           bulletBold('Admin Config', 'Employees, Employee Categories, Season Mapping, BI Dashboards, Audit & Activity (Change / Activity / Session logs). Accessible from the navbar (admin only).'),
 
           // ── 18. Future Enhancements ─────────────────────────

@@ -13,24 +13,22 @@ const { logServerError, sendServerError, MSG } = require('../utils/httpError');
 const NO_ACCESS_MSG =
   'You do not have access to use this application. Please contact the administrator.';
 
-const HOME_PORTAL_DENIED_MSG = 'You do not have permission to sign in on this page.';
-
 const NOT_ADMIN_MSG = 'You do not have permission to sign in on this page.';
+
+const SUPER_ADMIN_EMAIL = 'admin@gsma.com';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
-/** @returns {{ ok: true } | { ok: false, status: number, message: string }} */
+const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
+
+/** /admin/login is only for the super admin. Other admins use the normal login. */
 const enforceAdminPortalRules = (user, adminPortal) => {
-  const isAdmin = user.role === 'admin';
-  if (adminPortal) {
-    if (!isAdmin) return { ok: false, status: 403, message: NOT_ADMIN_MSG };
-  } else if (isAdmin) {
-    return { ok: false, status: 403, message: HOME_PORTAL_DENIED_MSG };
+  if (!adminPortal) return { ok: true };
+  if (normalizeEmail(user.email) !== SUPER_ADMIN_EMAIL) {
+    return { ok: false, status: 403, message: NOT_ADMIN_MSG };
   }
   return { ok: true };
 };
-
-const normalizeEmail = (email) => String(email ?? '').trim().toLowerCase();
 
 /** Attach actor for Change Log (login has no JWT / req.user yet). */
 function attachAuditActor(req, actor = {}) {

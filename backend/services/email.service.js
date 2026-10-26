@@ -135,7 +135,6 @@ const sendAccountActivationEmail = async ({ to, name, tempPassword }) => {
           <td style="padding: 8px;">${escapeHtml(tempPassword)}</td>
         </tr>
       </table>
-      <p>Please log in and change your password immediately.</p>
       <p style="color:#6b7280; font-size:12px;">This is an automated message. Do not reply.</p>
     </div>
   `;
@@ -675,6 +674,177 @@ async function sendFormApprovalModificationReminderEmail({
   });
 }
 
+const NOTES_APPROVAL_INBOX_PATH = '/api/maintenance-notes-approval/inbox';
+
+function digestSectionHtml(title, section, {
+  nameHeader,
+  pathHeader,
+  inboxPath,
+} = {}) {
+  const entries = section?.entries || [];
+  if (!entries.length) return '';
+  const seedToken = entries[0]?.acceptToken;
+  const inboxLink = seedToken ? inboxUrl(seedToken, null, inboxPath) : '';
+  return `
+    <h3 style="color:#0f172a;margin:28px 0 8px;font-size:16px;">${escapeHtml(title)} (${entries.length})</h3>
+    ${inboxLink ? `
+    <p style="text-align:center;margin:12px 0 8px;">
+      <a href="${inboxLink}"
+         style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:8px;font-size:13px;">
+        Open ${escapeHtml(title)} inbox (no login)
+      </a>
+    </p>` : ''}
+    ${digestEntriesHtml(entries, { nameHeader, pathHeader, inboxPath })}
+  `;
+}
+
+async function sendCombinedApprovalDigestEmail({
+  to,
+  hodName,
+  digestDate,
+  forms = { entries: [] },
+  history = { entries: [] },
+  notes = { entries: [] },
+  previousCount = 0,
+  newTodayCount = 0,
+  mode = 'all',
+}) {
+  const formEntries = forms.entries || [];
+  const historyEntries = history.entries || [];
+  const noteEntries = notes.entries || [];
+  const count = formEntries.length + historyEntries.length + noteEntries.length;
+  const modeNote = mode === 'new'
+    ? 'This email lists only items that were not included in a previous digest.'
+    : 'This email lists all currently pending items (including carry-forward).';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 1100px; width: 100%; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#2563eb;text-align:center;margin:0;">Action Required: ${count} item${count === 1 ? '' : 's'} awaiting approval</h2>
+      <p style="text-align:center;color:#64748b;font-size:14px;margin:4px 0 0;">
+        Forms · Maintenance History · Maintenance Notes · ${escapeHtml(digestDate)} (IST)
+      </p>
+      <p style="margin:20px 0 8px;">Hi <strong>${escapeHtml(hodName || 'HOD')}</strong>,</p>
+      <table style="border-collapse:collapse;margin:12px 0;font-size:14px;width:100%;">
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#fff7ed;">Previous Pending</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;">${Number(previousCount)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#ecfdf5;">New Today</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;">${Number(newTodayCount)}</td>
+        </tr>
+        <tr>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;background:#eff6ff;">In this email</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0;font-weight:700;">${count}</td>
+        </tr>
+      </table>
+      <p style="margin:0 0 8px;color:#334155;font-size:14px;">
+        One digest for all approval queues. Each section opens its own no-login inbox.
+        ${escapeHtml(modeNote)}
+      </p>
+      ${digestSectionHtml('Operations Forms', forms, {
+        nameHeader: 'Form',
+        pathHeader: 'Card',
+        inboxPath: FORM_APPROVAL_INBOX_PATH,
+      })}
+      ${digestSectionHtml('Maintenance History', history, {
+        nameHeader: 'Equipment',
+        pathHeader: 'Path',
+        inboxPath: '/api/maintenance-approval/inbox',
+      })}
+      ${digestSectionHtml('Maintenance Notes', notes, {
+        nameHeader: 'Activity',
+        pathHeader: 'Equipment',
+        inboxPath: NOTES_APPROVAL_INBOX_PATH,
+      })}
+      <p style="font-size:12px;color:#64748b;margin-top:20px;">
+        Links expire after 7 days and are refreshed on each digest. Missed this mail? Ask an admin to resend the digest from DigiLog settings.
+      </p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message from DigiLog.</p>
+    </div>
+  `;
+
+  await sendMail({
+    to,
+    subject: `[DigiLog] ${count} item${count === 1 ? '' : 's'} awaiting approval`,
+    html,
+  });
+}
+
+async function sendMaintenanceNotesApprovedEmail({
+  to,
+  submitterName,
+  plantLabel,
+  noteRef,
+  activityDescription,
+}) {
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#059669;text-align:center;">Maintenance note completed</h2>
+      <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
+      <p>
+        <strong>${escapeHtml(noteRef)}</strong>
+        (${escapeHtml(activityDescription || 'Maintenance note')}) in
+        ${escapeHtml(plantLabel)} was <strong>approved and marked Completed</strong>.
+      </p>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Open DigiLog
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message. Do not reply.</p>
+    </div>
+  `;
+  await sendMail({
+    to,
+    subject: `[DigiLog] Maintenance note approved — ${noteRef}`,
+    html,
+  });
+}
+
+async function sendMaintenanceNotesModificationEmail({
+  to,
+  submitterName,
+  plantLabel,
+  noteRef,
+  activityDescription,
+  comment,
+  openUrl,
+}) {
+  const trimmedOpen = String(openUrl || '').trim();
+  const ctaUrl = trimmedOpen || loginUrl;
+  const safeCta = escapeHtml(ctaUrl);
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
+      ${emailLogoBlockHtml(logoUrl, { width: 64, withTagline: false })}
+      <h2 style="color:#d97706;text-align:center;">Sent back for rework</h2>
+      <p>Hi <strong>${escapeHtml(submitterName)}</strong>,</p>
+      <p>
+        <strong>${escapeHtml(noteRef)}</strong>
+        (${escapeHtml(activityDescription || 'Maintenance note')}) in
+        ${escapeHtml(plantLabel)} was <strong>sent back for rework</strong>.
+      </p>
+      ${comment ? `<p style="background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:8px;color:#92400e;">
+        <strong>HOD comment:</strong><br/>${escapeHtml(comment)}
+      </p>` : ''}
+      <p>Open the Maintenance Notes register, update the note, and submit again for HOD review.</p>
+      <p style="text-align:center;margin:20px 0;">
+        <a href="${safeCta}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:8px;">
+          Open Maintenance Notes
+        </a>
+      </p>
+      <p style="color:#6b7280;font-size:12px;">Or copy this link: <a href="${safeCta}" style="color:#2563eb;">${safeCta}</a></p>
+      <p style="color:#6b7280;font-size:12px;">This is an automated message. Do not reply.</p>
+    </div>
+  `;
+  await sendMail({
+    to,
+    subject: `[DigiLog] Maintenance note needs rework — ${noteRef}`,
+    html,
+  });
+}
+
 module.exports = {
   sendMail,
   sendAccountActivationEmail,
@@ -688,4 +858,7 @@ module.exports = {
   sendFormApprovalApprovedEmail,
   sendFormApprovalModificationEmail,
   sendFormApprovalModificationReminderEmail,
+  sendCombinedApprovalDigestEmail,
+  sendMaintenanceNotesApprovedEmail,
+  sendMaintenanceNotesModificationEmail,
 };
