@@ -1,4 +1,4 @@
-/** Map Config employee category → plant. Distillery is not Sugar House and has no notes plant. */
+/** Map Config employee category → plant. Engineering is Sugar House. Distillery is not. */
 
 function normalizeCategory(value) {
   return String(value || '')
@@ -13,7 +13,12 @@ export function plantFromUserCategory(department) {
   if (!raw) return null;
   const compact = raw.replace(/\s+/g, '');
   if (compact.includes('distill')) return null;
-  if (compact.includes('sugarhouse') || compact === 'sugar' || compact.startsWith('sugar')) return 'sugar';
+  if (
+    compact.includes('sugarhouse')
+    || compact === 'sugar'
+    || compact.startsWith('sugar')
+    || compact.includes('engineer')
+  ) return 'sugar';
   if (compact.includes('powerplant') || compact === 'power' || compact.startsWith('power')) return 'power';
   if (compact === 'production' || compact.startsWith('production') || compact.includes('producton')) return 'production';
   return null;

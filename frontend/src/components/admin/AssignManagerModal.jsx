@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdSave, MdSupervisorAccount } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -32,6 +33,7 @@ export default function AssignManagerModal({ user, allUsers, onClose, onSaved })
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl flex flex-col">
 
@@ -102,5 +104,6 @@ export default function AssignManagerModal({ user, allUsers, onClose, onSaved })
 
       </div>
     </div>
+    </ModalPortal>
   );
 }

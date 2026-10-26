@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import {
   CartesianGrid,
@@ -14,6 +15,7 @@ import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartEx
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import MillPairedChartTooltip, { MILL_CHART_TOOLTIP_PROPS, MillTooltipAnchor } from './MillPairedChartTooltip';
+import CompareRangeBadge from './CompareRangeBadge';
 
 function ExpandChartTooltip({ lines, ...props }) {
   return <MillPairedChartTooltip {...props} lines={lines} valueFormat="plain" />;
@@ -38,6 +40,7 @@ export default function MillChartExpandModal({
   isDarkMode,
   axisStyle,
   gridStyle,
+  compareLabel,
   onClose,
 }) {
   const chartRef = useRef(null);
@@ -100,6 +103,7 @@ export default function MillChartExpandModal({
   if (!title) return null;
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 z-[500] flex items-center justify-center p-3 sm:p-6"
       role="dialog"
@@ -120,9 +124,12 @@ export default function MillChartExpandModal({
       >
         {/* Header */}
         <div className={`flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 ${border}`}>
-          <h2 id="mill-chart-expand-title" className="text-lg font-black tracking-tight">
-            {title}
-          </h2>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <h2 id="mill-chart-expand-title" className="text-lg font-black tracking-tight">
+              {title}
+            </h2>
+            <CompareRangeBadge label={compareLabel} isDarkMode={isDarkMode} />
+          </div>
 
           <div className="flex shrink-0 items-center gap-2">
             <button
@@ -220,5 +227,6 @@ export default function MillChartExpandModal({
         </p>
       </div>
     </div>
+    </ModalPortal>
   );
 }

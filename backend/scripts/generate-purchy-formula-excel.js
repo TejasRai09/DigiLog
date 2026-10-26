@@ -411,7 +411,7 @@ function main() {
   }));
 
   const readme = XLSX.utils.aoa_to_sheet([
-    ['Purchy Analysis Dashboard — Formula Reference'],
+    ['Grower Intelligence Dashboard — Formula Reference'],
     ['Generated from Purchy Analysis Dashboard_v9.SemanticModel + Report'],
     [''],
     ['Sheets:'],

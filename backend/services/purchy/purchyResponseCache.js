@@ -1,5 +1,6 @@
-/** In-memory cache for identical Purchy BI query responses. */
-const CACHE_TTL_MS = 120_000;
+/** In-memory cache for identical Purchy BI query responses (cleared after Purchy imports). */
+const CACHE_TTL_MS = 30 * 60_000;
+const MAX_ENTRIES = 300;
 const cache = new Map();
 const inflight = new Map();
 
@@ -20,10 +21,15 @@ function makeKey(name, query) {
 }
 
 function prune() {
-  if (cache.size <= 80) return;
+  if (cache.size <= MAX_ENTRIES) return;
   const now = Date.now();
   for (const [k, v] of cache) {
     if (now - v.at > CACHE_TTL_MS) cache.delete(k);
+  }
+  // Map iterates in insertion order, so this drops the oldest entries first.
+  for (const k of cache.keys()) {
+    if (cache.size <= MAX_ENTRIES) break;
+    cache.delete(k);
   }
 }
 

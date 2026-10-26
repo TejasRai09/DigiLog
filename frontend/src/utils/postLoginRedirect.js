@@ -13,12 +13,22 @@ export function rememberPostLoginRedirect(pathWithSearch) {
   }
 }
 
+/** Read the saved post-login redirect without clearing it. */
+export function peekPostLoginRedirect() {
+  try {
+    const value = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
+    return value;
+  } catch {
+    return null;
+  }
+}
+
 /** Read and clear the saved post-login redirect (or null). */
 export function consumePostLoginRedirect() {
   try {
-    const value = sessionStorage.getItem(POST_LOGIN_REDIRECT_KEY);
+    const value = peekPostLoginRedirect();
     sessionStorage.removeItem(POST_LOGIN_REDIRECT_KEY);
-    if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
     return value;
   } catch {
     return null;

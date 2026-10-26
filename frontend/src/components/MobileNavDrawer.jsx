@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { MdClose } from 'react-icons/md';
-import { DigiLogTitle } from './DigiLogBrandMark';
+import { APP_VERSION, DigiLogTitle } from './DigiLogBrandMark';
 
 /**
  * Right-side mobile navigation drawer (slides in from the right).
@@ -60,7 +60,7 @@ export default function MobileNavDrawer({
                 decoding="async"
               />
               <span className="absolute -bottom-0.5 -right-1 rounded bg-white px-0.5 text-[7px] font-bold leading-none text-slate-400">
-                v1
+                {APP_VERSION}
               </span>
             </div>
             <span className="text-base font-extrabold tracking-tight text-slate-900">

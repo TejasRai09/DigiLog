@@ -475,6 +475,7 @@ export default function MillThermalReportsTab({
           isDarkMode={isDarkMode}
           axisStyle={axisStyle}
           gridStyle={gridStyle}
+          compareLabel={comparisonLabel}
           onClose={() => setExpandedChart(null)}
         />
       )}

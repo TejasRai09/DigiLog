@@ -40,6 +40,7 @@ import {
   ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
 import { millOperatingDays } from '../../utils/millingBiComparison';
@@ -238,6 +239,11 @@ export default function PowerHouseDashboard() {
     };
   }, [comparisonType, from, to, rangePreset, seasonLabels, seasonMapping]);
 
+  const comparisonLabel = useMemo(
+    () => formatKpiComparePeriodLabel(compareRange || {}),
+    [compareRange],
+  );
+
   const load = useCallback(async () => {
     if (!rangeReady || !from || !to) return;
     setLoading(true);
@@ -419,7 +425,7 @@ export default function PowerHouseDashboard() {
             <BiKeyMetricBox
               value={operatingDaysCount}
               title="Operating Days"
-              subtitle={compareRange?.label ? `${rangePreset} · vs ${compareRange.label}` : rangePreset}
+              subtitle={comparisonLabel ? `${rangePreset} · vs ${comparisonLabel}` : rangePreset}
               isDarkMode={dm}
               compact
             />
@@ -570,14 +576,14 @@ export default function PowerHouseDashboard() {
 
         {!loading && !error && (
           tab === 'summary' ? (
-            <PowerSummaryView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
+            <PowerSummaryView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={comparisonLabel} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'generation' ? (
-            <PowerGenerationView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
+            <PowerGenerationView powerKpis={powerKpis} comparePowerKpis={comparePowerKpis} comparisonLabel={comparisonLabel} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'consumption' ? (
             <PowerConsumptionView
               powerKpis={powerKpis}
               comparePowerKpis={comparePowerKpis}
-              comparisonLabel={compareRange?.label}
+              comparisonLabel={comparisonLabel}
               daily={daily}
               consumptionPie={consumptionPie}
               externalPie={externalPie}
@@ -585,15 +591,15 @@ export default function PowerHouseDashboard() {
               onExpand={setExpandedChart}
             />
           ) : tab === 'steam-summary' ? (
-            <SteamSummaryView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
+            <SteamSummaryView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={comparisonLabel} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'steam-consumption' ? (
-            <SteamConsumptionView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={compareRange?.label} daily={daily} dm={dm} onExpand={setExpandedChart} />
+            <SteamConsumptionView steamKpis={steamKpis} compareSteamKpis={compareSteamKpis} comparisonLabel={comparisonLabel} daily={daily} dm={dm} onExpand={setExpandedChart} />
           ) : tab === 'outage' ? (
             <PowerOutageView
               dm={dm}
               outageKpis={outageKpis}
               compareOutageKpis={compareOutageKpis}
-              comparisonLabel={compareRange?.label}
+              comparisonLabel={comparisonLabel}
               sections={sections}
               categories={categories}
               outageSection={outageSection}
@@ -610,7 +616,7 @@ export default function PowerHouseDashboard() {
           ) : null
         )}
       </main>
-      <PowerChartExpandModal config={expandedChart} dm={dm} onClose={() => setExpandedChart(null)} />
+      <PowerChartExpandModal config={expandedChart} compareLabel={comparisonLabel} dm={dm} onClose={() => setExpandedChart(null)} />
     </div>
   );
 }

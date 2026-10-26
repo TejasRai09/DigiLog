@@ -13,6 +13,7 @@ import {
   ensureCompareSelectionValid,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
@@ -369,7 +370,12 @@ export default function CentreMaturityDashboard() {
 
   const compareBadgeLabel = useMemo(() => {
     const cmp = resolveCompareRange(dateFrom, dateTo);
-    return cmp?.label ? `vs ${cmp.label}` : 'vs Prev. Period';
+    const formatted = formatKpiComparePeriodLabel({
+      label: cmp?.label,
+      start: cmp?.from,
+      end: cmp?.to,
+    });
+    return formatted ? `vs ${formatted}` : 'vs Prev. Period';
   }, [resolveCompareRange, dateFrom, dateTo]);
 
   const fetchData = useCallback(async () => {
@@ -618,7 +624,7 @@ export default function CentreMaturityDashboard() {
             icon={Wheat}
             darkMode={darkMode}
             accentColor="#3b82f6"
-            subtitle={seasonKpi.compareLabel ? `vs ${seasonKpi.compareLabel}` : compareBadgeLabel}
+            subtitle={compareBadgeLabel}
           />
           <KpiCard
             title="Purchase Qty (Qtl)"
@@ -630,7 +636,7 @@ export default function CentreMaturityDashboard() {
             icon={ShoppingCart}
             darkMode={darkMode}
             accentColor="#10b981"
-            subtitle={seasonKpi.compareLabel ? `vs ${seasonKpi.compareLabel}` : compareBadgeLabel}
+            subtitle={compareBadgeLabel}
           />
 
           {/* Average Maturity Card — use season KPI (same formula as PBI) */}
@@ -669,7 +675,7 @@ export default function CentreMaturityDashboard() {
                     </span>
                   )}
                   <span className={`text-[10px] font-medium ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                    {seasonKpi.compareLabel ? `vs ${seasonKpi.compareLabel}` : compareBadgeLabel}
+                    {compareBadgeLabel}
                   </span>
                 </div>
               </div>

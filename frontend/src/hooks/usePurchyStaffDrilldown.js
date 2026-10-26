@@ -1,9 +1,11 @@
 import { HIERARCHY_DRILLDOWN } from '../data/purchyDrilldownStaticData';
 import { usePurchyCachedGet } from './purchyQueryCache';
 
+export const STAFF_DRILLDOWN_PATH = '/bi/purchy/staff-drilldown';
+
 export default function usePurchyStaffDrilldown(queryParams, { enabled = true } = {}) {
   const { data, loading, error } = usePurchyCachedGet(
-    '/bi/purchy/staff-drilldown',
+    STAFF_DRILLDOWN_PATH,
     queryParams,
     {
       enabled,

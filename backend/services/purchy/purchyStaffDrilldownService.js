@@ -1,7 +1,7 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
 const { slugId, pctRatio, LOYALTY_COLORS, VARIETY_HEX } = require('./purchyDrilldownUtils');
-const { query2025FactsGrouped } = require('./purchyPbiFacts');
+const { query2025FactsGrouped, query2025FactsGroupedRaw } = require('./purchyPbiFacts');
 
 const HIERARCHY_COLS = [
   { key: 'zone', col: 'zone_head', title: 'ZONE HEAD' },
@@ -249,7 +249,7 @@ async function getVarietyTypeBreakdown(query) {
        )`
     : '';
 
-  const rows = await query2025FactsGrouped(
+  const rows = await query2025FactsGroupedRaw(
     groupedCtx,
     `COALESCE(NULLIF(TRIM(i.varietytype), ''), 'Unknown')`,
     extraSql,

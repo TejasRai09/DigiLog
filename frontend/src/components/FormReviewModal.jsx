@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import ModalPortal from './ModalPortal';
 import { MdCheck, MdClose, MdInfoOutline, MdSwapHoriz } from 'react-icons/md';
 import Spinner from './Spinner';
 
@@ -57,6 +58,7 @@ const FormReviewModal = ({
   };
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-3 sm:p-4 md:p-6"
       role="dialog"
@@ -185,6 +187,7 @@ const FormReviewModal = ({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

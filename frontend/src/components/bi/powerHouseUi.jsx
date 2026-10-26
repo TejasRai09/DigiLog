@@ -3,6 +3,7 @@ import { Info } from 'lucide-react';
 import { formatCompact } from '../../utils/powerHouseMeasures';
 import MillComparePct from './MillComparePct';
 import ChartCardToolbar from './ChartCardToolbar';
+import CompareRangeBadge from './CompareRangeBadge';
 
 /** Match Cane Performance card elevation */
 export function cardShadow(dm) {
@@ -86,11 +87,19 @@ export function InfoTip({ text, dm }) {
 }
 
 /** Cane-style chart/section card: rounded-2xl, shadow, muted title (optional gradient header) */
-export function BandCard({ title, children, dm, className = '', bodyClassName = '', right = null, tone = null, titleWrap = false, onExpand }) {
+export function BandCard({ title, children, dm, className = '', bodyClassName = '', right = null, tone = null, titleWrap = false, onExpand, compareLabel }) {
   const bodyOverflow = /\boverflow-/.test(bodyClassName) ? '' : 'overflow-hidden';
   const titleCls = titleWrap ? 'whitespace-normal break-words leading-snug' : 'truncate';
-  const actions = right || onExpand ? (
-    <div className="flex shrink-0 items-center gap-1.5">
+  const badge = compareLabel ? (
+    <CompareRangeBadge
+      label={compareLabel}
+      isDarkMode={dm}
+      className={tone ? '!bg-white/15 !text-white' : ''}
+    />
+  ) : null;
+  const actions = right || onExpand || badge ? (
+    <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+      {badge}
       {right}
       {onExpand ? <ChartCardToolbar onExpand={onExpand} isDarkMode={dm} compact /> : null}
     </div>

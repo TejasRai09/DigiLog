@@ -16,8 +16,10 @@ const {
 } = require('../utils/managementDashboardUploadSync');
 const {
   PURCHY_SLOTS,
+  PURCHY_CATEGORY_SET,
   purchySlotFromCategory,
   isPurchyCategory,
+  categoriesForPurchySlot,
 } = require('../utils/purchyUploadSlots');
 const {
   MD_ALLOWED_DATASETS,
@@ -87,9 +89,11 @@ function mapFileRow(r) {
 }
 
 async function replacePurchySlotRecords(category) {
+  const slot = purchySlotFromCategory(category);
+  const categories = slot ? categoriesForPurchySlot(slot) : [category];
   const [rows] = await pool.query(
-    'SELECT id, stored_filename FROM data_upload_files WHERE category = ?',
-    [category],
+    'SELECT id, stored_filename FROM data_upload_files WHERE category IN (?)',
+    [categories],
   );
   for (const row of rows) {
     await pool.query('DELETE FROM data_upload_files WHERE id = ?', [row.id]);
@@ -158,7 +162,7 @@ async function uploadFile(req, res) {
   if (isPurchyCategory(parsed.value)) {
     unlinkStoredFile(storedFilename);
     return res.status(400).json({
-      message: 'Use the Purchy Analysis section to upload grower or staff files.',
+      message: 'Use the Grower Intelligence section to upload grower or staff files.',
     });
   }
 
@@ -347,7 +351,7 @@ async function upsertAdminDataUploadAccess(req, res) {
 /** GET /api/data-upload/purchy-slots */
 async function getPurchySlots(req, res) {
   try {
-    const categories = Object.values(PURCHY_SLOTS).map((s) => s.category);
+    const categories = [...PURCHY_CATEGORY_SET];
     const [rows] = await pool.query(
       `SELECT f.*, u.name AS u_name, u.email AS u_email
        FROM data_upload_files f

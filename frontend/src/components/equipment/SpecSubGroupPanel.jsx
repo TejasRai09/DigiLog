@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import {
   MdClose,
   MdExpandLess,
@@ -351,6 +352,7 @@ export default function SpecSubGroupPanel({
       />
 
       {detailsOpen && detailsDraft && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -391,9 +393,11 @@ export default function SpecSubGroupPanel({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {lightbox && (
+        <ModalPortal>
         <div
           className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/95 p-4"
           onClick={() => setLightbox(null)}
@@ -413,6 +417,7 @@ export default function SpecSubGroupPanel({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+        </ModalPortal>
       )}
     </>
   );

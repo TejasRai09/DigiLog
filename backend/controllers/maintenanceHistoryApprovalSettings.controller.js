@@ -5,9 +5,9 @@ const {
   updateApprovalSettings,
   validateDigestTime,
   validateOptionalDigestTime,
-  sendDigestForDomain,
   DOMAIN_TABLES,
 } = require('../services/maintenanceHistoryApproval.service');
+const { sendCombinedDigestForHistoryDomain } = require('../services/combinedApprovalDigest.service');
 
 const DOMAIN_LABEL = {
   sugar: 'Sugar House',
@@ -92,7 +92,7 @@ const postResendMaintenanceHistoryDigest = async (req, res) => {
     if (!DOMAIN_TABLES[domain]) {
       return res.status(400).json({ message: 'domain must be sugar, power, or production.' });
     }
-    const result = await sendDigestForDomain(domain, { force: true, mode });
+    const result = await sendCombinedDigestForHistoryDomain(domain, { force: true, mode });
     if (!result.sent) {
       return res.status(200).json({
         message: result.message || 'No digest sent.',
@@ -102,8 +102,8 @@ const postResendMaintenanceHistoryDigest = async (req, res) => {
     const label = DOMAIN_LABEL[domain] || domain;
     return res.json({
       message: mode === 'new'
-        ? `Emailed ${result.count} new pending item(s) to the ${label} HOD.`
-        : `Resent digest with ${result.count} pending item(s) to the ${label} HOD.`,
+        ? `Emailed ${result.count} new pending item(s) (forms, history, and notes) to the ${label} HOD.`
+        : `Resent combined digest with ${result.count} pending item(s) to the ${label} HOD.`,
       ...result,
     });
   } catch (err) {

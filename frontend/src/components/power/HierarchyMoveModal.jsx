@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import {
   MdAdd,
   MdCheckCircle,
@@ -130,6 +131,7 @@ export default function HierarchyMoveModal({
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <button
         type="button"
@@ -303,5 +305,6 @@ export default function HierarchyMoveModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }

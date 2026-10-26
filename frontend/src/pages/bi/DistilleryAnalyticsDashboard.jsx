@@ -29,6 +29,7 @@ import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
   ensureCompareSelectionValid,
+  formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
   resolveCockpitPriorRange,
   resolveSeasonLabelFromCompareId,
@@ -728,14 +729,8 @@ export default function DistilleryAnalyticsDashboard() {
   );
 
   const comparisonLabel = useMemo(() => {
-    const fOpt = { month: 'short', day: 'numeric' };
-    const formatDateFriendly = (dStr) => {
-      const d = new Date(`${dStr}T12:00:00`);
-      return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', fOpt);
-    };
-
     if (comparisonType === 'PP') {
-      return `${priorPeriodRange.label} (${formatDateFriendly(priorPeriodRange.start)} - ${formatDateFriendly(priorPeriodRange.end)})`;
+      return formatKpiComparePeriodLabel(priorPeriodRange);
     }
 
     if (!isSeasonComparisonType(comparisonType)) return '';
@@ -757,7 +752,11 @@ export default function DistilleryAnalyticsDashboard() {
         compareRangePreset,
       )
       : alignSeasonCompareRange(from, to, seasonLabel);
-    return `${seasonLabel} (${formatDateFriendly(resolved.start)} - ${formatDateFriendly(resolved.end)})`;
+    return formatKpiComparePeriodLabel({
+      label: seasonLabel,
+      start: resolved.start,
+      end: resolved.end,
+    });
   }, [
     fromDate,
     toDate,

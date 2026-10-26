@@ -27,7 +27,10 @@ export default function DistilleryChartsGrid({
   const [expandedChartId, setExpandedChartId] = useState(null);
   const [expandedMetrics, setExpandedMetrics] = useState(null);
   const operatingDays = (filteredData || []).filter((row) => Number(row.totalProd) > 0).length;
-  const periodBadgeLabel = `${operatingDays} Operating Days (${periodLabel})`;
+  const periodBadgeLabel = [
+    `${operatingDays} Operating Days (${periodLabel})`,
+    comparisonLabel ? `vs ${comparisonLabel}` : null,
+  ].filter(Boolean).join(' · ');
   const chartPlotProps = { data: filteredData, isDarkMode, axisStyle, gridStyle };
 
   const openExpand = (chartId, metrics) => {

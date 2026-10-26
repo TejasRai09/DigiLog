@@ -37,6 +37,7 @@
     "db:map-employee-departments": "node scripts/map-employee-departments-to-categories.js",
     "db:import-purchy-grower": "node scripts/import-purchy-grower-excel.js",
     "db:validate-purchy-measures": "node scripts/validate-purchy-measures.js",
+    "db:rebuild-purchy-facts": "node scripts/rebuild-purchy-grower-facts.js",
     "db:import-ehs-accident": "node scripts/import-ehs-accident-excel.js",
     "db:generate-purchy-formulas": "node scripts/generate-purchy-formula-excel.js",
     "db:generate-management-formulas": "node scripts/generate-management-dashboard-formulas-excel.js",

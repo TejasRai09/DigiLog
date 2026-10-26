@@ -109,9 +109,11 @@ router.post('/form-approval-settings/resend-digest', postResendFormApprovalDiges
 const {
   getMaintenanceNotesApprovalSettings,
   putMaintenanceNotesApprovalSettings,
+  postResendMaintenanceNotesDigest,
 } = require('../controllers/maintenanceNotesSettings.controller');
 
 router.get('/maintenance-notes-approval-settings', getMaintenanceNotesApprovalSettings);
 router.put('/maintenance-notes-approval-settings', putMaintenanceNotesApprovalSettings);
+router.post('/maintenance-notes-approval-settings/resend-digest', postResendMaintenanceNotesDigest);
 
 module.exports = router;

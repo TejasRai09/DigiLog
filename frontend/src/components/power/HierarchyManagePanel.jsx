@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdAdd, MdClose, MdDragIndicator, MdSortByAlpha } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
@@ -662,6 +663,7 @@ export function useHierarchyManage({
   ) : null;
 
   const manageModal = modal?.mode === 'manage' ? (
+    <ModalPortal>
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -835,9 +837,11 @@ export function useHierarchyManage({
         </div>
       </div>
     </div>
+    </ModalPortal>
   ) : null;
 
   const editModal = modal?.mode === 'edit' ? (
+    <ModalPortal>
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -921,6 +925,7 @@ export function useHierarchyManage({
         </form>
       </div>
     </div>
+    </ModalPortal>
   ) : null;
 
   return {

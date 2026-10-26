@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ModalPortal from '../../ModalPortal';
 import { createPortal } from 'react-dom';
 import {
   MdAdd, MdEdit, MdDelete, MdSearch,
@@ -64,7 +65,8 @@ const UserModal = ({ initial, categories, onClose, onSaved }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4">
       <div className="card w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-base font-semibold text-gray-900">
@@ -133,6 +135,7 @@ const UserModal = ({ initial, categories, onClose, onSaved }) => {
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 };
 

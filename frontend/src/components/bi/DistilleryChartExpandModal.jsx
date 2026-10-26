@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import { DISTILLERY_CHART_PLOTS } from './distilleryBiChartPlots';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
@@ -75,6 +76,7 @@ export default function DistilleryChartExpandModal({
   const modalIdPrefix = `-modal-${plotConfig.slug}`;
 
   return (
+    <ModalPortal>
     <div
       className="fixed inset-0 z-[500] flex items-center justify-center p-3 sm:p-6"
       role="dialog"
@@ -177,5 +179,6 @@ export default function DistilleryChartExpandModal({
         </p>
       </div>
     </div>
+    </ModalPortal>
   );
 }

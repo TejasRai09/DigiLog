@@ -115,7 +115,7 @@ export default function FormsApprovalSection() {
   return (
     <ConfigSectionPanel
       title="Forms Approval"
-      description="When enabled on a Forms Hub card, operator submits wait for the assigned HOD. Each form can inherit that setting, stay on with a different HOD, or skip approval and save immediately. Digest emails open a no-login inbox, same as maintenance approval. Off until you turn a card or form on."
+      description="When enabled on a Forms Hub card, operator submits wait for the assigned HOD. Each form can inherit that setting, stay on with a different HOD, or skip approval and save immediately. Digest times feed one combined HOD email (Forms + History + Notes) with a no-login inbox. Off until you turn a card or form on."
       actions={
         loading ? <Spinner size="sm" /> : (
           <button
@@ -177,7 +177,7 @@ export default function FormsApprovalSection() {
                   </div>
                   <div className="space-y-3">
                     <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                      Full digest times (IST)
+                      Combined digest times (IST)
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
@@ -204,8 +204,8 @@ export default function FormsApprovalSection() {
                       </div>
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                      Sends a full pending digest email to the HOD at each time (IST). Leave Time 2 blank to send only once per day.
-                      The email opens a no-login approvals inbox.
+                      The HOD receives one email covering Forms, Maintenance History, and Maintenance Notes at each time (IST).
+                      Leave Time 2 blank to send only once per day.
                     </p>
                   </div>
                   {(card.enabled || card.forms.some((form) => form.mode === 'on')) ? (

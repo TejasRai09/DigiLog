@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import {
   Area,
@@ -23,6 +24,7 @@ import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import { formatCompact } from '../../utils/powerHouseMeasures';
 import { ChartTip, CHART_COLORS, axisStroke } from './powerHouseUi';
+import CompareRangeBadge from './CompareRangeBadge';
 
 function slugify(title) {
   return String(title || 'chart').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -148,7 +150,7 @@ function ExpandedPlot({ config, dm }) {
   );
 }
 
-export default function PowerChartExpandModal({ config, dm, onClose }) {
+export default function PowerChartExpandModal({ config, compareLabel, dm, onClose }) {
   const chartRef = useRef(null);
   const [chartReady, setChartReady] = useState(false);
   const title = config?.title || '';
@@ -208,11 +210,15 @@ export default function PowerChartExpandModal({ config, dm, onClose }) {
     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50';
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[500] flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="power-chart-expand-title">
       <button type="button" className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" aria-label="Close expanded chart" onClick={onClose} />
       <div className={`relative flex max-h-[min(92vh,900px)] w-full max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-t-2xl border shadow-2xl sm:max-w-6xl sm:rounded-2xl ${panel} ${border}`}>
         <div className={`flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 ${border}`}>
-          <h2 id="power-chart-expand-title" className="text-lg font-black tracking-tight">{title}</h2>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            <h2 id="power-chart-expand-title" className="text-lg font-black tracking-tight">{title}</h2>
+            <CompareRangeBadge label={compareLabel} isDarkMode={dm} />
+          </div>
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={handleCsv} className={`rounded-lg border p-2 transition-colors ${btn}`} title="Download CSV" aria-label="Download chart data as CSV">
               <MdDownload className="h-5 w-5" />
@@ -241,5 +247,6 @@ export default function PowerChartExpandModal({ config, dm, onClose }) {
         </p>
       </div>
     </div>
+    </ModalPortal>
   );
 }

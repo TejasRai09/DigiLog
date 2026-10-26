@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { useLocation } from 'react-router-dom';
 import {
   MdAdd,
@@ -1162,7 +1163,8 @@ export default function EquipmentMaintenanceHistoryHub({
   ) : null;
 
   const formModal = formOpen && !viewOnly && (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] p-4 flex items-end sm:items-center justify-center overflow-y-auto">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-[2px] p-4 flex items-end sm:items-center justify-center overflow-y-auto">
       <div className="bg-white shadow-2xl border border-slate-100 flex flex-col w-full max-w-2xl rounded-t-3xl sm:rounded-xl max-h-[92vh] sm:my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white z-10">
           <div>
@@ -1430,10 +1432,12 @@ export default function EquipmentMaintenanceHistoryHub({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 
   const detailModal = detailOpen && selectedRecord && (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-[2px] p-4 flex items-end sm:items-center justify-center overflow-y-auto">
+    <ModalPortal>
+    <div className="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-[2px] p-4 flex items-end sm:items-center justify-center overflow-y-auto">
       <div className="bg-white shadow-xl border border-slate-100 flex flex-col w-full max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[92vh] sm:my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div>
@@ -1600,9 +1604,11 @@ export default function EquipmentMaintenanceHistoryHub({
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 
   const lightbox = lightboxImage && (
+    <ModalPortal>
     <div
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-950/95 p-4"
       onClick={() => setLightboxImage(null)}
@@ -1630,6 +1636,7 @@ export default function EquipmentMaintenanceHistoryHub({
         onClick={(e) => e.stopPropagation()}
       />
     </div>
+    </ModalPortal>
   );
 
   const body = (

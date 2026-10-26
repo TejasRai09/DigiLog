@@ -8,7 +8,7 @@ import { CONFIG_SECTION_ID_TO_LABEL } from './auditFilterTree';
 const BI_DASHBOARDS = {
   '/bi/distillery-operations': 'Distillery Operations — Analytics',
   '/bi/milling-operations': 'Milling Division Cockpit',
-  '/bi/purchy-analysis': 'Purchy Analysis',
+  '/bi/purchy-analysis': 'Grower Intelligence',
   '/bi/brix-sampling': 'Brix Sampling Analytics',
   '/bi/centre-maturity': 'Centre Maturity Dashboard',
   '/bi/cane-performance': 'Cane Performance Dashboard',

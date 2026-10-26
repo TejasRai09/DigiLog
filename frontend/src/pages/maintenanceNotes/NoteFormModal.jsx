@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ModalPortal from '../../components/ModalPortal';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import useAuth from '../../hooks/useAuth';
@@ -141,6 +142,7 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6" onClick={onClose}>
       <form
         onClick={(e) => e.stopPropagation()}
@@ -309,5 +311,6 @@ export default function NoteFormModal({ open, note, viewOnly, onClose, onSaved }
         </div>
       </form>
     </div>
+    </ModalPortal>
   );
 }

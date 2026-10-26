@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import { useLocation } from 'react-router-dom';
 import {
   MdAdd,
@@ -841,7 +842,8 @@ export default function EquipmentSpecificationHub({
 
       {/* Sub-group modal */}
       {subModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
@@ -930,11 +932,13 @@ export default function EquipmentSpecificationHub({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
 
       {/* Parameter modal */}
       {paramModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <ModalPortal>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[80] flex items-center justify-center p-4">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
               <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Manage Parameters</h3>
@@ -1037,6 +1041,7 @@ export default function EquipmentSpecificationHub({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ModalPortal from '../../components/ModalPortal';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import Spinner from '../../components/Spinner';
@@ -24,6 +25,7 @@ export default function SubmitNoteModal({ note, onClose, onDone }) {
   };
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6" onClick={onClose}>
       <form
         onClick={(e) => e.stopPropagation()}
@@ -67,5 +69,6 @@ export default function SubmitNoteModal({ note, onClose, onDone }) {
         </div>
       </form>
     </div>
+    </ModalPortal>
   );
 }

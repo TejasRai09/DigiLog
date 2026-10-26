@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ModalPortal from '../ModalPortal';
 import {
   MdClose, MdSave,
   MdFolder, MdFolderOpen,
@@ -180,6 +181,7 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
 
   // ── Render ───────────────────────────────────────────────────
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col">
 
@@ -352,6 +354,7 @@ const EmployeeFormMappingModal = ({ user, mappings, onClose, onSaved, variant = 
 
       </div>
     </div>
+    </ModalPortal>
   );
 };
 
