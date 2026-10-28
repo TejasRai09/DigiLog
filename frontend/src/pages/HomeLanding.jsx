@@ -30,8 +30,8 @@ const HomeLanding = () => {
     };
   }, []);
 
-  const showFormsHub = cardKeys?.includes(HOMEPAGE_CARD_KEYS.FORMS_HUB);
   const showBi = cardKeys?.includes(HOMEPAGE_CARD_KEYS.BI_CONTROL_TOWER);
+  const showFormsHub = cardKeys?.includes(HOMEPAGE_CARD_KEYS.FORMS_HUB);
 
   const cardBase =
     'group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-0 ' +
@@ -62,8 +62,8 @@ const HomeLanding = () => {
             Hello{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
           <p className="mt-2.5 text-sm font-medium leading-relaxed text-slate-800 sm:text-base">
-            Pick a destination. Forms Hub opens your assigned operational logbooks and modules; BI Control
-            Tower lists analytics dashboards you are assigned.
+            Pick a destination. BI Control Tower lists analytics dashboards you are assigned; Forms Hub
+            opens your assigned operational logbooks and modules.
           </p>
         </div>
       </AppPageHeader>
@@ -75,7 +75,7 @@ const HomeLanding = () => {
       ) : cardKeys.length === 0 ? (
         <div className="card flex flex-col items-center justify-center py-24 text-center max-w-lg mx-auto">
           <p className="text-gray-600 font-medium">No homepage destinations assigned</p>
-          <p className="text-sm text-gray-400 mt-2">Contact your admin to assign Forms Hub and/or BI Control Tower cards.</p>
+          <p className="text-sm text-gray-400 mt-2">Contact your admin to assign BI Control Tower and/or Forms Hub cards.</p>
         </div>
       ) : (
         <div
@@ -83,43 +83,6 @@ const HomeLanding = () => {
             showFormsHub && showBi ? 'md:grid-cols-2' : 'max-w-xl mx-auto'
           }`}
         >
-          {showFormsHub && (
-            <Link
-              to="/forms-hub"
-              className={
-                cardBase +
-                ' hover:border-blue-200/90 hover:ring-blue-500/10 ' +
-                'hover:shadow-[0_32px_64px_-14px_rgba(37,99,235,0.28),0_18px_40px_-16px_rgba(15,23,42,0.14)] ' +
-                'focus-visible:ring-blue-500'
-              }
-            >
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-violet-500 opacity-90" />
-              <div className={`${cardImageClass} bg-gradient-to-br from-blue-50 via-indigo-50/90 to-violet-50`}>
-                <img
-                  src="/forms-hub-illustration.png"
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover object-center select-none"
-                  loading="lazy"
-                  decoding="async"
-                  sizes="(min-width: 768px) 42vw, 100vw"
-                />
-              </div>
-              <div className={cardBodyClass}>
-                <h2 className="mb-2 text-xl font-bold tracking-tight text-slate-900 sm:mb-2.5 sm:text-2xl">
-                  Forms Hub
-                </h2>
-                <p className="text-sm leading-relaxed text-slate-600 sm:text-[15px]">
-                  Centralized access to digital operational forms—mill, lab, power, distillery, EHS and
-                  equipment history, based on your access.
-                </p>
-                <span className="mt-4 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50/90 px-4 py-2.5 text-sm font-semibold text-blue-800 shadow-sm transition-all duration-300 group-hover:border-blue-300 group-hover:bg-blue-100/95 group-hover:gap-3 group-hover:shadow-md sm:mt-6">
-                  Open Forms Hub
-                  <MdChevronRight className="h-5 w-5 shrink-0" aria-hidden />
-                </span>
-              </div>
-            </Link>
-          )}
-
           {showBi && (
             <Link
               to="/bi"
@@ -151,6 +114,43 @@ const HomeLanding = () => {
                 </p>
                 <span className="mt-4 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-violet-200/80 bg-violet-50/90 px-4 py-2.5 text-sm font-semibold text-violet-900 shadow-sm transition-all duration-300 group-hover:border-violet-300 group-hover:bg-violet-100/95 group-hover:gap-3 group-hover:shadow-md sm:mt-6">
                   Open BI Control Tower
+                  <MdChevronRight className="h-5 w-5 shrink-0" aria-hidden />
+                </span>
+              </div>
+            </Link>
+          )}
+
+          {showFormsHub && (
+            <Link
+              to="/forms-hub"
+              className={
+                cardBase +
+                ' hover:border-blue-200/90 hover:ring-blue-500/10 ' +
+                'hover:shadow-[0_32px_64px_-14px_rgba(37,99,235,0.28),0_18px_40px_-16px_rgba(15,23,42,0.14)] ' +
+                'focus-visible:ring-blue-500'
+              }
+            >
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-violet-500 opacity-90" />
+              <div className={`${cardImageClass} bg-gradient-to-br from-blue-50 via-indigo-50/90 to-violet-50`}>
+                <img
+                  src="/forms-hub-illustration.png"
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover object-center select-none"
+                  loading="lazy"
+                  decoding="async"
+                  sizes="(min-width: 768px) 42vw, 100vw"
+                />
+              </div>
+              <div className={cardBodyClass}>
+                <h2 className="mb-2 text-xl font-bold tracking-tight text-slate-900 sm:mb-2.5 sm:text-2xl">
+                  Forms Hub
+                </h2>
+                <p className="text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+                  Centralized access to digital operational forms—mill, lab, power, distillery, EHS and
+                  equipment history, based on your access.
+                </p>
+                <span className="mt-4 inline-flex w-fit max-w-full items-center gap-2 rounded-full border border-blue-200/80 bg-blue-50/90 px-4 py-2.5 text-sm font-semibold text-blue-800 shadow-sm transition-all duration-300 group-hover:border-blue-300 group-hover:bg-blue-100/95 group-hover:gap-3 group-hover:shadow-md sm:mt-6">
+                  Open Forms Hub
                   <MdChevronRight className="h-5 w-5 shrink-0" aria-hidden />
                 </span>
               </div>
