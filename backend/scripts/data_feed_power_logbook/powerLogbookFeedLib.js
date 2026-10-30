@@ -581,7 +581,7 @@ function findFirstExistingFile(dirs, filenames) {
 }
 
 function resolveDefaultFiles(feedDir, backlogDir, forms) {
-  const dirs = [feedDir, backlogDir];
+  const dirs = [backlogDir, feedDir];
   const files = [];
   for (const formKey of forms) {
     const target = FORM_TARGETS[formKey];
