@@ -57,7 +57,7 @@ function mapPurchaseRow(r, seasonMappings = []) {
   };
 }
 
-async function runCentrePurchaseImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress }) {
+async function runCentrePurchaseImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress, fileUploadId = null }) {
   if (!workbook && (!filePath || !fs.existsSync(filePath))) {
     throw new Error(`File not found: ${filePath}`);
   }
@@ -112,12 +112,13 @@ async function runCentrePurchaseImport({ filePath, workbook, sheetIndex = 0, she
         mapped.category,
         mapped.unique_id,
         mapped.season_label,
+        fileUploadId || null,
       ]);
 
       if (batch.length >= BATCH_SIZE) {
         await conn.query(
           `INSERT INTO centre_purchase_data
-           (code, center_name, purchase_date, indent_date, no_of_purchy, purchase_qty, category, unique_id, season_label)
+           (code, center_name, purchase_date, indent_date, no_of_purchy, purchase_qty, category, unique_id, season_label, file_upload_id)
            VALUES ?`,
           [batch],
         );
@@ -129,7 +130,7 @@ async function runCentrePurchaseImport({ filePath, workbook, sheetIndex = 0, she
     if (batch.length) {
       await conn.query(
         `INSERT INTO centre_purchase_data
-         (code, center_name, purchase_date, indent_date, no_of_purchy, purchase_qty, category, unique_id, season_label)
+         (code, center_name, purchase_date, indent_date, no_of_purchy, purchase_qty, category, unique_id, season_label, file_upload_id)
          VALUES ?`,
         [batch],
       );

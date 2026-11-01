@@ -4,6 +4,7 @@
  */
 const path = require('path');
 const { randomUUID } = require('crypto');
+const { pool } = require('../config/mysql');
 const { runPurchyGrowerImport } = require('../services/purchy/purchyGrowerImportService');
 const { PURCHY_SLOTS } = require('./purchyUploadSlots');
 
@@ -55,6 +56,7 @@ function getJob(jobId) {
     type: job.type,
     status: job.status,
     originalFilename: job.originalFilename,
+    fileUploadId: job.fileUploadId,
     error: job.error,
     totals: job.totals,
     logs: job.logs.slice(-80),
@@ -75,10 +77,26 @@ function pushLog(job, stage, message, detail = {}) {
   }
 }
 
+async function updateFileMeta(fileUploadId, fields) {
+  if (!fileUploadId) return;
+  const sets = [];
+  const params = [];
+  for (const [k, v] of Object.entries(fields)) {
+    sets.push(`${k} = ?`);
+    params.push(v);
+  }
+  params.push(fileUploadId);
+  await pool.query(`UPDATE data_upload_files SET ${sets.join(', ')} WHERE id = ?`, params);
+}
+
 async function executeJob(job) {
   job.status = 'running';
   job.startedAt = new Date().toISOString();
   pushLog(job, 'start', job.type === 'staff' ? 'Starting staff import…' : 'Starting grower import…');
+
+  if (job.fileUploadId) {
+    await updateFileMeta(job.fileUploadId, { import_status: 'running' });
+  }
 
   try {
     const result = await runPurchyGrowerImport({
@@ -92,11 +110,28 @@ async function executeJob(job) {
     job.totals = result.totals;
     job.status = 'completed';
     pushLog(job, 'complete', 'Import completed successfully.', { totals: result.totals });
+
+    if (job.fileUploadId) {
+      const totalRows = Object.values(result.totals || {}).reduce((acc, n) => acc + (Number(n) || 0), 0);
+      await updateFileMeta(job.fileUploadId, {
+        import_status: 'done',
+        rows_imported: totalRows,
+        rows_skipped: 0,
+        import_error: null,
+      });
+    }
   } catch (err) {
     job.status = 'failed';
     job.error = err.message || 'Import failed.';
     pushLog(job, 'error', job.error);
     console.error('Purchy auto-import failed:', err);
+
+    if (job.fileUploadId) {
+      await updateFileMeta(job.fileUploadId, {
+        import_status: 'failed',
+        import_error: (job.error || '').slice(0, 500),
+      });
+    }
   } finally {
     job.finishedAt = new Date().toISOString();
   }
@@ -106,7 +141,7 @@ async function executeJob(job) {
  * Queue background import for a Purchy upload slot (grower | staff).
  * @returns {{ jobId: string, type: string, status: string }}
  */
-function schedulePurchyImportBySlot(slot, absolutePath, originalFilename) {
+function schedulePurchyImportBySlot(slot, absolutePath, originalFilename, fileUploadId = null) {
   const meta = PURCHY_SLOTS[slot];
   if (!meta) throw new Error(`Unknown Purchy slot: ${slot}`);
 
@@ -117,6 +152,7 @@ function schedulePurchyImportBySlot(slot, absolutePath, originalFilename) {
     status: 'queued',
     originalFilename,
     filePath: absolutePath,
+    fileUploadId,
     logs: [],
     totals: null,
     error: null,
@@ -138,19 +174,8 @@ function schedulePurchyImportBySlot(slot, absolutePath, originalFilename) {
   return { jobId, type: slot, status: 'queued' };
 }
 
-/**
- * If filename matches a Purchy workbook, queue background import.
- * @returns {{ jobId: string, type: string, status: string } | null}
- */
-function schedulePurchyImportIfMatch(originalFilename, absolutePath) {
-  const type = detectPurchyUploadType(originalFilename);
-  if (!type) return null;
-  return schedulePurchyImportBySlot(type, absolutePath, originalFilename);
-}
-
 module.exports = {
   detectPurchyUploadType,
-  schedulePurchyImportIfMatch,
   schedulePurchyImportBySlot,
   getPurchyImportJob: getJob,
 };

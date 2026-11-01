@@ -54,9 +54,17 @@ async function executeJob(job) {
   try {
     let result;
     if (job.type === 'indent-purchase' || job.type === 'indent' || job.type === 'purchase') {
-      result = await runCentreIndentPurchaseImport({ filePath: job.filePath, onProgress });
+      result = await runCentreIndentPurchaseImport({
+        filePath: job.filePath,
+        onProgress,
+        fileUploadId: job.fileUploadId,
+      });
     } else if (job.type === 'dmr') {
-      result = await runDmrLogbookImport({ filePath: job.filePath, onProgress });
+      result = await runDmrLogbookImport({
+        filePath: job.filePath,
+        onProgress,
+        fileUploadId: job.fileUploadId,
+      });
     } else {
       throw new Error(`Unknown import type: ${job.type}`);
     }

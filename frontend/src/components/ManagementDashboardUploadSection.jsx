@@ -4,22 +4,7 @@ import { MdChevronRight, MdExpandMore, MdInsights, MdUpload } from 'react-icons/
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
-
-function formatBytes(n) {
-  if (!n || n < 1024) return `${n || 0} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatIngestedAt(iso) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
+import DataUploadHistoryTable from './DataUploadHistoryTable';
 
 const SLOTS = [
   {
@@ -72,87 +57,18 @@ function UploadCard({ meta, uploading, onUpload }) {
   );
 }
 
-function FileHistoryTable({ files, loading }) {
-  if (loading) {
-    return (
-      <div className="flex justify-center py-6">
-        <Spinner size="md" />
-      </div>
-    );
-  }
-  if (!files.length) {
-    return <p className="py-4 text-center text-xs italic text-gray-400">No files uploaded yet.</p>;
-  }
-
-  return (
-    <div className="overflow-x-auto rounded-lg border border-gray-100">
-      <table className="w-full text-left text-xs">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50/80">
-            <th className="px-3 py-2 font-bold text-gray-600">File</th>
-            <th className="px-3 py-2 font-bold text-gray-600">Uploaded</th>
-            <th className="px-3 py-2 font-bold text-gray-600">Date range</th>
-            <th className="px-3 py-2 font-bold text-gray-600">Rows</th>
-            <th className="px-3 py-2 font-bold text-gray-600">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {files.map((f) => (
-            <tr key={f.id} className="border-b border-gray-50">
-              <td className="px-3 py-2">
-                <span className="font-medium text-gray-900">{f.originalFilename}</span>
-                <span className="block text-[10px] text-gray-400">
-                  {formatBytes(f.fileSizeBytes)} · {f.uploadedByName}
-                </span>
-              </td>
-              <td className="px-3 py-2 whitespace-nowrap text-gray-600">{formatIngestedAt(f.createdAt)}</td>
-              <td className="px-3 py-2 whitespace-nowrap text-gray-600">
-                {f.dateMin && f.dateMax ? `${f.dateMin} → ${f.dateMax}` : '—'}
-              </td>
-              <td className="px-3 py-2 text-gray-600">
-                {f.rowsImported != null ? (
-                  <>
-                    +{f.rowsImported}
-                    {f.rowsSkipped != null ? ` / skip ${f.rowsSkipped}` : ''}
-                  </>
-                ) : (
-                  '—'
-                )}
-              </td>
-              <td className="px-3 py-2">
-                <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${
-                    f.importStatus === 'done'
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : f.importStatus === 'failed'
-                        ? 'bg-red-50 text-red-700'
-                        : 'bg-amber-50 text-amber-700'
-                  }`}
-                >
-                  {f.importStatus || 'pending'}
-                </span>
-                {f.importStatus === 'failed' && f.importError && (
-                  <p className="mt-1 max-w-xs text-[10px] text-red-600 whitespace-pre-wrap break-words" title={f.importError}>
-                    {f.importError}
-                  </p>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export default function ManagementDashboardUploadSection({ onImportStarted, refreshToken = 0 }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [histories, setHistories] = useState({ centre_indent_purchase: [], dmr_workbook: [] });
   const [loadingHist, setLoadingHist] = useState(true);
   const [open, setOpen] = useState(true);
 
+  const hasLoadedOnce = useRef(false);
+
+  // Spinner only on the very first load; later refreshes (after an import finishes or a
+  // file is removed) update the tables in place without flashing a loading state.
   const fetchHistories = useCallback(async () => {
-    setLoadingHist(true);
+    if (!hasLoadedOnce.current) setLoadingHist(true);
     try {
       const queries = SLOTS.flatMap((s) => [s.dataset, ...(s.legacyDatasets || [])]);
       const results = await Promise.all(
@@ -177,6 +93,7 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
         next[s.dataset] = merged;
       }
       setHistories(next);
+      hasLoadedOnce.current = true;
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load Management Dashboard uploads.');
     } finally {
@@ -195,7 +112,8 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
     try {
       const { data } = await api.post(`/data-upload/management-dashboard/${slot}`, form);
       toast.success(data.message || 'Upload started.');
-      await fetchHistories();
+      // Don't refresh the history tables here — the import runs in the background.
+      // The parent bumps refreshToken when the import finishes, which refreshes them.
       if (data.importJob?.jobId) {
         onImportStarted({
           jobId: data.importJob.jobId,
@@ -261,10 +179,12 @@ export default function ManagementDashboardUploadSection({ onImportStarted, refr
           <div className="space-y-6 border-t border-indigo-100 px-4 pb-6 pt-4 sm:px-6">
             {SLOTS.map((meta) => (
               <div key={meta.dataset}>
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-gray-500">
-                  {meta.label} — uploaded files
-                </h3>
-                <FileHistoryTable files={histories[meta.dataset] || []} loading={loadingHist} />
+                <DataUploadHistoryTable
+                  title={`${meta.label} — Upload History`}
+                  files={histories[meta.dataset] || []}
+                  loading={loadingHist}
+                  onRefresh={fetchHistories}
+                />
               </div>
             ))}
           </div>

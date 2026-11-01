@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { MdChevronRight, MdExpandMore, MdSettings, MdRefresh, MdUpload } from 'react-icons/md';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
+import DataUploadHistoryTable from './DataUploadHistoryTable';
 
 function formatBytes(n) {
   if (!n || n < 1024) return `${n || 0} B`;
@@ -41,7 +42,7 @@ function SlotCard({ meta, file, uploading, onUpload }) {
             {formatBytes(file.fileSizeBytes)} · {formatIngestedAt(file.createdAt)}
           </p>
           <p className="mt-0.5 text-gray-400">
-            Uploaded by {file.uploadedByName}
+            Uploaded by {file.uploadedByName || 'User'}
           </p>
         </div>
       ) : (
@@ -74,23 +75,37 @@ function SlotCard({ meta, file, uploading, onUpload }) {
 }
 
 const META = [
-  { slot: 'data_mill', label: 'Mill Equipment Mapping', hint: 'Data_Mill.xlsx file mapping mill variables to machinery.', filenameMatch: 'data_mill' },
-  { slot: 'data_shredder', label: 'Shredder Equipment Mapping', hint: 'DataShredder_Names.xlsx mapping shredder variables.', filenameMatch: 'shredder_names' },
-  { slot: 'data_lube', label: 'Lube & Roller Mapping', hint: 'DataLube_Names.xlsx mapping lube variables.', filenameMatch: 'lube_names' },
+  {
+    slot: 'data_mill',
+    label: 'Mill Equipment Mapping',
+    hint: 'Data_Mill.xlsx file mapping mill variables to machinery.',
+    match: (name) => name.includes('data_mill') || name.includes('datamill'),
+  },
+  {
+    slot: 'data_shredder',
+    label: 'Shredder Equipment Mapping',
+    hint: 'DataShredder_Names.xlsx mapping shredder variables.',
+    match: (name) => name.includes('shredder'),
+  },
+  {
+    slot: 'data_lube',
+    label: 'Lube & Roller Mapping',
+    hint: 'DataLube_Names.xlsx mapping lube variables.',
+    match: (name) => name.includes('lube'),
+  },
 ];
 
-export default function MillingDashboardUploadSection({ files = [], onUploaded }) {
+export default function MillingDashboardUploadSection({ files = [], loading = false, onUploaded }) {
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [open, setOpen] = useState(true);
 
-  // Find latest file for each slot from the parent files array
+  // Find latest file for each slot from the files array
   const slots = {};
   for (const m of META) {
-    slots[m.slot] = files.find(f => f.originalFilename?.toLowerCase().includes(m.filenameMatch)) || null;
+    slots[m.slot] = files.find((f) => m.match(String(f.originalFilename || '').toLowerCase())) || null;
   }
 
   const handleUpload = async (slot, file) => {
-    const slotMeta = META.find((m) => m.slot === slot);
     const form = new FormData();
     form.append('category', 'Milling Dashboard Mapping');
     form.append('file', file);
@@ -144,16 +159,29 @@ export default function MillingDashboardUploadSection({ files = [], onUploaded }
       </div>
 
       {open && (
-        <div id="data-upload-milling-panel" className="grid gap-4 p-4 lg:grid-cols-3 sm:p-6">
-          {META.map((m) => (
-            <SlotCard
-              key={m.slot}
-              meta={m}
-              file={slots[m.slot]}
-              uploading={uploadingSlot === m.slot}
-              onUpload={handleUpload}
+        <div id="data-upload-milling-panel">
+          <div className="grid gap-4 p-4 lg:grid-cols-3 sm:p-6">
+            {META.map((m) => (
+              <SlotCard
+                key={m.slot}
+                meta={m}
+                file={slots[m.slot]}
+                uploading={uploadingSlot === m.slot}
+                onUpload={handleUpload}
+              />
+            ))}
+          </div>
+
+          <div className="border-t border-sky-100 bg-gray-50/50 p-4 sm:p-6">
+            <DataUploadHistoryTable
+              files={files}
+              loading={loading}
+              onRefresh={onUploaded}
+              title="Milling Operations — Upload History"
+              showDateRange={false}
+              showRows={false}
             />
-          ))}
+          </div>
         </div>
       )}
     </div>

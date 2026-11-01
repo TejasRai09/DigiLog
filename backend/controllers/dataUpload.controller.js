@@ -71,7 +71,7 @@ function mapFileRow(r) {
     userId: r.user_id,
     category: r.category,
     dataset: r.dataset || null,
-    purchySlot: purchySlotFromCategory(r.category),
+    purchySlot: purchySlotFromCategory(r.category) || (r.dataset === 'grower' || r.dataset === 'staff' ? r.dataset : null),
     originalFilename: r.original_filename,
     storedFilename: r.stored_filename,
     mimeType: r.mime_type,
@@ -86,20 +86,6 @@ function mapFileRow(r) {
     dateMax: r.date_max ? String(r.date_max).slice(0, 10) : null,
     importError: r.import_error || null,
   };
-}
-
-async function replacePurchySlotRecords(category) {
-  const slot = purchySlotFromCategory(category);
-  const categories = slot ? categoriesForPurchySlot(slot) : [category];
-  const [rows] = await pool.query(
-    'SELECT id, stored_filename FROM data_upload_files WHERE category IN (?)',
-    [categories],
-  );
-  for (const row of rows) {
-    await pool.query('DELETE FROM data_upload_files WHERE id = ?', [row.id]);
-    unlinkStoredFile(row.stored_filename);
-  }
-  return rows.length;
 }
 
 function validateCategory(category) {
@@ -135,14 +121,30 @@ async function requireDataUploadAccess(req, res, next) {
   }
 }
 
-/** GET /api/data-upload/files */
+/** GET /api/data-upload/files?section=milling|purchy|management */
 async function listFiles(req, res) {
+  const section = String(req.query.section || '').trim().toLowerCase();
+  let where = '';
+  let params = [];
+
+  if (section === 'purchy') {
+    where = 'WHERE f.category IN (?) OR f.dataset IN ("grower", "staff")';
+    params.push([...PURCHY_CATEGORY_SET]);
+  } else if (section === 'management') {
+    where = 'WHERE f.dataset IN ("centre_indent_purchase", "dmr_workbook", "centre_indent", "centre_purchase") OR f.category LIKE "%Management Dashboard%"';
+  } else if (section === 'milling') {
+    where = 'WHERE f.dataset = "milling" OR (f.category NOT IN (?) AND f.category NOT LIKE "%Management Dashboard%" AND (f.dataset IS NULL OR f.dataset = "milling"))';
+    params.push([...PURCHY_CATEGORY_SET]);
+  }
+
   try {
     const [rows] = await pool.query(
       `SELECT f.*, u.name AS u_name, u.email AS u_email
        FROM data_upload_files f
        JOIN users u ON u.id = f.user_id
+       ${where}
        ORDER BY f.created_at DESC`,
+      params,
     );
     res.json({ files: rows.map(mapFileRow) });
   } catch (err) {
@@ -174,13 +176,17 @@ async function uploadFile(req, res) {
   }
 
   try {
+    const isMilling = parsed.value.toLowerCase().includes('mill') || originalFilename.toLowerCase().includes('data_mill') || originalFilename.toLowerCase().includes('shredder') || originalFilename.toLowerCase().includes('lube');
+    const dataset = isMilling ? 'milling' : null;
+
     const [result] = await pool.query(
       `INSERT INTO data_upload_files
-        (user_id, category, original_filename, stored_filename, mime_type, file_size_bytes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+        (user_id, category, dataset, original_filename, stored_filename, mime_type, file_size_bytes, import_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'done')`,
       [
         req.user.id,
         parsed.value,
+        dataset,
         originalFilename,
         storedFilename,
         req.file.mimetype || null,
@@ -188,17 +194,11 @@ async function uploadFile(req, res) {
       ],
     );
 
-    const [[row]] = await pool.query(
-      `SELECT f.*, u.name AS u_name, u.email AS u_email
-       FROM data_upload_files f
-       JOIN users u ON u.id = f.user_id
-       WHERE f.id = ?`,
-      [result.insertId],
-    );
+    const fileUploadId = result.insertId;
 
     // Auto-sync mill thermal-report reference tables when the uploaded file is
     // one of the recognized mapping spreadsheets (Data_Mill, DataShredder_Names,
-    // DataLube_Names). Best-effort: a sync failure must not fail the upload.
+    // DataLube_Names).
     let millMappingSync = null;
     try {
       const abs = absolutePathForStored(storedFilename);
@@ -207,10 +207,26 @@ async function uploadFile(req, res) {
         console.log(
           `Mill mapping auto-sync: ${millMappingSync.table} → ${millMappingSync.status} (${millMappingSync.rows} rows)`,
         );
+        await pool.query(
+          'UPDATE data_upload_files SET rows_imported = ?, import_status = ? WHERE id = ?',
+          [millMappingSync.rows, millMappingSync.status === 'ok' ? 'done' : 'failed', fileUploadId],
+        );
       }
     } catch (syncErr) {
       console.error('Mill mapping auto-sync failed:', syncErr.message);
+      await pool.query(
+        'UPDATE data_upload_files SET import_status = "failed", import_error = ? WHERE id = ?',
+        [syncErr.message.slice(0, 500), fileUploadId],
+      );
     }
+
+    const [[row]] = await pool.query(
+      `SELECT f.*, u.name AS u_name, u.email AS u_email
+       FROM data_upload_files f
+       JOIN users u ON u.id = f.user_id
+       WHERE f.id = ?`,
+      [fileUploadId],
+    );
 
     res.status(201).json({ file: mapFileRow(row), millMappingSync });
   } catch (err) {
@@ -239,21 +255,126 @@ async function downloadFile(req, res) {
   }
 }
 
-/** DELETE /api/data-upload/files/:id — owner only */
+/** DELETE /api/data-upload/files/:id — owner or admin + UNDO IMPORT CHANGES */
 async function deleteFile(req, res) {
   const id = parseInt(req.params.id, 10);
   if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid file id.' });
 
   try {
-    const [[row]] = await pool.query('SELECT * FROM data_upload_files WHERE id = ?', [id]);
-    if (!row) return res.status(404).json({ message: 'File not found.' });
-    if (row.user_id !== req.user.id) {
+    const [[file]] = await pool.query('SELECT * FROM data_upload_files WHERE id = ?', [id]);
+    if (!file) return res.status(404).json({ message: 'File not found.' });
+    if (file.user_id !== req.user.id && req.user.role !== 'admin') {
       return res.status(403).json({ message: 'You can only delete files you uploaded.' });
     }
 
-    await pool.query('DELETE FROM data_upload_files WHERE id = ?', [id]);
-    unlinkStoredFile(row.stored_filename);
-    res.json({ message: 'File deleted.' });
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      let undoSummary = '';
+
+      // Legacy fallback (files uploaded before file_upload_id tagging) is only safe when
+      // this file actually inserted rows; otherwise a date-range sweep would delete rows
+      // belonging to other uploads that cover the same dates.
+      const canLegacySweep = Number(file.rows_imported) > 0 && file.date_min && file.date_max;
+
+      // 1a. Management Dashboard — DMR workbook (must be checked BEFORE the generic
+      // Management Dashboard category check, since the DMR category also matches it)
+      if (file.dataset === 'dmr_workbook' || file.category === 'Management Dashboard — DMR Workbook') {
+        const [rDmr] = await conn.query('DELETE FROM dmr_daily WHERE file_upload_id = ?', [id]);
+        let totalDmrDeleted = rDmr.affectedRows || 0;
+
+        if (totalDmrDeleted === 0 && canLegacySweep) {
+          const [rLegacyDmr] = await conn.query(
+            'DELETE FROM dmr_daily WHERE file_upload_id IS NULL AND `Date` BETWEEN ? AND ?',
+            [file.date_min, file.date_max],
+          );
+          totalDmrDeleted += rLegacyDmr.affectedRows || 0;
+        }
+        undoSummary = `Undid import: removed ${totalDmrDeleted} DMR row(s) from database.`;
+      }
+
+      // 1b. Management Dashboard — Centre Indent & Purchase
+      else if (
+        file.dataset === 'centre_indent_purchase'
+        || file.dataset === 'centre_indent'
+        || file.dataset === 'centre_purchase'
+        || isManagementDashboardCategory(file.category)
+      ) {
+        const [rIndent] = await conn.query('DELETE FROM centre_indent_data WHERE file_upload_id = ?', [id]);
+        const [rPurchase] = await conn.query('DELETE FROM centre_purchase_data WHERE file_upload_id = ?', [id]);
+        let totalDeleted = (rIndent.affectedRows || 0) + (rPurchase.affectedRows || 0);
+
+        if (totalDeleted === 0 && canLegacySweep) {
+          const [rLegacyInd] = await conn.query(
+            'DELETE FROM centre_indent_data WHERE file_upload_id IS NULL AND indent_date BETWEEN ? AND ?',
+            [file.date_min, file.date_max],
+          );
+          const [rLegacyPur] = await conn.query(
+            'DELETE FROM centre_purchase_data WHERE file_upload_id IS NULL AND purchase_date BETWEEN ? AND ?',
+            [file.date_min, file.date_max],
+          );
+          totalDeleted += (rLegacyInd.affectedRows || 0) + (rLegacyPur.affectedRows || 0);
+        }
+
+        undoSummary = `Undid import: removed ${totalDeleted} indent/purchase row(s) from database.`;
+      }
+
+      // 2. Grower Intelligence Undo
+      else if (isPurchyCategory(file.category) || file.dataset === 'grower' || file.dataset === 'staff') {
+        const slot = purchySlotFromCategory(file.category) || file.dataset;
+        if (slot === 'grower') {
+          await conn.query('TRUNCATE TABLE purchy_grower_summary');
+          await conn.query('TRUNCATE TABLE purchy_indent');
+          await conn.query('TRUNCATE TABLE purchy_supply');
+          await conn.query('TRUNCATE TABLE purchy_dishonour');
+          await conn.query('TRUNCATE TABLE purchy_grower_facts');
+          const { clearPurchyCache } = require('../services/purchy/purchyResponseCache');
+          clearPurchyCache();
+          undoSummary = 'Undid import: wiped grower data tables and recalculated facts.';
+        } else if (slot === 'staff') {
+          await conn.query('TRUNCATE TABLE purchy_field_staff');
+          const { rebuildGrowerFacts } = require('../services/purchy/purchyGrowerFacts');
+          await rebuildGrowerFacts(conn);
+          const { clearPurchyCache } = require('../services/purchy/purchyResponseCache');
+          clearPurchyCache();
+          undoSummary = 'Undid import: cleared field staff mapping and recalculated facts.';
+        }
+      }
+
+      // 3. Milling Operations Mapping Undo
+      else {
+        const origLower = (file.original_filename || '').toLowerCase();
+        if (origLower.includes('data_mill') || origLower.includes('datamill')) {
+          await conn.query('TRUNCATE TABLE data_mill_mapping');
+          undoSummary = 'Undid import: cleared data_mill_mapping table.';
+        } else if (origLower.includes('shredder_names') || origLower.includes('datashredder')) {
+          await conn.query('TRUNCATE TABLE data_shredder_mapping');
+          undoSummary = 'Undid import: cleared data_shredder_mapping table.';
+        } else if (origLower.includes('lube_names') || origLower.includes('datalube')) {
+          await conn.query('TRUNCATE TABLE data_lube_mapping');
+          undoSummary = 'Undid import: cleared data_lube_mapping table.';
+        }
+      }
+
+      // Delete the file metadata record
+      await conn.query('DELETE FROM data_upload_files WHERE id = ?', [id]);
+
+      await conn.commit();
+
+      // Delete physical file from disk
+      unlinkStoredFile(file.stored_filename);
+
+      res.json({
+        message: `File removed and all imported changes undone successfully. ${undoSummary}`,
+        undoSummary,
+      });
+    } catch (dbErr) {
+      await conn.rollback();
+      throw dbErr;
+    } finally {
+      conn.release();
+    }
   } catch (err) {
     sendServerError(res, 'deleteFile', err, MSG.DELETE);
   }
@@ -302,7 +423,6 @@ async function upsertAdminDataUploadAccess(req, res) {
     return res.status(400).json({ message: 'userId is required.' });
   }
 
-  // Back-compat: { enabled: true } → all sections; { enabled: false } → none
   let sections;
   if (Array.isArray(req.body?.sections)) {
     sections = normalizeSectionKeys(req.body.sections);
@@ -356,7 +476,7 @@ async function getPurchySlots(req, res) {
       `SELECT f.*, u.name AS u_name, u.email AS u_email
        FROM data_upload_files f
        JOIN users u ON u.id = f.user_id
-       WHERE f.category IN (?)
+       WHERE f.category IN (?) OR f.dataset IN ('grower', 'staff')
        ORDER BY f.created_at DESC`,
       [categories],
     );
@@ -364,12 +484,13 @@ async function getPurchySlots(req, res) {
     const slots = { grower: null, staff: null };
     for (const row of rows) {
       const mapped = mapFileRow(row);
-      const slot = mapped.purchySlot;
+      const slot = mapped.purchySlot || mapped.dataset;
       if (slot && !slots[slot]) slots[slot] = mapped;
     }
 
     res.json({
       slots,
+      files: rows.map(mapFileRow),
       meta: Object.values(PURCHY_SLOTS).map(({ slot, label, hint, category }) => ({
         slot, label, hint, category,
       })),
@@ -398,15 +519,14 @@ async function uploadPurchySlot(req, res) {
   const originalFilename = path.basename(req.file.originalname || 'upload');
 
   try {
-    const replaced = await replacePurchySlotRecords(meta.category);
-
     const [result] = await pool.query(
       `INSERT INTO data_upload_files
-        (user_id, category, original_filename, stored_filename, mime_type, file_size_bytes)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+        (user_id, category, dataset, original_filename, stored_filename, mime_type, file_size_bytes, import_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [
         req.user.id,
         meta.category,
+        slot,
         originalFilename,
         storedFilename,
         req.file.mimetype || null,
@@ -414,24 +534,23 @@ async function uploadPurchySlot(req, res) {
       ],
     );
 
+    const fileUploadId = result.insertId;
+
     const [[row]] = await pool.query(
       `SELECT f.*, u.name AS u_name, u.email AS u_email
        FROM data_upload_files f
        JOIN users u ON u.id = f.user_id
        WHERE f.id = ?`,
-      [result.insertId],
+      [fileUploadId],
     );
 
     const abs = absolutePathForStored(storedFilename);
-    const purchyImport = schedulePurchyImportBySlot(slot, abs, originalFilename);
+    const purchyImport = schedulePurchyImportBySlot(slot, abs, originalFilename, fileUploadId);
 
     res.status(201).json({
       file: mapFileRow(row),
-      replaced,
       purchyImport,
-      message: replaced
-        ? `Replaced previous ${meta.label} file and started re-import.`
-        : `Uploaded ${meta.label} and started import.`,
+      message: `Uploaded ${meta.label} and started background import.`,
     });
   } catch (err) {
     unlinkStoredFile(storedFilename);
@@ -453,10 +572,15 @@ async function getManagementDashboardImportStatus(req, res) {
   }
 }
 
-/** GET /api/data-upload/management-dashboard/files?dataset=centre_indent_purchase|dmr_workbook|centre_indent|centre_purchase */
+/** GET /api/data-upload/management-dashboard/files?dataset=centre_indent_purchase|dmr_workbook|all */
 async function listManagementDashboardFiles(req, res) {
   const dataset = String(req.query.dataset || '').trim();
-  if (!MD_ALLOWED_DATASETS.has(dataset)) {
+  let where = 'WHERE f.dataset = ?';
+  let params = [dataset];
+  if (!dataset || dataset === 'all') {
+    where = 'WHERE f.dataset IN ("centre_indent_purchase", "dmr_workbook", "centre_indent", "centre_purchase") OR f.category LIKE "%Management Dashboard%"';
+    params = [];
+  } else if (!MD_ALLOWED_DATASETS.has(dataset)) {
     return res.status(400).json({ message: 'dataset query param required (centre_indent_purchase, dmr_workbook).' });
   }
 
@@ -465,9 +589,9 @@ async function listManagementDashboardFiles(req, res) {
       `SELECT f.*, u.name AS u_name, u.email AS u_email
        FROM data_upload_files f
        JOIN users u ON u.id = f.user_id
-       WHERE f.dataset = ?
+       ${where}
        ORDER BY f.created_at DESC`,
-      [dataset],
+      params,
     );
     res.json({ files: rows.map(mapFileRow) });
   } catch (err) {
