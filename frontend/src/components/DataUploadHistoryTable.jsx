@@ -228,6 +228,30 @@ function ViewFileModal({ file, onClose, onDownload }) {
             </div>
           )}
 
+          {file.sheetDetails && (
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-indigo-900 mb-2">
+                Sheet-Wise Bifurcation
+              </p>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-lg bg-white p-2.5 border border-indigo-100 shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700">Sheet 1: Indent</span>
+                  </div>
+                  <p className="text-gray-600 text-[11px]">Rows: <strong className="text-gray-900">+{file.sheetDetails.indent?.rows?.toLocaleString() ?? 0}</strong></p>
+                  <p className="text-gray-600 text-[11px] mt-1">Date: <span className="font-medium text-gray-800">{file.sheetDetails.indent?.dateMin && file.sheetDetails.indent?.dateMax ? `${file.sheetDetails.indent.dateMin} → ${file.sheetDetails.indent.dateMax}` : '—'}</span></p>
+                </div>
+                <div className="rounded-lg bg-white p-2.5 border border-purple-100 shadow-sm">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="rounded bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">Sheet 2: Purchase</span>
+                  </div>
+                  <p className="text-gray-600 text-[11px]">Rows: <strong className="text-gray-900">+{file.sheetDetails.purchase?.rows?.toLocaleString() ?? 0}</strong></p>
+                  <p className="text-gray-600 text-[11px] mt-1">Date: <span className="font-medium text-gray-800">{file.sheetDetails.purchase?.dateMin && file.sheetDetails.purchase?.dateMax ? `${file.sheetDetails.purchase.dateMin} → ${file.sheetDetails.purchase.dateMax}` : '—'}</span></p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {file.importError && (
             <div className="rounded-lg bg-red-50 p-3 text-red-700">
               <p className="font-bold">Error Message:</p>
@@ -401,14 +425,63 @@ export default function DataUploadHistoryTable({
                   </td>
                   {showDateRange && (
                     <td className="px-3.5 py-2.5 whitespace-nowrap text-gray-600">
-                      {f.dateMin && f.dateMax ? `${f.dateMin} → ${f.dateMax}` : '—'}
+                      {f.sheetDetails ? (
+                        <div className="space-y-1 text-[11px] leading-tight">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-700 border border-indigo-200">
+                              Indent
+                            </span>
+                            <span className="font-medium text-gray-800">
+                              {f.sheetDetails.indent?.dateMin && f.sheetDetails.indent?.dateMax
+                                ? `${f.sheetDetails.indent.dateMin} → ${f.sheetDetails.indent.dateMax}`
+                                : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block rounded bg-purple-50 px-1.5 py-0.5 text-[9px] font-semibold text-purple-700 border border-purple-200">
+                              Purchase
+                            </span>
+                            <span className="font-medium text-gray-800">
+                              {f.sheetDetails.purchase?.dateMin && f.sheetDetails.purchase?.dateMax
+                                ? `${f.sheetDetails.purchase.dateMin} → ${f.sheetDetails.purchase.dateMax}`
+                                : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : f.dateMin && f.dateMax ? (
+                        `${f.dateMin} → ${f.dateMax}`
+                      ) : (
+                        '—'
+                      )}
                     </td>
                   )}
                   {showRows && (
                     <td className="px-3.5 py-2.5 whitespace-nowrap text-gray-600">
-                      {f.rowsImported != null ? (
+                      {f.sheetDetails ? (
+                        <div className="space-y-1 text-[11px] leading-tight">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-700 border border-indigo-200">
+                              Indent
+                            </span>
+                            <span className="font-semibold text-gray-900">
+                              +{f.sheetDetails.indent?.rows?.toLocaleString() ?? 0}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block rounded bg-purple-50 px-1 py-0.5 text-[9px] font-semibold text-purple-700 border border-purple-200">
+                              Purchase
+                            </span>
+                            <span className="font-semibold text-gray-900">
+                              +{f.sheetDetails.purchase?.rows?.toLocaleString() ?? 0}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-gray-400 font-medium pt-0.5 border-t border-gray-100">
+                            Total: +{(f.rowsImported ?? 0).toLocaleString()}
+                          </div>
+                        </div>
+                      ) : f.rowsImported != null ? (
                         <>
-                          <span className="font-semibold text-gray-900">+{f.rowsImported}</span>
+                          <span className="font-semibold text-gray-900">+{f.rowsImported.toLocaleString()}</span>
                           {f.rowsSkipped != null && f.rowsSkipped > 0 ? (
                             <span className="text-gray-400"> / skip {f.rowsSkipped}</span>
                           ) : null}

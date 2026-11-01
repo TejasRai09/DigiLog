@@ -65,7 +65,33 @@ function requireDataUploadSection(sectionKey) {
   };
 }
 
+let schemaEnsured = false;
+async function ensureDataUploadFilesSchema() {
+  if (schemaEnsured) return;
+  try {
+    const [[col]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'data_upload_files' AND COLUMN_NAME = 'sheet_details'`
+    );
+    if (!Number(col?.n)) {
+      await pool.query('ALTER TABLE `data_upload_files` ADD COLUMN `sheet_details` JSON NULL DEFAULT NULL');
+      console.log('[dataUpload] added data_upload_files.sheet_details column');
+    }
+    schemaEnsured = true;
+  } catch (err) {
+    console.warn('[dataUpload] ensureDataUploadFilesSchema:', err.message);
+  }
+}
+ensureDataUploadFilesSchema();
+
 function mapFileRow(r) {
+  let sheetDetails = null;
+  if (r.sheet_details) {
+    try {
+      sheetDetails = typeof r.sheet_details === 'string' ? JSON.parse(r.sheet_details) : r.sheet_details;
+    } catch (_) {}
+  }
+
   return {
     id: r.id,
     userId: r.user_id,
@@ -85,7 +111,102 @@ function mapFileRow(r) {
     dateMin: r.date_min ? String(r.date_min).slice(0, 10) : null,
     dateMax: r.date_max ? String(r.date_max).slice(0, 10) : null,
     importError: r.import_error || null,
+    sheetDetails,
   };
+}
+
+async function attachSheetDetails(fileRows) {
+  if (!Array.isArray(fileRows) || !fileRows.length) return fileRows;
+
+  const targetFiles = fileRows.filter(
+    (f) =>
+      f &&
+      (f.dataset === 'centre_indent_purchase' ||
+        f.dataset === 'centre_indent' ||
+        f.dataset === 'centre_purchase' ||
+        (f.category && f.category.includes('Centre Indent & Purchase')))
+  );
+
+  if (!targetFiles.length) return fileRows;
+
+  try {
+    const [indentStats] = await pool.query(
+      `SELECT 
+         file_upload_id, 
+         COUNT(*) as rows_count, 
+         MIN(indent_date) as min_date, 
+         MAX(indent_date) as max_date 
+       FROM centre_indent_data 
+       GROUP BY file_upload_id`
+    );
+
+    const [purchaseStats] = await pool.query(
+      `SELECT 
+         file_upload_id, 
+         COUNT(*) as rows_count, 
+         MIN(purchase_date) as min_date, 
+         MAX(purchase_date) as max_date 
+       FROM centre_purchase_data 
+       GROUP BY file_upload_id`
+    );
+
+    const indentMap = new Map();
+    let indentNull = null;
+    for (const s of indentStats) {
+      const data = {
+        sheetName: 'Indent',
+        rows: Number(s.rows_count) || 0,
+        dateMin: s.min_date ? String(s.min_date).slice(0, 10) : null,
+        dateMax: s.max_date ? String(s.max_date).slice(0, 10) : null,
+      };
+      if (s.file_upload_id != null) {
+        indentMap.set(Number(s.file_upload_id), data);
+      } else {
+        indentNull = data;
+      }
+    }
+
+    const purchaseMap = new Map();
+    let purchaseNull = null;
+    for (const s of purchaseStats) {
+      const data = {
+        sheetName: 'Purchase',
+        rows: Number(s.rows_count) || 0,
+        dateMin: s.min_date ? String(s.min_date).slice(0, 10) : null,
+        dateMax: s.max_date ? String(s.max_date).slice(0, 10) : null,
+      };
+      if (s.file_upload_id != null) {
+        purchaseMap.set(Number(s.file_upload_id), data);
+      } else {
+        purchaseNull = data;
+      }
+    }
+
+    for (const f of targetFiles) {
+      if (f.sheetDetails && f.sheetDetails.indent && f.sheetDetails.purchase) continue;
+
+      let indent = indentMap.get(Number(f.id));
+      let purchase = purchaseMap.get(Number(f.id));
+
+      if ((!indent || indent.rows === 0) && indentNull && targetFiles.length === 1) {
+        indent = indentNull;
+      }
+      if ((!purchase || purchase.rows === 0) && purchaseNull && targetFiles.length === 1) {
+        purchase = purchaseNull;
+      }
+
+      if (indent || purchase) {
+        f.sheetDetails = {
+          indent: indent || { sheetName: 'Indent', rows: 0, dateMin: null, dateMax: null },
+          purchase: purchase || { sheetName: 'Purchase', rows: 0, dateMin: null, dateMax: null },
+        };
+      }
+    }
+  } catch (err) {
+    console.error('attachSheetDetails error:', err.message);
+  }
+
+  return fileRows;
 }
 
 function validateCategory(category) {
@@ -146,7 +267,9 @@ async function listFiles(req, res) {
        ORDER BY f.created_at DESC`,
       params,
     );
-    res.json({ files: rows.map(mapFileRow) });
+    const mapped = rows.map(mapFileRow);
+    await attachSheetDetails(mapped);
+    res.json({ files: mapped });
   } catch (err) {
     sendServerError(res, 'listFiles', err, MSG.LOAD);
   }
@@ -593,7 +716,9 @@ async function listManagementDashboardFiles(req, res) {
        ORDER BY f.created_at DESC`,
       params,
     );
-    res.json({ files: rows.map(mapFileRow) });
+    const mapped = rows.map(mapFileRow);
+    await attachSheetDetails(mapped);
+    res.json({ files: mapped });
   } catch (err) {
     sendServerError(res, 'listManagementDashboardFiles', err, MSG.LOAD);
   }
@@ -646,8 +771,10 @@ async function uploadManagementDashboardSlot(req, res) {
     const abs = absolutePathForStored(storedFilename);
     const mdImport = scheduleManagementDashboardImport(slot, abs, originalFilename, fileUploadId);
 
+    const [mappedFile] = await attachSheetDetails([mapFileRow(row)]);
+
     res.status(201).json({
-      file: mapFileRow(row),
+      file: mappedFile,
       importJob: mdImport,
       message: `Uploaded ${meta.label} and started import (append-by-date, skip existing dates).`,
     });
