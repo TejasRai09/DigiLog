@@ -13,20 +13,6 @@ import useDataUploadAccess from '../hooks/useDataUploadAccess';
 import { clearPurchyQueryCache } from '../hooks/purchyQueryCache';
 import AppPageHeader from '../components/AppPageHeader';
 
-const PURCHY_CATEGORIES = new Set([
-  'Grower Intelligence — Grower Details',
-  'Grower Intelligence — Staff Mapping',
-  'Purchy Analysis — Grower Details',
-  'Purchy Analysis — Staff Mapping',
-]);
-
-const MD_CATEGORIES = new Set([
-  'Management Dashboard — Centre Indent',
-  'Management Dashboard — Centre Purchase',
-  'Management Dashboard — Centre Indent & Purchase',
-  'Management Dashboard — DMR Workbook',
-]);
-
 export default function DataIngestionCenter() {
   const { enabled, loading: accessLoading, canAccess } = useDataUploadAccess();
   const showPurchy = canAccess('purchy');
@@ -34,6 +20,7 @@ export default function DataIngestionCenter() {
   const showMilling = canAccess('milling');
 
   const [files, setFiles] = useState([]);
+  const [filesLoading, setFilesLoading] = useState(false);
   const [purchyImport, setPurchyImport] = useState(null);
   const [mdImport, setMdImport] = useState(null);
   const [purchyRefresh, setPurchyRefresh] = useState(0);
@@ -44,12 +31,14 @@ export default function DataIngestionCenter() {
       setFiles([]);
       return;
     }
+    setFilesLoading(true);
     try {
-      const { data } = await api.get('/data-upload/files');
-      const all = data.files || [];
-      setFiles(all.filter((f) => !PURCHY_CATEGORIES.has(f.category) && !MD_CATEGORIES.has(f.category) && !f.purchySlot && !f.dataset));
+      const { data } = await api.get('/data-upload/files?section=milling');
+      setFiles(data.files || []);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load uploads.');
+    } finally {
+      setFilesLoading(false);
     }
   }, [showMilling]);
 
@@ -92,7 +81,11 @@ export default function DataIngestionCenter() {
         )}
 
         {showMilling && (
-          <MillingDashboardUploadSection files={files} onUploaded={fetchFiles} />
+          <MillingDashboardUploadSection
+            files={files}
+            loading={filesLoading}
+            onUploaded={fetchFiles}
+          />
         )}
       </div>
 

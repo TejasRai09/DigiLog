@@ -17,7 +17,7 @@ function combineDateRange(a = {}, b = {}) {
 /**
  * One workbook: 1st sheet = centre indent, 2nd sheet = centre purchase.
  */
-async function runCentreIndentPurchaseImport({ filePath, onProgress }) {
+async function runCentreIndentPurchaseImport({ filePath, onProgress, fileUploadId = null }) {
   if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
 
   const log = (stage, message, detail = {}) => {
@@ -39,6 +39,7 @@ async function runCentreIndentPurchaseImport({ filePath, onProgress }) {
     workbook: wb,
     sheetIndex: 0,
     onProgress,
+    fileUploadId,
   });
 
   const purchase = await runCentrePurchaseImport({
@@ -46,6 +47,7 @@ async function runCentreIndentPurchaseImport({ filePath, onProgress }) {
     workbook: wb,
     sheetIndex: 1,
     onProgress,
+    fileUploadId,
   });
 
   const conn = await pool.getConnection();

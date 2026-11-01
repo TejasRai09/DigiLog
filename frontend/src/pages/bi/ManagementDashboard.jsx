@@ -96,8 +96,8 @@ function RowIcon({ iconName }) {
 export default function ManagementDashboard() {
   const [dm, setDm] = useState(false);
   const [preset, setPreset] = useState('STD');
-  const [from, setFrom] = useState(MANAGEMENT_DATE_BOUNDS.from);
-  const [to, setTo] = useState(MANAGEMENT_DATE_BOUNDS.to);
+  const [from, setFrom] = useState(null);
+  const [to, setTo] = useState(null);
   const [expandedKpi, setExpandedKpi] = useState(null);
   const [expandedSeries, setExpandedSeries] = useState([]);
   const [dashboardData, setDashboardData] = useState(null);
@@ -283,26 +283,38 @@ export default function ManagementDashboard() {
   }, [dashboardData?.rows, pyData, from, to, calcDelta]);
 
   const applyPreset = useCallback(
-    (p) => {
+    (p, customBounds) => {
       if (p === 'Custom') {
         setPreset('Custom');
         return;
       }
       setPreset(p);
-      const ref = dateBounds.max ? new Date(`${dateBounds.max}T12:00:00`) : new Date();
-      const r = getPresetRange(p, ref, dateBounds, seasonMapping);
-      setFrom(r.from || dateBounds.min);
-      setTo(r.to || dateBounds.max);
+      const bounds = customBounds || dateBounds;
+      const ref = bounds.max ? new Date(`${bounds.max}T12:00:00`) : new Date();
+      const r = getPresetRange(p, ref, bounds, seasonMapping);
+      setFrom(r.from || bounds.min);
+      setTo(r.to || bounds.max);
     },
     [dateBounds, seasonMapping],
   );
 
+  // Synchronize 'from' and 'to' whenever dashboardData dateBounds loads or updates
+  // (e.g. when an uploaded file is removed, 'to' automatically shifts back to the previous latest date)
   useEffect(() => {
-    if (!dashboardData?.dateBounds?.min) return;
-    if (preset === 'STD' && from === MANAGEMENT_DATE_BOUNDS.from) {
-      applyPreset('STD');
+    const curBounds = dashboardData?.dateBounds;
+    if (!curBounds?.max && !curBounds?.min) return;
+
+    if (preset !== 'Custom') {
+      applyPreset(preset, curBounds);
+    } else {
+      if (to && curBounds.max && to > curBounds.max) {
+        setTo(curBounds.max);
+      }
+      if (from && curBounds.min && from < curBounds.min) {
+        setFrom(curBounds.min);
+      }
     }
-  }, [dashboardData?.dateBounds?.min]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dashboardData?.dateBounds?.max, dashboardData?.dateBounds?.min, preset, seasonMapping]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExpand = useCallback(
     (kpi) => {

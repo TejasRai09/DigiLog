@@ -25,6 +25,10 @@ router.get('/files/:id/download', downloadFile);
 router.delete('/files/:id', deleteFile);
 
 router.get('/purchy-slots', requireDataUploadSection('purchy'), getPurchySlots);
+router.get('/purchy/files', requireDataUploadSection('purchy'), (req, res) => {
+  req.query.section = 'purchy';
+  return listFiles(req, res);
+});
 router.get('/purchy-import/:jobId', requireDataUploadSection('purchy'), getPurchyImportStatus);
 router.post('/purchy', requireDataUploadSection('purchy'), uploadDataFileMiddleware, uploadPurchySlot);
 
@@ -45,7 +49,11 @@ router.post(
   uploadManagementDashboardSlot,
 );
 
-router.get('/files', requireDataUploadSection('milling'), listFiles);
+router.get('/milling/files', requireDataUploadSection('milling'), (req, res) => {
+  req.query.section = 'milling';
+  return listFiles(req, res);
+});
+router.get('/files', listFiles);
 router.post('/', requireDataUploadSection('milling'), uploadDataFileMiddleware, uploadFile);
 
 module.exports = router;

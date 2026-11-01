@@ -4,6 +4,8 @@ import { MdChevronRight, MdExpandMore, MdInsights, MdRefresh, MdUpload } from 'r
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
+import DataUploadHistoryTable from './DataUploadHistoryTable';
+import { clearPurchyQueryCache } from '../hooks/purchyQueryCache';
 
 function formatBytes(n) {
   if (!n || n < 1024) return `${n || 0} B`;
@@ -46,7 +48,7 @@ function SlotCard({
             {formatBytes(file.fileSizeBytes)} · {formatIngestedAt(file.createdAt)}
           </p>
           <p className="mt-0.5 text-gray-400">
-            Uploaded by {file.uploadedByName}
+            Uploaded by {file.uploadedByName || 'User'}
           </p>
         </div>
       ) : (
@@ -81,6 +83,7 @@ function SlotCard({
 export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 }) {
   const [meta, setMeta] = useState([]);
   const [slots, setSlots] = useState({ grower: null, staff: null });
+  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploadingSlot, setUploadingSlot] = useState(null);
   const [open, setOpen] = useState(true);
@@ -91,6 +94,7 @@ export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 
       const { data } = await api.get('/data-upload/purchy-slots');
       setSlots(data.slots || { grower: null, staff: null });
       setMeta(data.meta || []);
+      setFiles(data.files || []);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load Purchy uploads.');
     } finally {
@@ -127,6 +131,13 @@ export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 
       setUploadingSlot(null);
     }
   };
+
+  const handleHistoryRefresh = useCallback(() => {
+    fetchSlots();
+    try {
+      clearPurchyQueryCache();
+    } catch {}
+  }, [fetchSlots]);
 
   const displayMeta = meta.length
     ? meta
@@ -170,23 +181,39 @@ export default function PurchyUploadSection({ onImportStarted, refreshToken = 0 
         </div>
       </div>
 
-      {open && (loading ? (
-        <div id="data-upload-grower-panel" className="flex justify-center py-12">
-          <Spinner size="lg" />
+      {open && (
+        <div id="data-upload-grower-panel">
+          {loading && !files.length && !slots.grower && !slots.staff ? (
+            <div className="flex justify-center py-12">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
+                {displayMeta.map((m) => (
+                  <SlotCard
+                    key={m.slot}
+                    meta={m}
+                    file={slots[m.slot]}
+                    uploading={uploadingSlot === m.slot}
+                    onUpload={handleUpload}
+                  />
+                ))}
+              </div>
+
+              <div className="border-t border-violet-100 bg-gray-50/50 p-4 sm:p-6">
+                <DataUploadHistoryTable
+                  files={files}
+                  loading={loading}
+                  onRefresh={handleHistoryRefresh}
+                  title="Grower Intelligence — Upload History"
+                  showDateRange={false}
+                />
+              </div>
+            </>
+          )}
         </div>
-      ) : (
-        <div id="data-upload-grower-panel" className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
-          {displayMeta.map((m) => (
-            <SlotCard
-              key={m.slot}
-              meta={m}
-              file={slots[m.slot]}
-              uploading={uploadingSlot === m.slot}
-              onUpload={handleUpload}
-            />
-          ))}
-        </div>
-      ))}
+      )}
     </div>
   );
 }

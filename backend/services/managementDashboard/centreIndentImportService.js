@@ -60,7 +60,7 @@ function mapIndentRow(r, seasonMappings = []) {
 /**
  * Import centre indent Excel with append-by-date dedup (skip rows whose indent_date already exists).
  */
-async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress }) {
+async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress, fileUploadId = null }) {
   if (!workbook && (!filePath || !fs.existsSync(filePath))) {
     throw new Error(`File not found: ${filePath}`);
   }
@@ -115,12 +115,13 @@ async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheet
         mapped.unique_id,
         mapped.bonding_id,
         mapped.season_label,
+        fileUploadId || null,
       ]);
 
       if (batch.length >= BATCH_SIZE) {
         await conn.query(
           `INSERT INTO centre_indent_data
-           (code, center_name, indent_date, no_of_purchy, indent_qty, category, unique_id, bonding_id, season_label)
+           (code, center_name, indent_date, no_of_purchy, indent_qty, category, unique_id, bonding_id, season_label, file_upload_id)
            VALUES ?`,
           [batch],
         );
@@ -133,7 +134,7 @@ async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheet
     if (batch.length) {
       await conn.query(
         `INSERT INTO centre_indent_data
-         (code, center_name, indent_date, no_of_purchy, indent_qty, category, unique_id, bonding_id, season_label)
+         (code, center_name, indent_date, no_of_purchy, indent_qty, category, unique_id, bonding_id, season_label, file_upload_id)
          VALUES ?`,
         [batch],
       );
