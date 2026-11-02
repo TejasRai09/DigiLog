@@ -109,18 +109,21 @@ function cntWhere(filters, { requireCenter = true } = {}) {
   return { sql: parts.join(' AND '), params };
 }
 
+/** Base query packs required by dashboard cards, KPI strips & sidebars across all tabs */
+const BASE_PACKS = ['filters', 'kpis', 'procFlow', 'gateYard', 'gateMill', 'gateSidebar', 'centerSidebar'];
+
 /** Which query packs each DigiLog tab needs */
 const TAB_PACKS = {
-  procurement: ['filters', 'kpis', 'procFlow', 'gateYard', 'gateMill'],
-  gate1: ['filters', 'gateSidebar', 'gateCharts'],
-  gate2: ['filters', 'gateYard', 'gate2Charts'],
-  'center-purchase': ['filters', 'centerSidebar', 'centerPurchase'],
-  'vehicle-handling': ['filters', 'vehicleHandling'],
-  'vehicle-holding': ['filters', 'vehicleHolding'],
-  'vehicle-holding2': ['filters', 'holdingByCenter'],
-  'truck-transit': ['filters', 'transit'],
-  'truck-holding': ['filters', 'truckHold'],
-  database: ['filters', 'dbRows'],
+  procurement: [...BASE_PACKS],
+  gate1: [...BASE_PACKS, 'gateCharts'],
+  gate2: [...BASE_PACKS, 'gate2Charts'],
+  'center-purchase': [...BASE_PACKS, 'centerPurchase'],
+  'vehicle-handling': [...BASE_PACKS, 'vehicleHandling'],
+  'vehicle-holding': [...BASE_PACKS, 'vehicleHolding'],
+  'vehicle-holding2': [...BASE_PACKS, 'holdingByCenter'],
+  'truck-transit': [...BASE_PACKS, 'transit'],
+  'truck-holding': [...BASE_PACKS, 'truckHold'],
+  database: [...BASE_PACKS, 'dbRows'],
 };
 
 function packsForTab(tab) {
@@ -169,7 +172,7 @@ async function runPack(name, ctx) {
           IFNULL(AVG(yard_waiting_time), 0) as yardWaiting,
           IFNULL(AVG(unloading_time), 0) as dongaWait,
           IFNULL(AVG(truck_transit_time), 0) as truckTransit,
-          IFNULL(AVG(truck_holding_time_center), 0) as truckHolding,
+          IFNULL(AVG(COALESCE(truck_holding_time_center, truck_holding_time_center_minutes / 60.0, holding_time_center)), 0) as truckHolding,
           IFNULL(AVG(holding_time_center), 0) as avgCenterWait,
           IFNULL(
             SUM(CASE WHEN cane_holding_time IS NOT NULL THEN cane_holding_time * cane_qty_qtls END)
@@ -655,4 +658,9 @@ async function getMysqlCanePerformanceData(from, to, opts = {}) {
   return data;
 }
 
-module.exports = { getMysqlCanePerformanceData, packsForTab };
+function clearDateRangeCache() {
+  dateRangeCache = null;
+  cache.clear();
+}
+
+module.exports = { getMysqlCanePerformanceData, packsForTab, clearDateRangeCache };

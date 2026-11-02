@@ -20,7 +20,7 @@ export default function IndustryAppBackground() {
         src={INDUSTRY_APP_BG}
         alt=""
         className="absolute inset-0 h-full w-full object-cover object-bottom"
-        fetchPriority="high"
+        fetchpriority="high"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-slate-100/75 via-white/70 to-slate-100/85" />
     </div>

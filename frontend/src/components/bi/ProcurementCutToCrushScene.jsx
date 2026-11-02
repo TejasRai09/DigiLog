@@ -220,7 +220,19 @@ const ClockIco = ({ color = C.blue }) => (
   </svg>
 );
 
-const Kpi = ({ x, y, w, h, value, label, size = 44, accent = C.blue }) => (
+const TruckIco = ({ color = C.blue }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+    <path d="M15 18H9" />
+    <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14v10" />
+    <circle cx="17" cy="18" r="2" />
+    <circle cx="7" cy="18" r="2" />
+  </svg>
+);
+
+const Kpi = ({ x, y, w, h, value, label, delta, compareLabel, size = 44, accent = C.blue }) => {
+  const hasDelta = delta != null && Number.isFinite(delta);
+  return (
   <Card
     x={x}
     y={y}
@@ -247,8 +259,26 @@ const Kpi = ({ x, y, w, h, value, label, size = 44, accent = C.blue }) => (
       </span>
       <span style={{ fontSize: 13, fontWeight: 600, color: C.sub }}>hrs</span>
     </div>
+    {hasDelta && compareLabel && (
+      <div style={{
+        fontSize: 10,
+        fontWeight: 700,
+        marginTop: 2,
+        color: delta <= 0 ? "#15803d" : "#b91c1c",
+        background: delta <= 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+        padding: "1.5px 7px",
+        borderRadius: 6,
+        display: "flex",
+        alignItems: "center",
+        gap: 3
+      }}>
+        <span>{delta > 0 ? `+${delta.toFixed(1)}%` : `${delta.toFixed(1)}%`}</span>
+        <span style={{ color: C.sub, fontWeight: 500, fontSize: 9 }}>vs PY</span>
+      </div>
+    )}
   </Card>
-);
+  );
+};
 
 function FarmIcon({ uid }) {
   const stalks = [];
@@ -493,12 +523,20 @@ function Canvas({
   yardTable,
   millTable,
   holdingTable,
+  totalTrips,
+  tripsDelta,
+  transitDelta,
   centerTrips,
   avgCenterWait,
   truckHolding,
+  truckHoldDelta,
   avgYardWait,
+  yardWaitDelta,
   caneHolding,
+  caneHoldDelta,
   avgDongaWait,
+  dongaWaitDelta,
+  compareLabel,
 }) {
   return (
     <div
@@ -527,14 +565,21 @@ function Canvas({
           color: "#fff",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "space-between",
+          padding: "0 28px",
           fontSize: 20,
           fontWeight: 600,
           letterSpacing: ".01em",
           boxShadow: "0 6px 18px rgba(11,31,92,.25)",
         }}
       >
-        Cut to Crush Process KPIs
+        <span>Cut to Crush Process KPIs</span>
+        {compareLabel && (
+          <span style={{ fontSize: 12, fontWeight: 600, background: "rgba(255,255,255,0.18)", padding: "4px 14px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ opacity: 0.85, fontWeight: 400 }}>Comparison:</span>
+            <strong>{compareLabel}</strong>
+          </span>
+        )}
       </Abs>
 
       <Abs x={668} y={110} w={292} h={664} style={zoneStyle} />
@@ -556,18 +601,86 @@ function Canvas({
 
       <Abs x={282} y={488}><CentersIcon uid={uid} /></Abs>
       <ZoneLabel x={296} y={590} w={92} solid={false}>Centers</ZoneLabel>
-      <Card x={445} y={507} w={123} h={117} style={{ padding: "12px 0 0 16px" }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: C.navy, ...NUM }}>{centerTrips}</div>
-        <div style={{ fontSize: 11.5, color: C.sub, fontWeight: 500 }}>Trips</div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: C.navy, marginTop: 6, ...NUM }}>{avgCenterWait}</div>
-        <div style={{ fontSize: 11.5, color: C.sub, fontWeight: 500 }}>Avg Time (Hrs)</div>
+      <Card
+        x={438}
+        y={492}
+        w={162}
+        h={130}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            background: `linear-gradient(90deg, #2563eb, ${C.navy2})`,
+          }}
+        />
+        <div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: C.sub, display: "flex", alignItems: "center", gap: 5 }}>
+              <TruckIco color="#2563eb" />
+              Total Trips
+            </span>
+            {tripsDelta != null && Number.isFinite(tripsDelta) && compareLabel && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: tripsDelta >= 0 ? "#15803d" : "#b91c1c",
+                  background: tripsDelta >= 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                  padding: "1.5px 6px",
+                  borderRadius: 5,
+                }}
+              >
+                {tripsDelta > 0 ? `+${tripsDelta.toFixed(1)}%` : `${tripsDelta.toFixed(1)}%`}
+              </span>
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+            <span style={{ fontSize: 26, fontWeight: 700, color: C.navy, letterSpacing: "-.02em", lineHeight: 1.1, ...NUM }}>
+              {totalTrips != null ? intFmt(totalTrips) : intFmt(centerTrips)}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.sub }}>trips</span>
+          </div>
+        </div>
+
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 10.5, fontWeight: 600, color: C.sub }}>Avg Transit Time</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.navy, ...NUM }}>
+              {avgCenterWait} <span style={{ fontSize: 10.5, fontWeight: 500, color: C.sub }}>hrs</span>
+            </div>
+          </div>
+          {transitDelta != null && Number.isFinite(transitDelta) && compareLabel && (
+            <span
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: transitDelta <= 0 ? "#15803d" : "#b91c1c",
+                background: transitDelta <= 0 ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.12)",
+                padding: "1px 5px",
+                borderRadius: 4,
+              }}
+            >
+              {transitDelta > 0 ? `+${transitDelta.toFixed(1)}%` : `${transitDelta.toFixed(1)}%`}
+            </span>
+          )}
+        </div>
       </Card>
       <Tag x={612} y={636} w={78} h={38}>Center<br />Vehicles</Tag>
 
       <Card x={56} y={628} w={209} h={152}>
         <DataTable data={holdingTable} colWidths={[90, 99]} />
       </Card>
-      <Kpi x={275} y={628} w={160} h={152} value={truckHolding} label="Truck Holding" size={38} accent={C.amber} />
+      <Kpi x={275} y={628} w={160} h={152} value={truckHolding} label="Truck Holding" delta={truckHoldDelta} compareLabel={compareLabel} size={38} accent={C.amber} />
 
       <ZoneLabel x={764} y={95} w={100}>Yard</ZoneLabel>
       <Card x={682} y={150} w={264} h={174}>
@@ -575,7 +688,7 @@ function Canvas({
       </Card>
       <Abs x={696} y={356} style={{ opacity: 0.5 }}><YardParking /></Abs>
       <Abs x={700} y={530} w={228} h={1} style={{ background: C.border }} />
-      <Kpi x={704} y={582} w={220} h={142} value={avgYardWait} label="Waiting Time" size={50} />
+      <Kpi x={704} y={582} w={220} h={142} value={avgYardWait} label="Waiting Time" delta={yardWaitDelta} compareLabel={compareLabel} size={50} />
       <Abs x={1002} y={404}><BoomGate /></Abs>
 
       <ZoneLabel x={1139} y={95} w={140}>Mill Premise</ZoneLabel>
@@ -585,8 +698,8 @@ function Canvas({
       <Abs x={1328} y={150}><CaneCarrier uid={uid} h={520} /></Abs>
       <Abs x={1317} y={668}><MillRollers uid={uid} /></Abs>
 
-      <Kpi x={1060} y={548} w={238} h={106} value={caneHolding} label="Cane Holding Time" size={44} />
-      <Kpi x={1060} y={664} w={238} h={106} value={avgDongaWait} label="Time at Donga" size={44} />
+      <Kpi x={1060} y={548} w={238} h={106} value={caneHolding} label="Cane Holding Time" delta={caneHoldDelta} compareLabel={compareLabel} size={44} />
+      <Kpi x={1060} y={664} w={238} h={106} value={avgDongaWait} label="Time at Donga" delta={dongaWaitDelta} compareLabel={compareLabel} size={44} />
     </div>
   );
 }
@@ -595,14 +708,22 @@ function ProcurementCutToCrushScene({
   gateRows = [],
   centerVehRows = [],
   holdRows = [],
+  totalTrips,
+  tripsDelta,
+  transitDelta,
   centerTrips,
   avgCenterWait,
   truckHolding,
+  truckHoldDelta,
   yardRows = [],
   avgYardWait,
+  yardWaitDelta,
   caneHolding,
+  caneHoldDelta,
   avgDongaWait,
+  dongaWaitDelta,
   millRows = [],
+  compareLabel,
   className = "",
 }) {
   const hostRef = useRef(null);
@@ -694,12 +815,20 @@ function ProcurementCutToCrushScene({
             yardTable={yardTable}
             millTable={millTable}
             holdingTable={holdingTable}
+            totalTrips={totalTrips}
+            tripsDelta={tripsDelta}
+            transitDelta={transitDelta}
             centerTrips={intFmt(centerTrips)}
             avgCenterWait={hrs(avgCenterWait)}
             truckHolding={hrs(truckHolding)}
+            truckHoldDelta={truckHoldDelta}
             avgYardWait={hrs(avgYardWait)}
+            yardWaitDelta={yardWaitDelta}
             caneHolding={hrs(caneHolding)}
+            caneHoldDelta={caneHoldDelta}
             avgDongaWait={hrs(avgDongaWait)}
+            dongaWaitDelta={dongaWaitDelta}
+            compareLabel={compareLabel}
           />
         </div>
       </div>

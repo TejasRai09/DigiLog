@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { MdSave, MdCalculate } from 'react-icons/md';
+import { MdSave, MdCalculate, MdStorage, MdSensors, MdSync } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../Spinner';
@@ -39,6 +39,10 @@ export default function BiDashboardSettingsSection() {
   const [brixThreshold, setBrixThreshold] = useState(String(APP_CONSTANT_DEFAULTS.brixThreshold));
   const [constantsError, setConstantsError] = useState({});
   const [savingConstants, setSavingConstants] = useState(false);
+  const [canePerformanceDataSource, setCanePerformanceDataSource] = useState('db');
+  const [savingDataSource, setSavingDataSource] = useState(false);
+  const [caneSyncInfo, setCaneSyncInfo] = useState(null);
+  const [manualSyncing, setManualSyncing] = useState(false);
 
   const applyTripleToFields = (triple) => {
     const fields = toFieldStrings(triple);
@@ -61,6 +65,12 @@ export default function BiDashboardSettingsSection() {
         ]);
         if (cancelled) return;
 
+        if (data?.canePerformanceDataSource) {
+          setCanePerformanceDataSource(data.canePerformanceDataSource);
+        }
+        if (data?.caneSyncInfo) {
+          setCaneSyncInfo(data.caneSyncInfo);
+        }
         const fallback = tripleFrom(data?.defaults || data, APP_CONSTANT_DEFAULTS);
         setDefaults(fallback);
 
@@ -129,6 +139,42 @@ export default function BiDashboardSettingsSection() {
     setConstantsError({});
   };
 
+  const handleManualSync = async () => {
+    setManualSyncing(true);
+    try {
+      const { data } = await api.post('/admin/bi-settings/sync-cane-live');
+      toast.success(data.message || 'Live data synced successfully.');
+      if (data.syncInfo) {
+        setCaneSyncInfo({
+          lastSyncedAt: data.syncInfo.lastSyncTime,
+          lastSyncStatus: data.syncInfo.lastSyncResult,
+        });
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Manual live sync failed.');
+    } finally {
+      setManualSyncing(false);
+    }
+  };
+
+  const handleDataSourceChange = async (nextSource) => {
+    if (nextSource === canePerformanceDataSource || savingDataSource) return;
+    setCanePerformanceDataSource(nextSource);
+    setSavingDataSource(true);
+    try {
+      await api.put('/admin/bi-settings', { canePerformanceDataSource: nextSource });
+      toast.success(
+        nextSource === 'live'
+          ? 'Cane Performance switched to Live airacanedb (SQL Server).'
+          : 'Cane Performance switched to Local Database (MySQL).'
+      );
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to update Cane Performance data source.');
+    } finally {
+      setSavingDataSource(false);
+    }
+  };
+
   const saveConstants = async () => {
     const yVal = parseFloat(theoreticalYield);
     const tVal = parseFloat(powerTariffRate);
@@ -174,7 +220,7 @@ export default function BiDashboardSettingsSection() {
   return (
     <ConfigSectionPanel
       title="BI Dashboards"
-      description="Calculation constants for Distillery, Power House, and Brix Sampling, set per sugar season. Dashboards use the season of the selected To date (Compare uses the same numbers). Compare seasons are managed under Season Mapping."
+      description="Data source mode for Cane Performance, plus calculation constants for Distillery, Power House, and Brix Sampling set per sugar season. Compare seasons are managed under Season Mapping."
       actions={
         loading ? (
           <Spinner size="sm" />
@@ -194,6 +240,143 @@ export default function BiDashboardSettingsSection() {
       <div className="space-y-6">
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 p-4 text-sm text-slate-600 dark:text-slate-300">
           To add or remove Compare options, use <strong>Season Mapping</strong>. Selecting a season with no data shows a light toast on the dashboard.
+        </div>
+
+                {/* Cane Performance Data Source Selection */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-5 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 shrink-0">
+                <MdStorage className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  Cane Performance Data Source
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                    canePerformanceDataSource === 'live'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                      : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-300 dark:border-blue-800'
+                  }`}>
+                    {canePerformanceDataSource === 'live' ? 'Live airacanedb' : 'Local Database'}
+                  </span>
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Choose whether the Cane Performance Dashboard displays imported records from the local MySQL database or streams live weighment data directly from the factory airacanedb (MSSQL).
+                </p>
+              </div>
+            </div>
+            {savingDataSource && (
+              <span className="text-xs text-slate-400 flex items-center gap-1.5 self-start sm:self-center">
+                <Spinner size="xs" /> Updating…
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pt-1">
+            {/* Option 1: Local DB */}
+            <div
+              onClick={() => handleDataSourceChange('db')}
+              role="button"
+              tabIndex={0}
+              className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between ${
+                canePerformanceDataSource === 'db'
+                  ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/30 ring-2 ring-blue-500/20 shadow-sm'
+                  : 'border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-lg ${canePerformanceDataSource === 'db' ? 'bg-blue-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                    <MdStorage className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 block">
+                      Local Database (MySQL)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Imported tables: g_ctc &amp; cnt_performance
+                    </span>
+                  </div>
+                </div>
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center mt-1 ${
+                  canePerformanceDataSource === 'db'
+                    ? 'border-blue-600 bg-blue-600'
+                    : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {canePerformanceDataSource === 'db' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+                Loads imported data from the local database. Ideal for offline work, historical season datasets, and imported Excel sheets.
+              </p>
+            </div>
+
+            {/* Option 2: Live MSSQL */}
+            <div
+              onClick={() => handleDataSourceChange('live')}
+              role="button"
+              tabIndex={0}
+              className={`cursor-pointer rounded-xl border p-4 transition-all duration-200 flex flex-col justify-between ${
+                canePerformanceDataSource === 'live'
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 ring-2 ring-emerald-500/20 shadow-sm'
+                  : 'border-slate-200 dark:border-slate-700/60 bg-white dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-600'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className={`p-2 rounded-lg ${canePerformanceDataSource === 'live' ? 'bg-emerald-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
+                    <MdSensors className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 block">
+                      Live airacanedb (SQL Server)
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      MSSQL: airacanedb.dbo.G_CTC &amp; CntPerformance
+                    </span>
+                  </div>
+                </div>
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center mt-1 ${
+                  canePerformanceDataSource === 'live'
+                    ? 'border-emerald-600 bg-emerald-600'
+                    : 'border-slate-300 dark:border-slate-600'
+                }`}>
+                  {canePerformanceDataSource === 'live' && (
+                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-400 mt-3 leading-relaxed">
+                Connects directly to factory SQL Server. Delivers live weighment timestamps, token-to-gross intervals, and centre arrivals in real-time.
+              </p>
+            </div>
+          </div>
+
+          {/* Sync status & Manual sync button */}
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-slate-500 dark:text-slate-400">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">Live Sync &amp; Season Comparison:</span>
+              <span>
+                {caneSyncInfo?.lastSyncedAt
+                  ? `Last synced: ${caneSyncInfo.lastSyncedAt}`
+                  : 'Continuous sync when dashboard is active'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={manualSyncing || loading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 font-medium text-xs shadow-sm disabled:opacity-50 transition-colors shrink-0"
+            >
+              <MdSync className={`w-3.5 h-3.5 ${manualSyncing ? 'animate-spin text-emerald-600' : ''}`} />
+              {manualSyncing ? 'Syncing…' : 'Sync airacanedb Now'}
+            </button>
+          </div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-lg p-2.5 border border-slate-200/60 dark:border-slate-800/60 leading-relaxed">
+            <strong>Seamless Comparison:</strong> Live weighments and centre dispatches from <code>airacanedb</code> are synced into the application database. This ensures real-time operational visibility while maintaining all historical seasons for previous-year comparison, even when factory live tables are purged before each new season.
+          </div>
         </div>
 
         <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 p-4 space-y-4">
