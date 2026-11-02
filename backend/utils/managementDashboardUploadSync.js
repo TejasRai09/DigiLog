@@ -37,7 +37,16 @@ async function updateFileImportMeta(fileUploadId, fields) {
     params.push(v);
   }
   params.push(fileUploadId);
-  await pool.query(`UPDATE data_upload_files SET ${sets.join(', ')} WHERE id = ?`, params);
+  try {
+    await pool.query(`UPDATE data_upload_files SET ${sets.join(', ')} WHERE id = ?`, params);
+  } catch (err) {
+    if (fields.sheet_details && /unknown column/i.test(err.message)) {
+      const copy = { ...fields };
+      delete copy.sheet_details;
+      return updateFileImportMeta(fileUploadId, copy);
+    }
+    throw err;
+  }
 }
 
 async function executeJob(job) {
@@ -54,9 +63,17 @@ async function executeJob(job) {
   try {
     let result;
     if (job.type === 'indent-purchase' || job.type === 'indent' || job.type === 'purchase') {
-      result = await runCentreIndentPurchaseImport({ filePath: job.filePath, onProgress });
+      result = await runCentreIndentPurchaseImport({
+        filePath: job.filePath,
+        onProgress,
+        fileUploadId: job.fileUploadId,
+      });
     } else if (job.type === 'dmr') {
-      result = await runDmrLogbookImport({ filePath: job.filePath, onProgress });
+      result = await runDmrLogbookImport({
+        filePath: job.filePath,
+        onProgress,
+        fileUploadId: job.fileUploadId,
+      });
     } else {
       throw new Error(`Unknown import type: ${job.type}`);
     }
@@ -65,14 +82,37 @@ async function executeJob(job) {
     job.status = 'completed';
     pushLog(job, 'complete', 'Import completed.', { totals: result });
 
-    await updateFileImportMeta(job.fileUploadId, {
+    const sheetDetails =
+      result.indent || result.purchase
+        ? {
+            indent: {
+              sheetName: 'Indent',
+              rows: result.indent?.imported || 0,
+              dateMin: result.indent?.dateMin || null,
+              dateMax: result.indent?.dateMax || null,
+            },
+            purchase: {
+              sheetName: 'Purchase',
+              rows: result.purchase?.imported || 0,
+              dateMin: result.purchase?.dateMin || null,
+              dateMax: result.purchase?.dateMax || null,
+            },
+          }
+        : null;
+
+    const metaUpdates = {
       import_status: 'done',
       rows_imported: result.imported,
       rows_skipped: result.skipped,
       date_min: result.dateMin,
       date_max: result.dateMax,
       import_error: null,
-    });
+    };
+    if (sheetDetails) {
+      metaUpdates.sheet_details = JSON.stringify(sheetDetails);
+    }
+
+    await updateFileImportMeta(job.fileUploadId, metaUpdates);
   } catch (err) {
     job.status = 'failed';
     job.error = err.message || 'Import failed.';

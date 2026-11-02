@@ -89,7 +89,7 @@ async function insertBatch(conn, columns, batch) {
   await conn.execute(sql, flat);
 }
 
-async function runDmrLogbookImport({ filePath, onProgress }) {
+async function runDmrLogbookImport({ filePath, onProgress, fileUploadId = null }) {
   if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
 
   const log = (stage, message, detail = {}) => {
@@ -108,7 +108,7 @@ async function runDmrLogbookImport({ filePath, onProgress }) {
   log('validate', 'Matching column names against DMR template (order and extra columns ignored)…');
   const mappedColumns = mapDmrColumns(fileHeaders);
 
-  const dbColumnNames = mappedColumns.map((c) => c.dbColumn);
+  const dbColumnNames = [...mappedColumns.map((c) => c.dbColumn), 'file_upload_id'];
   const dataRows = matrix.slice(headerRowIdx + 1);
 
   log('parse', `Sheet "${sheetName}": header row ${headerRowIdx + 1}, ${dataRows.length} data rows, ${mappedColumns.length} mapped columns.`);
@@ -133,6 +133,7 @@ async function runDmrLogbookImport({ filePath, onProgress }) {
         const raw = row[col.fileIndex];
         obj[col.dbColumn] = coerceValue(col.fileHeader, raw);
       }
+      obj.file_upload_id = fileUploadId || null;
 
       const dateVal = obj.Date;
       if (!dateVal) {
