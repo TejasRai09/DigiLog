@@ -4,6 +4,7 @@ const { pool } = require('../../config/mysql');
 const { runCentreIndentImport } = require('./centreIndentImportService');
 const { runCentrePurchaseImport } = require('./centrePurchaseImportService');
 const { backfillSeasonLabels } = require('./centreIndentPurchaseMeta');
+const { resolveIndentAndPurchaseSheets } = require('./centreIndentPurchaseParser');
 
 function combineDateRange(a = {}, b = {}) {
   const mins = [a.dateMin, b.dateMin].filter(Boolean).sort();
@@ -15,7 +16,8 @@ function combineDateRange(a = {}, b = {}) {
 }
 
 /**
- * One workbook: 1st sheet = centre indent, 2nd sheet = centre purchase.
+ * One workbook: automatically identifies indent sheet and purchase sheet,
+ * handles shuffled columns and sheets, and imports into centre_indent_data and centre_purchase_data.
  */
 async function runCentreIndentPurchaseImport({ filePath, onProgress, fileUploadId = null }) {
   if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);
@@ -26,18 +28,14 @@ async function runCentreIndentPurchaseImport({ filePath, onProgress, fileUploadI
 
   log('read', 'Reading indent + purchase workbook…');
   const wb = xlsx.readFile(filePath);
-  if (wb.SheetNames.length < 2) {
-    throw new Error(
-      'Workbook must have 2 sheets: 1st sheet = indent data, 2nd sheet = purchase data.',
-    );
-  }
 
-  log('read', `Sheets: 1) "${wb.SheetNames[0]}" (indent), 2) "${wb.SheetNames[1]}" (purchase).`);
+  const { indentSheet, purchaseSheet } = resolveIndentAndPurchaseSheets(wb);
+  log('read', `Resolved sheets: indent -> "${indentSheet}", purchase -> "${purchaseSheet}".`);
 
   const indent = await runCentreIndentImport({
     filePath,
     workbook: wb,
-    sheetIndex: 0,
+    sheetName: indentSheet,
     onProgress,
     fileUploadId,
   });
@@ -45,7 +43,7 @@ async function runCentreIndentPurchaseImport({ filePath, onProgress, fileUploadI
   const purchase = await runCentrePurchaseImport({
     filePath,
     workbook: wb,
-    sheetIndex: 1,
+    sheetName: purchaseSheet,
     onProgress,
     fileUploadId,
   });

@@ -21,6 +21,7 @@ const {
 const {
   getAdminBiSettings,
   updateAdminBiSettings,
+  syncAdminCaneLive,
 } = require('../controllers/biSettings.controller');
 const {
   getAdminDataUploadAccess,
@@ -46,6 +47,7 @@ router.get('/apps-all',      getAllAppsWithForms);
 
 router.get('/bi-settings',  getAdminBiSettings);
 router.put('/bi-settings',  updateAdminBiSettings);
+router.post('/bi-settings/sync-cane-live', syncAdminCaneLive);
 
 router.get('/data-upload-access',  getAdminDataUploadAccess);
 router.put('/data-upload-access',  upsertAdminDataUploadAccess);
