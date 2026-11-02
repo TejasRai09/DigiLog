@@ -14,5 +14,6 @@ router.get('/truck-holding', caneController.getGate1Data);
 router.get('/database', caneController.getGate1Data);
 router.get('/mill-performance', caneController.getGate1Data);
 router.get('/brix-sampling', caneController.getBrixSamplingData);
+router.post('/sync-live', caneController.triggerLiveSync);
 
 module.exports = router;

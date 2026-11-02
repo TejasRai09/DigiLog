@@ -1,25 +1,15 @@
 const fs = require('fs');
 const xlsx = require('xlsx');
 const { pool } = require('../../config/mysql');
-const { excelDateToISO, minMaxDates } = require('../../utils/excelDateUtils');
-const { validateRequiredHeaders, headersFromSheet } = require('../../utils/excelColumnValidation');
+const { minMaxDates } = require('../../utils/excelDateUtils');
 const {
-  pickStr,
-  seasonLabelForDate,
-  loadSeasonMappings,
-} = require('./centreIndentPurchaseMeta');
+  INDENT_FIELD_DEFS,
+  findHeaderAndColumnMap,
+  mapIndentRowFromMatrix,
+} = require('./centreIndentPurchaseParser');
+const { loadSeasonMappings } = require('./centreIndentPurchaseMeta');
 
 const BATCH_SIZE = 1000;
-
-/** Headers from cane_indent_2023-2025.xlsx / PBI Cane Indent. Extra columns are optional. */
-const EXPECTED_HEADERS = [
-  'Code',
-  'Center Name',
-  'Indent Date',
-  'No of Purchy',
-  'Qty in Qtls',
-  'Category',
-];
 
 async function loadExistingDates(conn, dateCol) {
   const [rows] = await conn.query(
@@ -28,39 +18,18 @@ async function loadExistingDates(conn, dateCol) {
   return new Set(rows.map((r) => String(r.d).slice(0, 10)));
 }
 
-function str(v) {
-  if (v == null || v === '') return null;
-  const s = String(v).trim();
-  return s || null;
-}
-
-function num(v) {
-  if (v == null || v === '') return 0;
-  const n = parseFloat(String(v).replace(/,/g, ''));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function mapIndentRow(r, seasonMappings = []) {
-  const indent_date = excelDateToISO(r['Indent Date']);
-  return {
-    code: str(r['Code']),
-    center_name: str(r['Center Name']),
-    indent_date,
-    no_of_purchy: r['No of Purchy'] != null && r['No of Purchy'] !== '' ? parseInt(r['No of Purchy'], 10) || 0 : 0,
-    indent_qty: num(r['Qty in Qtls']),
-    category: str(r['Category']),
-    unique_id: pickStr(r, ['Unique ID', 'UniqueID', 'unique_id']),
-    bonding_id: pickStr(r, ['Bonding Id', 'Bonding ID', 'bonding_id']),
-    season_label:
-      pickStr(r, ['SeasonLabelIndent', 'Season Label', 'SeasonLabel', 'season_label'])
-      || seasonLabelForDate(indent_date, seasonMappings),
-  };
-}
-
 /**
  * Import centre indent Excel with append-by-date dedup (skip rows whose indent_date already exists).
+ * Dynamically resolves columns by name/alias regardless of shuffled column order.
  */
-async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheetName, onProgress, fileUploadId = null }) {
+async function runCentreIndentImport({
+  filePath,
+  workbook,
+  sheetIndex = 0,
+  sheetName,
+  onProgress,
+  fileUploadId = null,
+}) {
   if (!workbook && (!filePath || !fs.existsSync(filePath))) {
     throw new Error(`File not found: ${filePath}`);
   }
@@ -72,15 +41,22 @@ async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheet
   log('read', 'Reading indent sheet…');
   const wb = workbook || xlsx.readFile(filePath);
   const resolvedSheet = sheetName || wb.SheetNames[sheetIndex];
-  if (!resolvedSheet) {
-    throw new Error('Workbook has no indent sheet (1st sheet).');
+  if (!resolvedSheet || !wb.Sheets[resolvedSheet]) {
+    throw new Error(`Workbook has no indent sheet ("${sheetName || sheetIndex}").`);
   }
 
-  log('validate', `Validating indent columns on sheet "${resolvedSheet}"…`);
-  validateRequiredHeaders(headersFromSheet(wb, resolvedSheet), EXPECTED_HEADERS, 'indent sheet (1st sheet)');
+  const sheet = wb.Sheets[resolvedSheet];
+  const matrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null });
+  log('validate', `Detecting and mapping columns for indent sheet "${resolvedSheet}"…`);
 
-  const rows = xlsx.utils.sheet_to_json(wb.Sheets[resolvedSheet]);
-  log('parse', `Parsed ${rows.length} indent rows from sheet "${resolvedSheet}".`);
+  const { headerRowIndex, colMap } = findHeaderAndColumnMap(
+    matrix,
+    INDENT_FIELD_DEFS,
+    `indent sheet "${resolvedSheet}"`,
+  );
+
+  const totalDataRows = Math.max(0, matrix.length - (headerRowIndex + 1));
+  log('parse', `Parsed ${totalDataRows} rows from indent sheet "${resolvedSheet}" (header at row ${headerRowIndex + 1}).`);
 
   const conn = await pool.getConnection();
   let imported = 0;
@@ -93,8 +69,13 @@ async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheet
     log('dedup', `Found ${existingDates.size} existing indent dates in DB.`);
 
     let batch = [];
-    for (let i = 0; i < rows.length; i += 1) {
-      const mapped = mapIndentRow(rows[i], seasonMappings);
+    for (let i = headerRowIndex + 1; i < matrix.length; i += 1) {
+      const row = matrix[i];
+      if (!row || !row.some((c) => c != null && String(c).trim() !== '')) {
+        continue;
+      }
+
+      const mapped = mapIndentRowFromMatrix(row, colMap, seasonMappings);
       if (!mapped.indent_date) {
         skipped += 1;
         continue;
@@ -142,9 +123,14 @@ async function runCentreIndentImport({ filePath, workbook, sheetIndex = 0, sheet
     }
 
     const { min, max } = minMaxDates(fileDates);
-    log('complete', `Imported ${imported} rows, skipped ${skipped}.`, { imported, skipped, dateMin: min, dateMax: max });
+    log('complete', `Imported ${imported} rows, skipped ${skipped}.`, {
+      imported,
+      skipped,
+      dateMin: min,
+      dateMax: max,
+    });
 
-    return { imported, skipped, dateMin: min, dateMax: max, totalRows: rows.length };
+    return { imported, skipped, dateMin: min, dateMax: max, totalRows: totalDataRows };
   } finally {
     conn.release();
   }

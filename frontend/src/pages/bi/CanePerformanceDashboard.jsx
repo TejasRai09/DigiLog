@@ -10,7 +10,7 @@ import {
   Sprout, DoorOpen, Warehouse, Scale, Factory, Cog, ArrowRight, Award,
   Search, Trophy, Building2, ShieldCheck, Eye, List, LayoutGrid,
   ChevronLeft, ChevronRight, Target, CheckCircle2, AlertCircle, Package,
-  AlertTriangle, FileText, Info
+  AlertTriangle, FileText, Info, RefreshCw
 } from "lucide-react";
 import api from "../../api/axios";
 import ModalPortal from "../../components/ModalPortal";
@@ -1437,6 +1437,17 @@ function normalizeLiveData(data) {
   };
 }
 
+
+function formatSyncAge(isoDate) {
+  if (!isoDate) return null;
+  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000));
+  if (diffSec < 60) return "Just now";
+  const mins = Math.floor(diffSec / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ago`;
+}
+
 const TABS=[
   {id:"procurement",label:"Procurement Summary",icon:BarChart2},
   {id:"gate1",label:"Gate 1",icon:GitMerge},
@@ -1480,6 +1491,11 @@ export default function CanePerformanceDashboard(){
   const[dbMaxDateStr, setDbMaxDateStr] = useState("");
   const[dbMaxDate, setDbMaxDate] = useState(null);
   const dateRangeSeeded = useRef(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+
+
+
 
   useTrackBiInteraction({
     dashboardLabel: BI_DASHBOARDS["/bi/cane-performance"],
@@ -1629,6 +1645,36 @@ export default function CanePerformanceDashboard(){
     return params.toString();
   }, [fromDate, toDate, modeFilter, centerFilter, challanFilter, tab, pyRange]);
 
+    const handleManualSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await api.post("/bi/cane-performance/sync-live", { full: false });
+      const res = await api.get(`/bi/cane-performance/procurement?${queryKey}`);
+      if (res.data) {
+        setLiveData(prev => ({ ...prev, ...normalizeLiveData(res.data) }));
+      }
+    } catch (err) {
+      console.warn("Manual sync error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, queryKey]);
+
+  React.useEffect(() => {
+    if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
+    const timer = setInterval(() => {
+      api.get(`/bi/cane-performance/procurement?${queryKey}`)
+        .then(res => {
+          if (res.data) {
+            setLiveData(prev => ({ ...prev, ...normalizeLiveData(res.data) }));
+          }
+        })
+        .catch(() => {});
+    }, autoRefreshInterval * 1000);
+    return () => clearInterval(timer);
+  }, [autoRefreshInterval, queryKey]);
+
   const hasDataRef = useRef(false);
   const prevFilterKeyRef = useRef(filterKey);
 
@@ -1654,7 +1700,7 @@ export default function CanePerformanceDashboard(){
         setLiveData(prev => {
           const next = normalizeLiveData(res.data);
           hasDataRef.current = true;
-          if (!prev || (filtersChanged && !isDateBootstrap)) return next;
+          if (!prev) return next;
           return {
             ...prev,
             ...next,
@@ -1669,9 +1715,9 @@ export default function CanePerformanceDashboard(){
             gateYard: next.gateYard?.length ? next.gateYard : prev.gateYard,
             gateMill: next.gateMill?.length ? next.gateMill : prev.gateMill,
             vehiclesByMode: next.vehiclesByMode?.length ? next.vehiclesByMode : prev.vehiclesByMode,
-            kpis: (next.kpis?.totalChallan || next.kpis?.caneHolding) ? next.kpis : prev.kpis,
-            sidebar: next.sidebar?.noOfPurchy ? next.sidebar : prev.sidebar,
-            centerSidebar: (next.centerSidebar?.noOfPurchy || next.centerSidebar?.trips)
+            kpis: next.kpis != null ? next.kpis : prev.kpis,
+            sidebar: next.sidebar != null ? next.sidebar : prev.sidebar,
+            centerSidebar: next.centerSidebar != null
               ? { ...prev.centerSidebar, ...next.centerSidebar }
               : prev.centerSidebar,
             cntOverruns: next.cntOverruns?.length ? next.cntOverruns : prev.cntOverruns,
@@ -1692,7 +1738,7 @@ export default function CanePerformanceDashboard(){
             transitByCenter: next.transitByCenter?.length ? next.transitByCenter : prev.transitByCenter,
             truckHoldByCenter: next.truckHoldByCenter?.length ? next.truckHoldByCenter : prev.truckHoldByCenter,
             dbRows: next.dbRows?.length ? next.dbRows : prev.dbRows,
-            prior: next.prior || (filtersChanged ? null : prev.prior),
+            prior: next.prior || prev.prior,
           };
         });
       })
@@ -1871,7 +1917,74 @@ export default function CanePerformanceDashboard(){
             iconColor="#10b981"
             isDarkMode={dm}
           />
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {liveData?.dataSource && (
+              <div className="flex items-center gap-1.5">
+                <div
+                  className={`hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold shadow-sm transition-all ${
+                    liveData.dataSource === 'live'
+                      ? 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300'
+                      : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/60 text-slate-700 dark:text-slate-300'
+                  }`}
+                  title={
+                    liveData.dataSource === 'live'
+                      ? `Connected live to airacanedb (MSSQL). Last synced: ${liveData?.syncInfo?.lastSyncTime || 'Recently'}`
+                      : 'Reading imported records from local MySQL database'
+                  }
+                >
+                  <span className="relative flex h-2 w-2">
+                    {liveData.dataSource === 'live' && !isSyncing && (
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    )}
+                    <span
+                      className={`relative inline-flex rounded-full h-2 w-2 ${
+                        isSyncing
+                          ? 'bg-amber-400 animate-pulse'
+                          : liveData.dataSource === 'live'
+                          ? 'bg-emerald-500'
+                          : 'bg-slate-400 dark:bg-slate-500'
+                      }`}
+                    />
+                  </span>
+                  <span>
+                    {liveData.dataSource === 'live' ? 'Live airacanedb' : 'Database (MySQL)'}
+                  </span>
+                  {liveData?.syncInfo?.lastSyncTime && (
+                    <span className="text-[10px] font-normal opacity-80 border-l border-emerald-300 dark:border-emerald-700 pl-2">
+                      {formatSyncAge(liveData.syncInfo.lastSyncTime)}
+                    </span>
+                  )}
+                </div>
+
+                {liveData.dataSource === 'live' && (
+                  <button
+                    type="button"
+                    onClick={handleManualSync}
+                    disabled={isSyncing}
+                    title="Sync live data now from MSSQL"
+                    className={`p-1.5 rounded-xl border text-xs font-medium shadow-sm transition-all flex items-center justify-center ${
+                      isSyncing
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                        : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-600 hover:text-emerald-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:text-emerald-400'
+                    }`}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-500' : ''}`} />
+                  </button>
+                )}
+
+                <select
+                  value={autoRefreshInterval}
+                  onChange={(e) => setAutoRefreshInterval(Number(e.target.value))}
+                  title="Auto-refresh interval"
+                  className="text-[11px] font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 px-2 py-1 shadow-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value={0}>Auto: Off</option>
+                  <option value={60}>Auto: 1m</option>
+                  <option value={120}>Auto: 2m</option>
+                  <option value={300}>Auto: 5m</option>
+                </select>
+              </div>
+            )}
             <BiKeyMetricBox
               value={operatingDays}
               title="Operating Days"
@@ -2042,22 +2155,115 @@ export default function CanePerformanceDashboard(){
           const yardRows = proc?.yardGate || [];
           const millRows = proc?.mill || [];
 
+          const curTrips = actualProcurementCards.totalChallan;
+          const priorTrips = prior?.kpis?.totalChallan;
+          const curTransit = actualProcurementCards.truckTransit;
+          const priorTransit = prior?.kpis?.truckTransit;
+          const curTruckHolding = actualProcurementCards.truckHolding ?? proc?.truckHolding;
+          const priorTruckHolding = prior?.kpis?.truckHolding;
+          const curYardWait = actualProcurementCards.yardWaiting ?? proc?.avgYardWait;
+          const priorYardWait = prior?.kpis?.yardWaiting;
+          const curCaneHolding = actualProcurementCards.caneHolding ?? proc?.caneHolding;
+          const priorCaneHolding = prior?.kpis?.caneHolding;
+          const curDongaWait = actualProcurementCards.waCane ?? proc?.avgDongaWait;
+          const priorDongaWait = prior?.kpis?.waCane;
+
+          const tripsDelta = pctChange(curTrips, priorTrips);
+          const transitDelta = pctChange(curTransit, priorTransit);
+          const truckHoldDelta = pctChange(curTruckHolding, priorTruckHolding);
+          const yardWaitDelta = pctChange(curYardWait, priorYardWait);
+          const caneHoldDelta = pctChange(curCaneHolding, priorCaneHolding);
+          const dongaWaitDelta = pctChange(curDongaWait, priorDongaWait);
+
           return (
-          <div className="w-full h-[calc(100vh-10.5rem)] min-h-[480px]">
-            <ProcurementCutToCrushScene
-              key="procurement-cut-to-crush"
-              gateRows={gateRows}
-              centerVehRows={centerVehRows}
-              holdRows={holdRows}
-              centerTrips={proc?.centerTrips}
-              avgCenterWait={proc?.avgCenterWait}
-              truckHolding={actualProcurementCards.truckHolding ?? proc?.truckHolding}
-              yardRows={yardRows}
-              avgYardWait={proc?.avgYardWait}
-              caneHolding={proc?.caneHolding}
-              avgDongaWait={proc?.avgDongaWait}
-              millRows={millRows}
-            />
+          <div className="space-y-3">
+            {/* Procurement Summary KPI strip with live data and comparison deltas */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
+              <Gate1KpiCard
+                comparisonLabel={kpiCompareLabel}
+                timeFilter={kpiTimeFilter}
+                dm={dm}
+                title="Total Trips"
+                value={curTrips ? Number(curTrips).toLocaleString() : "-"}
+                delta={tripsDelta}
+                icon={Truck}
+                iconBg="bg-blue-50 dark:bg-blue-950/40"
+                iconColor="#2563eb"
+              />
+              <Gate1KpiCard
+                comparisonLabel={kpiCompareLabel}
+                timeFilter={kpiTimeFilter}
+                dm={dm}
+                title="Truck Transit (Hrs)"
+                value={curTransit != null ? fmt(curTransit) : "-"}
+                delta={transitDelta}
+                lowerBetter
+                icon={MapPin}
+                iconBg="bg-indigo-50 dark:bg-indigo-950/40"
+                iconColor="#6366f1"
+              />
+              <Gate1KpiCard
+                comparisonLabel={kpiCompareLabel}
+                timeFilter={kpiTimeFilter}
+                dm={dm}
+                title="Truck Holding (Hrs)"
+                value={curTruckHolding != null ? fmt(curTruckHolding) : "-"}
+                delta={truckHoldDelta}
+                lowerBetter
+                icon={Warehouse}
+                iconBg="bg-amber-50 dark:bg-amber-950/40"
+                iconColor="#d97706"
+              />
+              <Gate1KpiCard
+                comparisonLabel={kpiCompareLabel}
+                timeFilter={kpiTimeFilter}
+                dm={dm}
+                title="Avg Yard Waiting (Hrs)"
+                value={curYardWait != null ? fmt(curYardWait) : "-"}
+                delta={yardWaitDelta}
+                lowerBetter
+                icon={Clock}
+                iconBg="bg-teal-50 dark:bg-teal-950/40"
+                iconColor="#0d9488"
+              />
+              <Gate1KpiCard
+                comparisonLabel={kpiCompareLabel}
+                timeFilter={kpiTimeFilter}
+                dm={dm}
+                title="Cane Holding Time (Hrs)"
+                value={curCaneHolding != null ? fmt(curCaneHolding) : "-"}
+                delta={caneHoldDelta}
+                lowerBetter
+                icon={Activity}
+                iconBg="bg-purple-50 dark:bg-purple-950/40"
+                iconColor="#9333ea"
+              />
+            </div>
+
+            <div className="w-full h-[calc(100vh-14.5rem)] min-h-[500px]">
+              <ProcurementCutToCrushScene
+                key="procurement-cut-to-crush"
+                gateRows={gateRows}
+                centerVehRows={centerVehRows}
+                holdRows={holdRows}
+                totalTrips={curTrips}
+                tripsDelta={tripsDelta}
+                transitDelta={transitDelta}
+                centerTrips={curTrips ?? proc?.centerTrips}
+                avgCenterWait={curTransit ?? proc?.avgCenterWait}
+                truckHolding={curTruckHolding}
+                truckHoldDelta={truckHoldDelta}
+                yardRows={yardRows}
+                avgYardWait={curYardWait}
+                yardWaitDelta={yardWaitDelta}
+                caneHolding={curCaneHolding}
+                caneHoldDelta={caneHoldDelta}
+                avgDongaWait={curDongaWait}
+                dongaWaitDelta={dongaWaitDelta}
+                millRows={millRows}
+                compareLabel={kpiCompareLabel}
+              />
+            </div>
           </div>
           );
         })()}
