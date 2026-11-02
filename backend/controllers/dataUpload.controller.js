@@ -447,16 +447,29 @@ async function deleteFile(req, res) {
       else if (isPurchyCategory(file.category) || file.dataset === 'grower' || file.dataset === 'staff') {
         const slot = purchySlotFromCategory(file.category) || file.dataset;
         if (slot === 'grower') {
-          await conn.query('TRUNCATE TABLE purchy_grower_summary');
-          await conn.query('TRUNCATE TABLE purchy_indent');
-          await conn.query('TRUNCATE TABLE purchy_supply');
-          await conn.query('TRUNCATE TABLE purchy_dishonour');
-          await conn.query('TRUNCATE TABLE purchy_grower_facts');
+          const growerTables = [
+            'purchy_grower_summary',
+            'purchy_indent',
+            'purchy_supply',
+            'purchy_dishonour',
+            'purchy_grower_facts_2025',
+          ];
+          for (const tbl of growerTables) {
+            try {
+              await conn.query(`TRUNCATE TABLE ${tbl}`);
+            } catch (tblErr) {
+              console.warn(`[deleteFile] Truncate ${tbl} skipped:`, tblErr.message);
+            }
+          }
           const { clearPurchyCache } = require('../services/purchy/purchyResponseCache');
           clearPurchyCache();
           undoSummary = 'Undid import: wiped grower data tables and recalculated facts.';
         } else if (slot === 'staff') {
-          await conn.query('TRUNCATE TABLE purchy_field_staff');
+          try {
+            await conn.query('TRUNCATE TABLE purchy_field_staff');
+          } catch (tblErr) {
+            console.warn('[deleteFile] Truncate purchy_field_staff skipped:', tblErr.message);
+          }
           const { rebuildGrowerFacts } = require('../services/purchy/purchyGrowerFacts');
           await rebuildGrowerFacts(conn);
           const { clearPurchyCache } = require('../services/purchy/purchyResponseCache');
