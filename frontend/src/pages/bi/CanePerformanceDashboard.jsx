@@ -2176,71 +2176,7 @@ export default function CanePerformanceDashboard(){
           const dongaWaitDelta = pctChange(curDongaWait, priorDongaWait);
 
           return (
-          <div className="space-y-3">
-            {/* Procurement Summary KPI strip with live data and comparison deltas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-              <Gate1KpiCard
-                comparisonLabel={kpiCompareLabel}
-                timeFilter={kpiTimeFilter}
-                dm={dm}
-                title="Total Trips"
-                value={curTrips ? Number(curTrips).toLocaleString() : "-"}
-                delta={tripsDelta}
-                icon={Truck}
-                iconBg="bg-blue-50 dark:bg-blue-950/40"
-                iconColor="#2563eb"
-              />
-              <Gate1KpiCard
-                comparisonLabel={kpiCompareLabel}
-                timeFilter={kpiTimeFilter}
-                dm={dm}
-                title="Truck Transit (Hrs)"
-                value={curTransit != null ? fmt(curTransit) : "-"}
-                delta={transitDelta}
-                lowerBetter
-                icon={MapPin}
-                iconBg="bg-indigo-50 dark:bg-indigo-950/40"
-                iconColor="#6366f1"
-              />
-              <Gate1KpiCard
-                comparisonLabel={kpiCompareLabel}
-                timeFilter={kpiTimeFilter}
-                dm={dm}
-                title="Truck Holding (Hrs)"
-                value={curTruckHolding != null ? fmt(curTruckHolding) : "-"}
-                delta={truckHoldDelta}
-                lowerBetter
-                icon={Warehouse}
-                iconBg="bg-amber-50 dark:bg-amber-950/40"
-                iconColor="#d97706"
-              />
-              <Gate1KpiCard
-                comparisonLabel={kpiCompareLabel}
-                timeFilter={kpiTimeFilter}
-                dm={dm}
-                title="Avg Yard Waiting (Hrs)"
-                value={curYardWait != null ? fmt(curYardWait) : "-"}
-                delta={yardWaitDelta}
-                lowerBetter
-                icon={Clock}
-                iconBg="bg-teal-50 dark:bg-teal-950/40"
-                iconColor="#0d9488"
-              />
-              <Gate1KpiCard
-                comparisonLabel={kpiCompareLabel}
-                timeFilter={kpiTimeFilter}
-                dm={dm}
-                title="Cane Holding Time (Hrs)"
-                value={curCaneHolding != null ? fmt(curCaneHolding) : "-"}
-                delta={caneHoldDelta}
-                lowerBetter
-                icon={Activity}
-                iconBg="bg-purple-50 dark:bg-purple-950/40"
-                iconColor="#9333ea"
-              />
-            </div>
-
-            <div className="w-full h-[calc(100vh-14.5rem)] min-h-[500px]">
+          <div className="w-full h-[calc(100vh-8.5rem)] min-h-[600px]">
               <ProcurementCutToCrushScene
                 key="procurement-cut-to-crush"
                 gateRows={gateRows}
@@ -2264,7 +2200,6 @@ export default function CanePerformanceDashboard(){
                 compareLabel={kpiCompareLabel}
               />
             </div>
-          </div>
           );
         })()}
 
