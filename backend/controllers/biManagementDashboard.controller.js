@@ -184,15 +184,27 @@ async function getManagementDashboard(req, res) {
 
     const dma = Number(req.query.dma) || 7;
 
-    // Match Power BI slicer: DMR_SS24[Date] only (not a union of all fact tables).
-    const [[dateBoundsRow]] = await pool.query(
-      `SELECT MIN(\`Date\`) AS minDate, MAX(\`Date\`) AS maxDate
-       FROM dmr_daily
-       WHERE \`Date\` IS NOT NULL`,
+    // Global Union date bounds across DMR and all operational logbook/indent/purchase tables
+    const boundsTables = [
+      { table: 'dmr_daily', col: '`Date`' },
+      { table: 'ops_logbook', col: '`Date`' },
+      { table: 'ds_logbook', col: '`Date`' },
+      { table: 'rs_logbook', col: '`Date`' },
+      { table: 'ph_power', col: '`Date`' },
+      { table: 'ph_steam', col: '`Date`' },
+      { table: 'distillery_operations', col: '`Date`' },
+      { table: 'centre_indent_data', col: 'indent_date' },
+      { table: 'centre_purchase_data', col: 'purchase_date' },
+    ];
+    const boundsResults = await Promise.all(
+      boundsTables.map((t) =>
+        safeQuery(`SELECT MIN(${t.col}) AS minD, MAX(${t.col}) AS maxD FROM ${t.table} WHERE ${t.col} IS NOT NULL`),
+      ),
     );
-
-    const dataMin = dateBoundsRow?.minDate ? dateKey(dateBoundsRow.minDate) : null;
-    const dataMax = dateBoundsRow?.maxDate ? dateKey(dateBoundsRow.maxDate) : null;
+    const allMins = boundsResults.map((r) => dateKey(r?.[0]?.minD)).filter(Boolean).sort();
+    const allMaxs = boundsResults.map((r) => dateKey(r?.[0]?.maxD)).filter(Boolean).sort();
+    const dataMin = allMins[0] || null;
+    const dataMax = allMaxs.length ? allMaxs[allMaxs.length - 1] : null;
 
     const queryForBound = { ...req.query };
     if ((!queryForBound.from || !ISO_DATE_RE.test(String(queryForBound.from))) && dataMin) {

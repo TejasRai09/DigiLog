@@ -280,20 +280,24 @@ export default function BrixSamplingDashboard() {
   const clampToDb = useCallback((iso) => clampIso(iso, dbMinDateStr, dbMaxDateStr), [dbMinDateStr, dbMaxDateStr]);
 
   const setDateFrom = useCallback((value) => {
-    setActiveDates((prev) => {
+    const updateFn = (prev) => {
       const next = typeof value === 'function' ? value(prev.from) : value;
       const from = clampToDb(next);
       return prev.from === from ? prev : { ...prev, from };
-    });
-  }, [setActiveDates, clampToDb]);
+    };
+    setFieldDates(updateFn);
+    setYardDates(updateFn);
+  }, [clampToDb]);
 
   const setDateTo = useCallback((value) => {
-    setActiveDates((prev) => {
+    const updateFn = (prev) => {
       const next = typeof value === 'function' ? value(prev.to) : value;
       const to = clampToDb(next);
       return prev.to === to ? prev : { ...prev, to };
-    });
-  }, [setActiveDates, clampToDb]);
+    };
+    setFieldDates(updateFn);
+    setYardDates(updateFn);
+  }, [clampToDb]);
 
   const applyStatsDateRange = useCallback((dateRange, tab) => {
     if (!dateRange || (tab !== 'field' && tab !== 'yard')) return;
@@ -301,23 +305,23 @@ export default function BrixSamplingDashboard() {
     const maxStr = toInputDate(dateRange.maxDate);
     if (!minStr && !maxStr) return;
 
-    const setRange = tab === 'field' ? setFieldDateRange : setYardDateRange;
-    const setDates = tab === 'field' ? setFieldDates : setYardDates;
-    const seededRef = tab === 'field' ? fieldRangeSeededRef : yardRangeSeededRef;
+    const updateRange = (prev) => {
+      const nextMin = [prev.min, minStr].filter(Boolean).sort()[0] || '';
+      const nextMax = [prev.max, maxStr].filter(Boolean).sort().at(-1) || '';
+      if (prev.min === nextMin && prev.max === nextMax) return prev;
+      return { min: nextMin, max: nextMax };
+    };
+    setFieldDateRange(updateRange);
+    setYardDateRange(updateRange);
 
-    setRange((prev) => {
-      const next = { min: minStr || prev.min, max: maxStr || prev.max };
-      if (prev.min === next.min && prev.max === next.max) return prev;
-      return next;
-    });
-
-    setDates((prev) => {
+    const updateDates = (prev) => {
       const min = minStr || '';
       const max = maxStr || '';
 
-      // First load for this tab: default to STD anchored to today-or-latest-data
-      if (!seededRef.current && min && max) {
-        seededRef.current = true;
+      // First load across tabs: default to STD anchored to global union latest date
+      if (!fieldRangeSeededRef.current && min && max) {
+        fieldRangeSeededRef.current = true;
+        yardRangeSeededRef.current = true;
         const toIso = resolveDashboardToDate(null, max);
         const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
         const std = getCockpitPresetDateRange('STD', ref, seasonMapping);
@@ -330,7 +334,9 @@ export default function BrixSamplingDashboard() {
       const to = prev.to ? clampIso(prev.to, min, max) : max;
       if (prev.from === from && prev.to === to) return prev;
       return { from, to };
-    });
+    };
+    setFieldDates(updateDates);
+    setYardDates(updateDates);
   }, [seasonMapping]);
 
   // Cockpit-style season compare labels from Season Mapping

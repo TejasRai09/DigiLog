@@ -42,9 +42,10 @@ export function getCockpitPresetDateRange(preset, now = new Date(), seasonMappin
     const start = label && seasonMapping?.[label]?.startDate
       ? String(seasonMapping[label].startDate).slice(0, 10)
       : null;
-    if (start) return { from: start, to };
+    if (start && start <= to) return { from: start, to };
     const seasonStartYear = now.getMonth() >= 9 ? now.getFullYear() : now.getFullYear() - 1;
-    return { from: formatYMD(new Date(seasonStartYear, 9, 1)), to };
+    const fallbackFrom = formatYMD(new Date(seasonStartYear, 9, 1));
+    return { from: fallbackFrom <= to ? fallbackFrom : to, to };
   }
   if (preset === 'WTD') {
     return { from: formatYMD(startOfWeekMonday(now)), to };
@@ -69,7 +70,7 @@ export function getCockpitSeasonLabels(refIso, seasonMapping = {}) {
   return getSeasonComparisonLabels(refIso ? new Date(`${refIso}T12:00:00`) : new Date());
 }
 
-/** All mapped seasons except the one containing refIso, newest first. */
+/** All mapped seasons except the one containing refIso, prioritizing prior seasons newest first. */
 export function listCompareSeasonsFromMapping(refIso, seasonMapping = {}) {
   const entries = Object.entries(seasonMapping || {})
     .map(([label, m]) => ({
@@ -82,6 +83,12 @@ export function listCompareSeasonsFromMapping(refIso, seasonMapping = {}) {
   if (!entries.length) return [];
 
   const current = findSeasonLabelForDate(refIso, seasonMapping);
+  const idx = current ? entries.findIndex((e) => e.label === current) : -1;
+  if (idx >= 0) {
+    const older = entries.slice(idx + 1).map((e) => e.label);
+    const newer = entries.slice(0, idx).map((e) => e.label);
+    return [...older, ...newer];
+  }
   return entries.filter((e) => e.label !== current).map((e) => e.label);
 }
 

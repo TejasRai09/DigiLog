@@ -103,9 +103,13 @@ async function querySeasonMeta() {
 async function queryYardDateRange() {
   const [[rangeRes]] = await pool.query(
     `SELECT
-       DATE_FORMAT(MIN(\`Date\`), '%Y-%m-%d') AS minDate,
-       DATE_FORMAT(MAX(\`Date\`), '%Y-%m-%d') AS maxDate
-     FROM \`brix_yard_sampling\``,
+       DATE_FORMAT(MIN(min_d), '%Y-%m-%d') AS minDate,
+       DATE_FORMAT(MAX(max_d), '%Y-%m-%d') AS maxDate
+     FROM (
+       SELECT MIN(\`Date\`) AS min_d, MAX(\`Date\`) AS max_d FROM \`brix_field_sampling\` WHERE \`Date\` IS NOT NULL
+       UNION ALL
+       SELECT MIN(\`Date\`) AS min_d, MAX(\`Date\`) AS max_d FROM \`brix_yard_sampling\` WHERE \`Date\` IS NOT NULL
+     ) t`,
   );
   return rangeRes;
 }

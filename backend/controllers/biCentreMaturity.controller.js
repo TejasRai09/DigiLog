@@ -91,7 +91,12 @@ const getCentreMaturityBiData = async (req, res) => {
       };
     });
     const [[dateRange]] = await pool.query(
-      `SELECT MIN(indent_date) AS minDate, MAX(indent_date) AS maxDate FROM centre_indent_data`,
+      `SELECT MIN(min_d) AS minDate, MAX(max_d) AS maxDate
+       FROM (
+         SELECT MIN(indent_date) AS min_d, MAX(indent_date) AS max_d FROM centre_indent_data WHERE indent_date IS NOT NULL
+         UNION ALL
+         SELECT MIN(purchase_date) AS min_d, MAX(purchase_date) AS max_d FROM centre_purchase_data WHERE purchase_date IS NOT NULL
+       ) t`,
     );
     const metaPayload = {
       availableSeasons: seasonsRes.map((s) => s.season_label),
