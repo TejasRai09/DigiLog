@@ -389,6 +389,10 @@ export default function MillingOperationsDashboard() {
         ]);
         if (!cancelled) {
           setRawData(Array.isArray(opsRes.data?.records) ? opsRes.data.records : []);
+          const unionBounds = opsRes.data?.dateBounds;
+          if (unionBounds && (unionBounds.min || unionBounds.max)) {
+            absorbDateBounds(unionBounds.min, unionBounds.max);
+          }
           if (settingsRes.data?.seasonMapping && typeof settingsRes.data.seasonMapping === 'object') {
             setSeasonMapping(settingsRes.data.seasonMapping);
           }
@@ -431,9 +435,13 @@ export default function MillingOperationsDashboard() {
   }, [dataBounds.min, dataBounds.max, absorbDateBounds]);
 
   const rangeToIso = useMemo(() => {
-    if (!dataBounds.max) return null;
-    return resolveDashboardToDate(dataBounds.isos, dataBounds.max);
-  }, [dataBounds.isos, dataBounds.max]);
+    const unionMax = [dataExtent.max, dataBounds.max].filter(Boolean).sort().at(-1) || null;
+    if (!unionMax) return null;
+    const isos = !dataBounds.isos.includes(unionMax)
+      ? [...dataBounds.isos, unionMax]
+      : dataBounds.isos;
+    return resolveDashboardToDate(isos, unionMax);
+  }, [dataExtent.max, dataBounds.max, dataBounds.isos]);
 
   const presetRefDate = useMemo(() => {
     if (!rangeToIso) return new Date();

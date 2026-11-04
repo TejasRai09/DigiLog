@@ -163,8 +163,10 @@ export function getPresetDateRangeForYearType(
       const label = findSeasonLabelForDate(to, esyMapping);
       const start = label && esyMapping[label]?.startDate
         ? String(esyMapping[label].startDate).slice(0, 10)
-        : getEsyBounds(esyStartYearForDate(now)).start;
-      return { from: start, to };
+        : null;
+      const fallbackStart = getEsyBounds(esyStartYearForDate(now)).start;
+      const resolvedStart = start && start <= to ? start : fallbackStart;
+      return { from: resolvedStart <= to ? resolvedStart : to, to };
     }
     return getCockpitPresetDateRange('MTD', now, {});
   }
