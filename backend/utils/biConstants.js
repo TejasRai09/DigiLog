@@ -101,7 +101,9 @@ function findSeasonLabelForDate(iso, seasons) {
   const d = toYmd(iso);
   if (!d || !Array.isArray(seasons) || !seasons.length) return null;
   const hit = seasons.find((s) => s.startDate && s.endDate && d >= s.startDate && d <= s.endDate);
-  return hit ? hit.seasonLabel : null;
+  if (hit) return hit.seasonLabel;
+  const startedOnOrBefore = seasons.find((s) => s.startDate && d >= s.startDate);
+  return startedOnOrBefore ? startedOnOrBefore.seasonLabel : null;
 }
 
 /**

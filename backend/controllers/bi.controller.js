@@ -327,6 +327,35 @@ function mapMillStoppageRow(r) {
   };
 }
 
+async function safeTableMinMax(table, col = '`Date`') {
+  try {
+    const [[row]] = await pool.query(
+      `SELECT MIN(${col}) AS minD, MAX(${col}) AS maxD FROM \`${table}\` WHERE ${col} IS NOT NULL`,
+    );
+    return {
+      min: row?.minD ? dateKey(row.minD) : null,
+      max: row?.maxD ? dateKey(row.maxD) : null,
+    };
+  } catch {
+    return { min: null, max: null };
+  }
+}
+
+async function getMillingGlobalDateBounds() {
+  const results = await Promise.all([
+    safeTableMinMax('mill_stoppages'),
+    safeTableMinMax('mill_logbook1'),
+    safeTableMinMax('mill_logbook2'),
+    safeTableMinMax('mill_logbook3'),
+  ]);
+  const mins = results.map((r) => r.min).filter(Boolean).sort();
+  const maxs = results.map((r) => r.max).filter(Boolean).sort();
+  return {
+    min: mins[0] || null,
+    max: maxs.length ? maxs[maxs.length - 1] : null,
+  };
+}
+
 /** GET /api/bi/milling-operations — same access as the BI dashboard form. */
 async function getMillingStoppagesBi(req, res) {
   try {
@@ -335,28 +364,32 @@ async function getMillingStoppagesBi(req, res) {
       return res.status(403).json({ message: 'Access denied to milling analytics.' });
     }
 
-    const bound = buildDateBound(req.query);
-    const [rows] = await pool.query(
-      `SELECT
-        \`Date\`,
-        \`start_time\`,
-        \`end_time\`,
-        \`section\`,
-        \`machinery\`,
-        \`remarks\`,
-        \`timestamp\`
-      FROM mill_stoppages
-      WHERE \`Date\` IS NOT NULL${bound.clause}
-      ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC
-      LIMIT ${BI_ROW_LIMIT}`,
-      bound.params,
-    );
+    const bound = buildDateBound(req.query, { allowUnbounded: true });
+    const [[rows], dateBounds] = await Promise.all([
+      pool.query(
+        `SELECT
+          \`Date\`,
+          \`start_time\`,
+          \`end_time\`,
+          \`section\`,
+          \`machinery\`,
+          \`remarks\`,
+          \`timestamp\`
+        FROM mill_stoppages
+        WHERE \`Date\` IS NOT NULL${bound.clause}
+        ORDER BY \`Date\` ASC, \`start_time\` ASC, \`timestamp\` ASC
+        LIMIT ${BI_ROW_LIMIT}`,
+        bound.params,
+      ),
+      getMillingGlobalDateBounds(),
+    ]);
 
     const records = rows.map(mapMillStoppageRow);
 
     return res.json({
       source: 'mill_stoppages',
       recordCount: records.length,
+      dateBounds,
       records,
     });
   } catch (err) {
@@ -416,7 +449,7 @@ async function getMillingEquipmentTempBi(req, res) {
     let series = [];
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
-      const bound = buildDateBound(req.query);
+      const bound = buildDateBound(req.query, { allowUnbounded: true });
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook1
@@ -520,7 +553,7 @@ async function getMillingShredderBi(req, res) {
     let series = [];
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
-      const bound = buildDateBound(req.query);
+      const bound = buildDateBound(req.query, { allowUnbounded: true });
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook2
@@ -609,7 +642,7 @@ async function getMillingLubeRollerBi(req, res) {
 
     if (variableColumns.length > 0) {
       const selectCols = ['`Date`', '`Shift`', '`Time`', ...variableColumns.map((c) => `\`${c}\``)].join(', ');
-      const bound = buildDateBound(req.query);
+      const bound = buildDateBound(req.query, { allowUnbounded: true });
       const [rows] = await pool.query(
         `SELECT ${selectCols}
          FROM mill_logbook3

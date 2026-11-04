@@ -408,7 +408,7 @@ export function alignMappedSeasonCompareRange(fromDate, toDate, seasonLabel, sea
   return { start, end, fyStart: startDate, fyEnd: endDate };
 }
 
-/** Season containing iso, else latest season in mapping (by startDate desc). */
+/** Season containing iso, else latest season starting on/before iso, else oldest/latest in mapping. */
 export function findSeasonLabelForDate(iso, seasonMapping = {}) {
   const d = iso ? String(iso).slice(0, 10) : null;
   const entries = Object.entries(seasonMapping || {})
@@ -424,6 +424,9 @@ export function findSeasonLabelForDate(iso, seasonMapping = {}) {
   if (d) {
     const hit = entries.find((e) => d >= e.start && d <= e.end);
     if (hit) return hit.label;
+    const startedOnOrBefore = entries.find((e) => d >= e.start);
+    if (startedOnOrBefore) return startedOnOrBefore.label;
+    return entries[entries.length - 1].label;
   }
   return entries[0].label;
 }
