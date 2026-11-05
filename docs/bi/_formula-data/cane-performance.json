@@ -1747,7 +1747,7 @@
       "section": "Truck Transit",
       "subSection": "Logistics KPI strip",
       "element": "KPI card",
-      "name": "Total Transporters",
+      "name": "Total Centers",
       "unit": "count",
       "description": "Count of centers in transit list.",
       "formula": "COUNT centers in transitByCenter",
