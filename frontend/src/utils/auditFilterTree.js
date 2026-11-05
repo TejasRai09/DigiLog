@@ -93,6 +93,8 @@ export const AUDIT_FILTER_TREE = {
     'Sugar House': ['Approved', 'Sent for modification'],
     'Power Plant': ['Approved', 'Sent for modification'],
     'Production House': ['Approved', 'Sent for modification'],
+    'Operations forms': [],
+    'Maintenance Notes': [],
   },
   Config: Object.fromEntries(CONFIG_TAB_FILTER_LABELS.map((t) => [t, [...CRUD_FILTER_LABELS]])),
   'Data Upload': {

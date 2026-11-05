@@ -66,7 +66,7 @@ const {
   updateSeason,
   deleteSeason,
 } = require('../controllers/seasonMapping.controller');
-const { listAuditLogs } = require('../controllers/auditLog.controller');
+const { listAuditLogs, summaryAuditLogs } = require('../controllers/auditLog.controller');
 const {
   listActivityLogs,
   listSessions,
@@ -83,6 +83,7 @@ router.post('/season-mapping',          createSeason);
 router.put('/season-mapping/:id',       updateSeason);
 router.delete('/season-mapping/:id',    deleteSeason);
 
+router.get('/audit-logs/summary', summaryAuditLogs);
 router.get('/audit-logs', listAuditLogs);
 router.get('/activity-logs', listActivityLogs);
 router.get('/sessions', listSessions);

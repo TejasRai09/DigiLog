@@ -39,6 +39,8 @@ const AUDIT_FILTER_TREE = {
     'Sugar House': ['Approved', 'Sent for modification'],
     'Power Plant': ['Approved', 'Sent for modification'],
     'Production House': ['Approved', 'Sent for modification'],
+    'Operations forms': [],
+    'Maintenance Notes': [],
   },
   Config: Object.fromEntries(CONFIG_TAB_FILTER_LABELS.map((t) => [t, [...CRUD_FILTER_LABELS]])),
   'Data Upload': {
@@ -255,7 +257,25 @@ function pushActivityTreeFilters(where, params, { root, branch, leaf, card, scre
     where.push(`(
       ${col('section')} = 'Approvals'
       OR ${col('page_path')} LIKE '/maintenance/approvals%'
+      OR ${col('page_path')} LIKE '/form-approval%'
+      OR ${col('page_path')} LIKE '%maintenance-notes%'
     )`);
+    if (b === 'Operations forms') {
+      where.push(`(
+        ${col('page_path')} LIKE '%form-approval%'
+        OR ${col('card')} LIKE '%Form%'
+        OR ${col('display_path')} LIKE '%Form approval%'
+      )`);
+      return;
+    }
+    if (b === 'Maintenance Notes') {
+      where.push(`(
+        ${col('page_path')} LIKE '%maintenance-notes%'
+        OR ${col('card')} LIKE '%Notes%'
+        OR ${col('display_path')} LIKE '%Maintenance Notes%'
+      )`);
+      return;
+    }
     if (b) {
       const dom = APPROVAL_DOMAIN[b];
       if (dom) {
@@ -401,9 +421,16 @@ function pushAuditLogTreeFilters(where, params, { root, branch, leaf, card, scre
             'action_summary LIKE ?',
             'display_path LIKE ?',
             'path LIKE ?',
+            `EXISTS (
+              SELECT 1 FROM forms f JOIN apps a ON a.id = f.app_id
+              WHERE a.name = ? AND (
+                audit_logs.path = CONCAT('/api/forms/', f.form_key)
+                OR audit_logs.path LIKE CONCAT('/api/forms/', f.form_key, '/%')
+              )
+            )`,
           ]));
           const slug = c.toLowerCase().replace(/[^a-z0-9]+/g, '%');
-          params.push(`%${c}%`, `%${c}%`, `%${c}%`, `%${slug}%`);
+          params.push(`%${c}%`, `%${c}%`, `%${c}%`, `%${slug}%`, c);
         }
       } else {
         where.push(`(
@@ -439,10 +466,21 @@ function pushAuditLogTreeFilters(where, params, { root, branch, leaf, card, scre
     where.push(`(
       path LIKE '%/change-requests%'
       OR path LIKE '%/maintenance-approval%'
+      OR path LIKE '%/form-approvals%'
+      OR path LIKE '%/form-approval/%'
+      OR path LIKE '%/maintenance-notes-approval%'
       OR action_summary LIKE '%approv%'
       OR action_summary LIKE '%modification%'
       OR display_path LIKE '%Approval%'
     )`);
+    if (b === 'Operations forms') {
+      where.push(`(path LIKE '%/form-approvals%' OR path LIKE '%/form-approval/%')`);
+      return;
+    }
+    if (b === 'Maintenance Notes') {
+      where.push(`(path LIKE '%/maintenance-notes-approval%' OR path LIKE '%/maintenance-notes/%')`);
+      return;
+    }
     if (b) {
       const dom = APPROVAL_DOMAIN[b];
       if (dom) {
