@@ -1,6 +1,9 @@
 const { syncLiveCaneData, getLastSyncInfo } = require('../services/caneLiveSyncService');
 const { getMysqlCanePerformanceData } = require('./canePerformanceMysql');
 const { pool: mysqlPool } = require('../config/mysql');
+const { streamCaneSeasonWorkbook } = require('../utils/canePerformanceExport');
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 async function isMssqlLiveEnabled() {
   try {
@@ -67,6 +70,36 @@ const getBrixSamplingData = async (req, res) => {
 };
 
 
+const exportSeasonWorkbook = async (req, res) => {
+  const { scope, tab, from, to } = req.query;
+  if (!ISO_DATE.test(String(from || '')) || !ISO_DATE.test(String(to || ''))) {
+    return res.status(400).json({ error: 'from and to must be YYYY-MM-DD.' });
+  }
+  try {
+    const useMssqlLive = await isMssqlLiveEnabled();
+    if (useMssqlLive) {
+      const sync = await syncLiveCaneData({ force: false });
+      if (sync?.success === false) {
+        console.warn('[canePerformance] Export continuing on last synced data:', sync.error);
+      }
+    }
+    await streamCaneSeasonWorkbook(res, {
+      scope: scope === 'all' ? 'all' : 'tab',
+      tabId: tab || 'procurement',
+      from,
+      to,
+      dataSource: useMssqlLive ? 'Live airacanedb (MSSQL sync)' : 'Database (MySQL)',
+    });
+  } catch (err) {
+    console.error('Error exporting Cane Performance workbook:', err);
+    if (!res.headersSent) {
+      res.status(err.status || 500).json({ error: err.message });
+    } else {
+      res.destroy(err);
+    }
+  }
+};
+
 const triggerLiveSync = async (req, res) => {
   try {
     const full = req.body?.full === true || req.query?.full === 'true';
@@ -84,6 +117,7 @@ const triggerLiveSync = async (req, res) => {
 module.exports = {
   triggerLiveSync,
   getGate1Data,
+  exportSeasonWorkbook,
   getGate2Data: async (req, res) => res.json({}),
   getCenterPurchaseData: async (req, res) => res.json({}),
   getMillPerformanceData: async (req, res) => res.json({}),

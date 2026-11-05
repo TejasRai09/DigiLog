@@ -10,7 +10,7 @@ import {
   Sprout, DoorOpen, Warehouse, Scale, Factory, Cog, ArrowRight, Award,
   Search, Trophy, Building2, ShieldCheck, Eye, List, LayoutGrid,
   ChevronLeft, ChevronRight, Target, CheckCircle2, AlertCircle, Package,
-  AlertTriangle, FileText, Info, RefreshCw
+  AlertTriangle, FileText, Info, RefreshCw, Download, ChevronDown
 } from "lucide-react";
 import api from "../../api/axios";
 import ModalPortal from "../../components/ModalPortal";
@@ -34,6 +34,8 @@ import { BI_DASHBOARDS } from "../../utils/activityPath";
 import ChartCardToolbar from "../../components/bi/ChartCardToolbar";
 import BiChartExpandModal from "../../components/bi/BiChartExpandModal";
 import CompareRangeBadge from "../../components/bi/CompareRangeBadge";
+import { exportCaneSeasonWorkbook } from "../../utils/canePerformanceExport";
+import toast from "react-hot-toast";
 
 const CENTERS = ["Aatipat","Bandholi","Chaudharia","Dhangaon","Eklauta","Fatehpur","Gursarai"];
 const TRANSPORT_MODES = ["Tractor","Truck","Bullock Cart"];
@@ -492,18 +494,18 @@ const LOGISTICS_CFG = {
     maxScale: 6.0,
   },
   transit: {
-    entityLabel: "Transporter",
+    entityLabel: "Center",
     timeLabel: "Transit Time",
     volumeLabel: "Challan Qty (Qtls)",
     volumeUnit: "Qtls",
-    kpi1: "Total Transporters",
-    kpi1Suffix: "Fleets",
+    kpi1: "Total Centers",
+    kpi1Suffix: "Centers",
     kpi2: "Avg Transit Duration",
     kpi3: "Total Challan Volume",
-    leaderboardTitle: "Fastest Transit Transporters",
-    leaderboardSub: "Top transporters by speed",
-    searchPh: "Search transporter name…",
-    entityNoun: "Transporters",
+    leaderboardTitle: "Fastest Transit Centers",
+    leaderboardSub: "Top centers by speed",
+    searchPh: "Search center name…",
+    entityNoun: "Centers",
     Icon: MapPin,
     fastThreshold: 2.0,
     defaultSla: 3.0,
@@ -1493,6 +1495,40 @@ export default function CanePerformanceDashboard(){
   const dateRangeSeeded = useRef(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportMenuRef = useRef(null);
+
+  React.useEffect(() => {
+    if (!exportOpen) return undefined;
+    const onDoc = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [exportOpen]);
+
+  const handleExport = useCallback(async (scope) => {
+    setExportOpen(false);
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await exportCaneSeasonWorkbook({
+        scope,
+        tabId: tab,
+        seasonMapping,
+        dbMinDateStr,
+        dbMaxDateStr,
+      });
+    } catch (err) {
+      console.error('Cane season export failed:', err);
+      toast.error(`Could not export the season workbook: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, tab, seasonMapping, dbMinDateStr, dbMaxDateStr]);
 
 
 
@@ -1985,6 +2021,49 @@ export default function CanePerformanceDashboard(){
                 </select>
               </div>
             )}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                type="button"
+                onClick={() => setExportOpen((open) => !open)}
+                disabled={exporting}
+                title="Download current season tab tables and record-level data (Excel)"
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-all ${
+                  exporting
+                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-500'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-emerald-400'
+                }`}
+              >
+                {exporting
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Download className="h-3.5 w-3.5" />}
+                {exporting ? 'Exporting…' : 'Export Excel'}
+                <ChevronDown className={`h-3 w-3 ${exportOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {exportOpen && !exporting && (
+                <div className={`absolute right-0 z-40 mt-1 w-44 overflow-hidden rounded-xl border shadow-lg ${
+                  dm ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => handleExport('tab')}
+                    className={`block w-full px-3 py-2 text-left text-xs font-semibold ${
+                      dm ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Export this tab
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExport('all')}
+                    className={`block w-full px-3 py-2 text-left text-xs font-semibold ${
+                      dm ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    Export all tabs
+                  </button>
+                </div>
+              )}
+            </div>
             <BiKeyMetricBox
               value={operatingDays}
               title="Operating Days"
