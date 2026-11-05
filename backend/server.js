@@ -101,8 +101,11 @@ app.use(helmet({
 app.use(cors({ origin: CLIENT_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-const { auditMiddleware } = require('./middleware/auditMiddleware');
+const { auditMiddleware, assertAuditLogsSchema } = require('./middleware/auditMiddleware');
 app.use(auditMiddleware);
+assertAuditLogsSchema(pool).catch((err) => {
+  console.error('[audit] schema check failed:', err.message);
+});
 // Uploads (avatars, data-ingestion) are served only via authenticated API routes.
 
 // ─── Rate limiting ───────────────────────────────────────────

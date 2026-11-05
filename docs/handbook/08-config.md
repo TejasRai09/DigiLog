@@ -52,11 +52,47 @@ Administrators only. Navbar **Config**. Subtitle: *Employees, categories, BI set
 
 ## 8.5 Audit & Activity
 
-- Tabs: **Change Log**, **Activity Log**, **Session Log**.
-- Change Log filters: Create / Update / Delete / Login; All results / Success / Failed.
-- Session Log: All sessions / Online now / Ended.
-- Location cascade (Home → Forms Hub → …).
-- **Refresh**.
+Administrators only. Use this after the night shift, or when checking one person or one form.
+
+[Screenshot: 08-config — Audit & Activity Changes tab, annotate: chips, summary counts, Time / Person / What happened / Where / Result]
+
+### Morning checklist
+
+1. Open **Config → Audit & Activity**. Stay on **Changes**.
+2. Tap **Yesterday** (or **Today** if you are checking the current shift).
+3. Read the counts: **Saved**, **Sent for approval**, **Approved or returned**, **Edits**, **Deletes**, **Failed**. Tap a count to filter the list.
+4. Open any **Failed** row. **What went wrong** shows the message the user saw (for example already exists for this shift). Server problems say **Ask IT**.
+5. Open **Edits** and **Deletes**. The expanded row shows the old values.
+6. Tap **Approvals** if you need who approved or sent back, including from the email link.
+7. Tap **Uploads** for Purchy / Milling / Management file loads.
+8. Switch to **Views and downloads** if you need who opened a form or downloaded CSV/PDF. Switch to **Sign-ins** for login times and who is online.
+
+### How to read a Changes row
+
+- **Time** is IST, with “2 h ago” under it.
+- **Person** is name and role. Failed sign-in with an unknown email shows **Unknown user (tried: …)**.
+- **What happened** is a sentence, for example *Ravi Kumar saved Mill Stoppages for 04-Nov-2026, Shift B*.
+- **Where** is the place in the app, for example **Forms Hub › Mill House › Mill Stoppages**.
+- **Result** chips: green **Saved**, blue **Sent for approval**, red **Failed** (and similar for Edited / Deleted / Approved).
+- Expand the row:
+  - **What was entered** — fields on a new save
+  - **What changed** — old and new values
+  - **What was deleted** — the removed row
+  - **What went wrong** — why a save failed
+  - **Technical details** — email, API path, status, error for IT
+
+### Filters
+
+- Chips on top: **Today**, **Yesterday**, **This week**, **Problems only**, **Edits and deletes**, **Approvals**, **Uploads**, **Sign-ins**.
+- Area cascade: **Home → Forms Hub → Forms cards →** a card such as Mill House. **Approvals** includes **Operations forms** and **Maintenance Notes**.
+- Search matches name, email, and the sentence. Dates and dropdowns apply as soon as you change them. Use **Apply** for search text. **Refresh** reloads.
+
+### Views and downloads / Sign-ins
+
+- **Views and downloads:** Opened form, Viewed data, Downloaded CSV, Downloaded PDF, Downloaded chart, Opened page. **Form / Dashboard** names the screen. Expand for path and stay time.
+- **Sign-ins:** login / logout, duration, pages, **Online** vs **Ended**.
+
+Nothing in this log can be edited or deleted. Night rows during crushing season are expected.
 
 ## 8.6 Maintenance History Approval
 

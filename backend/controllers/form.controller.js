@@ -793,6 +793,9 @@ const updateRecord = async (req, res) => {
     if (!existing) return res.status(404).json({ message: 'Record not found.' });
 
     const payload = buildAdminUpdatePayload(formKey, config, req.body);
+    const before = {};
+    for (const key of Object.keys(payload)) before[key] = existing[key];
+    req.auditBefore = before;
     if (Object.keys(payload).length === 0) {
       return res.status(400).json({ message: 'No fields to update.' });
     }
@@ -837,6 +840,8 @@ const deleteRecord = async (req, res) => {
   if (!config) return res.status(400).json({ message: 'Unknown form.' });
 
   try {
+    const existing = await fetchRecordByKey(config, recordKey);
+    if (existing) req.auditBefore = existing;
     const ts = decodeRecordKey(recordKey);
     const [result] = await pool.execute(
       `DELETE FROM \`${config.table}\` WHERE \`${config.tsCol}\` = ? LIMIT 1`,

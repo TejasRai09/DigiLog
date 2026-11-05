@@ -185,6 +185,19 @@ const updateUser = async (req, res) => {
 
     if (!fields.length) return res.status(400).json({ message: 'Nothing to update.' });
 
+    const [[existing]] = await pool.query(
+      'SELECT id, name, email, role, is_active, department, forms_hub_view_only FROM users WHERE id = ? LIMIT 1',
+      [req.params.id],
+    );
+    if (!existing) return res.status(404).json({ message: 'User not found.' });
+    const before = {};
+    if (name !== undefined) before.name = existing.name;
+    if (department !== undefined) before.department = existing.department;
+    if (role !== undefined) before.role = existing.role;
+    if (isActive !== undefined) before.isActive = existing.is_active;
+    if (formsHubViewOnly !== undefined || role === 'admin') before.formsHubViewOnly = existing.forms_hub_view_only;
+    req.auditBefore = before;
+
     vals.push(req.params.id);
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, vals);
 
@@ -200,6 +213,11 @@ const updateUser = async (req, res) => {
 // DELETE /api/admin/users/:id
 const deleteUser = async (req, res) => {
   try {
+    const [[existing]] = await pool.query(
+      'SELECT id, name, email, role, is_active, department FROM users WHERE id = ? LIMIT 1',
+      [req.params.id],
+    );
+    if (existing) req.auditBefore = existing;
     await pool.query('DELETE FROM users WHERE id = ?', [req.params.id]);
     res.json({ message: 'User deleted.' });
   } catch (err) {

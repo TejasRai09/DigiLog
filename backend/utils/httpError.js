@@ -54,6 +54,10 @@ function mapDbError(err) {
  */
 function sendServerError(res, logLabel, err, userMessage = MSG.SERVER) {
   logServerError(logLabel, err);
+  if (res && res.locals) {
+    const code = err?.code ? `${err.code}: ` : '';
+    res.locals.auditError = `${code}${err?.message || 'unknown error'}`.slice(0, 1000);
+  }
   const mapped = mapDbError(err);
   if (mapped) {
     return res.status(mapped.status).json({ message: mapped.message });

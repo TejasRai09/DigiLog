@@ -23,7 +23,167 @@ const MODULE_LABELS = {
   'data-upload': 'Data Upload',
   'homepage-cards': 'Homepage Cards',
   apps: 'Apps',
+  'form-approvals': 'Form Approvals',
+  'form-approval': 'Form Approvals',
+  approvals: 'Approvals',
+  'change-requests': 'Change Requests',
+  'maintenance-notes': 'Maintenance Notes',
+  'maintenance-notes-approval': 'Maintenance Notes Approval',
+  'maintenance-approval': 'Maintenance History Approval',
+  notifications: 'Notifications',
+  'locked-card-manage-access': 'Locked Card Access',
 };
+
+const FRIENDLY_STATUS = {
+  400: 'Invalid input',
+  401: 'Session expired',
+  403: 'Not allowed',
+  404: 'Not found',
+  409: 'Already exists',
+  413: 'File too large',
+  429: 'Too many attempts',
+};
+
+function friendlyStatus(code) {
+  const n = Number(code);
+  if (!Number.isFinite(n)) return null;
+  if (FRIENDLY_STATUS[n]) return FRIENDLY_STATUS[n];
+  if (n >= 500) return 'Server problem';
+  if (n >= 200 && n < 300) return 'OK';
+  if (n >= 300 && n < 400) return 'Redirected';
+  return `Status ${n}`;
+}
+
+function extractResponseText(body) {
+  if (body == null) return '';
+  if (typeof body === 'string') return body.trim();
+  if (typeof body !== 'object') return String(body);
+  const raw = body.message || body.error || body.msg || '';
+  return String(raw || '').trim();
+}
+
+function resultLabel({
+  success,
+  statusCode,
+  outcomeMessage,
+  actionType,
+  actionSummary,
+  path,
+} = {}) {
+  const ok = success === true || success === 1;
+  const om = String(outcomeMessage || '');
+  const lower = om.toLowerCase();
+  const summary = String(actionSummary || '').toLowerCase();
+  const p = String(path || '').toLowerCase();
+  if (!ok) {
+    if (lower.includes('already exists')) return 'Already exists';
+    if (actionType === 'Login' || /\/api\/auth\/(login|outlook|google)/.test(p)) return 'Failed';
+    const plain = friendlyStatus(statusCode);
+    if (plain && plain !== 'OK') return plain;
+    return 'Failed';
+  }
+  if (lower.includes('sent for approval') || summary.includes('for approval')) return 'Sent for approval';
+  if (summary.includes('sent') && summary.includes('modification')) return 'Sent back';
+  if (summary.includes('approved') || p.includes('/accept') || p.includes('/approve')) return 'Approved';
+  if (actionType === 'Delete' || lower.includes('deleted')) return 'Deleted';
+  if (actionType === 'Login') return 'Signed in';
+  if (actionType === 'Update') return 'Edited';
+  if (/^saved/i.test(om)) return om.includes('rows') ? om : 'Saved';
+  return 'Saved';
+}
+
+function outcomeMessageFromResponse(statusCode, body, success) {
+  const text = extractResponseText(body);
+  const lower = text.toLowerCase();
+  if (/sent for approval/.test(lower)) return 'Sent for approval';
+  const rows = text.match(/^(\d+)\s+rows inserted/i);
+  if (rows) return `Saved (${rows[1]} rows)`;
+  if (/form submitted successfully/.test(lower)) return 'Saved';
+  if (/record updated successfully/.test(lower)) return 'Saved';
+  if (/record deleted successfully/.test(lower)) return 'Deleted';
+  if (/duplicate operation|already exists/.test(lower)) {
+    return 'Not saved: entry already exists for this shift';
+  }
+  if (text) {
+    return text.replace(/\.$/, '').slice(0, 500);
+  }
+  if (success) return 'Saved';
+  return friendlyStatus(statusCode) || 'Failed';
+}
+
+function formatAuditDate(value) {
+  if (value == null || value === '') return '';
+  const s = String(value);
+  const m = /(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (!m) return s.slice(0, 16);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${m[3]}-${months[Number(m[2]) - 1]}-${m[1]}`;
+}
+
+function pickFormField(obj, names) {
+  if (!obj || typeof obj !== 'object') return null;
+  const src = obj.row && typeof obj.row === 'object' ? obj.row : obj;
+  for (const name of names) {
+    if (src[name] != null && String(src[name]).trim() !== '') return String(src[name]).trim();
+  }
+  const keys = Object.keys(src);
+  for (const name of names) {
+    const found = keys.find((k) => k.toLowerCase() === name.toLowerCase());
+    if (found && src[found] != null && String(src[found]).trim() !== '') return String(src[found]).trim();
+  }
+  return null;
+}
+
+function formEntryClause(rawBody, beforeValues) {
+  const sources = [];
+  if (rawBody && typeof rawBody === 'object') {
+    sources.push(rawBody);
+    if (Array.isArray(rawBody.rows) && rawBody.rows[0]) sources.push(rawBody.rows[0]);
+  }
+  if (beforeValues && typeof beforeValues === 'object') sources.push(beforeValues);
+  let date = null;
+  let shift = null;
+  for (const src of sources) {
+    date = date || pickFormField(src, ['Date', 'date', 'entry_date', 'EntryDate']);
+    shift = shift || pickFormField(src, ['Shift', 'shift', 'SHIFT']);
+  }
+  const bits = [];
+  if (date) bits.push(formatAuditDate(date));
+  if (shift) bits.push(`Shift ${shift}`);
+  return bits.length ? ` for ${bits.join(', ')}` : '';
+}
+
+function setAuditActor(req, actor = {}) {
+  if (!req || !actor) return;
+  req.auditActor = {
+    id: actor.id ?? null,
+    name: actor.name != null && String(actor.name).trim() ? String(actor.name).trim() : null,
+    email: actor.email != null ? String(actor.email).trim().toLowerCase() : null,
+    role: actor.role != null ? String(actor.role) : null,
+    department: actor.department != null ? String(actor.department) : null,
+  };
+}
+
+async function setAuditActorFromHod(pool, req, request) {
+  if (!req || !request) return;
+  const id = request.hod_user_id != null ? Number(request.hod_user_id) : null;
+  let name = request.hod_name || request.hodName || null;
+  const email = request.hod_email || request.hodEmail || null;
+  if (!name && id && pool) {
+    try {
+      const [[u]] = await pool.query('SELECT id, name, email, role, department FROM users WHERE id = ? LIMIT 1', [id]);
+      if (u) {
+        setAuditActor(req, u);
+        return;
+      }
+    } catch {
+      // keep going with email-only
+    }
+  }
+  if (id || name || email) {
+    setAuditActor(req, { id, name: name || 'HOD', email, role: 'hod' });
+  }
+}
 
 const ADMIN_SEGMENT_LABELS = {
   users: 'Employees',
@@ -553,6 +713,33 @@ function toReadableAuditPayload(body, opts = {}) {
     };
   }
 
+  const beforeValues = opts.beforeValues && typeof opts.beforeValues === 'object' && !Array.isArray(opts.beforeValues)
+    ? opts.beforeValues
+    : null;
+  if (beforeValues) {
+    const displayVal = (val) => {
+      if (val == null || val === '') return '—';
+      if (typeof val === 'string' && isDataUrlOrHugeString(val)) return '[Image / long text omitted]';
+      if (typeof val === 'object') return JSON.stringify(sanitizeValue(val));
+      return String(val);
+    };
+    const keys = [...new Set([...Object.keys(beforeValues), ...Object.keys(body)])];
+    for (const key of keys) {
+      if (SENSITIVE_KEY_RE.test(key) || META_LBL_RE.test(key)) continue;
+      const before = beforeValues[key];
+      const after = Object.prototype.hasOwnProperty.call(body, key) ? body[key] : undefined;
+      if (JSON.stringify(before) === JSON.stringify(after)) continue;
+      fields.push({
+        field: humanizeKey(key),
+        before: displayVal(before),
+        after: after === undefined ? '—' : displayVal(after),
+        value: after === undefined ? displayVal(before) : displayVal(after),
+        group: 'What changed',
+      });
+    }
+    return { fields, change_kind: Object.keys(body).length ? 'edit' : 'delete' };
+  }
+
   // Generic object → every key/value (skip only empty optional noise)
   for (const [key, val] of Object.entries(body)) {
     if (SENSITIVE_KEY_RE.test(key)) {
@@ -602,9 +789,14 @@ function toReadableAuditPayload(body, opts = {}) {
 }
 
 function sanitizeRequestBody(body, opts = {}) {
-  if (body == null) return null;
+  const hasBefore = opts.beforeValues && typeof opts.beforeValues === 'object'
+    && Object.keys(opts.beforeValues).length;
+  if ((body == null || (typeof body === 'object' && !Object.keys(body).length)) && !hasBefore) {
+    return null;
+  }
   try {
-    const readable = toReadableAuditPayload(body, opts);
+    const payload = body == null ? {} : body;
+    const readable = toReadableAuditPayload(payload, opts);
     let json = JSON.stringify(readable);
     if (json.length > MAX_BODY_CHARS) {
       json = `${json.slice(0, MAX_BODY_CHARS)}…`;
@@ -818,6 +1010,9 @@ function buildChangeDescription({
   parentLabel,
   hierarchyPath,
   success = null,
+  actorName = null,
+  outcomeMessage = null,
+  beforeValues = null,
 }) {
   const { parts } = parseApiPath(path || '');
   const moduleKey = parts[0] || '';
@@ -832,7 +1027,9 @@ function buildChangeDescription({
       : parts[1] === 'google' ? 'Google'
       : 'email/password';
     if (success === 1 || success === true) return `Logged in via ${via}`.slice(0, 255);
-    if (success === 0 || success === false) return `Login failed via ${via}`.slice(0, 255);
+    if (success === 0 || success === false) {
+      return `Login failed via ${via}`.slice(0, 255);
+    }
     return `Sign-in attempt via ${via}`.slice(0, 255);
   }
 
@@ -986,10 +1183,12 @@ function buildChangeDescription({
     const target = screen || resourceType || 'admin setting';
     if (parts.includes('users')) {
       const name = pickBodyValue(body, readableBody, 'name') || resourceName;
+      const changed = Array.isArray(readableBody?.fields) ? readableBody.fields.length : 0;
       if (m === 'POST') return `Created employee${name ? ` ${quoteName(name)}` : ''}`.slice(0, 255);
       if (m === 'DELETE') return `Deleted employee${name ? ` ${quoteName(name)}` : ''}`.slice(0, 255);
       if (parts.includes('manager')) return `Assigned manager${name ? ` for ${quoteName(name)}` : ''}`.slice(0, 255);
       if (parts.includes('send-mail')) return `Sent activation email${name ? ` to ${quoteName(name)}` : ''}`.slice(0, 255);
+      if (changed) return `Updated employee${name ? ` ${quoteName(name)}` : ''}: ${changed} field${changed === 1 ? '' : 's'} changed`.slice(0, 255);
       return `Updated employee${name ? ` ${quoteName(name)}` : ''}`.slice(0, 255);
     }
     if (parts.includes('categories')) {
@@ -1010,10 +1209,54 @@ function buildChangeDescription({
 
   if (moduleKey === 'forms') {
     const formName = resourceName || (parts[1] ? titleCase(parts[1].replace(/_/g, ' ')) : 'form');
-    if (parts.includes('batch')) return `Submitted batch rows on form ${quoteName(formName)}`.slice(0, 255);
-    if (parts.includes('records') && m === 'DELETE') return `Deleted form record on ${quoteName(formName)}`.slice(0, 255);
-    if (parts.includes('records') && (m === 'PUT' || m === 'PATCH')) return `Updated form record on ${quoteName(formName)}`.slice(0, 255);
-    return `Submitted form ${quoteName(formName)}`.slice(0, 255);
+    const who = actorName || 'A user';
+    const entry = formEntryClause(body, beforeValues);
+    const ok = success === 1 || success === true || success == null;
+    const outcome = String(outcomeMessage || '').toLowerCase();
+    const sent = outcome.includes('sent for approval');
+    if (!ok) {
+      const why = outcome.includes('already exists')
+        ? 'entry already exists for this shift'
+        : (outcomeMessage || friendlyStatus(null) || 'could not save');
+      return `Could not save ${formName}${entry}: ${why}`.slice(0, 255);
+    }
+    if (parts.includes('records') && m === 'DELETE') {
+      return `${who} deleted ${formName} entry${entry}`.slice(0, 255);
+    }
+    if (parts.includes('records') && (m === 'PUT' || m === 'PATCH')) {
+      const n = Array.isArray(readableBody?.fields) ? readableBody.fields.length : 0;
+      return `${who} edited ${formName} entry${entry}${n ? `: ${n} field${n === 1 ? '' : 's'} changed` : ''}`.slice(0, 255);
+    }
+    if (sent) return `${who} sent ${formName}${entry} for approval`.slice(0, 255);
+    if (parts.includes('batch')) return `${who} saved ${formName}${entry}`.slice(0, 255);
+    return `${who} saved ${formName}${entry}`.slice(0, 255);
+  }
+
+  if (moduleKey === 'form-approvals' || moduleKey === 'form-approval') {
+    const who = actorName || 'HOD';
+    const formName = resourceName || pickBodyValue(body, readableBody, 'form_name') || 'form entries';
+    const via = String(path || '').startsWith('/api/form-approval/') ? ' (from email)' : '';
+    const bulk = String(path || '').includes('bulk-accept');
+    if (/modif/.test(String(path || ''))) {
+      return `${who} sent ${formName} back for modification${via}`.slice(0, 255);
+    }
+    if (bulk) {
+      const n = Array.isArray(body?.ids) ? body.ids.length : 0;
+      return `${who} approved ${n || 'pending'} ${formName}${via}`.slice(0, 255);
+    }
+    return `${who} approved ${formName}${via}`.slice(0, 255);
+  }
+
+  if (moduleKey === 'maintenance-approval' || moduleKey === 'maintenance-notes-approval') {
+    const who = actorName || 'HOD';
+    const via = /\/(accept|reject|bulk-accept)/.test(String(path || '')) && !parts.includes('dashboard')
+      ? ' (from email)'
+      : '';
+    const label = resourceName || pickBodyValue(body, readableBody, 'equipmentName', 'activity_description') || 'entry';
+    if (/modif|reject/.test(String(path || ''))) {
+      return `${who} sent ${label} back for modification${via}`.slice(0, 255);
+    }
+    return `${who} approved ${label}${via}`.slice(0, 255);
   }
 
   // Fallback — never dump technical field-name lists
@@ -1143,10 +1386,15 @@ async function resolvePathNames(pool, rawPath, rawBody = null) {
     } else if (moduleKey === 'forms' && parts[1]) {
       const formKey = parts[1];
       const [[f]] = await pool.query(
-        'SELECT form_key, name FROM forms WHERE form_key = ? LIMIT 1',
+        `SELECT f.form_key, f.name, a.name AS app_name
+         FROM forms f
+         LEFT JOIN apps a ON a.id = f.app_id
+         WHERE f.form_key = ?
+         LIMIT 1`,
         [formKey],
       );
       if (f?.name) names[`form:${formKey}`] = f.name;
+      if (f?.app_name) names.__app_name__ = f.app_name;
     }
   } catch (err) {
     console.error('[auditLog.resolvePathNames]', err.message);
@@ -1173,8 +1421,11 @@ async function walkHierarchyLabels(pool, nodeId, table = 'ppn_hierarchy_node') {
 }
 
 function displayPathFromNames(rawPath, names) {
+  const { parts } = parseApiPath(rawPath);
+  if (parts[0] === 'forms' && (names.__app_name__ || names[`form:${parts[1]}`])) {
+    return ['Forms Hub', names.__app_name__, names[`form:${parts[1]}`]].filter(Boolean).join(' › ');
+  }
   if (names.__hierarchy__) {
-    const { parts } = parseApiPath(rawPath);
     const moduleKey = parts[0];
     const hub = MODULE_LABELS[moduleKey] || titleCase(moduleKey);
     const tail = [];
@@ -1357,4 +1608,10 @@ module.exports = {
   MAX_BODY_CHARS,
   ACTION_TYPES,
   MODULE_LABELS,
+  friendlyStatus,
+  outcomeMessageFromResponse,
+  extractResponseText,
+  resultLabel,
+  setAuditActor,
+  setAuditActorFromHod,
 };

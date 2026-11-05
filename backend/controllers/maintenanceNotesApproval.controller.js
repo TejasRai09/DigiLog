@@ -10,6 +10,8 @@ const {
   formatEntryCreatedAt,
 } = require('../services/maintenanceNotesMail.service');
 const { renderInboxPage, renderHtmlPage } = require('./maintenanceApproval.controller');
+const { pool } = require('../config/mysql');
+const { setAuditActorFromHod } = require('../utils/auditLog');
 
 const NOTES_INBOX_LABELS = {
   apiBase: '/api/maintenance-notes-approval',
@@ -131,6 +133,7 @@ const acceptByTokenJson = async (req, res) => {
   if (!token) return res.status(400).json({ message: 'Token is required.' });
   try {
     const result = await approveByToken(token);
+    await setAuditActorFromHod(pool, req, result.request);
     return res.json({
       status: result.status,
       alreadyResolved: result.alreadyResolved,
@@ -150,6 +153,7 @@ const rejectByTokenJson = async (req, res) => {
   if (!comment) return res.status(400).json({ message: 'A comment is required when sending for modification.' });
   try {
     const result = await rejectByToken(token, comment);
+    await setAuditActorFromHod(pool, req, result.request);
     return res.json({
       status: result.status,
       alreadyResolved: result.alreadyResolved,
@@ -166,6 +170,8 @@ const bulkAcceptByTokenJson = async (req, res) => {
   const token = String(req.query.token || req.body?.token || '').trim();
   if (!token) return res.status(400).json({ message: 'Token is required.' });
   try {
+    const inbox = await getInboxByToken(token);
+    await setAuditActorFromHod(pool, req, inbox.request);
     const result = await bulkApproveByInboxToken(token, req.body?.ids);
     return res.json(result);
   } catch (err) {
