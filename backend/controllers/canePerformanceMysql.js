@@ -572,6 +572,7 @@ const EMPTY = {
  * MySQL queries aligned to Power BI.
  * opts.tab — DigiLog tab id; only runs needed query packs (much faster).
  * opts.tab = 'all' — full payload (legacy / verification).
+ * opts.packs — explicit pack list (overrides opts.tab), e.g. for exports.
  */
 async function getMysqlCanePerformanceData(from, to, opts = {}) {
   const filters = {
@@ -584,7 +585,8 @@ async function getMysqlCanePerformanceData(from, to, opts = {}) {
   const tab = opts.tab || 'procurement';
   const pyFrom = norm(opts.pyFrom);
   const pyTo = norm(opts.pyTo);
-  const cacheKey = JSON.stringify({ ...filters, tab, pyFrom, pyTo });
+  const packs = Array.isArray(opts.packs) && opts.packs.length ? opts.packs : packsForTab(tab);
+  const cacheKey = JSON.stringify({ ...filters, tab, packs, pyFrom, pyTo });
 
   const hit = cache.get(cacheKey);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
@@ -598,7 +600,6 @@ async function getMysqlCanePerformanceData(from, to, opts = {}) {
   const dateOnlyCnt = cntWhere({ ...filters, mode: null, center: null, challan: null });
   const ctx = { g, c, cAll, dateOnlyGate, dateOnlyCnt };
 
-  const packs = packsForTab(tab);
   const t0 = Date.now();
   const [parts, dateRange] = await Promise.all([
     Promise.all(packs.map((p) => runPack(p, ctx))),
@@ -663,4 +664,12 @@ function clearDateRangeCache() {
   cache.clear();
 }
 
-module.exports = { getMysqlCanePerformanceData, packsForTab, clearDateRangeCache };
+module.exports = {
+  getMysqlCanePerformanceData,
+  packsForTab,
+  clearDateRangeCache,
+  gateWhere,
+  cntWhere,
+  GATE_OVERRUN,
+  CNT_OVERRUN,
+};
