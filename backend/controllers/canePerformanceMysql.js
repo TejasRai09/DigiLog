@@ -575,9 +575,21 @@ const EMPTY = {
  * opts.packs — explicit pack list (overrides opts.tab), e.g. for exports.
  */
 async function getMysqlCanePerformanceData(from, to, opts = {}) {
+  const fromDate = norm(from);
+  const toDate = norm(to);
+  const dateRange = await getGlobalDateRange().catch((err) => {
+    console.error('[cane-perf] dateRange failed:', err.message);
+    return { minDate: null, maxDate: null, effectiveFrom: null, effectiveTo: null };
+  });
+  // Never default to 2000–2100: that loads last season + current and paints it
+  // under the STD date bar. Wait for an explicit from/to (current season filter).
+  if (!fromDate || !toDate) {
+    return { ...EMPTY, dateRange };
+  }
+
   const filters = {
-    fromDate: from || '2000-01-01',
-    toDate: to || '2100-01-01',
+    fromDate,
+    toDate,
     mode: norm(opts.mode),
     center: norm(opts.center),
     challan: norm(opts.challan),
@@ -601,13 +613,7 @@ async function getMysqlCanePerformanceData(from, to, opts = {}) {
   const ctx = { g, c, cAll, dateOnlyGate, dateOnlyCnt };
 
   const t0 = Date.now();
-  const [parts, dateRange] = await Promise.all([
-    Promise.all(packs.map((p) => runPack(p, ctx))),
-    getGlobalDateRange().catch((err) => {
-      console.error('[cane-perf] dateRange failed:', err.message);
-      return { minDate: null, maxDate: null, effectiveFrom: null, effectiveTo: null };
-    }),
-  ]);
+  const parts = await Promise.all(packs.map((p) => runPack(p, ctx)));
   const data = { ...EMPTY, dateRange };
   for (const part of parts) Object.assign(data, part);
 
