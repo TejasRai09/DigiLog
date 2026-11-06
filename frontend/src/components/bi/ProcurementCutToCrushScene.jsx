@@ -46,6 +46,13 @@ function intFmt(value) {
   return n.toLocaleString("en-IN");
 }
 
+/** Card height for header + body rows + Total (includes padding and 1px borders). */
+function dataTableHeight(rowCount) {
+  const chrome = 4 + 8 + 2;
+  if (!rowCount) return chrome + 30 + 42;
+  return chrome + 30 + rowCount * 21 + 1 + 26;
+}
+
 function splitTable(rows, columns, fields) {
   const list = Array.isArray(rows) ? rows : [];
   const body = list.filter((r) => r.mode !== "Total");
@@ -95,7 +102,7 @@ function DataTable({ data, colWidths, limit }) {
     ...NUM,
   });
   return (
-    <div style={{ padding: "4px 10px 0", fontSize: 12.5, color: C.text }}>
+    <div style={{ padding: "4px 10px 8px", fontSize: 12.5, color: C.text }}>
       <div
         style={{
           display: "flex",
@@ -590,12 +597,12 @@ function Canvas({
       <Abs x={46} y={126}><FarmIcon uid={uid} /></Abs>
       <ZoneLabel x={53} y={246} w={100} solid={false}>Farm</ZoneLabel>
 
-      <Card x={235} y={100} w={333} h={150}>
+      <Card x={235} y={100} w={333} h={dataTableHeight(gateTable.rows.length)}>
         <DataTable data={gateTable} colWidths={[86, 64, 84, 76]} />
       </Card>
       <Tag x={612} y={167} w={78} h={38}>Gate<br />Vehicles</Tag>
 
-      <Card x={11} y={322} w={335} h={150}>
+      <Card x={11} y={322} w={335} h={Math.min(166, dataTableHeight(farmTable.rows.length))} style={{ overflow: "auto" }}>
         <DataTable data={farmTable} colWidths={[86, 66, 82, 78]} />
       </Card>
 
@@ -677,13 +684,13 @@ function Canvas({
       </Card>
       <Tag x={612} y={636} w={78} h={38}>Center<br />Vehicles</Tag>
 
-      <Card x={56} y={628} w={209} h={152}>
+      <Card x={56} y={628} w={209} h={152} style={{ overflow: "auto" }}>
         <DataTable data={holdingTable} colWidths={[90, 99]} />
       </Card>
       <Kpi x={275} y={628} w={160} h={152} value={truckHolding} label="Truck Holding" delta={truckHoldDelta} compareLabel={compareLabel} size={38} accent={C.amber} />
 
       <ZoneLabel x={764} y={95} w={100}>Yard</ZoneLabel>
-      <Card x={682} y={150} w={264} h={174}>
+      <Card x={682} y={150} w={264} h={Math.max(174, dataTableHeight(yardTable.rows.length))}>
         <DataTable data={yardTable} colWidths={[86, 66, 88]} limit={8} />
       </Card>
       <Abs x={696} y={356} style={{ opacity: 0.5 }}><YardParking /></Abs>
@@ -692,7 +699,7 @@ function Canvas({
       <Abs x={1002} y={404}><BoomGate /></Abs>
 
       <ZoneLabel x={1139} y={95} w={140}>Mill Premise</ZoneLabel>
-      <Card x={1042} y={150} w={272} h={174}>
+      <Card x={1042} y={150} w={272} h={Math.max(174, dataTableHeight(millTable.rows.length))}>
         <DataTable data={millTable} colWidths={[86, 64, 102]} limit={0.5} />
       </Card>
       <Abs x={1328} y={150}><CaneCarrier uid={uid} h={520} /></Abs>
