@@ -357,14 +357,15 @@ async function dropIndexes(conn, table, indexNames) {
 
 async function ensureCntIndexes(conn) {
   const indexes = [
-    ['idx_center', 'center'],
-    ['idx_weighment_date_purchy', 'weighment_date_purchy'],
-    ['idx_challan_no', 'challan_no'],
-    ['idx_purchy_no', 'purchy_no'],
+    ['idx_center', 'center', false],
+    ['idx_weighment_date_purchy', 'weighment_date_purchy', false],
+    ['idx_challan_no', 'challan_no', false],
+    ['uq_purchy_no', 'purchy_no', true],
   ];
-  for (const [name, col] of indexes) {
+  for (const [name, col, unique] of indexes) {
     try {
-      await conn.query(`CREATE INDEX \`${name}\` ON \`cnt_performance\` (\`${col}\`)`);
+      const kind = unique ? 'UNIQUE INDEX' : 'INDEX';
+      await conn.query(`CREATE ${kind} \`${name}\` ON \`cnt_performance\` (\`${col}\`)`);
     } catch (e) {
       if (e && e.code !== 'ER_DUP_KEYNAME') throw e;
     }
@@ -373,14 +374,15 @@ async function ensureCntIndexes(conn) {
 
 async function ensureGctcIndexes(conn) {
   const indexes = [
-    ['idx_v_name', 'v_name'],
-    ['idx_m_date', 'm_date'],
-    ['idx_purchyno', 'purchyno'],
-    ['idx_sup_mod', 'sup_mod'],
+    ['idx_v_name', 'v_name', false],
+    ['idx_m_date', 'm_date', false],
+    ['uq_purchyno', 'purchyno', true],
+    ['idx_sup_mod', 'sup_mod', false],
   ];
-  for (const [name, col] of indexes) {
+  for (const [name, col, unique] of indexes) {
     try {
-      await conn.query(`CREATE INDEX \`${name}\` ON \`g_ctc\` (\`${col}\`)`);
+      const kind = unique ? 'UNIQUE INDEX' : 'INDEX';
+      await conn.query(`CREATE ${kind} \`${name}\` ON \`g_ctc\` (\`${col}\`)`);
     } catch (e) {
       if (e && e.code !== 'ER_DUP_KEYNAME') throw e;
     }

@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS `audit_logs` (
   `success`        TINYINT(1)   NULL DEFAULT NULL,
   `action_type`    VARCHAR(20)  NULL DEFAULT NULL,
   `action_summary` VARCHAR(255) NULL DEFAULT NULL,
+  `outcome_message` VARCHAR(500) NULL DEFAULT NULL,
+  `error_detail`   VARCHAR(1000) NULL DEFAULT NULL,
   `module`         VARCHAR(100) NULL DEFAULT NULL,
   `module_key`     VARCHAR(64)  NULL DEFAULT NULL,
   `resource_type`  VARCHAR(64)  NULL DEFAULT NULL,

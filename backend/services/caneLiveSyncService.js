@@ -49,6 +49,71 @@ function intOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
+async function tableHasIndex(table, indexName) {
+  const [rows] = await mysqlPool.query(
+    `SELECT 1 AS ok
+     FROM information_schema.statistics
+     WHERE table_schema = DATABASE()
+       AND table_name = ?
+       AND index_name = ?
+     LIMIT 1`,
+    [table, indexName]
+  );
+  return rows.length > 0;
+}
+
+async function dedupeKeepNewest(table, column) {
+  const [res] = await mysqlPool.query(
+    `DELETE t1 FROM \`${table}\` t1
+     INNER JOIN \`${table}\` t2
+       ON t1.\`${column}\` = t2.\`${column}\`
+      AND t1.id < t2.id
+     WHERE t1.\`${column}\` IS NOT NULL`
+  );
+  return Number(res.affectedRows || 0);
+}
+
+/**
+ * ON DUPLICATE KEY UPDATE is a no-op unless purchyno / purchy_no are UNIQUE.
+ * Without that, every sync INSERTs a full copy of live rows.
+ */
+async function ensureUniqueKey(table, column, indexName) {
+  if (await tableHasIndex(table, indexName)) {
+    return { index: indexName, existed: true, removed: 0 };
+  }
+  let removed = await dedupeKeepNewest(table, column);
+  try {
+    await mysqlPool.query(
+      `ALTER TABLE \`${table}\` ADD UNIQUE KEY \`${indexName}\` (\`${column}\`)`
+    );
+  } catch (err) {
+    if (err.code === 'ER_DUP_KEYNAME') {
+      return { index: indexName, existed: true, removed };
+    }
+    if (err.code === 'ER_DUP_ENTRY') {
+      removed += await dedupeKeepNewest(table, column);
+      await mysqlPool.query(
+        `ALTER TABLE \`${table}\` ADD UNIQUE KEY \`${indexName}\` (\`${column}\`)`
+      );
+    } else {
+      throw err;
+    }
+  }
+  console.log(`[caneLiveSync] added ${indexName} on ${table}.${column} (removed ${removed} duplicate rows)`);
+  return { index: indexName, created: true, removed };
+}
+
+async function ensureCaneUpsertKeys() {
+  const gctc = await ensureUniqueKey('g_ctc', 'purchyno', 'uq_purchyno');
+  const cnt = await ensureUniqueKey('cnt_performance', 'purchy_no', 'uq_purchy_no');
+  return { gctc, cnt };
+}
+
+async function countTable(table) {
+  const [rows] = await mysqlPool.query(`SELECT COUNT(*) AS n FROM \`${table}\``);
+  return Number(rows[0]?.n || 0);
+}
+
 async function persistSyncStatus(status, details = {}) {
   try {
     const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -72,6 +137,10 @@ async function performSync() {
   if (!mssql) {
     throw new Error('SQL Server connection is not available');
   }
+
+  await ensureCaneUpsertKeys();
+  const gctcBefore = await countTable('g_ctc');
+  const cntBefore = await countTable('cnt_performance');
 
   // 1. Fetch & Upsert G_CTC
   const gctcRes = await mssql.request().query(`
@@ -261,8 +330,13 @@ async function performSync() {
     clearDateRangeCache();
   }
 
+  const gctcAfter = await countTable('g_ctc');
+  const cntAfter = await countTable('cnt_performance');
   const elapsed = Date.now() - t0;
-  console.log(`[caneLiveSync] Synced G_CTC (${gctcRows.length} rows) and CntPerformance (${cntRows.length} rows) in ${elapsed}ms`);
+  console.log(
+    `[caneLiveSync] Synced G_CTC source=${gctcRows.length} mysql ${gctcBefore}->${gctcAfter} ` +
+    `and CntPerformance source=${cntRows.length} mysql ${cntBefore}->${cntAfter} in ${elapsed}ms`
+  );
 
   const result = {
     success: true,
@@ -270,6 +344,10 @@ async function performSync() {
     cntCount: cntRows.length,
     gctcAffected,
     cntAffected,
+    gctcMysqlBefore: gctcBefore,
+    gctcMysqlAfter: gctcAfter,
+    cntMysqlBefore: cntBefore,
+    cntMysqlAfter: cntAfter,
     elapsedMs: elapsed,
     syncedAt: new Date().toISOString(),
   };
@@ -277,7 +355,13 @@ async function performSync() {
   lastSyncTime = Date.now();
   lastSyncStatus = 'success';
   lastSyncResult = result;
-  await persistSyncStatus('success', result);
+  await persistSyncStatus('success', {
+    gctcCount: result.gctcCount,
+    cntCount: result.cntCount,
+    gctcMysql: result.gctcMysqlAfter,
+    cntMysql: result.cntMysqlAfter,
+    elapsedMs: result.elapsedMs,
+  });
 
   return result;
 }

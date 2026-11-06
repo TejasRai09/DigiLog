@@ -1567,11 +1567,30 @@ export default function CanePerformanceDashboard(){
   React.useEffect(() => {
     api.get("/bi/settings")
       .then((r) => {
-        if (r.data?.seasonMapping && typeof r.data.seasonMapping === "object") {
-          setSeasonMapping(r.data.seasonMapping);
+        const mapping = r.data?.seasonMapping && typeof r.data.seasonMapping === "object"
+          ? r.data.seasonMapping
+          : {};
+        setSeasonMapping(mapping);
+        if (!dateRangeSeeded.current) {
+          const std = getCockpitPresetDateRange("STD", new Date(), mapping);
+          if (std.from && std.to) {
+            dateRangeSeeded.current = true;
+            setRangePreset("STD");
+            setFromDate(std.from);
+            setToDate(std.to);
+          }
         }
       })
-      .catch(() => { });
+      .catch(() => {
+        if (dateRangeSeeded.current) return;
+        const std = getCockpitPresetDateRange("STD", new Date(), {});
+        if (std.from && std.to) {
+          dateRangeSeeded.current = true;
+          setRangePreset("STD");
+          setFromDate(std.from);
+          setToDate(std.to);
+        }
+      });
   }, []);
 
   const seasonLabels = useMemo(() => {
@@ -1699,6 +1718,7 @@ export default function CanePerformanceDashboard(){
 
   React.useEffect(() => {
     if (!autoRefreshInterval || autoRefreshInterval <= 0) return;
+    if (!fromDate || !toDate) return;
     const timer = setInterval(() => {
       api.get(`/bi/cane-performance/procurement?${queryKey}`)
         .then(res => {
@@ -1709,12 +1729,16 @@ export default function CanePerformanceDashboard(){
         .catch(() => {});
     }, autoRefreshInterval * 1000);
     return () => clearInterval(timer);
-  }, [autoRefreshInterval, queryKey]);
+  }, [autoRefreshInterval, queryKey, fromDate, toDate]);
 
   const hasDataRef = useRef(false);
   const prevFilterKeyRef = useRef(filterKey);
 
   React.useEffect(() => {
+    if (!fromDate || !toDate) {
+      setLoading(true);
+      return undefined;
+    }
     let cancelled = false;
     const prevKey = prevFilterKeyRef.current;
     const filtersChanged = prevKey !== filterKey;
@@ -1737,44 +1761,45 @@ export default function CanePerformanceDashboard(){
           const next = normalizeLiveData(res.data);
           hasDataRef.current = true;
           if (!prev) return next;
+          const list = (n, p) => (Array.isArray(n) ? n : p);
           return {
             ...prev,
             ...next,
             dateRange: next.dateRange || prev.dateRange,
-            filterOptions: next.filterOptions?.modes?.length ? next.filterOptions : prev.filterOptions,
-            modeData: next.modeData?.length ? next.modeData : prev.modeData,
-            trendData: next.trendData?.length ? next.trendData : prev.trendData,
-            overrunTrend: next.overrunTrend?.length ? next.overrunTrend : prev.overrunTrend,
-            modeTrend: next.modeTrend?.length ? next.modeTrend : prev.modeTrend,
-            overruns: next.overruns?.length ? next.overruns : prev.overruns,
-            procurementFlow: next.procurementFlow?.length ? next.procurementFlow : prev.procurementFlow,
-            gateYard: next.gateYard?.length ? next.gateYard : prev.gateYard,
-            gateMill: next.gateMill?.length ? next.gateMill : prev.gateMill,
-            vehiclesByMode: next.vehiclesByMode?.length ? next.vehiclesByMode : prev.vehiclesByMode,
+            filterOptions: next.filterOptions || prev.filterOptions,
+            modeData: list(next.modeData, prev.modeData),
+            trendData: list(next.trendData, prev.trendData),
+            overrunTrend: list(next.overrunTrend, prev.overrunTrend),
+            modeTrend: list(next.modeTrend, prev.modeTrend),
+            overruns: list(next.overruns, prev.overruns),
+            procurementFlow: list(next.procurementFlow, prev.procurementFlow),
+            gateYard: list(next.gateYard, prev.gateYard),
+            gateMill: list(next.gateMill, prev.gateMill),
+            vehiclesByMode: list(next.vehiclesByMode, prev.vehiclesByMode),
             kpis: next.kpis != null ? next.kpis : prev.kpis,
             sidebar: next.sidebar != null ? next.sidebar : prev.sidebar,
             centerSidebar: next.centerSidebar != null
               ? { ...prev.centerSidebar, ...next.centerSidebar }
               : prev.centerSidebar,
-            cntOverruns: next.cntOverruns?.length ? next.cntOverruns : prev.cntOverruns,
-            topCenters: next.topCenters?.length ? next.topCenters : prev.topCenters,
-            bottomCenters: next.bottomCenters?.length ? next.bottomCenters : prev.bottomCenters,
-            topCentersVehicles: next.topCentersVehicles?.length ? next.topCentersVehicles : prev.topCentersVehicles,
-            bottomCentersVehicles: next.bottomCentersVehicles?.length ? next.bottomCentersVehicles : prev.bottomCentersVehicles,
-            centerPurchaseTrend: next.centerPurchaseTrend?.length ? next.centerPurchaseTrend : prev.centerPurchaseTrend,
-            centerModePie: next.centerModePie?.length ? next.centerModePie : prev.centerModePie,
-            centerOverrunTrend: next.centerOverrunTrend?.length ? next.centerOverrunTrend : prev.centerOverrunTrend,
-            centerVehiclesByMode: next.centerVehiclesByMode?.length ? next.centerVehiclesByMode : prev.centerVehiclesByMode,
-            vehicleHandlingTrend: next.vehicleHandlingTrend?.length ? next.vehicleHandlingTrend : prev.vehicleHandlingTrend,
-            holdingByCenter: next.holdingByCenter?.length ? next.holdingByCenter : prev.holdingByCenter,
-            holdingTrend: next.holdingTrend?.length ? next.holdingTrend : prev.holdingTrend,
-            yardHoldingTrend: next.yardHoldingTrend?.length ? next.yardHoldingTrend : prev.yardHoldingTrend,
-            yardExceedTrend: next.yardExceedTrend?.length ? next.yardExceedTrend : prev.yardExceedTrend,
-            scatterData: next.scatterData?.length ? next.scatterData : prev.scatterData,
-            transitByCenter: next.transitByCenter?.length ? next.transitByCenter : prev.transitByCenter,
-            truckHoldByCenter: next.truckHoldByCenter?.length ? next.truckHoldByCenter : prev.truckHoldByCenter,
-            dbRows: next.dbRows?.length ? next.dbRows : prev.dbRows,
-            prior: next.prior || prev.prior,
+            cntOverruns: list(next.cntOverruns, prev.cntOverruns),
+            topCenters: list(next.topCenters, prev.topCenters),
+            bottomCenters: list(next.bottomCenters, prev.bottomCenters),
+            topCentersVehicles: list(next.topCentersVehicles, prev.topCentersVehicles),
+            bottomCentersVehicles: list(next.bottomCentersVehicles, prev.bottomCentersVehicles),
+            centerPurchaseTrend: list(next.centerPurchaseTrend, prev.centerPurchaseTrend),
+            centerModePie: list(next.centerModePie, prev.centerModePie),
+            centerOverrunTrend: list(next.centerOverrunTrend, prev.centerOverrunTrend),
+            centerVehiclesByMode: list(next.centerVehiclesByMode, prev.centerVehiclesByMode),
+            vehicleHandlingTrend: list(next.vehicleHandlingTrend, prev.vehicleHandlingTrend),
+            holdingByCenter: list(next.holdingByCenter, prev.holdingByCenter),
+            holdingTrend: list(next.holdingTrend, prev.holdingTrend),
+            yardHoldingTrend: list(next.yardHoldingTrend, prev.yardHoldingTrend),
+            yardExceedTrend: list(next.yardExceedTrend, prev.yardExceedTrend),
+            scatterData: list(next.scatterData, prev.scatterData),
+            transitByCenter: list(next.transitByCenter, prev.transitByCenter),
+            truckHoldByCenter: list(next.truckHoldByCenter, prev.truckHoldByCenter),
+            dbRows: list(next.dbRows, prev.dbRows),
+            prior: Object.prototype.hasOwnProperty.call(next, 'prior') ? next.prior : prev.prior,
           };
         });
       })

@@ -15,6 +15,8 @@ const path = require('path');
 const fs = require('fs');
 const { CLIENT_ORIGIN, APP_LOGO_URL } = require('../config/env');
 const { brandTitleHtml } = require('../utils/digilogBrand');
+const { pool } = require('../config/mysql');
+const { setAuditActorFromHod } = require('../utils/auditLog');
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -1231,6 +1233,7 @@ const acceptByToken = async (req, res) => {
 
   try {
     const result = await approveRequestByToken(token);
+    await setAuditActorFromHod(pool, req, result.request);
     let label = 'equipment';
     try {
       label = await equipmentDisplayNameFromRequest(result.request);
@@ -1364,6 +1367,7 @@ const rejectByToken = async (req, res) => {
 
   try {
     const result = await rejectRequestByToken(token, comment);
+    await setAuditActorFromHod(pool, req, result.request);
     const label = await equipmentDisplayNameFromRequest(result.request);
     const msg = result.alreadyResolved
       ? alreadyRejectedMessage(label, result.request.resolved_at)
@@ -1389,6 +1393,7 @@ const acceptByTokenJson = async (req, res) => {
   if (!token) return res.status(400).json({ message: 'Token is required.' });
   try {
     const result = await approveRequestByToken(token);
+    await setAuditActorFromHod(pool, req, result.request);
     let equipmentName = '';
     try {
       equipmentName = await equipmentDisplayNameFromRequest(result.request);
@@ -1416,6 +1421,7 @@ const rejectByTokenJson = async (req, res) => {
   if (!comment) return res.status(400).json({ message: 'A comment is required when sending for modification.' });
   try {
     const result = await rejectRequestByToken(token, comment);
+    await setAuditActorFromHod(pool, req, result.request);
     return res.json({
       status: result.status,
       alreadyResolved: result.alreadyResolved,
@@ -1572,6 +1578,8 @@ const bulkAcceptByTokenJson = async (req, res) => {
     return res.status(400).json({ message: 'Select at least one item to approve.' });
   }
   try {
+    const review = await getReviewByToken(token);
+    await setAuditActorFromHod(pool, req, review.request);
     const result = await bulkApproveByInboxToken(token, ids);
     return res.json(result);
   } catch (err) {
