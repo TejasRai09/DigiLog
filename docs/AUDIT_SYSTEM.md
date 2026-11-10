@@ -55,7 +55,7 @@ Startup: `assertAuditLogsSchema` warns if `audit_logs` is missing any insert col
 
 ### 3.1 `audit_logs` (Changes)
 
-Written for `POST` / `PUT` / `PATCH` / `DELETE` that are not skipped.
+Written for `POST` / `PUT` / `PATCH` / `DELETE` that are not skipped, plus email one-click `GET /api/maintenance-approval/accept`.
 
 Key columns: `user_*`, `method`, `path`, `status_code`, `success`, `action_type`, `action_summary`, **`outcome_message`**, **`error_detail`**, `module`, `module_key`, `resource_*`, `display_path`, `screen`, `duration_ms`, `request_body`, `ip`, `user_agent`.
 
@@ -113,19 +113,28 @@ Header: `X-Session-Id`. These write paths are excluded from Changes in `shouldSk
 |--------|------|---------|
 | GET | `/api/admin/audit-logs` | Changes list (`q`, `action`, `success`, `from`, `to`, `quick`, tree filters, paging) |
 | GET | `/api/admin/audit-logs/summary` | Counts for selected dates: saved, sent for approval, approvals, edits, deletes, failed |
+| GET | `/api/admin/audit-logs/export` | Excel of all matching Changes rows (same filters as the list; cap 20,000) |
 | GET | `/api/admin/activity-logs` | Views list (`section`, `card`, `form_or_dashboard`, …) |
+| GET | `/api/admin/activity-logs/export` | Excel of all matching Views rows |
 | GET | `/api/admin/sessions` | Sign-ins list (`active`, …) |
+| GET | `/api/admin/sessions/export` | Excel of all matching Sign-ins rows |
 | GET | `/api/admin/audit-filter-options` | Cascading options |
 
-`quick` values: `problems`, `edits`, `approvals`, `uploads`, `logins`.
+`quick` values: `problems`, `edits`, `approvals`, `sent_for_approval`, `queued`, `uploads`, `logins`.
 
-Filters never rewrite stored rows. Forms card filter matches through `forms` → `apps.name` so older rows still appear under the card. Approvals includes Operations forms (`/form-approvals`, `/form-approval/`) and Maintenance Notes.
+Filters never rewrite stored rows. Forms card filter matches through `forms` → `apps.name` so older rows still appear under the card.
+
+Workflow chips / KPIs (three stages):
+
+1. **Queued** — employee saved a pending history/note record (`Saved as pending…`, `/change-requests/:id/draft`). Not yet sent to the HOD.
+2. **Sent for approval** — employee actually submitted it (`/change-requests/:id/submit`, notify-hod, notes submit, operations form `Sent for approval.`). `/api/change-requests` submit is **not** an HOD decision.
+3. **Approved or returned** — HOD accept/reject only (`/api/approvals/:id/approve`, form-approvals approve, email GET accept, notes approve/reject).
 
 ---
 
 ## 5. Change pipeline
 
-1. `shouldSkipAudit` — skip GETs, health, admin list reads, activity/session bookkeeping, hierarchy `/link` & `/sync-name`.
+1. `shouldSkipAudit` — skip GETs (except `GET /api/maintenance-approval/accept`), health, admin list reads, activity/session bookkeeping, hierarchy `/link` & `/sync-name`. The email reject link is a form; the Change Log row is written on `POST /reject`.
 2. For `…/specs` PUTs: `captureSpecsBefore` so the summary can diff subsection names.
 3. Wrap `res.json` so the response `message` is stored as `outcome_message`.
 4. Controllers set `req.auditBefore` on form edit/delete and employee role/active updates.
@@ -138,8 +147,11 @@ Example summaries:
 
 - `Ravi Kumar saved Mill Stoppages for 04-Nov-2026, Shift B`
 - `Ravi Kumar sent Mill Stoppages for 04-Nov-2026, Shift B for approval`
+- `Ravi Kumar queued maintenance history on Boiler 1`
+- `Ravi Kumar sent maintenance history on Boiler 1 for approval`
 - `Could not save Mill Stoppages: entry already exists for this shift`
 - `HOD Suresh approved Laboratory (from email)`
+- `HOD Suresh approved Boiler 1 (from email)`
 
 ---
 
@@ -167,11 +179,15 @@ Example summaries:
 File: `frontend/src/components/admin/config/AuditLogSection.jsx`  
 Config tab id: `audit-log` (label **Audit & Activity**).
 
-**Changes:** Time (IST + relative), Person, What happened, Where, Result chip (Saved / Sent for approval / Failed / …). Expand: What was entered / What changed / What was deleted / What went wrong / Technical details.
+**Changes:** Time (IST + relative), Person, What happened, Where, Result chip (Saved / Queued / Sent for approval / Approved / Failed / …). Expand: What was entered / What changed / What was deleted / What went wrong / Technical details.
+
+Result chips: **Queued** is a pending history save. **Sent for approval** is employee submit to the HOD (history submit, notes submit, operations form). **Approved** is in-app HOD (`/api/approvals/:id/approve`, form-approvals) and the email GET accept link.
 
 Quick chips: Today, Yesterday, This week, Problems only, Edits and deletes, Approvals, Uploads, Sign-ins.
 
-Summary strip counts are clickable filters.
+Summary strip counts are clickable filters. **Queued** / **Sent for approval** do not force Operations forms. **Approved or returned** is HOD decision paths only (not `/api/change-requests` submit).
+
+**Export Excel** (next to Refresh) downloads every matching row for the active tab and current filters (cap 20,000). Filename `audit-changes-YYYY-MM-DD.xlsx` (IST date) on Changes; matching names for Views and Sign-ins.
 
 **Views and downloads:** event labels, Form/Dashboard column, row expand.
 
@@ -201,7 +217,8 @@ That adds `outcome_message` and `error_detail`. Restart the backend so the start
 | `backend/utils/auditLog.js` | Enrichment, summaries, actors |
 | `backend/utils/auditFilterMap.js` | Area cascade SQL |
 | `backend/utils/httpError.js` | `auditError` on server failures |
-| `backend/controllers/auditLog.controller.js` | List + summary |
+| `backend/controllers/auditLog.controller.js` | List + summary + Excel export |
+| `backend/utils/auditExcelExport.js` | ExcelJS stream helper for Changes / Views / Sign-ins |
 | `backend/controllers/sessionActivity.controller.js` | Session/activity writes |
 | `backend/controllers/activityAdmin.controller.js` | Admin activity/session/filters |
 | `frontend/src/components/admin/config/AuditLogSection.jsx` | Admin UI |
@@ -210,4 +227,4 @@ That adds `outcome_message` and `error_detail`. Restart the backend so the start
 
 ## 11. Out of scope (later)
 
-Entry history on View Data, person timeline, flags (late edits, many deletes), 8 AM digest email, missing-entries tracker (comes from form tables, not this log), CSV export of logs, retention policy.
+Entry history on View Data, person timeline, flags (late edits, many deletes), 8 AM digest email, missing-entries tracker (comes from form tables, not this log), rewriting historical `audit_logs` rows, merging `form_approval_audit` / `maintenance_history_approval_audit` into the UI, retention policy.

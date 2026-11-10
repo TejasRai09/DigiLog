@@ -15,7 +15,8 @@ import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartEx
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import MillPairedChartTooltip, { MILL_CHART_TOOLTIP_PROPS, MillTooltipAnchor } from './MillPairedChartTooltip';
-import CompareRangeBadge from './CompareRangeBadge';
+import { ExpandPeriodBadge } from './CompareRangeBadge';
+import { formatExpandPeriodBadge } from '../../utils/biCockpitDateFilters';
 
 function ExpandChartTooltip({ lines, ...props }) {
   return <MillPairedChartTooltip {...props} lines={lines} valueFormat="plain" />;
@@ -41,6 +42,8 @@ export default function MillChartExpandModal({
   axisStyle,
   gridStyle,
   compareLabel,
+  days,
+  periodLabel,
   onClose,
 }) {
   const chartRef = useRef(null);
@@ -128,7 +131,10 @@ export default function MillChartExpandModal({
             <h2 id="mill-chart-expand-title" className="text-lg font-black tracking-tight">
               {title}
             </h2>
-            <CompareRangeBadge label={compareLabel} isDarkMode={isDarkMode} />
+            <ExpandPeriodBadge
+              label={formatExpandPeriodBadge({ days, periodLabel, comparisonLabel: compareLabel })}
+              isDarkMode={isDarkMode}
+            />
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

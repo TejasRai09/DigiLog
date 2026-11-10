@@ -10,6 +10,7 @@ import {
   MolassesStockChart,
   EthanolStockChart,
 } from './distilleryBiChartPlots';
+import { formatExpandPeriodBadge } from '../../utils/biCockpitDateFilters';
 export default function DistilleryChartsGrid({
   ChartTitle,
   filteredData,
@@ -27,10 +28,11 @@ export default function DistilleryChartsGrid({
   const [expandedChartId, setExpandedChartId] = useState(null);
   const [expandedMetrics, setExpandedMetrics] = useState(null);
   const operatingDays = (filteredData || []).filter((row) => Number(row.totalProd) > 0).length;
-  const periodBadgeLabel = [
-    `${operatingDays} Operating Days (${periodLabel})`,
-    comparisonLabel ? `vs ${comparisonLabel}` : null,
-  ].filter(Boolean).join(' · ');
+  const periodBadgeLabel = formatExpandPeriodBadge({
+    days: operatingDays,
+    periodLabel,
+    comparisonLabel,
+  });
   const chartPlotProps = { data: filteredData, isDarkMode, axisStyle, gridStyle };
 
   const openExpand = (chartId, metrics) => {

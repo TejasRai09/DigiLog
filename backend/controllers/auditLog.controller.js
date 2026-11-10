@@ -10,6 +10,12 @@ const {
 } = require('../utils/auditLog');
 const { pushAuditLogTreeFilters } = require('../utils/auditFilterMap');
 const { pushIstDayRange } = require('../utils/istDayRange');
+const {
+  EXPORT_ROW_CAP,
+  formatIstDateTime,
+  istYmd,
+  streamXlsx,
+} = require('../utils/auditExcelExport');
 
 const ACTION_TO_METHODS = {
   Create: ['POST'],
@@ -25,11 +31,52 @@ const AUTH_LOGIN_PATH_SQL = `(
 )`;
 
 const APPROVALS_PATH_SQL = `(
-  path LIKE '%/change-requests%'
-  OR path LIKE '%/maintenance-approval%'
-  OR path LIKE '%/form-approvals%'
+  path LIKE '%/maintenance-approval/accept%'
+  OR path LIKE '%/maintenance-approval/reject%'
+  OR path LIKE '%/form-approvals/%approve%'
+  OR path LIKE '%/form-approvals/%send-for-modification%'
   OR path LIKE '%/form-approval/%'
   OR path LIKE '%/maintenance-notes-approval%'
+  OR path LIKE '/api/approvals/%approve%'
+  OR path LIKE '/api/approvals/%send-for-modification%'
+  OR path LIKE '/api/maintenance-notes/%/approve%'
+  OR path LIKE '/api/maintenance-notes/%/reject%'
+)`;
+
+const SENT_FOR_APPROVAL_SQL = `(
+  (success = 1 OR (success IS NULL AND status_code >= 200 AND status_code < 400))
+  AND (
+    IFNULL(outcome_message, '') LIKE 'Sent for approval%'
+    OR IFNULL(outcome_message, '') LIKE '%Submitted for HOD approval%'
+    OR IFNULL(outcome_message, '') LIKE '%Resubmitted for HOD approval%'
+    OR IFNULL(outcome_message, '') LIKE '%sent back for approval%'
+    OR IFNULL(outcome_message, '') LIKE '%HOD notified%'
+    OR IFNULL(action_summary, '') LIKE '% for approval%'
+    OR path LIKE '%/change-requests/%/submit%'
+    OR path LIKE '%/change-requests/submit-drafts%'
+    OR path LIKE '%/change-requests/%/resubmit%'
+    OR path LIKE '%/change-requests/%/notify-hod%'
+    OR path LIKE '%/maintenance-notes/%/submit%'
+  )
+  AND IFNULL(outcome_message, '') NOT LIKE '%Saved as pending%'
+  AND IFNULL(outcome_message, '') NOT LIKE 'Queued%'
+  AND IFNULL(action_summary, '') NOT LIKE '%queued%'
+  AND path NOT LIKE '%/approve%'
+  AND path NOT LIKE '%/accept%'
+  AND path NOT LIKE '%/reject%'
+  AND path NOT LIKE '%/send-for-modification%'
+  AND path NOT LIKE '%/draft%'
+)`;
+
+const QUEUED_SQL = `(
+  (success = 1 OR (success IS NULL AND status_code >= 200 AND status_code < 400))
+  AND (
+    IFNULL(outcome_message, '') LIKE 'Queued%'
+    OR IFNULL(outcome_message, '') LIKE '%Saved as pending%'
+    OR IFNULL(outcome_message, '') LIKE '%Pending record updated%'
+    OR IFNULL(action_summary, '') LIKE '%queued%'
+    OR path LIKE '%/change-requests/%/draft%'
+  )
 )`;
 
 /** Best-effort rebuild of original keys from stored readable audit body. */
@@ -87,6 +134,14 @@ function pushQuickFilter(where, params, quick) {
   }
   if (quick === 'approvals') {
     where.push(APPROVALS_PATH_SQL);
+    return;
+  }
+  if (quick === 'sent_for_approval') {
+    where.push(SENT_FOR_APPROVAL_SQL);
+    return;
+  }
+  if (quick === 'queued') {
+    where.push(QUEUED_SQL);
     return;
   }
   if (quick === 'uploads') {
@@ -334,8 +389,10 @@ exports.summaryAuditLogs = async (req, res) => {
             AND IFNULL(action_summary, '') NOT LIKE '% for approval%'
            THEN 1 ELSE 0 END) AS saved,
          SUM(CASE
-           WHEN IFNULL(outcome_message, '') LIKE '%Sent for approval%'
-             OR IFNULL(action_summary, '') LIKE '% for approval%'
+           WHEN ${QUEUED_SQL.replace(/\n/g, ' ')}
+           THEN 1 ELSE 0 END) AS queued,
+         SUM(CASE
+           WHEN ${SENT_FOR_APPROVAL_SQL.replace(/\n/g, ' ')}
            THEN 1 ELSE 0 END) AS sent_for_approval,
          SUM(CASE
            WHEN ${APPROVALS_PATH_SQL.replace(/\n/g, ' ')}
@@ -356,6 +413,7 @@ exports.summaryAuditLogs = async (req, res) => {
 
     res.json({
       saved: Number(row?.saved || 0),
+      queued: Number(row?.queued || 0),
       sent_for_approval: Number(row?.sent_for_approval || 0),
       approvals: Number(row?.approvals || 0),
       edits: Number(row?.edits || 0),
@@ -365,5 +423,103 @@ exports.summaryAuditLogs = async (req, res) => {
   } catch (err) {
     console.error('[summaryAuditLogs]', err);
     res.status(500).json({ message: 'Failed to load audit summary.' });
+  }
+};
+
+const CHANGE_EXPORT_COLUMNS = [
+  { header: 'Time (IST)', key: 'time', width: 22 },
+  { header: 'Person', key: 'person', width: 24 },
+  { header: 'Role', key: 'role', width: 14 },
+  { header: 'What happened', key: 'what', width: 56 },
+  { header: 'Where', key: 'where', width: 36 },
+  { header: 'Result', key: 'result', width: 18 },
+  { header: 'Outcome', key: 'outcome', width: 28 },
+  { header: 'Path', key: 'path', width: 40 },
+  { header: 'HTTP', key: 'http', width: 10 },
+  { header: 'Status', key: 'status', width: 10 },
+];
+
+/**
+ * GET /admin/audit-logs/export
+ * Same filters as the Changes list; all matching rows (capped).
+ */
+exports.exportAuditLogs = async (req, res) => {
+  try {
+    const q = readQuery(req);
+    const { where, params } = buildAuditWhere(q);
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total FROM audit_logs ${whereSql}`,
+      params,
+    );
+    if (!Number(total)) {
+      return res.status(404).json({ message: 'No matching rows to export.' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT created_at, user_name, user_role, method, path, status_code, success,
+              action_type, action_summary, outcome_message, display_path, resource_name,
+              resource_type, screen
+         FROM audit_logs
+         ${whereSql}
+         ORDER BY created_at DESC, id DESC
+         LIMIT ?`,
+      [...params, EXPORT_ROW_CAP],
+    );
+
+    const data = rows.map((row) => {
+      const statusCode = row.status_code;
+      const success = row.success != null
+        ? !!row.success
+        : (statusCode != null ? statusCode >= 200 && statusCode < 400 : null);
+      const actionType = isAuthLoginPath(row.path)
+        ? 'Login'
+        : (row.action_type || actionTypeFromMethod(row.method));
+      const description = (row.action_summary && String(row.action_summary).trim())
+        || buildChangeDescription({
+          method: row.method,
+          path: row.path,
+          actionType,
+          screen: row.screen,
+          resourceName: row.resource_name,
+          resourceType: row.resource_type,
+          displayPath: row.display_path,
+          success: success == null ? null : (success ? 1 : 0),
+          outcomeMessage: row.outcome_message,
+        });
+      const label = resultLabel({
+        success,
+        statusCode,
+        outcomeMessage: row.outcome_message,
+        actionType,
+        actionSummary: description,
+        path: row.path,
+      });
+      return {
+        time: formatIstDateTime(row.created_at),
+        person: row.user_name || '',
+        role: row.user_role || '',
+        what: description || '',
+        where: row.display_path || row.path || '',
+        result: label,
+        outcome: row.outcome_message || '',
+        path: row.path || '',
+        http: row.method || '',
+        status: statusCode != null ? String(statusCode) : '',
+      };
+    });
+
+    await streamXlsx(res, {
+      filename: `audit-changes-${istYmd()}.xlsx`,
+      sheetName: 'Changes',
+      columns: CHANGE_EXPORT_COLUMNS,
+      rows: data,
+    });
+  } catch (err) {
+    console.error('[exportAuditLogs]', err);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Failed to export audit logs.' });
+    }
   }
 };

@@ -211,6 +211,7 @@ export default function MillThermalReportsTab({
   seasonMapping = {},
   bySeasonDay = false,
   comparisonLabel,
+  operatingDays,
   isDarkMode,
   cardClasses,
   textClasses,
@@ -476,6 +477,8 @@ export default function MillThermalReportsTab({
           axisStyle={axisStyle}
           gridStyle={gridStyle}
           compareLabel={comparisonLabel}
+          days={operatingDays}
+          periodLabel={periodLabel}
           onClose={() => setExpandedChart(null)}
         />
       )}

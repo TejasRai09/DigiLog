@@ -62,6 +62,76 @@ function extractResponseText(body) {
   return String(raw || '').trim();
 }
 
+function looksLikeQueued(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return false;
+  if (t.includes('saved as pending')) return true;
+  if (t.includes('pending record updated')) return true;
+  if (t.includes('ready for hod')) return true;
+  return t === 'queued' || t.startsWith('queued');
+}
+
+function looksLikeSentForApproval(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return false;
+  if (looksLikeQueued(t)) return false;
+  if (t.includes('already notified')) return true;
+  if (t.includes('hod notified')) return true;
+  if (t.includes('already')) return false;
+  if (t.includes('sent back for approval')) return true;
+  if (t.includes('sent for approval')) return true;
+  if (t.includes('submitted for hod approval')) return true;
+  if (t.includes('resubmitted for hod approval')) return true;
+  if (t.includes('submitted for approval')) return true;
+  if (t.includes('for hod approval')) return true;
+  return t.includes('for approval') && !t.includes('approved');
+}
+
+function looksLikeApproved(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return false;
+  if (t.includes('already')) return false;
+  if (looksLikeSentForApproval(t)) return false;
+  return /\bapproved\b/.test(t) || t.includes('has been saved in digilog');
+}
+
+function looksLikeSentBack(text) {
+  const t = String(text || '').toLowerCase();
+  if (!t) return false;
+  if (looksLikeSentForApproval(t)) return false;
+  return t.includes('sent back')
+    || t.includes('needs modification')
+    || t.includes('for modification')
+    || t.includes('asked to modify');
+}
+
+function pathLooksApproved(path) {
+  const p = String(path || '').split('?')[0].toLowerCase();
+  return /\/(approve|accept)(\/|$)/.test(p);
+}
+
+function pathLooksSentBack(path) {
+  const p = String(path || '').split('?')[0].toLowerCase();
+  return /\/(reject|send-for-modification)(\/|$)/.test(p);
+}
+
+function pathLooksQueued(path) {
+  const p = String(path || '').split('?')[0].toLowerCase();
+  return /\/change-requests\/[^/]+\/draft$/.test(p);
+}
+
+function pathLooksSentForApproval(path) {
+  const p = String(path || '').split('?')[0].toLowerCase();
+  return /\/(submit|resubmit|notify-hod|submit-drafts)(\/|$)/.test(p);
+}
+
+/** Email one-click MH approve mutates on GET; do not skip it. GET /reject only opens a form. */
+function isEmailHodApproveGet(method, path) {
+  if (String(method || '').toUpperCase() !== 'GET') return false;
+  const p = String(path || '').split('?')[0].toLowerCase();
+  return p === '/api/maintenance-approval/accept';
+}
+
 function resultLabel({
   success,
   statusCode,
@@ -82,9 +152,16 @@ function resultLabel({
     if (plain && plain !== 'OK') return plain;
     return 'Failed';
   }
-  if (lower.includes('sent for approval') || summary.includes('for approval')) return 'Sent for approval';
-  if (summary.includes('sent') && summary.includes('modification')) return 'Sent back';
-  if (summary.includes('approved') || p.includes('/accept') || p.includes('/approve')) return 'Approved';
+  if (looksLikeQueued(om) || looksLikeQueued(actionSummary) || pathLooksQueued(p)) return 'Queued';
+  if (
+    looksLikeSentForApproval(om)
+    || looksLikeSentForApproval(actionSummary)
+    || pathLooksSentForApproval(p)
+  ) return 'Sent for approval';
+  if (looksLikeSentBack(om) || looksLikeSentBack(actionSummary) || pathLooksSentBack(p)) return 'Sent back';
+  if (looksLikeApproved(om) || looksLikeApproved(actionSummary) || pathLooksApproved(p) || summary.includes('approved')) {
+    return 'Approved';
+  }
   if (actionType === 'Delete' || lower.includes('deleted')) return 'Deleted';
   if (actionType === 'Login') return 'Signed in';
   if (actionType === 'Update') return 'Edited';
@@ -95,7 +172,10 @@ function resultLabel({
 function outcomeMessageFromResponse(statusCode, body, success) {
   const text = extractResponseText(body);
   const lower = text.toLowerCase();
-  if (/sent for approval/.test(lower)) return 'Sent for approval';
+  if (looksLikeQueued(text)) return 'Queued';
+  if (looksLikeSentForApproval(text)) return 'Sent for approval';
+  if (looksLikeSentBack(text)) return 'Sent back for modification';
+  if (looksLikeApproved(text)) return 'Approved';
   const rows = text.match(/^(\d+)\s+rows inserted/i);
   if (rows) return `Saved (${rows[1]} rows)`;
   if (/form submitted successfully/.test(lower)) return 'Saved';
@@ -164,6 +244,17 @@ function setAuditActor(req, actor = {}) {
   };
 }
 
+/** Optional extras for HTML email GETs (no JSON `message`) and token lookups. */
+function setAuditContext(req, extra = {}) {
+  if (!req || !extra) return;
+  if (extra.resourceName != null && String(extra.resourceName).trim()) {
+    req.auditResourceName = String(extra.resourceName).trim().slice(0, 255);
+  }
+  if (extra.outcomeMessage != null && String(extra.outcomeMessage).trim()) {
+    req.auditOutcomeMessage = String(extra.outcomeMessage).trim().slice(0, 500);
+  }
+}
+
 async function setAuditActorFromHod(pool, req, request) {
   if (!req || !request) return;
   const id = request.hod_user_id != null ? Number(request.hod_user_id) : null;
@@ -212,6 +303,12 @@ const RESOURCE_SEGMENT_LABELS = {
   'send-mail': 'Send Mail',
   'send-mail-bulk': 'Send Mail (Bulk)',
   avatar: 'Avatar',
+  approve: 'Approve',
+  accept: 'Approve',
+  reject: 'Send for modification',
+  submit: 'Submit',
+  resubmit: 'Resubmit',
+  'send-for-modification': 'Send for modification',
 };
 
 function isDataUrlOrHugeString(value) {
@@ -1134,6 +1231,12 @@ function buildChangeDescription({
     const section = body?.section || pickBodyValue(body, readableBody, 'section');
     const where = [section, sub].filter(Boolean).join(' › ');
     if (m === 'POST') {
+      if (looksLikeQueued(outcomeMessage)) {
+        return `${actorName || 'A user'} queued maintenance history on ${equip || 'equipment'}${where ? ` (${where})` : ''}`.slice(0, 255);
+      }
+      if (looksLikeSentForApproval(outcomeMessage)) {
+        return `${actorName || 'A user'} sent maintenance history on ${equip || 'equipment'} for approval${where ? ` (${where})` : ''}`.slice(0, 255);
+      }
       return `Added maintenance history record${equip ? ` on ${equip}` : ''}${where ? ` (${where})` : ''}`.slice(0, 255);
     }
     if (m === 'DELETE') {
@@ -1213,7 +1316,7 @@ function buildChangeDescription({
     const entry = formEntryClause(body, beforeValues);
     const ok = success === 1 || success === true || success == null;
     const outcome = String(outcomeMessage || '').toLowerCase();
-    const sent = outcome.includes('sent for approval');
+    const sent = looksLikeSentForApproval(outcomeMessage);
     if (!ok) {
       const why = outcome.includes('already exists')
         ? 'entry already exists for this shift'
@@ -1223,11 +1326,11 @@ function buildChangeDescription({
     if (parts.includes('records') && m === 'DELETE') {
       return `${who} deleted ${formName} entry${entry}`.slice(0, 255);
     }
+    if (sent) return `${who} sent ${formName}${entry} for approval`.slice(0, 255);
     if (parts.includes('records') && (m === 'PUT' || m === 'PATCH')) {
       const n = Array.isArray(readableBody?.fields) ? readableBody.fields.length : 0;
       return `${who} edited ${formName} entry${entry}${n ? `: ${n} field${n === 1 ? '' : 's'} changed` : ''}`.slice(0, 255);
     }
-    if (sent) return `${who} sent ${formName}${entry} for approval`.slice(0, 255);
     if (parts.includes('batch')) return `${who} saved ${formName}${entry}`.slice(0, 255);
     return `${who} saved ${formName}${entry}`.slice(0, 255);
   }
@@ -1247,7 +1350,27 @@ function buildChangeDescription({
     return `${who} approved ${formName}${via}`.slice(0, 255);
   }
 
-  if (moduleKey === 'maintenance-approval' || moduleKey === 'maintenance-notes-approval') {
+  if (moduleKey === 'change-requests') {
+    const who = actorName || 'A user';
+    const label = resourceName || pickBodyValue(body, readableBody, 'equipmentName') || 'equipment';
+    if (parts.includes('draft') || looksLikeQueued(outcomeMessage)) {
+      return `${who} queued maintenance history on ${label}`.slice(0, 255);
+    }
+    if (
+      looksLikeSentForApproval(outcomeMessage)
+      || parts.includes('submit')
+      || parts.includes('resubmit')
+      || parts.includes('notify-hod')
+      || parts.includes('submit-drafts')
+    ) {
+      return `${who} sent maintenance history on ${label} for approval`.slice(0, 255);
+    }
+    if (/modif|reject/.test(String(path || ''))) {
+      return `${who} sent ${label} back for modification`.slice(0, 255);
+    }
+  }
+
+  if (moduleKey === 'approvals' || moduleKey === 'maintenance-approval' || moduleKey === 'maintenance-notes-approval') {
     const who = actorName || 'HOD';
     const via = /\/(accept|reject|bulk-accept)/.test(String(path || '')) && !parts.includes('dashboard')
       ? ' (from email)'
@@ -1257,6 +1380,20 @@ function buildChangeDescription({
       return `${who} sent ${label} back for modification${via}`.slice(0, 255);
     }
     return `${who} approved ${label}${via}`.slice(0, 255);
+  }
+
+  if (moduleKey === 'maintenance-notes') {
+    const who = actorName || 'A user';
+    const label = resourceName || 'a maintenance note';
+    if (parts.includes('submit') || looksLikeSentForApproval(outcomeMessage)) {
+      return `${who} sent ${label} for approval`.slice(0, 255);
+    }
+    if (parts.includes('approve') || looksLikeApproved(outcomeMessage)) {
+      return `${who} approved ${label}`.slice(0, 255);
+    }
+    if (parts.includes('reject') || looksLikeSentBack(outcomeMessage)) {
+      return `${who} sent ${label} back for modification`.slice(0, 255);
+    }
   }
 
   // Fallback — never dump technical field-name lists
@@ -1273,9 +1410,9 @@ function buildChangeDescription({
 
 function shouldSkipAudit(method, path) {
   const m = String(method || '').toUpperCase();
-  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(m)) return true;
-
   const p = String(path || '').split('?')[0];
+  if (isEmailHodApproveGet(m, p)) return false;
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(m)) return true;
   if (p === '/api/health') return true;
   if (p.startsWith('/api/admin/audit-logs')) return true;
   if (p.startsWith('/api/admin/activity-logs')) return true;
@@ -1383,6 +1520,15 @@ async function resolvePathNames(pool, rawPath, rawBody = null) {
     } else if (moduleKey === 'admin' && parts[1] === 'users' && id) {
       const [[u]] = await pool.query('SELECT id, name, email FROM users WHERE id = ? LIMIT 1', [id]);
       if (u) names[`${moduleKey}:${id}`] = u.name || u.email || `#${id}`;
+    } else if ((moduleKey === 'form-approvals' || moduleKey === 'form-approval') && id) {
+      const [[row]] = await pool.query(
+        'SELECT form_name FROM form_approval_request WHERE id = ? LIMIT 1',
+        [id],
+      );
+      if (row?.form_name) names[`${moduleKey}:${id}`] = row.form_name;
+    } else if ((moduleKey === 'approvals' || moduleKey === 'change-requests') && id) {
+      const equipName = await nameFromMhApprovalRequest(pool, id);
+      if (equipName) names[`${moduleKey}:${id}`] = equipName;
     } else if (moduleKey === 'forms' && parts[1]) {
       const formKey = parts[1];
       const [[f]] = await pool.query(
@@ -1401,6 +1547,37 @@ async function resolvePathNames(pool, rawPath, rawBody = null) {
   }
 
   return names;
+}
+
+const MH_APPROVAL_EQUIP_TABLE = {
+  sugar: 'shn_equipment',
+  power: 'ppn_equipment',
+  production: 'phn_equipment',
+};
+
+async function nameFromMhApprovalRequest(pool, id) {
+  const [[row]] = await pool.query(
+    `SELECT domain, equip_id, equipment_context_json
+       FROM maintenance_history_approval_request WHERE id = ? LIMIT 1`,
+    [id],
+  );
+  if (!row) return null;
+  try {
+    const ctx = typeof row.equipment_context_json === 'string'
+      ? JSON.parse(row.equipment_context_json)
+      : (row.equipment_context_json || {});
+    const n = String(ctx?.name || ctx?.equip_no || ctx?.tag_name || '').trim();
+    if (n) return n;
+  } catch {
+    // fall through to equipment table
+  }
+  const table = MH_APPROVAL_EQUIP_TABLE[row.domain];
+  if (!table || !row.equip_id) return null;
+  const [[eq]] = await pool.query(
+    `SELECT name, equip_no, tag_name FROM \`${table}\` WHERE id = ? LIMIT 1`,
+    [row.equip_id],
+  );
+  return String(eq?.name || eq?.equip_no || eq?.tag_name || '').trim() || null;
 }
 
 async function walkHierarchyLabels(pool, nodeId, table = 'ppn_hierarchy_node') {
@@ -1614,4 +1791,5 @@ module.exports = {
   resultLabel,
   setAuditActor,
   setAuditActorFromHod,
+  setAuditContext,
 };

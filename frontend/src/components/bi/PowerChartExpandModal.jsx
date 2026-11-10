@@ -24,7 +24,8 @@ import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import { formatCompact } from '../../utils/powerHouseMeasures';
 import { ChartTip, CHART_COLORS, axisStroke } from './powerHouseUi';
-import CompareRangeBadge from './CompareRangeBadge';
+import { ExpandPeriodBadge } from './CompareRangeBadge';
+import { formatExpandPeriodBadge } from '../../utils/biCockpitDateFilters';
 
 function slugify(title) {
   return String(title || 'chart').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -150,7 +151,7 @@ function ExpandedPlot({ config, dm }) {
   );
 }
 
-export default function PowerChartExpandModal({ config, compareLabel, dm, onClose }) {
+export default function PowerChartExpandModal({ config, compareLabel, days, periodLabel, dm, onClose }) {
   const chartRef = useRef(null);
   const [chartReady, setChartReady] = useState(false);
   const title = config?.title || '';
@@ -217,7 +218,10 @@ export default function PowerChartExpandModal({ config, compareLabel, dm, onClos
         <div className={`flex shrink-0 items-start justify-between gap-4 border-b px-5 py-4 ${border}`}>
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
             <h2 id="power-chart-expand-title" className="text-lg font-black tracking-tight">{title}</h2>
-            <CompareRangeBadge label={compareLabel} isDarkMode={dm} />
+            <ExpandPeriodBadge
+              label={formatExpandPeriodBadge({ days, periodLabel, comparisonLabel: compareLabel })}
+              isDarkMode={dm}
+            />
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={handleCsv} className={`rounded-lg border p-2 transition-colors ${btn}`} title="Download CSV" aria-label="Download chart data as CSV">

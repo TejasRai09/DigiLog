@@ -1,5 +1,6 @@
 import { MdInsights, MdHome, MdChevronRight } from 'react-icons/md';
 import { Link } from 'react-router-dom';
+import BiInfoTooltip from './BiInfoTooltip';
 
 /**
  * Standardized dashboard header for all BI analytics pages.
@@ -18,6 +19,8 @@ import { Link } from 'react-router-dom';
  *   backLabel   – label for back link (defaults to 'BI Control Tower')
  *   className   – extra className for root element
  *   actions     – optional right-side slot (filters, toggles)
+ *   help        – true for shared how-to, or a string extra line, or custom node
+ *   trailing    – optional chip to the right of the title (e.g. current season)
  */
 const BiDashboardHeader = ({
   title = 'Dashboard',
@@ -31,6 +34,8 @@ const BiDashboardHeader = ({
   compact = false,
   showBreadcrumb = true,
   actions = null,
+  help = null,
+  trailing = null,
 }) => {
   const headerClasses = isDarkMode ? 'text-slate-100' : 'text-slate-900';
   const subheadClasses = isDarkMode ? 'text-slate-400' : 'text-slate-500';
@@ -60,16 +65,38 @@ const BiDashboardHeader = ({
           <Icon className={compact ? 'h-4 w-4' : 'h-5 w-5'} />
         </div>
 
-        {/* Title + subtitle */}
+        {/* Title + subtitle + optional i-button help */}
         <div className="min-w-0 shrink-0">
-          <h1 className={`${compact ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl'} font-black tracking-tight ${headerClasses}`}>{title}</h1>
+          <div className="flex items-center">
+            <h1 className={`${compact ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl'} font-black tracking-tight ${headerClasses}`}>{title}</h1>
+            {help ? (
+              <BiInfoTooltip
+                definition={
+                  <div className="space-y-1.5">
+                    <p>Use WTD / MTD / STD or pick dates.</p>
+                    <p>Compare is the prior period or a named season.</p>
+                    <p>Click the expand (full-screen) button on a chart to open the detailed view; Esc closes it.</p>
+                    {typeof help === 'string' ? <p>{help}</p> : null}
+                    {help && help !== true && typeof help !== 'string' ? help : null}
+                  </div>
+                }
+                isDarkMode={isDarkMode}
+                placement="bottom"
+                wide
+              />
+            ) : null}
+          </div>
           {subtitle && (
             <p className={`text-[11px] font-bold leading-snug ${subheadClasses}`}>{subtitle}</p>
           )}
         </div>
 
+        {trailing && (
+          <div className="ml-auto flex shrink-0 items-center">{trailing}</div>
+        )}
+
         {actions && (
-          <div className="ml-auto min-w-0 flex-1">{actions}</div>
+          <div className={`min-w-0 ${trailing ? 'w-full' : 'ml-auto flex-1'}`}>{actions}</div>
         )}
       </div>
     </div>

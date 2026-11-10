@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import api from '../../api/axios';
 import { MdArrowBack, MdGrass } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
 import BiKpiCard from '../../components/bi/BiKpiCard';
 import {
   ResponsiveContainer,
@@ -609,6 +609,7 @@ export default function BrixSamplingDashboard() {
   const brixExpandBase = {
     filePrefix: 'brix',
     dashboardLabel: BI_DASHBOARDS['/bi/brix-sampling'],
+    periodLabel: rangePreset,
   };
   const openBrixChart = (cfg) => setExpandedChart({ ...brixExpandBase, ...cfg });
 
@@ -632,8 +633,10 @@ export default function BrixSamplingDashboard() {
             icon={MdGrass}
             iconColor="#059669"
             isDarkMode={darkMode}
+            help
           />
           <div className="flex items-center gap-4">
+            <BiCurrentSeasonChip toDate={dateTo} seasonMapping={seasonMapping} isDarkMode={darkMode} />
             <BiKeyMetricBox
               value={activeTab === 'field' ? (fieldStats?.totalSamples?.value ?? 0) : (yardStats?.totalSamples?.value ?? 0)}
               title={activeTab === 'field' ? "Field Samples" : "Yard Samples"}
@@ -1576,7 +1579,7 @@ export default function BrixSamplingDashboard() {
           </div>
       </main>
       <BiChartExpandModal
-        config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel } : null}
+        config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel, periodLabel: rangePreset } : null}
         isDarkMode={darkMode}
         onClose={() => setExpandedChart(null)}
       />

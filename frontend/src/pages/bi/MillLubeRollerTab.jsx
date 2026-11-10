@@ -493,6 +493,7 @@ export default function MillLubeRollerTab({
   seasonMapping = {},
   bySeasonDay = false,
   comparisonLabel,
+  operatingDays,
   isDarkMode,
   cardClasses,
   textClasses,
@@ -633,6 +634,8 @@ export default function MillLubeRollerTab({
           axisStyle={axisStyle}
           gridStyle={gridStyle}
           compareLabel={comparisonLabel}
+          days={operatingDays}
+          periodLabel={periodLabel}
           onClose={() => setExpandedChart(null)}
         />
       )}

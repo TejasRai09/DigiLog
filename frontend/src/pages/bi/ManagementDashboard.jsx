@@ -10,7 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiFilterBarLayout, BiKeyMetricBox } from '../../components/bi/BiLayoutElements';
+import { BiFilterBarLayout, BiKeyMetricBox, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
 import ManagementKpiCell from '../../components/bi/ManagementKpiCell';
 import ManagementKpiExpandModal from '../../components/bi/ManagementKpiExpandModal';
 import Spinner from '../../components/Spinner';
@@ -25,6 +25,7 @@ import {
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   formatKpiComparePeriodLabel,
+  formatExpandPeriodBadge,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
 import { millOperatingDays } from '../../utils/millingBiComparison';
@@ -343,8 +344,13 @@ export default function ManagementDashboard() {
     [dm],
   );
 
-  const periodLabel = from && to ? `${from} → ${to}` : '';
+  const dateRangeLabel = from && to ? `${from} → ${to}` : '';
   const daysElapsed = useMemo(() => millOperatingDays(from, to), [from, to]);
+  const periodLabel = formatExpandPeriodBadge({
+    days: daysElapsed,
+    periodLabel: preset,
+    comparisonLabel: compareLabel,
+  });
 
   if (loading && !dashboardData) {
     return (
@@ -363,6 +369,8 @@ export default function ManagementDashboard() {
           iconColor="#6366f1"
           isDarkMode={dm}
           compact
+          help="Tap a KPI cell to expand."
+          trailing={<BiCurrentSeasonChip toDate={to} seasonMapping={seasonMapping} isDarkMode={dm} />}
           actions={
         <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact alignEnd>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
@@ -418,10 +426,6 @@ export default function ManagementDashboard() {
               }`}
             />
 
-            <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-black ${dm ? 'bg-red-950 text-red-300' : 'bg-red-50 text-red-600'}`}>
-              {dma} DMA
-            </span>
-
             {loading && <Spinner size="sm" />}
 
             <div className={`hidden h-4 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
@@ -454,7 +458,7 @@ export default function ManagementDashboard() {
               title="Days"
               isDarkMode={dm}
               compact
-              tooltip={`Days elapsed · ${periodLabel || ''}`}
+              tooltip={`Days elapsed · ${dateRangeLabel || ''}`}
             />
           )}
         </BiFilterBarLayout>

@@ -16,7 +16,7 @@ const fs = require('fs');
 const { CLIENT_ORIGIN, APP_LOGO_URL } = require('../config/env');
 const { brandTitleHtml } = require('../utils/digilogBrand');
 const { pool } = require('../config/mysql');
-const { setAuditActorFromHod } = require('../utils/auditLog');
+const { setAuditActorFromHod, setAuditContext } = require('../utils/auditLog');
 
 const ZUARI_LOGO_URL =
   'https://www.zuariindustries.in/assets/web/img/logo/zuari_logo.png';
@@ -1240,6 +1240,10 @@ const acceptByToken = async (req, res) => {
     } catch (err) {
       console.error('[acceptByToken] equipment name after approve failed:', err.message);
     }
+    setAuditContext(req, {
+      resourceName: label,
+      outcomeMessage: result.alreadyResolved ? 'Already approved.' : 'Approved.',
+    });
     const domainLabel = DOMAIN_TABLES[result.request.domain]?.label || '';
     const msg = result.alreadyResolved
       ? alreadyApprovedMessage(label, result.request.resolved_at)
@@ -1369,6 +1373,10 @@ const rejectByToken = async (req, res) => {
     const result = await rejectRequestByToken(token, comment);
     await setAuditActorFromHod(pool, req, result.request);
     const label = await equipmentDisplayNameFromRequest(result.request);
+    setAuditContext(req, {
+      resourceName: label,
+      outcomeMessage: result.alreadyResolved ? 'Already sent for modification.' : 'Sent back for modification.',
+    });
     const msg = result.alreadyResolved
       ? alreadyRejectedMessage(label, result.request.resolved_at)
       : `The submitter has been asked to modify the entry for ${label}.`;
@@ -1400,7 +1408,12 @@ const acceptByTokenJson = async (req, res) => {
     } catch (err) {
       console.error('[acceptByTokenJson] equipment name after approve failed:', err.message);
     }
+    setAuditContext(req, {
+      resourceName: equipmentName || undefined,
+      outcomeMessage: result.alreadyResolved ? 'Already approved.' : 'Approved.',
+    });
     return res.json({
+      message: result.alreadyResolved ? 'Already approved.' : 'Approved.',
       status: result.status,
       alreadyResolved: result.alreadyResolved,
       equipmentName,
@@ -1422,10 +1435,16 @@ const rejectByTokenJson = async (req, res) => {
   try {
     const result = await rejectRequestByToken(token, comment);
     await setAuditActorFromHod(pool, req, result.request);
+    const equipmentName = await equipmentDisplayNameFromRequest(result.request);
+    setAuditContext(req, {
+      resourceName: equipmentName || undefined,
+      outcomeMessage: result.alreadyResolved ? 'Already sent for modification.' : 'Sent back for modification.',
+    });
     return res.json({
+      message: result.alreadyResolved ? 'Already sent for modification.' : 'Sent back for modification.',
       status: result.status,
       alreadyResolved: result.alreadyResolved,
-      equipmentName: await equipmentDisplayNameFromRequest(result.request),
+      equipmentName,
       action: result.request.action,
       domain: result.request.domain,
       resolvedAt: result.request.resolved_at || null,
