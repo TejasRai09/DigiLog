@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { MdExpandLess, MdExpandMore, MdRefresh } from 'react-icons/md';
+import { MdExpandLess, MdExpandMore, MdFileDownload, MdRefresh } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
@@ -130,6 +130,42 @@ function eventLabel(type) {
   return EVENT_LABELS[key] || (key ? key.replace(/_/g, ' ') : '—');
 }
 
+function filenameFromDisposition(header, fallback) {
+  if (!header) return fallback;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (star) {
+    try { return decodeURIComponent(star[1]); } catch { /* keep raw */ }
+    return star[1];
+  }
+  const m = /filename="?([^";]+)"?/i.exec(header);
+  return m ? m[1] : fallback;
+}
+
+async function blobErrorMessage(err) {
+  const data = err?.response?.data;
+  if (data instanceof Blob) {
+    try {
+      const parsed = JSON.parse(await data.text());
+      if (parsed?.message) return parsed.message;
+      if (parsed?.error) return parsed.error;
+    } catch {
+      // not JSON
+    }
+  }
+  return err?.response?.data?.message || err?.message || 'Export failed';
+}
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 function istYmd(date = new Date()) {
   return date.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 }
@@ -151,6 +187,8 @@ function resultChipClass(label) {
   switch (label) {
     case 'Saved':
       return 'bg-emerald-50 text-emerald-800';
+    case 'Queued':
+      return 'bg-slate-100 text-slate-800';
     case 'Sent for approval':
       return 'bg-sky-50 text-sky-800';
     case 'Approved':
@@ -426,6 +464,7 @@ export default function AuditLogSection() {
   const [rows, setRows] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 25, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [expandedId, setExpandedId] = useState(null);
   const [summary, setSummary] = useState(null);
 
@@ -541,6 +580,65 @@ export default function AuditLogSection() {
       setLoading(false);
     }
   }, [page, applied, tab, configLeafIsAction]);
+
+  const exportExcel = useCallback(async () => {
+    if (exporting || loading) return;
+    if (!pagination.total) {
+      toast.error('No matching rows to export.');
+      return;
+    }
+    setExporting(true);
+    try {
+      const treeParams = {
+        filter_root: applied.filterRoot || undefined,
+        filter_branch: applied.filterBranch || undefined,
+        filter_leaf: applied.filterLeaf || undefined,
+        filter_card: applied.filterCard || undefined,
+        filter_screen: applied.filterScreen || undefined,
+      };
+      const fallback = tab === 'activity'
+        ? `audit-activity-${istYmd()}.xlsx`
+        : tab === 'sessions'
+          ? `audit-sessions-${istYmd()}.xlsx`
+          : `audit-changes-${istYmd()}.xlsx`;
+      const path = tab === 'activity'
+        ? '/admin/activity-logs/export'
+        : tab === 'sessions'
+          ? '/admin/sessions/export'
+          : '/admin/audit-logs/export';
+      const params = tab === 'changes'
+        ? {
+          q: applied.q || undefined,
+          action: configLeafIsAction ? undefined : (applied.action || undefined),
+          success: applied.quick === 'problems' ? '0' : (applied.success || undefined),
+          from: applied.from || undefined,
+          to: applied.to || undefined,
+          quick: applied.quick || undefined,
+          ...treeParams,
+        }
+        : tab === 'activity'
+          ? {
+            q: applied.q || undefined,
+            from: applied.from || undefined,
+            to: applied.to || undefined,
+            ...treeParams,
+          }
+          : {
+            q: applied.q || undefined,
+            from: applied.from || undefined,
+            to: applied.to || undefined,
+            active: applied.active || undefined,
+            ...treeParams,
+          };
+      const res = await api.get(path, { params, responseType: 'blob' });
+      const name = filenameFromDisposition(res.headers['content-disposition'], fallback);
+      saveBlob(res.data, name);
+    } catch (err) {
+      toast.error(await blobErrorMessage(err));
+    } finally {
+      setExporting(false);
+    }
+  }, [exporting, loading, pagination.total, tab, applied, configLeafIsAction]);
 
   useEffect(() => {
     load();
@@ -685,11 +783,24 @@ export default function AuditLogSection() {
       setAction(key === 'deletes' ? 'Delete' : 'Update');
       return;
     }
-    if (key === 'approvals' || key === 'sent_for_approval') {
+    if (key === 'queued' || key === 'sent_for_approval') {
+      setQuick(key);
+      setSuccess('1');
+      setAction('');
+      setFilterRoot('');
+      setFilterBranch('');
+      setFilterLeaf('');
+      setFilterCard('');
+      setFilterScreen('');
+      return;
+    }
+    if (key === 'approvals') {
       setQuick('approvals');
       setFilterRoot('Approvals');
-      setFilterBranch(key === 'sent_for_approval' ? 'Operations forms' : '');
+      setFilterBranch('');
       setFilterLeaf('');
+      setFilterCard('');
+      setFilterScreen('');
       return;
     }
     if (key === 'saved') {
@@ -710,6 +821,7 @@ export default function AuditLogSection() {
 
   const summaryItems = summary ? [
     { key: 'saved', label: 'Saved', value: summary.saved },
+    { key: 'queued', label: 'Queued', value: summary.queued },
     { key: 'sent_for_approval', label: 'Sent for approval', value: summary.sent_for_approval },
     { key: 'approvals', label: 'Approved or returned', value: summary.approvals },
     { key: 'edits', label: 'Edits', value: summary.edits },
@@ -722,10 +834,21 @@ export default function AuditLogSection() {
       title="Audit & Activity"
       description={descriptions[tab]}
       actions={(
-        <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => load()} disabled={loading}>
-          <MdRefresh className="mr-1 inline" size={16} />
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-secondary h-9 px-3 text-sm"
+            onClick={exportExcel}
+            disabled={loading || exporting}
+          >
+            <MdFileDownload className="mr-1 inline" size={16} />
+            {exporting ? 'Exporting…' : 'Export Excel'}
+          </button>
+          <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={() => load()} disabled={loading}>
+            <MdRefresh className="mr-1 inline" size={16} />
+            Refresh
+          </button>
+        </div>
       )}
     >
       <div className="mb-4 flex flex-wrap gap-2 border-b border-gray-100 pb-3">
@@ -777,7 +900,7 @@ export default function AuditLogSection() {
       ) : null}
 
       {tab === 'changes' && summaryItems.length ? (
-        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
           {summaryItems.map((item) => (
             <button
               key={item.key}

@@ -3,7 +3,8 @@ import ModalPortal from '../ModalPortal';
 import { MdClose, MdDownload, MdImage } from 'react-icons/md';
 import { downloadChartCsv, downloadContainerChartPng, inferCsvColumns, slugifyChartTitle } from '../../utils/chartExport';
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
-import CompareRangeBadge from './CompareRangeBadge';
+import { ExpandPeriodBadge } from './CompareRangeBadge';
+import { formatExpandPeriodBadge } from '../../utils/biCockpitDateFilters';
 
 /**
  * Generic expand modal for BI charts (same actions as Distillery).
@@ -72,6 +73,11 @@ export default function BiChartExpandModal({ config, isDarkMode = false, onClose
     ? 'border-slate-600 bg-slate-800 text-slate-300 hover:bg-slate-700'
     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50';
   const hasData = Array.isArray(config.data) ? config.data.length > 0 : true;
+  const periodBadge = formatExpandPeriodBadge({
+    days: config.days,
+    periodLabel: config.periodLabel,
+    comparisonLabel: config.compareBadge,
+  });
 
   return (
     <ModalPortal>
@@ -96,7 +102,7 @@ export default function BiChartExpandModal({ config, isDarkMode = false, onClose
               <h2 id="bi-chart-expand-title" className="text-lg font-black tracking-tight">
                 {title}
               </h2>
-              <CompareRangeBadge label={config.compareBadge} isDarkMode={isDarkMode} />
+              <ExpandPeriodBadge label={periodBadge} isDarkMode={isDarkMode} />
             </div>
             {config.definition ? (
               <p className={`mt-1 text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>

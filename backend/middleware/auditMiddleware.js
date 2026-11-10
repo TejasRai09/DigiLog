@@ -64,7 +64,7 @@ async function auditMiddleware(req, res, next) {
       const statusCode = res.statusCode || null;
       const durationMs = Math.max(0, Date.now() - startedAt);
       const responseBody = res.locals.auditResponse;
-      const outcomeMessage = outcomeMessageFromResponse(
+      const outcomeMessage = req.auditOutcomeMessage || outcomeMessageFromResponse(
         statusCode,
         responseBody,
         statusCode != null && statusCode >= 200 && statusCode < 400,
@@ -81,6 +81,7 @@ async function auditMiddleware(req, res, next) {
           });
           const readableBody = parseStoredAuditBody(bodyJson);
           const ctx = await enrichAuditContext(pool, method, pathOnly, statusCode, req.body);
+          if (req.auditResourceName) ctx.resource_name = req.auditResourceName;
           const actorName = actorDisplayName(user);
           const description = buildChangeDescription({
             method,

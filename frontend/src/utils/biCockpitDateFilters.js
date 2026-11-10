@@ -297,3 +297,22 @@ export function formatKpiComparePeriodLabel({ label, start, end, from, to } = {}
   if (a && b) return prefix ? `${prefix} (${a} - ${b})` : `${a} - ${b}`;
   return prefix;
 }
+
+/**
+ * Expand-modal / Distillery pill: "32 Operating Days (STD) · vs 2024-2025 (Oct 27 - Mar 29)".
+ * Omit `days` for dashboards without operating days: "STD · vs …".
+ * Chip CSS should uppercase the result.
+ */
+export function formatExpandPeriodBadge({ days, periodLabel, comparisonLabel } = {}) {
+  const parts = [];
+  const preset = String(periodLabel || '').trim();
+  const dayNum = days == null || days === '' ? NaN : Number(days);
+  if (Number.isFinite(dayNum)) {
+    parts.push(`${dayNum} Operating Days${preset ? ` (${preset})` : ''}`);
+  } else if (preset) {
+    parts.push(preset);
+  }
+  const vs = String(comparisonLabel || '').replace(/^vs\s+/i, '').trim();
+  if (vs) parts.push(`vs ${vs}`);
+  return parts.join(' · ');
+}

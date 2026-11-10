@@ -1,5 +1,6 @@
 import React from 'react';
 import { MdLightMode, MdDarkMode } from 'react-icons/md';
+import { findSeasonLabelForDate } from '../../utils/distilleryBiDateRange';
 
 function formatMetricValue(value) {
   if (value === undefined || value === null || value === '') return '';
@@ -16,6 +17,24 @@ function metricValueFontClass(display) {
   if (len <= 4) return 'text-xl sm:text-2xl';
   if (len <= 5) return 'text-lg sm:text-xl';
   return 'text-sm sm:text-base';
+}
+
+/** Current crushing season for the selected range (`toDate`). Hidden when mapping is empty. */
+export function BiCurrentSeasonChip({ toDate, seasonMapping, isDarkMode = false, className = '' }) {
+  if (!seasonMapping || !Object.keys(seasonMapping).length) return null;
+  const label = findSeasonLabelForDate(toDate, seasonMapping);
+  if (!label) return null;
+  const text = /^season\s/i.test(label) ? label : `Season ${label}`;
+  return (
+    <span
+      className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+        isDarkMode ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+      } ${className}`}
+      title={text}
+    >
+      {text}
+    </span>
+  );
 }
 
 export function BiKeyMetricBox({ value, title, subtitle, isDarkMode, tooltip, compact = false }) {

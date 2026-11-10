@@ -16,7 +16,7 @@ import api from "../../api/axios";
 import ModalPortal from "../../components/ModalPortal";
 import BiDashboardHeader from "../../components/bi/BiDashboardHeader";
 import BiKpiCard from "../../components/bi/BiKpiCard";
-import { BiKeyMetricBox, BiFilterBarLayout } from "../../components/bi/BiLayoutElements";
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from "../../components/bi/BiLayoutElements";
 import ProcurementCutToCrushScene from "../../components/bi/ProcurementCutToCrushScene";
 import { formatYMD, resolveDashboardToDate } from "../../utils/distilleryBiDateRange";
 import {
@@ -1977,6 +1977,7 @@ export default function CanePerformanceDashboard(){
             icon={Activity}
             iconColor="#10b981"
             isDarkMode={dm}
+            help
           />
           <div className="flex items-center gap-3">
             {liveData?.dataSource && (
@@ -2089,6 +2090,7 @@ export default function CanePerformanceDashboard(){
                 </div>
               )}
             </div>
+            <BiCurrentSeasonChip toDate={toDate} seasonMapping={seasonMapping} isDarkMode={dm} />
             <BiKeyMetricBox
               value={operatingDays}
               title="Operating Days"
@@ -3559,7 +3561,7 @@ export default function CanePerformanceDashboard(){
 
       </main>
       <BiChartExpandModal
-        config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel } : null}
+        config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel, days: operatingDays, periodLabel: rangePreset } : null}
         isDarkMode={dm}
         onClose={() => setExpandedChart(null)}
       />

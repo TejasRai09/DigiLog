@@ -56,7 +56,7 @@ import {
 } from '../../utils/distilleryBiComparison';
 import DistilleryChartsGrid from '../../components/bi/DistilleryChartsGrid';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
 
 const FLOATING_LAYER_Z = 9999;
 const FLOATING_BACKDROP_Z = 9998;
@@ -938,9 +938,11 @@ export default function DistilleryAnalyticsDashboard() {
             icon={MdScience}
             iconColor="#6366f1"
             isDarkMode={isDarkMode}
+            help
           />
 
           <div className="flex items-center gap-2">
+            <BiCurrentSeasonChip toDate={toDate} seasonMapping={seasonMapping} isDarkMode={isDarkMode} />
             <BiKeyMetricBox
               value={operatingDaysCount}
               title="Operating Days"

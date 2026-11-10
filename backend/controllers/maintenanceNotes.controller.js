@@ -133,7 +133,9 @@ const downloadDocument = async (req, res) => {
 const submit = async (req, res) => {
   try {
     const note = await submitNote(req.user, req.params.id, req.body || {});
-    res.json(note);
+    res.json(note && typeof note === 'object'
+      ? { ...note, message: 'Sent for approval.' }
+      : { message: 'Sent for approval.' });
   } catch (err) {
     handleKnown(res, err, 'maintenanceNotes.submit:');
   }
@@ -145,7 +147,9 @@ const approve = async (req, res) => {
       decision: 'approved',
       remarks: req.body?.remarks,
     });
-    res.json(note);
+    res.json(note && typeof note === 'object'
+      ? { ...note, message: 'Approved.' }
+      : { message: 'Approved.' });
   } catch (err) {
     handleKnown(res, err, 'maintenanceNotes.approve:');
   }
@@ -157,7 +161,9 @@ const reject = async (req, res) => {
       decision: 'rejected',
       remarks: req.body?.remarks,
     });
-    res.json(note);
+    res.json(note && typeof note === 'object'
+      ? { ...note, message: 'Sent back for modification.' }
+      : { message: 'Sent back for modification.' });
   } catch (err) {
     handleKnown(res, err, 'maintenanceNotes.reject:');
   }
