@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { MdNaturePeople } from 'react-icons/md';
 import api from '../../api/axios';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
 import {
   resolveDashboardToDate,
   formatYMD,
@@ -511,8 +511,10 @@ export default function CentreMaturityDashboard() {
             icon={MdNaturePeople}
             iconColor="#16a34a"
             isDarkMode={darkMode}
+            help
           />
           <div className="flex items-center gap-4">
+            <BiCurrentSeasonChip toDate={dateTo} seasonMapping={seasonMapping} isDarkMode={darkMode} />
             <BiKeyMetricBox
               value={totalCentersCount}
               title="Centers Evaluated"

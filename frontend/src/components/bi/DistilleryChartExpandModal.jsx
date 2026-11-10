@@ -5,6 +5,7 @@ import { DISTILLERY_CHART_PLOTS } from './distilleryBiChartPlots';
 import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartExport';
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
+import { ExpandPeriodBadge } from './CompareRangeBadge';
 
 const MODAL_CHART_HEIGHT = 420;
 
@@ -99,15 +100,7 @@ export default function DistilleryChartExpandModal({
               <h2 id="chart-expand-title" className="text-lg font-black tracking-tight">
                 {title}
               </h2>
-              {periodBadge && (
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                    isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
-                  }`}
-                >
-                  {periodBadge}
-                </span>
-              )}
+              <ExpandPeriodBadge label={periodBadge} isDarkMode={isDarkMode} />
             </div>
             {definition && (
               <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>

@@ -20,7 +20,7 @@ import {
   MdPrecisionManufacturing,
 } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
 import {
   Area,
   AreaChart,
@@ -731,9 +731,11 @@ export default function MillingOperationsDashboard() {
             icon={MdPrecisionManufacturing}
             iconColor="#3b82f6"
             isDarkMode={isDarkMode}
+            help
           />
 
           <div className="flex items-center gap-4">
+            <BiCurrentSeasonChip toDate={toDate} seasonMapping={seasonMapping} isDarkMode={isDarkMode} />
             <BiKeyMetricBox
               value={operatingDays}
               title="Operating Days"
@@ -960,6 +962,7 @@ export default function MillingOperationsDashboard() {
               <MillOutageTab
                 kpis={kpis}
                 periodLabel={periodLabel}
+                operatingDays={operatingDays}
                 comparisonLabel={comparisonLabel}
                 dailySeries={dailySeries}
                 sectionTotals={sectionTotals}
@@ -991,6 +994,7 @@ export default function MillingOperationsDashboard() {
             axisStyle={axisStyle}
             gridStyle={gridStyle}
             periodLabel={periodLabel}
+            operatingDays={operatingDays}
             onDateBounds={absorbDateBounds}
           />
         ) : activeTab === 'lube-press' ? (
@@ -1010,6 +1014,7 @@ export default function MillingOperationsDashboard() {
             axisStyle={axisStyle}
             gridStyle={gridStyle}
             periodLabel={periodLabel}
+            operatingDays={operatingDays}
             onDateBounds={absorbDateBounds}
           />
         ) : (
@@ -1027,6 +1032,7 @@ export default function MillingOperationsDashboard() {
 function MillOutageTab({
   kpis,
   periodLabel,
+  operatingDays,
   comparisonLabel,
   dailySeries,
   sectionTotals,
@@ -1395,7 +1401,7 @@ function MillOutageTab({
       </div>
       </div>
       <BiChartExpandModal
-        config={expandedChart ? { ...expandedChart, compareBadge: comparisonLabel } : null}
+        config={expandedChart ? { ...expandedChart, compareBadge: comparisonLabel, days: operatingDays, periodLabel } : null}
         isDarkMode={isDarkMode}
         onClose={() => setExpandedChart(null)}
       />

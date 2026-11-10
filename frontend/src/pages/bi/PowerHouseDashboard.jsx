@@ -17,7 +17,7 @@ import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
 import PowerProcessFlow from '../../components/bi/PowerProcessFlow';
 import PowerSummaryView from '../../components/bi/PowerSummaryView';
 import PowerChartExpandModal from '../../components/bi/PowerChartExpandModal';
-import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
 import {
   PowerConsumptionView,
   PowerGenerationView,
@@ -420,8 +420,10 @@ export default function PowerHouseDashboard() {
             icon={MdHouseSiding}
             iconColor="#f59e0b"
             isDarkMode={dm}
+            help
           />
           <div className="flex items-center gap-2">
+            <BiCurrentSeasonChip toDate={to} seasonMapping={seasonMapping} isDarkMode={dm} />
             <BiKeyMetricBox
               value={operatingDaysCount}
               title="Operating Days"
@@ -616,7 +618,14 @@ export default function PowerHouseDashboard() {
           ) : null
         )}
       </main>
-      <PowerChartExpandModal config={expandedChart} compareLabel={comparisonLabel} dm={dm} onClose={() => setExpandedChart(null)} />
+      <PowerChartExpandModal
+        config={expandedChart}
+        compareLabel={comparisonLabel}
+        days={operatingDaysCount}
+        periodLabel={rangePreset}
+        dm={dm}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   );
 }

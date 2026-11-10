@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { MdArrowBack, MdDarkMode, MdLightMode, MdDashboard, MdCloud, MdScience, MdShoppingCart } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
-import { BiKeyMetricBox, BiFilterBarLayout } from '../../components/bi/BiLayoutElements';
+import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
+import useAppConstants from '../../hooks/useAppConstants';
+import { formatYMD } from '../../utils/distilleryBiDateRange';
 import usePurchyFilters from '../../hooks/usePurchyFilters';
 import usePurchyGrowerPerformance from '../../hooks/usePurchyGrowerPerformance';
 import usePurchyDishonour from '../../hooks/usePurchyDishonour';
@@ -69,6 +71,7 @@ const DISHONOUR_DETAIL_COLUMNS = [
 export default function PurchyAnalysisDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('grower');
+  const { seasonMapping } = useAppConstants();
   const [visitedTabs, setVisitedTabs] = useState({ grower: true });
 
   useEffect(() => {
@@ -145,8 +148,10 @@ export default function PurchyAnalysisDashboard() {
             icon={MdShoppingCart}
             iconColor="#7c3aed"
             isDarkMode={isDarkMode}
+            help
           />
           <div className="flex min-w-0 shrink items-center gap-4">
+            <BiCurrentSeasonChip toDate={formatYMD(new Date())} seasonMapping={seasonMapping} isDarkMode={isDarkMode} />
             <BiKeyMetricBox
               value={growerDetail?.total ?? 0}
               title="Total Growers"

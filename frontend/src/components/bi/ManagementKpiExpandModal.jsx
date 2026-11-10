@@ -5,6 +5,7 @@ import { downloadChartCsv, downloadContainerChartPng } from '../../utils/chartEx
 import { trackChartDownloadCsv } from '../../utils/trackActivity';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
 import { CompareChip, ManagementKpiExpandedChart } from './ManagementKpiCell';
+import { ExpandPeriodBadge } from './CompareRangeBadge';
 import { formatCompact, formatNum } from '../../utils/powerHouseMeasures';
 
 const MODAL_CHART_HEIGHT = 420;
@@ -102,22 +103,7 @@ export default function ManagementKpiExpandModal({
               <h2 id="mgmt-kpi-expand-title" className="text-lg font-black tracking-tight">
                 {kpi.title}
               </h2>
-              {periodLabel && (
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                    isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
-                  }`}
-                >
-                  {periodLabel}
-                </span>
-              )}
-              <span
-                className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                  isDarkMode ? 'bg-indigo-950 text-indigo-300' : 'bg-indigo-50 text-indigo-600'
-                }`}
-              >
-                {kpi.sourceTable}
-              </span>
+              <ExpandPeriodBadge label={periodLabel} isDarkMode={isDarkMode} />
             </div>
             {definition && (
               <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -160,12 +146,6 @@ export default function ManagementKpiExpandModal({
                 large
               />
             </div>
-            {kpi.rightVal != null && kpi.rightVal !== '' && (
-              <div>
-                <span className="text-[10px] font-bold uppercase text-red-400">7DMA</span>
-                <p className="text-lg font-black tabular-nums text-red-500">{formatMetric(kpi.rightVal, kpi.unit)}</p>
-              </div>
-            )}
           </div>
         </div>
 

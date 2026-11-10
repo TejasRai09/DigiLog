@@ -37,27 +37,56 @@ function useAnchorPosition(anchorRef, active) {
 }
 
 /** Hover info icon showing KPI formula / definition. */
-export default function BiInfoTooltip({ definition, isDarkMode, placement = 'top' }) {
+export default function BiInfoTooltip({ definition, isDarkMode, placement = 'top', wide = false }) {
   const anchorRef = useRef(null);
+  const tooltipRef = useRef(null);
   const [active, setActive] = useState(false);
+  const [side, setSide] = useState(placement);
   const pos = useAnchorPosition(anchorRef, active);
 
+  useEffect(() => {
+    setSide(placement);
+  }, [placement, active]);
+
+  useEffect(() => {
+    if (!active || !pos || !tooltipRef.current) return;
+    const h = tooltipRef.current.offsetHeight;
+    const gap = 8;
+    const pad = 8;
+    const spaceAbove = pos.top - pad;
+    const spaceBelow = window.innerHeight - pos.bottom - pad;
+    if (placement === 'top' && spaceAbove < h + gap && spaceBelow > spaceAbove) {
+      setSide('bottom');
+    } else if (placement === 'bottom' && spaceBelow < h + gap && spaceAbove > spaceBelow) {
+      setSide('top');
+    } else {
+      setSide(placement);
+    }
+  }, [active, pos, placement]);
+
   if (!definition) return null;
+
+  const widthPx = wide ? 320 : 256;
+  const left = pos
+    ? Math.min(window.innerWidth - widthPx / 2 - 8, Math.max(widthPx / 2 + 8, pos.centerX))
+    : 0;
 
   const tooltip =
     active &&
     pos &&
     createPortal(
       <div
+        ref={tooltipRef}
         role="tooltip"
-        className={`pointer-events-none fixed w-64 rounded-xl p-3 text-left text-[11px] font-normal leading-relaxed text-white shadow-xl ${
-          isDarkMode ? 'bg-slate-700' : 'bg-slate-800'
-        }`}
+        className={`pointer-events-none fixed rounded-xl p-3 text-left text-[11px] font-normal leading-relaxed text-white shadow-xl ${
+          wide ? 'w-80' : 'w-64'
+        } ${isDarkMode ? 'bg-slate-700' : 'bg-slate-800'}`}
         style={{
           zIndex: FLOATING_LAYER_Z,
-          ...(placement === 'bottom'
-            ? { top: pos.bottom + 8, left: pos.centerX, transform: 'translateX(-50%)' }
-            : { top: pos.top - 8, left: pos.centerX, transform: 'translate(-50%, -100%)' }),
+          left,
+          ...(side === 'bottom'
+            ? { top: pos.bottom + 8, transform: 'translateX(-50%)' }
+            : { top: pos.top - 8, transform: 'translate(-50%, -100%)' }),
         }}
       >
         {definition}

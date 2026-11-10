@@ -64,7 +64,6 @@ function StackedMetric({
   value,
   label,
   unit,
-  rightVal,
   glossary,
   isDarkMode,
   dense = false,
@@ -82,14 +81,6 @@ function StackedMetric({
         >
           {formatStackedValue(value, unit)}
         </span>
-        {rightVal != null && rightVal !== '' && (
-          <span
-            className="shrink-0 text-[8px] font-semibold italic tabular-nums text-rose-500"
-            title="7-day moving average"
-          >
-            {formatDisplayValue(rightVal, unit)}
-          </span>
-        )}
         <span
           className={`min-w-0 flex-1 truncate text-[8px] sm:text-[9px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
           title={label}
@@ -120,14 +111,6 @@ function StackedMetric({
         >
           {formatStackedValue(value, unit)}
         </span>
-        {rightVal != null && rightVal !== '' && (
-          <span
-            className="shrink-0 text-[9px] font-semibold italic tabular-nums text-rose-500 sm:text-[10px]"
-            title="7-day moving average"
-          >
-            {formatDisplayValue(rightVal, unit)}
-          </span>
-        )}
       </div>
       <div className="flex min-w-0 items-center gap-1">
         <span className={`min-w-0 truncate text-[9px] sm:text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
@@ -411,7 +394,6 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
             value={primaryValue}
             label={kpi.stackedLabel || kpi.title}
             unit={kpi.unit}
-            rightVal={kpi.rightVal}
             glossary={glossary}
             isDarkMode={isDarkMode}
             dense={compactStacked}
@@ -425,7 +407,6 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
               value={sub.value}
               label={sub.label}
               unit={sub.unit || kpi.unit}
-              rightVal={sub.rightVal}
               glossary={sub.glossary}
               isDarkMode={isDarkMode}
               dense={compactStacked}
@@ -445,14 +426,6 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
             >
               {formatDisplayValue(primaryValue, kpi.unit)}
             </span>
-            {kpi.rightVal != null && kpi.rightVal !== '' && (
-              <span
-                className="shrink-0 text-[9px] font-semibold italic tabular-nums leading-none text-rose-500 sm:text-[10px]"
-                title="7-day moving average"
-              >
-                {formatDisplayValue(kpi.rightVal, kpi.unit)}
-              </span>
-            )}
           </div>
           {showCompare && (
             <div className="shrink-0">

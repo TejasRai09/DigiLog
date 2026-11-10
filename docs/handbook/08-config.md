@@ -60,7 +60,7 @@ Administrators only. Use this after the night shift, or when checking one person
 
 1. Open **Config → Audit & Activity**. Stay on **Changes**.
 2. Tap **Yesterday** (or **Today** if you are checking the current shift).
-3. Read the counts: **Saved**, **Sent for approval**, **Approved or returned**, **Edits**, **Deletes**, **Failed**. Tap a count to filter the list.
+3. Read the counts: **Saved**, **Queued**, **Sent for approval**, **Approved or returned**, **Edits**, **Deletes**, **Failed**. Tap a count to filter the list. **Queued** is a pending history record saved for review. **Sent for approval** is when the employee actually submits it to the HOD (or an operations form that goes straight to the HOD). **Approved or returned** is only the HOD decision, in the app or from the email link.
 4. Open any **Failed** row. **What went wrong** shows the message the user saw (for example already exists for this shift). Server problems say **Ask IT**.
 5. Open **Edits** and **Deletes**. The expanded row shows the old values.
 6. Tap **Approvals** if you need who approved or sent back, including from the email link.
@@ -73,7 +73,7 @@ Administrators only. Use this after the night shift, or when checking one person
 - **Person** is name and role. Failed sign-in with an unknown email shows **Unknown user (tried: …)**.
 - **What happened** is a sentence, for example *Ravi Kumar saved Mill Stoppages for 04-Nov-2026, Shift B*.
 - **Where** is the place in the app, for example **Forms Hub › Mill House › Mill Stoppages**.
-- **Result** chips: green **Saved**, blue **Sent for approval**, red **Failed** (and similar for Edited / Deleted / Approved).
+- **Result** chips: green **Saved**, grey **Queued**, blue **Sent for approval**, red **Failed** (and similar for Edited / Deleted / **Approved**). **Queued** is a pending save. **Sent for approval** is the employee submit to the HOD. **Approved** is when the HOD accepts it in the app or from the email link.
 - Expand the row:
   - **What was entered** — fields on a new save
   - **What changed** — old and new values
@@ -84,8 +84,8 @@ Administrators only. Use this after the night shift, or when checking one person
 ### Filters
 
 - Chips on top: **Today**, **Yesterday**, **This week**, **Problems only**, **Edits and deletes**, **Approvals**, **Uploads**, **Sign-ins**.
-- Area cascade: **Home → Forms Hub → Forms cards →** a card such as Mill House. **Approvals** includes **Operations forms** and **Maintenance Notes**.
-- Search matches name, email, and the sentence. Dates and dropdowns apply as soon as you change them. Use **Apply** for search text. **Refresh** reloads.
+- Area cascade: **Home → Forms Hub → Forms cards →** a card such as Mill House. **Approvals** includes **Operations forms**, Sugar House / Power Plant history approved in the app, and **Maintenance Notes**.
+- Search matches name, email, and the sentence. Dates and dropdowns apply as soon as you change them. Use **Apply** for search text. **Refresh** reloads. **Export Excel** downloads every row that matches the current tab and filters (not only the page on screen). If nothing matches, you get a message instead of an empty file.
 
 ### Views and downloads / Sign-ins
 

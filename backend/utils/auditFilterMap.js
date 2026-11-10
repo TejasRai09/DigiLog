@@ -464,12 +464,18 @@ function pushAuditLogTreeFilters(where, params, { root, branch, leaf, card, scre
 
   if (r === 'Approvals') {
     where.push(`(
-      path LIKE '%/change-requests%'
-      OR path LIKE '%/maintenance-approval%'
-      OR path LIKE '%/form-approvals%'
+      path LIKE '%/maintenance-approval/accept%'
+      OR path LIKE '%/maintenance-approval/reject%'
+      OR path LIKE '%/form-approvals/%approve%'
+      OR path LIKE '%/form-approvals/%send-for-modification%'
       OR path LIKE '%/form-approval/%'
       OR path LIKE '%/maintenance-notes-approval%'
-      OR action_summary LIKE '%approv%'
+      OR path LIKE '/api/approvals/%approve%'
+      OR path LIKE '/api/approvals/%send-for-modification%'
+      OR path LIKE '/api/maintenance-notes/%/approve%'
+      OR path LIKE '/api/maintenance-notes/%/reject%'
+      OR action_summary LIKE '%approved%'
+      OR action_summary LIKE '%sent back%'
       OR action_summary LIKE '%modification%'
       OR display_path LIKE '%Approval%'
     )`);
