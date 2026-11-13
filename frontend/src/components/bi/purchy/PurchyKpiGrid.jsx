@@ -1,17 +1,21 @@
 import Spinner from '../../Spinner';
 import BiKpiCard from '../BiKpiCard';
+import { normalizeSeasonYear, seasonLabel } from '../../../utils/purchySeason';
 
-const KPI_ITEMS = [
-  { key: 'bondedGrowers', label: 'Bonded Growers', format: 'int' },
-  { key: 'indentCount', label: '2025 Indent Count', format: 'int' },
-  { key: 'indentQty', label: '2025 Indent Qty', format: 'num' },
-  { key: 'supplyCount', label: '2025 Supply Count', format: 'int' },
-  { key: 'supplyQty', label: '2025 Supply Qty', format: 'num' },
-  { key: 'dishonourCount', label: '2025 Dishonour Count', format: 'int' },
-  { key: 'dishonourPctCount', label: '2025 Dishonour % (Count)', format: 'pct' },
-  { key: 'dishonourQty', label: '2025 Dishonour Qty', format: 'num' },
-  { key: 'dishonourPctQty', label: '2025 Dishonour % (Qty)', format: 'pct' },
-];
+function kpiItems(seasonYear) {
+  const year = normalizeSeasonYear(seasonYear);
+  return [
+    { key: 'bondedGrowers', label: 'Bonded Growers', format: 'int' },
+    { key: 'indentCount', label: seasonLabel('Indent Count', year), format: 'int' },
+    { key: 'indentQty', label: seasonLabel('Indent Qty', year), format: 'num' },
+    { key: 'supplyCount', label: seasonLabel('Supply Count', year), format: 'int' },
+    { key: 'supplyQty', label: seasonLabel('Supply Qty', year), format: 'num' },
+    { key: 'dishonourCount', label: seasonLabel('Dishonour Count', year), format: 'int' },
+    { key: 'dishonourPctCount', label: seasonLabel('Dishonour % (Count)', year), format: 'pct' },
+    { key: 'dishonourQty', label: seasonLabel('Dishonour Qty', year), format: 'num' },
+    { key: 'dishonourPctQty', label: seasonLabel('Dishonour % (Qty)', year), format: 'pct' },
+  ];
+}
 
 function formatValue(val, format) {
   if (val === null || val === undefined) return '—';
@@ -20,7 +24,7 @@ function formatValue(val, format) {
   return Number(val).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = false }) {
+export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = false, seasonYear }) {
   if (loading && !kpis) {
     const card = isDarkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white';
     return (
@@ -32,7 +36,7 @@ export default function PurchyKpiGrid({ kpis, loading, isDarkMode, compact = fal
 
   return (
     <div className="grid shrink-0 gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-      {KPI_ITEMS.map(({ key, label, format }) => (
+      {kpiItems(seasonYear).map(({ key, label, format }) => (
         <BiKpiCard
           key={key}
           title={label}

@@ -32,13 +32,15 @@ function buildFilterContext(query = {}) {
   const societyName = parseListParam(query.societyName);
   const loyaltySlicer = parseListParam(query.loyaltySlicer);
   const dishonourBucket = parseListParam(query.dishonourBucket);
+  const overallHead = parseListParam(query.overallHead);
+  const head = parseListParam(query.head);
   const zoneHead = parseListParam(query.zoneHead);
   const zonalManager = parseListParam(query.zonalManager);
   const zonalIncharge = parseListParam(query.zonalIncharge);
   const villageStaff = parseListParam(query.villageStaff);
   const villageName = parseListParam(query.villageName);
 
-  const needsStaff = !!(zoneHead || zonalManager || zonalIncharge || villageStaff);
+  const needsStaff = !!(overallHead || head || zoneHead || zonalManager || zonalIncharge || villageStaff);
   if (needsStaff) {
     joins.push('LEFT JOIN purchy_field_staff fs ON fs.village_code = gs.village_code');
   }
@@ -49,6 +51,8 @@ function buildFilterContext(query = {}) {
   addInFilter(whereParts, params, 'gs.village_name_key', villageName);
 
   if (needsStaff) {
+    addInFilter(whereParts, params, 'fs.overall_head', overallHead);
+    addInFilter(whereParts, params, 'fs.head', head);
     addInFilter(whereParts, params, 'fs.zone_head', zoneHead);
     addInFilter(whereParts, params, 'fs.zonal_manager', zonalManager);
     addInFilter(whereParts, params, 'fs.zonal_incharge', zonalIncharge);

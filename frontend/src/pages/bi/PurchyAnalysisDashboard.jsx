@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { MdArrowBack, MdDarkMode, MdLightMode, MdDashboard, MdCloud, MdScience, MdShoppingCart } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
 import { BiKeyMetricBox, BiFilterBarLayout, BiCurrentSeasonChip } from '../../components/bi/BiLayoutElements';
-import useAppConstants from '../../hooks/useAppConstants';
-import { formatYMD } from '../../utils/distilleryBiDateRange';
 import usePurchyFilters from '../../hooks/usePurchyFilters';
 import usePurchyGrowerPerformance from '../../hooks/usePurchyGrowerPerformance';
 import usePurchyDishonour from '../../hooks/usePurchyDishonour';
@@ -20,6 +18,7 @@ import {
 } from '../../utils/purchyStaticFilters';
 import useTrackBiInteraction from '../../hooks/useTrackBiInteraction';
 import { BI_DASHBOARDS } from '../../utils/activityPath';
+import { loyaltySlicerLabel, normalizeSeasonYear, seasonLabel } from '../../utils/purchySeason';
 
 const TABS = [
   { id: 'grower', label: 'Grower Performance' },
@@ -35,6 +34,8 @@ const GROWER_SLICERS = [
 ];
 
 const DISHONOUR_SLICERS = [
+  { key: 'overallHead', label: 'Overall Head', optionKey: 'overallHead' },
+  { key: 'head', label: 'Head', optionKey: 'head' },
   { key: 'zoneHead', label: 'Zone Head', optionKey: 'zoneHead' },
   { key: 'zonalManager', label: 'Zonal Manager', optionKey: 'zonalManager' },
   { key: 'zonalIncharge', label: 'Zonal Incharge', optionKey: 'zonalIncharge' },
@@ -43,35 +44,40 @@ const DISHONOUR_SLICERS = [
   { key: 'loyaltySlicer', label: 'Loyalty', optionKey: 'loyaltySlicer' },
 ];
 
-const GROWER_DETAIL_COLUMNS = [
-  { key: 'grower_name_key', label: 'Grower_name_Key', kind: 'text' },
-  { key: 'village_name_key', label: 'Village_name_Key', kind: 'text' },
-  { key: 'society_name', label: 'Society Name', kind: 'text' },
-  { key: 'total_bond', label: 'Total Bond_2025', kind: 'int' },
-  { key: 'indent_qty', label: 'Indent Qty_2025', kind: 'int' },
-  { key: 'weight_qty_2025', label: 'Weight Qty 2025', kind: 'num' },
-  { key: 'indent_failer_qty', label: 'Indent Failer Qty', kind: 'int' },
-  { key: 'loyalty_slicer', label: "Loyalty_Slicer ('20-'24)", kind: 'text' },
-];
+function growerDetailColumns(seasonYear) {
+  const year = normalizeSeasonYear(seasonYear);
+  return [
+    { key: 'grower_name_key', label: 'Grower_name_Key', kind: 'text' },
+    { key: 'village_name_key', label: 'Village_name_Key', kind: 'text' },
+    { key: 'society_name', label: 'Society Name', kind: 'text' },
+    { key: 'total_bond', label: `Total Bond_${year}`, kind: 'int' },
+    { key: 'indent_qty', label: `Indent Qty_${year}`, kind: 'int' },
+    { key: 'weight_qty_2025', label: `Weight Qty ${year}`, kind: 'num' },
+    { key: 'indent_failer_qty', label: 'Indent Failer Qty', kind: 'int' },
+    { key: 'loyalty_slicer', label: loyaltySlicerLabel(year), kind: 'text' },
+  ];
+}
 
-const DISHONOUR_DETAIL_COLUMNS = [
-  { key: 'societyName', label: 'Society', kind: 'text' },
-  { key: 'villageNameKey', label: 'Village', kind: 'text' },
-  { key: 'growerNameKey', label: 'Grower', kind: 'text' },
-  { key: 'villageStaff', label: 'Village Staff', kind: 'text' },
-  { key: 'noOfPurchyIndent', label: 'No of Purchy Indent', kind: 'int' },
-  { key: 'noOfIndentFailerPurchy', label: 'No of Indent Failer purchy', kind: 'int' },
-  { key: 'supplyCount2025', label: '2025 Supply Count', kind: 'int' },
-  { key: 'indentQty2025', label: '2025 Indent Qty', kind: 'num' },
-  { key: 'supplyQty2025', label: '2025 Supply Qty', kind: 'num' },
-  { key: 'dishonourQty2025', label: '2025 Dishonour Qty', kind: 'num' },
-  { key: 'dishonourPctQty', label: '2025 Dishonour % (Qty)', kind: 'pct' },
-];
+function dishonourDetailColumns(seasonYear) {
+  const year = normalizeSeasonYear(seasonYear);
+  return [
+    { key: 'societyName', label: 'Society', kind: 'text' },
+    { key: 'villageNameKey', label: 'Village', kind: 'text' },
+    { key: 'growerNameKey', label: 'Grower', kind: 'text' },
+    { key: 'villageStaff', label: 'Village Staff', kind: 'text' },
+    { key: 'noOfPurchyIndent', label: 'No of Purchy Indent', kind: 'int' },
+    { key: 'noOfIndentFailerPurchy', label: 'No of Indent Failer purchy', kind: 'int' },
+    { key: 'supplyCount2025', label: seasonLabel('Supply Count', year), kind: 'int' },
+    { key: 'indentQty2025', label: seasonLabel('Indent Qty', year), kind: 'num' },
+    { key: 'supplyQty2025', label: seasonLabel('Supply Qty', year), kind: 'num' },
+    { key: 'dishonourQty2025', label: seasonLabel('Dishonour Qty', year), kind: 'num' },
+    { key: 'dishonourPctQty', label: seasonLabel('Dishonour % (Qty)', year), kind: 'pct' },
+  ];
+}
 
 export default function PurchyAnalysisDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('grower');
-  const { seasonMapping } = useAppConstants();
   const [visitedTabs, setVisitedTabs] = useState({ grower: true });
 
   useEffect(() => {
@@ -113,12 +119,15 @@ export default function PurchyAnalysisDashboard() {
 
   usePurchyTabPrefetch(debouncedParams, {
     enabled: !filtersLoading && !grower.loadingSummary && grower.summary.length > 0,
+    dateFrom: options?.seasonDateFrom || null,
+    dateTo: options?.seasonDateTo || null,
   });
 
   const filterOptions = useMemo(
     () => resolveFilterOptions(options, { preferStatic: false }),
     [options],
   );
+  const seasonYear = normalizeSeasonYear(options?.seasonYear);
 
   const summaryRows = useMemo(() => {
     const rows = grower.summary || [];
@@ -151,7 +160,7 @@ export default function PurchyAnalysisDashboard() {
             help
           />
           <div className="flex min-w-0 shrink items-center gap-4">
-            <BiCurrentSeasonChip toDate={formatYMD(new Date())} seasonMapping={seasonMapping} isDarkMode={isDarkMode} />
+            <BiCurrentSeasonChip label={options?.seasonChip || `${seasonYear}-${seasonYear + 1}`} isDarkMode={isDarkMode} />
             <BiKeyMetricBox
               value={growerDetail?.total ?? 0}
               title="Total Growers"
@@ -209,7 +218,7 @@ export default function PurchyAnalysisDashboard() {
               compact
               className="min-h-[240px] flex-1"
               title="Current Sugar Season Data"
-              columns={GROWER_DETAIL_COLUMNS}
+              columns={growerDetailColumns(seasonYear)}
               rows={growerDetail?.rows || []}
               loading={growerDetailLoading}
               total={growerDetail?.total}
@@ -225,7 +234,7 @@ export default function PurchyAnalysisDashboard() {
 
         {visitedTabs.dishonour && (
           <div className={activeTab === 'dishonour' ? 'flex min-h-0 flex-1 flex-col gap-2' : 'hidden'}>
-            <PurchyKpiGrid compact kpis={dishonourKpis} loading={kpiLoading} isDarkMode={isDarkMode} />
+            <PurchyKpiGrid compact kpis={dishonourKpis} loading={kpiLoading} isDarkMode={isDarkMode} seasonYear={seasonYear} />
             <PurchyFilterBar
               compact
               slicers={DISHONOUR_SLICERS}
@@ -241,7 +250,7 @@ export default function PurchyAnalysisDashboard() {
               compact
               className="min-h-[240px] flex-1"
               title="Dishonour Detail"
-              columns={DISHONOUR_DETAIL_COLUMNS}
+              columns={dishonourDetailColumns(seasonYear)}
               rows={dishonourDetail?.rows || []}
               loading={dishonourDetailLoading}
               total={dishonourDetail?.total}
@@ -267,6 +276,7 @@ export default function PurchyAnalysisDashboard() {
               useLiveData={true}
               globalQueryParams={debouncedParams}
               filterOptions={filterOptions}
+              seasonYear={seasonYear}
             />
           </div>
         )}
@@ -278,6 +288,7 @@ export default function PurchyAnalysisDashboard() {
               isActive={activeTab === 'hierarchy-drill'}
               useLiveData={true}
               globalQueryParams={debouncedParams}
+              seasonYear={seasonYear}
             />
           </div>
         )}
@@ -289,6 +300,9 @@ export default function PurchyAnalysisDashboard() {
               useLiveData={true}
               globalQueryParams={debouncedParams}
               filterOptions={filterOptions}
+              seasonDateFrom={options?.seasonDateFrom || ''}
+              seasonDateTo={options?.seasonDateTo || ''}
+              failureDateMax={options?.failureDateMax || ''}
             />
           </div>
         )}

@@ -6,6 +6,8 @@ import { usePurchyCachedGet } from './purchyQueryCache';
 const EMPTY_FILTERS = {
   societyName: [],
   loyaltySlicer: [],
+  overallHead: [],
+  head: [],
   zoneHead: [],
   zonalManager: [],
   zonalIncharge: [],
@@ -31,7 +33,15 @@ export default function usePurchyFilters({ enabled = true } = {}) {
     {},
     {
       enabled,
-      mapResponse: (res) => resolveFilterOptions(res),
+      mapResponse: (res) => ({
+        ...resolveFilterOptions(res),
+        seasonYear: res?.seasonYear,
+        seasonChip: res?.seasonChip,
+        seasonDateFrom: res?.seasonDateFrom,
+        seasonDateTo: res?.seasonDateTo,
+        failureDateMax: res?.failureDateMax,
+        loyaltyLabel: res?.loyaltyLabel,
+      }),
       errorMessage: 'Failed to load filter options.',
     },
   );

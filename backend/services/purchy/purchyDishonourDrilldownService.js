@@ -8,9 +8,10 @@ const {
   ensureGrowerFacts,
 } = require('./purchyPbiFacts');
 const { withPurchyCache } = require('./purchyResponseCache');
+const { seasonLabel, resolveSeasonYear } = require('./purchySeason');
 
 const SLICER_KEYS = [
-  'societyName', 'loyaltySlicer', 'dishonourBucket', 'zoneHead',
+  'societyName', 'loyaltySlicer', 'dishonourBucket', 'overallHead', 'head', 'zoneHead',
   'zonalManager', 'zonalIncharge', 'villageStaff', 'villageName',
 ];
 
@@ -165,7 +166,7 @@ async function getDishonourDrilldown(query) {
       growers: Number(totalsRow.growers) || 0,
       villages: Number(totalsRow.villages) || 0,
     },
-    rootLabel: '2025 Dishonour % (Count)',
+    rootLabel: seasonLabel('Dishonour % (Count)', await resolveSeasonYear(pool)),
     rootPct: tx.dishonourPctCount,
     tree: {
       societies: societies.map((s) => ({

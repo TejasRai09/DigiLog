@@ -55,6 +55,14 @@ function str(v) {
   return s === '' ? null : s;
 }
 
+/** First non-empty Excel header among aliases (long 2025-26 names, then short codes). */
+function pick(row, ...keys) {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+  }
+  return null;
+}
+
 function parsePurchaseModeQty(purchasemodename) {
   const name = str(purchasemodename);
   if (!name) return null;
@@ -137,45 +145,90 @@ function cellRaw(v) {
   return v;
 }
 
-function mapGrowerSummaryRow(r, seen) {
-  const villageCode = int(r['Village Code']);
-  const growerCode = int(r['Grower Code']);
-  if (villageCode === null || growerCode === null) return null;
-  const key = `${villageCode}-${growerCode}`;
-  if (seen.has(key)) return null;
-  seen.add(key);
+/** 2026-27 summary sheet uses supply2026 / Sup2025 / issue25. 2025-26 uses Weight Qty 2025 / Supply 2024. */
+function isSeason2026Summary(r) {
+  return r.supply2026 !== undefined || r.Sup2025 !== undefined || r.issue25 !== undefined;
+}
+
+function seasonSupplyColumns(r) {
+  if (isSeason2026Summary(r)) {
+    return {
+      weight_qty_2025: num(r.supply2026),
+      supply_2025: num(r.Sup2025),
+      supply_2024: num(r.Sup2024),
+      supply_2023: num(r.Sup2023),
+      supply_2022: num(r.Sup2022),
+      supply_2021: num(r.supp2021),
+      supply_2020: null,
+      bquota2025: int(r.BQUOTA2025),
+      bond2025: num(r.bond2025),
+      issue25: int(r.issue25),
+      indqty25: int(r.indqty25),
+      wt25: int(r.wt25),
+    };
+  }
   return {
-    village_code: villageCode,
-    grower_code: growerCode,
-    grower_name: str(r['Grower Name']),
-    grower_father_name: str(r['Grower Father Name']),
-    village_name: str(r['Village Name']),
-    centre_code: int(r['Centre Code']),
-    centre_name: str(r['Centre Name']),
-    supply_centre_code: int(r['Supply Centre Code']),
-    supply_centre_name: str(r['Supply Centre Name']),
-    society_code: int(r['Society Code']),
-    society_name: str(r['Society Name']),
-    cul_area: num(r['Cul Area']),
-    survey_area: num(r['Survey Area']),
-    bond_area: num(r['Bond Area']),
-    basic_quota: int(r['Basic Quota']),
-    bonding: int(r.Bonding),
-    ad_bonding: int(r['Ad Bonding']),
-    total_bond: int(r['Total Bond']),
-    no_of_purchy_indent: int(r['No of Purchy Indent']),
-    indent_qty: int(r['Indent QTY']),
-    no_of_weight_purchy: int(r['No of Weight Purchy']),
     weight_qty_2025: num(r['Weight Qty 2025']),
+    supply_2025: null,
     supply_2024: num(r['Supply 2024']),
     supply_2023: num(r['Supply 2023']),
     supply_2022: num(r['Supply 2022']),
     supply_2021: num(r['Supply 2021']),
     supply_2020: num(r['Supply 2020']),
-    no_of_balance_purchy: int(r['No of Balance purchy']),
-    balance_indent_qty: num(r['Balance Indent Qty']),
-    no_of_indent_failer_purchy: int(r['No of Indent Failer purchy']),
-    indent_failer_qty: int(r['Indent Failer QTY']),
+    bquota2025: null,
+    bond2025: null,
+    issue25: null,
+    indqty25: null,
+    wt25: null,
+  };
+}
+
+function mapGrowerSummaryRow(r, seen) {
+  const villageCode = int(pick(r, 'Village Code', 'G_vill'));
+  const growerCode = int(pick(r, 'Grower Code', 'g_code'));
+  if (villageCode === null || growerCode === null) return null;
+  const key = `${villageCode}-${growerCode}`;
+  if (seen.has(key)) return null;
+  seen.add(key);
+  const supply = seasonSupplyColumns(r);
+  return {
+    village_code: villageCode,
+    grower_code: growerCode,
+    grower_name: str(pick(r, 'Grower Name', 'g_name')),
+    grower_father_name: str(pick(r, 'Grower Father Name', 'g_father')),
+    village_name: str(pick(r, 'Village Name', 'vname')),
+    centre_code: int(pick(r, 'Centre Code', 'g_cnt_cd')),
+    centre_name: str(pick(r, 'Centre Name', 'cname')),
+    supply_centre_code: int(pick(r, 'Supply Centre Code', 'g_alt_cn')),
+    supply_centre_name: str(pick(r, 'Supply Centre Name', 'Altcentre')),
+    society_code: int(pick(r, 'Society Code', 'g_soc_cd')),
+    society_name: str(pick(r, 'Society Name', 'sname')),
+    cul_area: num(pick(r, 'Cul Area', 'cuarea')),
+    survey_area: num(pick(r, 'Survey Area', 'surveyarea')),
+    bond_area: num(pick(r, 'Bond Area', 'canearea')),
+    basic_quota: int(pick(r, 'Basic Quota', 'bq')),
+    bonding: int(pick(r, 'Bonding', 'bond')),
+    ad_bonding: int(pick(r, 'Ad Bonding', 'adbond')),
+    total_bond: int(pick(r, 'Total Bond', 'totalbond')),
+    no_of_purchy_indent: int(pick(r, 'No of Purchy Indent', 'issue')),
+    indent_qty: int(pick(r, 'Indent QTY', 'indqty')),
+    no_of_weight_purchy: int(pick(r, 'No of Weight Purchy', 'wt')),
+    weight_qty_2025: supply.weight_qty_2025,
+    supply_2025: supply.supply_2025,
+    supply_2024: supply.supply_2024,
+    supply_2023: supply.supply_2023,
+    supply_2022: supply.supply_2022,
+    supply_2021: supply.supply_2021,
+    supply_2020: supply.supply_2020,
+    no_of_balance_purchy: int(pick(r, 'No of Balance purchy', 'noofpurchybal')),
+    balance_indent_qty: num(pick(r, 'Balance Indent Qty', 'balanceqty')),
+    no_of_indent_failer_purchy: int(pick(r, 'No of Indent Failer purchy', 'failer')),
+    indent_failer_qty: int(pick(r, 'Indent Failer QTY', 'failerqty')),
+    bquota2025: supply.bquota2025,
+    bond2025: supply.bond2025,
+    issue25: supply.issue25,
+    indqty25: supply.indqty25,
+    wt25: supply.wt25,
     issue24: int(r.issue24),
     indqty24: int(r.indqty24),
     wt24: int(r.wt24),
@@ -289,6 +342,8 @@ function mapFieldStaffRow(r) {
   return {
     village_code,
     village_name: str(r['Village Name']),
+    overall_head: str(r['Overall Head']),
+    head: str(r.Head),
     village_staff: str(r['Village Staff']),
     zonal_incharge: str(r['Zonal Incharge']),
     zonal_manager: str(r['Zonal Manager']),

@@ -12,7 +12,7 @@ const SLOTS = [
     dataset: 'centre_indent_purchase',
     legacyDatasets: ['centre_indent', 'centre_purchase'],
     label: 'Centre Indent & Purchase',
-    hint: 'One file with indent & purchase sheets (Code, Center Name, Date, No of Purchy, Qty, Category). Columns and sheets can be in any order.',
+    hint: 'One file with indent and purchase sheets (Code, Center Name, Date, No of Purchy, Qty). Gate or Center is set only after gate center codes are saved in Admin Config. The Category column is ignored.',
   },
   {
     slot: 'dmr',

@@ -1,8 +1,9 @@
-import { MdAssignment, MdCategory, MdFactCheck, MdHistory, MdInsights, MdNotes, MdPeople, MdCalendarToday } from 'react-icons/md';
+import { MdAssignment, MdCategory, MdFactCheck, MdHistory, MdInsights, MdNotes, MdPeople, MdCalendarToday, MdStore } from 'react-icons/md';
 import EmployeeCategoriesSection from './EmployeeCategoriesSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import BiDashboardSettingsSection from './BiDashboardSettingsSection';
 import SeasonMappingSection from './SeasonMappingSection';
+import GateCenterCodesSection from './GateCenterCodesSection';
 import AuditLogSection from './AuditLogSection';
 import MaintenanceHistoryApprovalSection from './MaintenanceHistoryApprovalSection';
 import MaintenanceNotesApprovalSection from './MaintenanceNotesApprovalSection';
@@ -33,6 +34,13 @@ export const ADMIN_CONFIG_SECTIONS = [
     description: 'Manage seasons and their exact start/end dates for BI filtering.',
     Icon: MdCalendarToday,
     Component: SeasonMappingSection,
+  },
+  {
+    id: 'gate-center-codes',
+    label: 'Gate Center Codes',
+    description: 'Gate codes for indent and purchase. Category is set only after a code is saved.',
+    Icon: MdStore,
+    Component: GateCenterCodesSection,
   },
   {
     id: 'bi-dashboards',

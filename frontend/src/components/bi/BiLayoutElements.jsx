@@ -20,9 +20,10 @@ function metricValueFontClass(display) {
 }
 
 /** Current crushing season for the selected range (`toDate`). Hidden when mapping is empty. */
-export function BiCurrentSeasonChip({ toDate, seasonMapping, isDarkMode = false, className = '' }) {
-  if (!seasonMapping || !Object.keys(seasonMapping).length) return null;
-  const label = findSeasonLabelForDate(toDate, seasonMapping);
+export function BiCurrentSeasonChip({ toDate, seasonMapping, label: labelOverride, isDarkMode = false, className = '' }) {
+  const label = labelOverride || (seasonMapping && Object.keys(seasonMapping).length
+    ? findSeasonLabelForDate(toDate, seasonMapping)
+    : null);
   if (!label) return null;
   const text = /^season\s/i.test(label) ? label : `Season ${label}`;
   return (
