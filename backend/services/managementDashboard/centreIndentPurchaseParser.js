@@ -2,6 +2,7 @@ const xlsx = require('xlsx');
 const { ColumnValidationError } = require('../../utils/excelColumnValidation');
 const { excelDateToISO } = require('../../utils/excelDateUtils');
 const { seasonLabelForDate } = require('./centreIndentPurchaseMeta');
+const { categoryForCode } = require('./gateCenterCodes');
 
 /**
  * Normalizes header string to lowercase alphanumeric characters only.
@@ -75,7 +76,7 @@ const INDENT_FIELD_DEFS = {
   category: {
     name: 'category',
     label: 'Category / Variety',
-    required: true,
+    required: false,
     aliases: ['category', 'canecategory', 'variety', 'varietytype', 'varietyname', 'canevariety'],
   },
   unique_id: {
@@ -160,7 +161,7 @@ const PURCHASE_FIELD_DEFS = {
   category: {
     name: 'category',
     label: 'Category / Variety',
-    required: true,
+    required: false,
     aliases: ['category', 'canecategory', 'variety', 'varietytype', 'varietyname', 'canevariety'],
   },
   indent_date: {
@@ -259,6 +260,29 @@ function findHeaderAndColumnMap(matrix, fieldDefs, sheetLabel = 'sheet') {
 }
 
 /**
+ * Scan the first 15 rows of a sheet for column titles that contain indent vs purchase.
+ * A purchase sheet often also has Indent Date, so a sheet with both is purchase-only.
+ */
+function classifySheetByColumnKeywords(wb, sheetName) {
+  const sheet = wb.Sheets[sheetName];
+  if (!sheet) return { hasIndent: false, hasPurchase: false };
+  const matrix = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  let hasIndent = false;
+  let hasPurchase = false;
+  const maxScan = Math.min(15, matrix.length);
+  for (let r = 0; r < maxScan; r += 1) {
+    for (const cell of matrix[r] || []) {
+      const h = normalizeHeader(cell);
+      if (!h) continue;
+      if (h.includes('indent')) hasIndent = true;
+      if (h.includes('purchase') || h.includes('purch')) hasPurchase = true;
+    }
+    if (hasIndent && hasPurchase) break;
+  }
+  return { hasIndent, hasPurchase };
+}
+
+/**
  * Automatically detects which sheet is Indent and which is Purchase in a multi-sheet workbook,
  * even if sheets are reordered or named differently.
  */
@@ -288,7 +312,20 @@ function resolveIndentAndPurchaseSheets(wb) {
     return { indentSheet, purchaseSheet };
   }
 
-  // 2. Score sheets based on matching headers
+  // 2. Sheet tabs unnamed: a column containing "indent" (and not purchase) is indent;
+  //    a column containing "purchase"/"purch" is purchase (even if Indent Date is also present).
+  let indentByCol = null;
+  let purchaseByCol = null;
+  for (const name of sheetNames) {
+    const { hasIndent, hasPurchase } = classifySheetByColumnKeywords(wb, name);
+    if (hasPurchase && !purchaseByCol) purchaseByCol = name;
+    if (hasIndent && !hasPurchase && !indentByCol) indentByCol = name;
+  }
+  if (indentByCol && purchaseByCol && indentByCol !== purchaseByCol) {
+    return { indentSheet: indentByCol, purchaseSheet: purchaseByCol };
+  }
+
+  // 3. Score sheets based on matching headers
   const indentScores = {};
   const purchaseScores = {};
 
@@ -327,7 +364,7 @@ function resolveIndentAndPurchaseSheets(wb) {
     return { indentSheet: candidateIndent, purchaseSheet: candidatePurchase };
   }
 
-  // 3. Fallback to default index 0 for indent and index 1 for purchase
+  // 4. Fallback to default index 0 for indent and index 1 for purchase
   return {
     indentSheet: sheetNames[0],
     purchaseSheet: sheetNames[1],
@@ -355,15 +392,16 @@ function intVal(v) {
 /**
  * Maps a single row array into the normalized Indent row object using the column index map.
  */
-function mapIndentRowFromMatrix(row, colMap, seasonMappings = []) {
+function mapIndentRowFromMatrix(row, colMap, seasonMappings = [], gateCodes = new Set()) {
   const indent_date = excelDateToISO(row[colMap.indent_date]);
+  const code = strVal(row[colMap.code]);
   return {
-    code: strVal(row[colMap.code]),
+    code,
     center_name: strVal(row[colMap.center_name]),
     indent_date,
     no_of_purchy: intVal(row[colMap.no_of_purchy]),
     indent_qty: numVal(row[colMap.indent_qty]),
-    category: strVal(row[colMap.category]),
+    category: categoryForCode(code, gateCodes),
     unique_id: colMap.unique_id != null ? strVal(row[colMap.unique_id]) : null,
     bonding_id: colMap.bonding_id != null ? strVal(row[colMap.bonding_id]) : null,
     season_label:
@@ -375,17 +413,18 @@ function mapIndentRowFromMatrix(row, colMap, seasonMappings = []) {
 /**
  * Maps a single row array into the normalized Purchase row object using the column index map.
  */
-function mapPurchaseRowFromMatrix(row, colMap, seasonMappings = []) {
+function mapPurchaseRowFromMatrix(row, colMap, seasonMappings = [], gateCodes = new Set()) {
   const purchase_date = excelDateToISO(row[colMap.purchase_date]);
   const indent_date = colMap.indent_date != null ? excelDateToISO(row[colMap.indent_date]) : null;
+  const code = strVal(row[colMap.code]);
   return {
-    code: strVal(row[colMap.code]),
+    code,
     center_name: strVal(row[colMap.center_name]),
     purchase_date,
     indent_date,
     no_of_purchy: intVal(row[colMap.no_of_purchy]),
     purchase_qty: numVal(row[colMap.purchase_qty]),
-    category: strVal(row[colMap.category]),
+    category: categoryForCode(code, gateCodes),
     unique_id: colMap.unique_id != null ? strVal(row[colMap.unique_id]) : null,
     season_label:
       (colMap.season_label != null ? strVal(row[colMap.season_label]) : null) ||

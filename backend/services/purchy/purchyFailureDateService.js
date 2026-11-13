@@ -1,6 +1,7 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
 const { pctRatio } = require('./purchyDrilldownUtils');
+const { resolveSeasonYear, seasonBoundsForYear } = require('./purchySeason');
 const {
   gsFromIndent,
   extraWhere,
@@ -43,10 +44,45 @@ function failDateWhere() {
   return 'd.purchase_date IS NOT NULL AND DATE(d.purchase_date) BETWEEN ? AND ?';
 }
 
+function earlierDate(a, b) {
+  if (!a) return b || null;
+  if (!b) return a;
+  return a < b ? a : b;
+}
+
+/** Latest SupplyDate or Purchase Date present in the imported indent and dishonour sheets. */
+async function maxFailureColumnDate() {
+  const [[row]] = await pool.query(`
+    SELECT MAX(d) AS max_date FROM (
+      SELECT MAX(DATE(supplydate)) AS d FROM purchy_indent
+      UNION ALL
+      SELECT MAX(DATE(purchase_date)) AS d FROM purchy_dishonour
+    ) dates
+  `);
+  return isoDate(row?.max_date);
+}
+
+async function resolveFailureRange(query) {
+  const dataMax = await maxFailureColumnDate();
+  let dateFrom;
+  let dateTo;
+  if (query.dateFrom && query.dateTo) {
+    dateFrom = String(query.dateFrom).slice(0, 10);
+    dateTo = String(query.dateTo).slice(0, 10);
+  } else {
+    const seasonYear = await resolveSeasonYear(pool);
+    const bounds = await seasonBoundsForYear(seasonYear);
+    dateFrom = query.dateFrom || bounds.seasonDateFrom || PBI_DEFAULT_DATE_FROM;
+    dateTo = query.dateTo || bounds.seasonDateTo || PBI_DEFAULT_DATE_TO;
+  }
+  dateTo = earlierDate(dateTo, dataMax) || dateTo;
+  if (dateFrom && dateTo && dateFrom > dateTo) dateFrom = dateTo;
+  return { dateFrom, dateTo, dataMax };
+}
+
 async function getFailureDateDrilldown(query) {
   const ctx = buildFilterContext(query);
-  const dateFrom = query.dateFrom || PBI_DEFAULT_DATE_FROM;
-  const dateTo = query.dateTo || PBI_DEFAULT_DATE_TO;
+  const { dateFrom, dateTo, dataMax } = await resolveFailureRange(query);
   const dateParams = [...ctx.params, dateFrom, dateTo];
 
   const [indentRows, failRows] = await Promise.all([
@@ -270,6 +306,7 @@ async function getFailureDateDrilldown(query) {
   return {
     dateFrom,
     dateTo,
+    dataDateMax: dataMax,
     failureByDate,
     supplyCenterRows: supplyMapped,
     villageRows: villageMapped,
@@ -279,6 +316,7 @@ async function getFailureDateDrilldown(query) {
 
 module.exports = {
   getFailureDateDrilldown,
+  maxFailureColumnDate,
   PBI_DEFAULT_DATE_FROM,
   PBI_DEFAULT_DATE_TO,
 };

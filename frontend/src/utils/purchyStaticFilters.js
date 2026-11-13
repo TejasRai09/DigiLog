@@ -28,6 +28,8 @@ export function getStaticFilterOptionsFromData() {
     societyName: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.society_name)),
     loyaltySlicer: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.loyalty_slicer)),
     dishonourBucket: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.dishonour_bucket)),
+    overallHead: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.overall_head)),
+    head: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.head)),
     zoneHead: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.zone_head)),
     zonalManager: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.zonal_manager)),
     zonalIncharge: uniq(PURCHY_STATIC_GROWER_DETAIL.map((r) => r.zonal_incharge)),
@@ -45,6 +47,8 @@ function filterGrowerRows(rows, filters) {
     matchList(r.society_name, filters.societyName)
     && matchList(r.loyalty_slicer, filters.loyaltySlicer)
     && matchList(r.dishonour_bucket, filters.dishonourBucket)
+    && matchList(r.overall_head, filters.overallHead)
+    && matchList(r.head, filters.head)
     && matchList(r.zone_head, filters.zoneHead)
     && matchList(r.zonal_manager, filters.zonalManager)
     && matchList(r.zonal_incharge, filters.zonalIncharge)
@@ -57,6 +61,8 @@ function filterDishonourRows(rows, filters) {
     matchList(r.societyName, filters.societyName)
     && matchList(r.loyalty_slicer, filters.loyaltySlicer)
     && matchList(r.dishonour_bucket, filters.dishonourBucket)
+    && matchList(r.overall_head, filters.overallHead)
+    && matchList(r.head, filters.head)
     && matchList(r.zone_head, filters.zoneHead)
     && matchList(r.zonal_manager, filters.zonalManager)
     && matchList(r.zonal_incharge, filters.zonalIncharge)

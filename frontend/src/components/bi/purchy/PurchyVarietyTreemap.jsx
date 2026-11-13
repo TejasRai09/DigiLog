@@ -5,6 +5,7 @@ export default function PurchyVarietyTreemap({
   isDarkMode = false,
   selectedName = null,
   onSelect,
+  listClassName = 'max-h-48',
 }) {
   const { rows, maxCnt, totalCnt } = useMemo(() => {
     const sorted = [...items].filter((i) => i.cnt > 0).sort((a, b) => b.cnt - a.cnt);
@@ -29,12 +30,12 @@ export default function PurchyVarietyTreemap({
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-1.5">
+    <div className="flex h-full min-h-0 flex-col gap-1.5">
       <p className={`text-[10px] ${muted}`}>
         {(totalCnt / 1000).toFixed(1)}K supply purchys across {rows.length} varieties
         {onSelect ? ' · click a row to filter Varietytype' : ''}
       </p>
-      <div className="max-h-48 overflow-y-auto pr-1">
+      <div className={`overflow-y-auto pr-1 ${listClassName}`}>
         <div className="flex flex-col gap-1">
           {rows.map((item) => {
             const active = selectedName === item.name;

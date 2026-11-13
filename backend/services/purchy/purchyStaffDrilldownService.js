@@ -2,8 +2,11 @@ const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
 const { slugId, pctRatio, LOYALTY_COLORS, VARIETY_HEX } = require('./purchyDrilldownUtils');
 const { query2025FactsGrouped, query2025FactsGroupedRaw } = require('./purchyPbiFacts');
+const { seasonLabel, resolveSeasonYear } = require('./purchySeason');
 
 const HIERARCHY_COLS = [
+  { key: 'overall', col: 'overall_head', title: 'OVERALL HEAD' },
+  { key: 'head', col: 'head', title: 'HEAD' },
   { key: 'zone', col: 'zone_head', title: 'ZONE HEAD' },
   { key: 'manager', col: 'zonal_manager', title: 'ZONAL MANAGER' },
   { key: 'incharge', col: 'zonal_incharge', title: 'ZONAL INCHARGE' },
@@ -25,10 +28,10 @@ function ensureStaffJoin(ctx) {
   };
 }
 
-function nestHierarchyRows(rows) {
+function nestHierarchyRows(rows, seasonYear) {
   const root = {
     id: 'root',
-    name: '2025 Dishonour % (Count)',
+    name: seasonLabel('Dishonour % (Count)', seasonYear),
     indentCnt: 0,
     dishonourCnt: 0,
     growerCount: 0,
@@ -85,7 +88,7 @@ function nestHierarchyRows(rows) {
 
 async function loadStaffByVillage() {
   const [rows] = await pool.query(`
-    SELECT village_code, zone_head, zonal_manager, zonal_incharge, village_staff, village_name
+    SELECT village_code, overall_head, head, zone_head, zonal_manager, zonal_incharge, village_staff, village_name
     FROM purchy_field_staff
   `);
   const map = new Map();
@@ -120,6 +123,8 @@ async function getStaffDrilldown(query) {
       ? `${staff.village_code}-${staff.village_name || ''}`.replace(/-$/, '')
       : null;
     return {
+      overall_head: staffLabel(staff?.overall_head),
+      head: staffLabel(staff?.head),
       zone_head: staffLabel(staff?.zone_head),
       zonal_manager: staffLabel(staff?.zonal_manager),
       zonal_incharge: staffLabel(staff?.zonal_incharge),
@@ -131,7 +136,8 @@ async function getStaffDrilldown(query) {
     };
   }).filter((r) => r.zone_head !== 'Unassigned');
 
-  const nestedTree = nestHierarchyRows(flatRows);
+  const seasonYear = await resolveSeasonYear(pool);
+  const nestedTree = nestHierarchyRows(flatRows, seasonYear);
 
   const chartCtx = factCtx;
 
@@ -213,7 +219,7 @@ async function getStaffDrilldown(query) {
   return {
     rootPct: pctRatio(nestedTree.dishonourCnt, nestedTree.indentCnt),
     rootValue: nestedTree.value,
-    rootLabel: '2025 Dishonour % (Count)',
+    rootLabel: seasonLabel('Dishonour % (Count)', seasonYear),
     growerCount: loyaltyTotal,
     nestedTree,
     loyaltyDonut,

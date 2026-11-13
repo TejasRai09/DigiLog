@@ -5,7 +5,7 @@
 export const DISHONOUR_DRILLDOWN = {
   kpis: { growers: 5296, villages: 322 },
   rootPct: 0.5293,
-  rootLabel: '2025 Dishonour % (Qty)',
+  rootLabel: '2026 Dishonour % (Qty)',
   filters: {
     dishonourBucket: ['41-60% Failure', '21-40% Failure', '1-20% Failure', '61-80% Failure', '81-99% Failure', '100% Failure'],
     loyaltySlicer: [
@@ -69,7 +69,7 @@ export const DISHONOUR_DRILLDOWN = {
 export const HIERARCHY_DRILLDOWN = {
   rootPct: 0.1358,
   rootValue: 13.58,
-  rootLabel: '2025 Dishonour % (Count)',
+  rootLabel: '2026 Dishonour % (Count)',
   growerCount: 82510,
   filters: {
     villageName: ['504-PAIRUWA', '506-MAJHRA', '496-JALIM NAGAR', '507-BAKHTAWAR GAURI', '102-KOTWA', '105-CHANDPUR'],
@@ -82,7 +82,7 @@ export const HIERARCHY_DRILLDOWN = {
   /** Nested hierarchy for Staff Drilldown decomposition tree */
   nestedTree: {
     id: 'root',
-    name: '2025_Dishonour % (Count)',
+    name: '2026 Dishonour % (Count)',
     value: 13.58,
     growerCount: 82510,
     children: [

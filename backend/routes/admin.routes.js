@@ -85,6 +85,16 @@ router.post('/season-mapping',          createSeason);
 router.put('/season-mapping/:id',       updateSeason);
 router.delete('/season-mapping/:id',    deleteSeason);
 
+const {
+  getGateCenterCodes,
+  createGateCenterCode,
+  deleteGateCenterCode,
+} = require('../controllers/gateCenterCodes.controller');
+
+router.get('/gate-center-codes',        getGateCenterCodes);
+router.post('/gate-center-codes',       createGateCenterCode);
+router.delete('/gate-center-codes/:id', deleteGateCenterCode);
+
 router.get('/audit-logs/summary', summaryAuditLogs);
 router.get('/audit-logs/export', exportAuditLogs);
 router.get('/audit-logs', listAuditLogs);

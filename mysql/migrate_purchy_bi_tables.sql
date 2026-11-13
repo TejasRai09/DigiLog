@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS `purchy_years` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 INSERT IGNORE INTO `purchy_years` (`year`, `year_order`) VALUES
-  ('2020', 1), ('2021', 2), ('2022', 3), ('2023', 4), ('2024', 5), ('2025', 6);
+  ('2020', 1), ('2021', 2), ('2022', 3), ('2023', 4), ('2024', 5), ('2025', 6), ('2026', 7);
 
 CREATE TABLE IF NOT EXISTS `purchy_grower_summary` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS `purchy_grower_summary` (
   `indent_qty` BIGINT NULL,
   `no_of_weight_purchy` BIGINT NULL,
   `weight_qty_2025` DOUBLE NULL,
+  `supply_2025` DOUBLE NULL,
   `supply_2024` DOUBLE NULL,
   `supply_2023` DOUBLE NULL,
   `supply_2022` DOUBLE NULL,
@@ -45,6 +46,11 @@ CREATE TABLE IF NOT EXISTS `purchy_grower_summary` (
   `balance_indent_qty` DOUBLE NULL,
   `no_of_indent_failer_purchy` BIGINT NULL,
   `indent_failer_qty` BIGINT NULL,
+  `bquota2025` BIGINT NULL,
+  `bond2025` DOUBLE NULL,
+  `issue25` BIGINT NULL,
+  `indqty25` BIGINT NULL,
+  `wt25` BIGINT NULL,
   `issue24` BIGINT NULL,
   `indqty24` BIGINT NULL,
   `wt24` BIGINT NULL,
@@ -76,25 +82,7 @@ CREATE TABLE IF NOT EXISTS `purchy_grower_summary` (
     GENERATED ALWAYS AS (CONCAT(`village_code`, '-', `grower_code`, '-', `grower_name`)) STORED,
   `village_name_key` VARCHAR(300)
     GENERATED ALWAYS AS (CONCAT(`village_code`, '-', `village_name`)) STORED,
-  `years_supplied_2020_2024` TINYINT
-    GENERATED ALWAYS AS (
-      IF(IFNULL(`supply_2020`, 0) > 0, 1, 0) +
-      IF(IFNULL(`supply_2021`, 0) > 0, 1, 0) +
-      IF(IFNULL(`supply_2022`, 0) > 0, 1, 0) +
-      IF(IFNULL(`supply_2023`, 0) > 0, 1, 0) +
-      IF(IFNULL(`supply_2024`, 0) > 0, 1, 0)
-    ) STORED,
-  `loyalty_slicer` VARCHAR(32)
-    GENERATED ALWAYS AS (
-      CASE `years_supplied_2020_2024`
-        WHEN 5 THEN '5. Supplied 5 years'
-        WHEN 4 THEN '4. Supplied 4 years'
-        WHEN 3 THEN '3. Supplied 3 years'
-        WHEN 2 THEN '2. Supplied 2 years'
-        WHEN 1 THEN '1. Supplied 1 year'
-        ELSE '0. Never supplied'
-      END
-    ) STORED,
+  `loyalty_slicer` VARCHAR(32) NULL,
   `dishonour_bucket` VARCHAR(32)
     GENERATED ALWAYS AS (
       CASE
@@ -200,6 +188,8 @@ CREATE TABLE IF NOT EXISTS `purchy_field_staff` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `village_code` INT NULL,
   `village_name` VARCHAR(255) NULL,
+  `overall_head` VARCHAR(255) NULL,
+  `head` VARCHAR(255) NULL,
   `village_staff` VARCHAR(255) NULL,
   `zonal_incharge` VARCHAR(255) NULL,
   `zonal_manager` VARCHAR(255) NULL,

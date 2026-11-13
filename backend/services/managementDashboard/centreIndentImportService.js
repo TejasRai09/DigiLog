@@ -8,6 +8,7 @@ const {
   mapIndentRowFromMatrix,
 } = require('./centreIndentPurchaseParser');
 const { loadSeasonMappings } = require('./centreIndentPurchaseMeta');
+const { loadGateCodeSet } = require('./gateCenterCodes');
 
 const BATCH_SIZE = 1000;
 
@@ -66,6 +67,7 @@ async function runCentreIndentImport({
   try {
     const existingDates = await loadExistingDates(conn, 'indent_date');
     const seasonMappings = await loadSeasonMappings(conn);
+    const gateCodes = await loadGateCodeSet(conn);
     log('dedup', `Found ${existingDates.size} existing indent dates in DB.`);
 
     let batch = [];
@@ -75,7 +77,7 @@ async function runCentreIndentImport({
         continue;
       }
 
-      const mapped = mapIndentRowFromMatrix(row, colMap, seasonMappings);
+      const mapped = mapIndentRowFromMatrix(row, colMap, seasonMappings, gateCodes);
       if (!mapped.indent_date) {
         skipped += 1;
         continue;
