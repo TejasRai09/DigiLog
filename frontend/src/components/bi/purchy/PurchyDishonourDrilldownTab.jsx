@@ -2,23 +2,31 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MdRefresh } from 'react-icons/md';
 import PurchyFilterBar from './PurchyFilterBar';
 import PurchyDetailTable from './PurchyDetailTable';
-import PurchyCurvedHierarchyTree from './PurchyCurvedHierarchyTree';
+import PurchyCurvedHierarchyTree, { hierarchyTreeCsvRows } from './PurchyCurvedHierarchyTree';
 import usePurchyDishonourDrilldown from '../../../hooks/usePurchyDishonourDrilldown';
 import { purchyFiltersToParams } from '../../../hooks/usePurchyFilters';
 import { DISHONOUR_DRILLDOWN } from '../../../data/purchyDrilldownStaticData';
+import BiChartExpandModal from '../BiChartExpandModal';
+import { BI_DASHBOARDS } from '../../../utils/activityPath';
+import { loyaltySlicerLabel, normalizeSeasonYear } from '../../../utils/purchySeason';
 
-const DETAIL_COLS = [
-  { key: 'growerNameKey', label: 'Grower_name_Key', kind: 'text' },
-  { key: 'indentQty', label: '2025_Indent Qty', kind: 'int' },
-  { key: 'supplyQty', label: '2025_Supply Qty', kind: 'num' },
-  { key: 'dishonourQty', label: '2025_Dishonour Qty', kind: 'num' },
-  { key: 'dishonourPct', label: 'Dishonour % (Qty)', kind: 'pct' },
-];
+function detailCols(seasonYear) {
+  const year = normalizeSeasonYear(seasonYear);
+  return [
+    { key: 'growerNameKey', label: 'Grower_name_Key', kind: 'text' },
+    { key: 'indentQty', label: `${year}_Indent Qty`, kind: 'int' },
+    { key: 'supplyQty', label: `${year}_Supply Qty`, kind: 'num' },
+    { key: 'dishonourQty', label: `${year}_Dishonour Qty`, kind: 'num' },
+    { key: 'dishonourPct', label: 'Dishonour % (Qty)', kind: 'pct' },
+  ];
+}
 
-const SLICERS = [
-  { key: 'dishonourBucket', label: 'Dishonour_Bucket', optionKey: 'dishonourBucket' },
-  { key: 'loyaltySlicer', label: "Loyalty_Slicer ('20-'24)", optionKey: 'loyaltySlicer' },
-];
+function slicers(seasonYear) {
+  return [
+    { key: 'dishonourBucket', label: 'Dishonour_Bucket', optionKey: 'dishonourBucket' },
+    { key: 'loyaltySlicer', label: loyaltySlicerLabel(seasonYear), optionKey: 'loyaltySlicer' },
+  ];
+}
 
 function pctToDisplay(pct) {
   return Number((Number(pct) * 100).toFixed(2));
@@ -38,6 +46,7 @@ export default function PurchyDishonourDrilldownTab({
   useLiveData = false,
   globalQueryParams = {},
   filterOptions = {},
+  seasonYear,
 }) {
   const [filters, setFilters] = useState({ dishonourBucket: [], loyaltySlicer: [] });
   const [selSociety, setSelSociety] = useState(null);
@@ -46,6 +55,7 @@ export default function PurchyDishonourDrilldownTab({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [allowAutoSelect, setAllowAutoSelect] = useState(true);
+  const [expandedChart, setExpandedChart] = useState(null);
 
   const mergedParams = useMemo(
     () => ({ ...globalQueryParams, ...purchyFiltersToParams(filters) }),
@@ -239,7 +249,7 @@ export default function PurchyDishonourDrilldownTab({
 
       <PurchyFilterBar
         compact
-        slicers={SLICERS}
+        slicers={slicers(seasonYear)}
         options={slicerOptions}
         filters={filters}
         onFilterChange={(k, v) => setFilters((f) => ({ ...f, [k]: v }))}
@@ -257,6 +267,29 @@ export default function PurchyDishonourDrilldownTab({
         rootSubtext={`${(data.kpis.growers / 1000).toFixed(1)}K Growers`}
         columns={treeColumns}
         coordDeps={[selSociety, selVillage, selGrower, isActive]}
+        onExpand={() => setExpandedChart({
+          title: 'Purchy dishonour hierarchy',
+          definition: 'Dishonour % by society, village, and grower',
+          filePrefix: 'purchy',
+          dashboardLabel: BI_DASHBOARDS['/bi/purchy-analysis'],
+          data: hierarchyTreeCsvRows(data.rootLabel, pctToDisplay(data.rootPct), treeColumns),
+          csvColumns: [
+            { key: 'level', label: 'Level' },
+            { key: 'name', label: 'Name' },
+            { key: 'value', label: 'Dishonour %' },
+          ],
+          plot: (
+            <PurchyCurvedHierarchyTree
+              className="h-full border-0 shadow-none"
+              isDarkMode={isDarkMode}
+              rootLabel={data.rootLabel}
+              rootValue={pctToDisplay(data.rootPct)}
+              rootSubtext={`${(data.kpis.growers / 1000).toFixed(1)}K Growers`}
+              columns={treeColumns}
+              coordDeps={[selSociety, selVillage, selGrower, isActive, 'expand']}
+            />
+          ),
+        })}
       />
 
       <PurchyDetailTable
@@ -264,7 +297,7 @@ export default function PurchyDishonourDrilldownTab({
         compact
         className="min-h-[200px] flex-1"
         title="Grower Detail"
-        columns={DETAIL_COLS}
+        columns={detailCols(seasonYear)}
         rows={pagedDetailRows}
         loading={useLiveData && loading}
         total={detailTotal}
@@ -290,6 +323,11 @@ export default function PurchyDishonourDrilldownTab({
         )}
       />
       </div>
+      <BiChartExpandModal
+        config={expandedChart}
+        isDarkMode={isDarkMode}
+        onClose={() => setExpandedChart(null)}
+      />
     </div>
   );
 }

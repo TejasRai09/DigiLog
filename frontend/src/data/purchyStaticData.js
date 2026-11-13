@@ -38,6 +38,8 @@ export const PURCHY_STATIC_FILTER_OPTIONS = {
     '81-99% Failure',
     '100% Failure',
   ],
+  overallHead: [],
+  head: [],
   zoneHead: [
     'North Zone',
     'South Zone',

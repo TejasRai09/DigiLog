@@ -11,6 +11,7 @@ const {
 } = require('../../utils/purchyExcelStream');
 const { rebuildGrowerFacts } = require('./purchyGrowerFacts');
 const { clearPurchyCache } = require('./purchyResponseCache');
+const { applyLoyaltyForSeason, normalizeSeasonYear } = require('./purchySeason');
 
 const BATCH = 500;
 
@@ -28,8 +29,9 @@ const SUMMARY_COLS = [
   'society_code', 'society_name', 'cul_area', 'survey_area', 'bond_area',
   'basic_quota', 'bonding', 'ad_bonding', 'total_bond', 'no_of_purchy_indent',
   'indent_qty', 'no_of_weight_purchy', 'weight_qty_2025',
-  'supply_2024', 'supply_2023', 'supply_2022', 'supply_2021', 'supply_2020',
+  'supply_2025', 'supply_2024', 'supply_2023', 'supply_2022', 'supply_2021', 'supply_2020',
   'no_of_balance_purchy', 'balance_indent_qty', 'no_of_indent_failer_purchy', 'indent_failer_qty',
+  'bquota2025', 'bond2025', 'issue25', 'indqty25', 'wt25',
   'issue24', 'indqty24', 'wt24', 'supp2024', 'bquota2024', 'bond2024',
   'issue23', 'indqty23', 'wt23', 'supp2023', 'bquota2023', 'bond2023',
   'issue22', 'indqty22', 'wt22', 'supp2022', 'bquota2022', 'bond2022',
@@ -57,7 +59,7 @@ const DISHONOUR_COLS = [
 ];
 
 const STAFF_COLS = [
-  'village_code', 'village_name', 'village_staff', 'zonal_incharge', 'zonal_manager',
+  'village_code', 'village_name', 'overall_head', 'head', 'village_staff', 'zonal_incharge', 'zonal_manager',
   'region', 'zone_head', 'sum_of_survey_area', 'bonding_area', 'basic_quota',
   'bonding', 'additinalbond', 'yield_per_ha', 'drwal_per_ha', 'target_estimated_cane_availbility',
 ];
@@ -119,7 +121,6 @@ async function truncateGrowerTables(conn) {
   await conn.query('TRUNCATE TABLE purchy_indent');
   await conn.query('TRUNCATE TABLE purchy_supply');
   await conn.query('TRUNCATE TABLE purchy_dishonour');
-  await conn.query('TRUNCATE TABLE purchy_field_staff');
   await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 }
 
@@ -204,7 +205,10 @@ async function runPurchyGrowerImport(opts = {}) {
         sizeMb: (stat.size / (1024 * 1024)).toFixed(1),
         mode: 'grower',
       });
-      await streamGrowerWorkbook(path.resolve(filePath), streamOpts);
+      const streamed = await streamGrowerWorkbook(path.resolve(filePath), streamOpts);
+      const seasonYear = normalizeSeasonYear(streamed?.seasonYear);
+      await applyLoyaltyForSeason(conn, seasonYear);
+      emit('loyalty', { seasonYear });
     }
 
     if (staffFilePath) {

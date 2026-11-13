@@ -122,6 +122,12 @@ async function streamXlsxSheet(worksheetReader, sheetKey, ctx) {
   for await (const row of worksheetReader) {
     if (row.number === 1) {
       headers = extractHeaders(row);
+      if (sheetKey === 'summary') {
+        const names = new Set(headers);
+        ctx.seasonYear = (names.has('supply2026') || names.has('Sup2025') || names.has('issue25'))
+          ? 2026
+          : 2025;
+      }
       continue;
     }
     if (!headers || !headers.some(Boolean)) continue;
@@ -223,7 +229,7 @@ async function streamGrowerWorkbook(filePath, options = {}) {
     dishonour: ctx.counts.dishonour || 0,
   });
 
-  return { counts: ctx.counts };
+  return { counts: ctx.counts, seasonYear: ctx.seasonYear || null };
 }
 
 async function streamCsvFile(filePath, sheetKey, ctx) {

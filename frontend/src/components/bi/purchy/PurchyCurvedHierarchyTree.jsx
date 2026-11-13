@@ -1,5 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MdClose } from 'react-icons/md';
+import ChartCardToolbar from '../ChartCardToolbar';
+
+export function hierarchyTreeCsvRows(rootLabel, rootValue, columns) {
+  const rows = [{ level: 'Root', name: rootLabel, value: Number(rootValue) || 0 }];
+  (columns || []).forEach((column) => {
+    (column.nodes || []).forEach((node) => {
+      rows.push({
+        level: column.title,
+        name: node.name,
+        value: Number(node.value) || 0,
+      });
+    });
+  });
+  return rows;
+}
 
 /**
  * Curved connector decomposition tree (Staff / Dishonour drilldown).
@@ -20,6 +35,7 @@ export default function PurchyCurvedHierarchyTree({
   rootSubtext,
   columns,
   coordDeps = [],
+  onExpand,
 }) {
   const containerRef = useRef(null);
   const nodeRefs = useRef({});
@@ -120,6 +136,11 @@ export default function PurchyCurvedHierarchyTree({
 
   return (
     <section className={`flex min-h-0 flex-col rounded-xl border shadow-sm ${card} ${className}`}>
+      {onExpand ? (
+        <div className="flex shrink-0 justify-end px-2 pt-2">
+          <ChartCardToolbar compact isDarkMode={isDarkMode} onExpand={onExpand} />
+        </div>
+      ) : null}
       <div ref={containerRef} className="relative min-h-0 flex-1 overflow-auto p-3">
         <div
           className="relative grid gap-x-8 py-2"

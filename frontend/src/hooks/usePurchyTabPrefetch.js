@@ -11,19 +11,15 @@ import {
   dishonourDrilldownAliasKeys,
 } from './usePurchyDishonourDrilldown';
 import { STAFF_DRILLDOWN_PATH } from './usePurchyStaffDrilldown';
-import {
-  FAILURE_DATE_PATH,
-  FAILURE_DATE_DEFAULT_FROM,
-  FAILURE_DATE_DEFAULT_TO,
-} from './usePurchyFailureDate';
+import { FAILURE_DATE_PATH } from './usePurchyFailureDate';
 
 /**
  * Warm the cache for each tab's default view, one request at a time so the
  * database is not flooded. Request params must match what each tab's hook sends,
  * otherwise the prefetch lands under a different cache key.
  */
-function tabRequests(queryParams) {
-  return [
+function tabRequests(queryParams, dateFrom, dateTo) {
+  const requests = [
     [DISHONOUR_KPIS_PATH, queryParams],
     [DISHONOUR_DETAIL_PATH, { ...queryParams, page: 1, pageSize: DISHONOUR_DEFAULT_PAGE_SIZE }],
     [
@@ -32,20 +28,27 @@ function tabRequests(queryParams) {
       { aliasKeys: dishonourDrilldownAliasKeys },
     ],
     [STAFF_DRILLDOWN_PATH, queryParams],
-    [
-      FAILURE_DATE_PATH,
-      { ...queryParams, dateFrom: FAILURE_DATE_DEFAULT_FROM, dateTo: FAILURE_DATE_DEFAULT_TO },
-    ],
   ];
+  if (dateFrom && dateTo) {
+    requests.push([
+      FAILURE_DATE_PATH,
+      { ...queryParams, dateFrom, dateTo },
+    ]);
+  }
+  return requests;
 }
 
-export default function usePurchyTabPrefetch(queryParams, { enabled = true } = {}) {
+export default function usePurchyTabPrefetch(queryParams, {
+  enabled = true,
+  dateFrom = null,
+  dateTo = null,
+} = {}) {
   useEffect(() => {
     if (!enabled) return undefined;
     let cancelled = false;
 
     (async () => {
-      for (const [path, params, opts] of tabRequests(queryParams)) {
+      for (const [path, params, opts] of tabRequests(queryParams, dateFrom, dateTo)) {
         if (cancelled) return;
         try {
           // eslint-disable-next-line no-await-in-loop
@@ -57,5 +60,5 @@ export default function usePurchyTabPrefetch(queryParams, { enabled = true } = {
     })();
 
     return () => { cancelled = true; };
-  }, [enabled, queryParams]);
+  }, [enabled, queryParams, dateFrom, dateTo]);
 }

@@ -1,8 +1,14 @@
 const { pool } = require('../../config/mysql');
 const { buildFilterContext } = require('./purchyFilterBuilder');
 const { query2025Facts } = require('./purchyPbiFacts');
-
-const SUMMARY_YEARS = ['2021', '2022', '2023', '2024', '2025'];
+const { maxFailureColumnDate } = require('./purchyFailureDateService');
+const {
+  resolveSeasonYear,
+  historyYears,
+  loyaltySlicerLabel,
+  seasonChipLabel,
+  seasonBoundsForYear,
+} = require('./purchySeason');
 
 /** Known loyalty / dishonour slicer labels (avoid DISTINCT on computed view columns). */
 const STATIC_LOYALTY_SLICERS = [
@@ -38,6 +44,9 @@ const HISTORICAL_YEAR_COLS = {
   2024: {
     bond: 'bond2024', issue: 'issue24', wt: 'wt24', supply: 'supply_2024', indentGrower: 'issue24',
   },
+  2025: {
+    bond: 'bond2025', issue: 'issue25', wt: 'wt25', supply: 'supply_2025', indentGrower: 'issue25',
+  },
 };
 
 async function queryOne(sql, params) {
@@ -58,13 +67,13 @@ function buildGrowerSummaryAggregateSql(ctx) {
   return `
     SELECT
       ${yearExprs},
-      SUM(CASE WHEN IFNULL(gs.total_bond, 0) > 0 THEN 1 ELSE 0 END) AS bonded_2025,
-      SUM(CASE WHEN IFNULL(gs.no_of_purchy_indent, 0) > 0 THEN 1 ELSE 0 END) AS indent_growers_2025,
-      SUM(CASE WHEN IFNULL(gs.weight_qty_2025, 0) > 0 THEN 1 ELSE 0 END) AS supplied_2025,
-      IFNULL(SUM(gs.total_bond), 0) AS ttl_bond_2025,
-      IFNULL(SUM(gs.no_of_purchy_indent), 0) AS issued_2025,
-      IFNULL(SUM(gs.no_of_weight_purchy), 0) AS weighted_2025,
-      IFNULL(SUM(gs.weight_qty_2025), 0) AS supply_qty_2025
+      SUM(CASE WHEN IFNULL(gs.total_bond, 0) > 0 THEN 1 ELSE 0 END) AS bonded_current,
+      SUM(CASE WHEN IFNULL(gs.no_of_purchy_indent, 0) > 0 THEN 1 ELSE 0 END) AS indent_growers_current,
+      SUM(CASE WHEN IFNULL(gs.weight_qty_2025, 0) > 0 THEN 1 ELSE 0 END) AS supplied_current,
+      IFNULL(SUM(gs.total_bond), 0) AS ttl_bond_current,
+      IFNULL(SUM(gs.no_of_purchy_indent), 0) AS issued_current,
+      IFNULL(SUM(gs.no_of_weight_purchy), 0) AS weighted_current,
+      IFNULL(SUM(gs.weight_qty_2025), 0) AS supply_qty_current
     FROM purchy_grower_summary_v gs
     ${ctx.joins}
     ${ctx.whereSql}
@@ -91,17 +100,17 @@ function buildHistoricalYearRow(year, row) {
   };
 }
 
-function build2025YearRow(row, tx) {
+function buildCurrentYearRow(row, tx, seasonYear) {
   const issuedN = tx.indentCount;
   const weightedN = tx.supplyCount;
-  const ttlBondN = Number(row.ttl_bond_2025) || 0;
+  const ttlBondN = Number(row.ttl_bond_current) || 0;
   const supplyN = tx.supplyQty;
 
   return {
-    year: '2025',
-    ttlGrowersWithBond: Number(row.bonded_2025) || 0,
-    growersWithIndent: Number(row.indent_growers_2025) || 0,
-    growersSupplied: Number(row.supplied_2025) || 0,
+    year: String(seasonYear),
+    ttlGrowersWithBond: Number(row.bonded_current) || 0,
+    growersWithIndent: Number(row.indent_growers_current) || 0,
+    growersSupplied: Number(row.supplied_current) || 0,
     ttlBond: ttlBondN,
     supplyQtyByYear: supplyN,
     supplyVsBondPct: ttlBondN ? supplyN / ttlBondN : null,
@@ -117,13 +126,14 @@ async function get2025TransactionMetrics(ctx) {
 
 async function getSummary(query) {
   const ctx = buildFilterContext(query);
-  const [aggRow, tx] = await Promise.all([
+  const [aggRow, tx, seasonYear] = await Promise.all([
     queryOne(buildGrowerSummaryAggregateSql(ctx), ctx.params),
     query2025Facts(ctx),
+    resolveSeasonYear(pool),
   ]);
 
-  const rows = ['2021', '2022', '2023', '2024'].map((year) => buildHistoricalYearRow(year, aggRow));
-  rows.push(build2025YearRow(aggRow, tx));
+  const rows = historyYears(seasonYear).map((year) => buildHistoricalYearRow(year, aggRow));
+  rows.push(buildCurrentYearRow(aggRow, tx, seasonYear));
   return rows;
 }
 
@@ -177,10 +187,20 @@ async function getDetail(query) {
 }
 
 async function getFilterOptions() {
+  const seasonYear = await resolveSeasonYear(pool);
+  const [seasonDates, failureDateMax] = await Promise.all([
+    seasonBoundsForYear(seasonYear),
+    maxFailureColumnDate(),
+  ]);
+  const seasonDateTo = seasonDates.seasonDateTo && failureDateMax && seasonDates.seasonDateTo > failureDateMax
+    ? failureDateMax
+    : (failureDateMax && !seasonDates.seasonDateTo ? failureDateMax : seasonDates.seasonDateTo);
   // Loyalty / dishonour buckets are fixed labels — skip DISTINCT over the computed view.
   // Society + staff + villages load in parallel from indexed base tables where possible.
   const [
     societiesRes,
+    overallHeadsRes,
+    headsRes,
     zoneHeadsRes,
     zonalManagersRes,
     zonalInchargesRes,
@@ -189,6 +209,12 @@ async function getFilterOptions() {
   ] = await Promise.all([
     pool.query(
       'SELECT DISTINCT society_name AS value FROM purchy_grower_summary WHERE society_name IS NOT NULL AND society_name <> \'\' ORDER BY society_name',
+    ),
+    pool.query(
+      'SELECT DISTINCT overall_head AS value FROM purchy_field_staff WHERE overall_head IS NOT NULL AND overall_head <> \'\' ORDER BY overall_head',
+    ),
+    pool.query(
+      'SELECT DISTINCT head AS value FROM purchy_field_staff WHERE head IS NOT NULL AND head <> \'\' ORDER BY head',
     ),
     pool.query(
       'SELECT DISTINCT zone_head AS value FROM purchy_field_staff WHERE zone_head IS NOT NULL AND zone_head <> \'\' ORDER BY zone_head',
@@ -213,10 +239,19 @@ async function getFilterOptions() {
   ]);
 
   return {
+    seasonYear,
+    seasonChip: seasonChipLabel(seasonYear),
+    seasonDateFrom: seasonDates.seasonDateFrom,
+    seasonDateTo,
+    seasonDateLabel: seasonDates.seasonDateLabel,
+    failureDateMax,
+    loyaltyLabel: loyaltySlicerLabel(seasonYear),
     societyName: societiesRes[0].map((r) => r.value),
     loyaltySlicer: STATIC_LOYALTY_SLICERS,
     dishonourBucket: STATIC_DISHONOUR_BUCKETS,
     villageName: villageNamesRes[0].map((r) => r.value),
+    overallHead: overallHeadsRes[0].map((r) => r.value),
+    head: headsRes[0].map((r) => r.value),
     zoneHead: zoneHeadsRes[0].map((r) => r.value),
     zonalManager: zonalManagersRes[0].map((r) => r.value),
     zonalIncharge: zonalInchargesRes[0].map((r) => r.value),
@@ -230,5 +265,5 @@ module.exports = {
   getFilterOptions,
   get2025TransactionMetrics,
   buildFilterContext,
-  SUMMARY_YEARS,
+  historyYears,
 };

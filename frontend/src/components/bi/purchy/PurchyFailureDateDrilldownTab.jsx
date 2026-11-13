@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import PurchyFilterBar from './PurchyFilterBar';
 import PurchyTablePagination from './PurchyTablePagination';
-import usePurchyFailureDate, {
-  FAILURE_DATE_DEFAULT_FROM,
-  FAILURE_DATE_DEFAULT_TO,
-} from '../../../hooks/usePurchyFailureDate';
+import usePurchyFailureDate from '../../../hooks/usePurchyFailureDate';
 import { purchyFiltersToParams } from '../../../hooks/usePurchyFilters';
 import Spinner from '../../Spinner';
 import ChartCardToolbar from '../ChartCardToolbar';
@@ -125,11 +122,22 @@ export default function PurchyFailureDateDrilldownTab({
   useLiveData = false,
   globalQueryParams = {},
   filterOptions = {},
+  seasonDateFrom = '',
+  seasonDateTo = '',
+  failureDateMax = '',
 }) {
   const [filters, setFilters] = useState({ societyName: [] });
-  const [dateFrom, setDateFrom] = useState(FAILURE_DATE_DEFAULT_FROM);
-  const [dateTo, setDateTo] = useState(FAILURE_DATE_DEFAULT_TO);
+  const [dateFrom, setDateFrom] = useState(seasonDateFrom);
+  const [dateTo, setDateTo] = useState(seasonDateTo);
   const [expandedChart, setExpandedChart] = useState(null);
+  const appliedSeasonDates = useRef(false);
+
+  useEffect(() => {
+    if (appliedSeasonDates.current || !seasonDateFrom || !seasonDateTo) return;
+    setDateFrom(seasonDateFrom);
+    setDateTo(seasonDateTo);
+    appliedSeasonDates.current = true;
+  }, [seasonDateFrom, seasonDateTo]);
 
   const mergedParams = useMemo(
     () => ({ ...globalQueryParams, ...purchyFiltersToParams(filters) }),
@@ -139,7 +147,7 @@ export default function PurchyFailureDateDrilldownTab({
   const { data: liveData, loading, error, staticFallback } = usePurchyFailureDate(
     mergedParams,
     {
-      enabled: useLiveData,
+      enabled: useLiveData && Boolean(dateFrom && dateTo),
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
     },
@@ -149,7 +157,9 @@ export default function PurchyFailureDateDrilldownTab({
 
   const chartData = useMemo(() => {
     const from = dateFrom || data.dateFrom;
-    const to = dateTo || data.dateTo;
+    const fileMax = data?.dataDateMax || failureDateMax || '';
+    const requestedTo = dateTo || data.dateTo;
+    const to = fileMax && requestedTo && requestedTo > fileMax ? fileMax : requestedTo;
     return (data.failureByDate || [])
       .filter((d) => !from || !to || (d.date >= from && d.date <= to))
       .map((d) => ({
@@ -157,7 +167,7 @@ export default function PurchyFailureDateDrilldownTab({
         pct: Number((d.pct * 100).toFixed(2)),
         pctRaw: d.pct,
       }));
-  }, [data.failureByDate, dateFrom, dateTo, data.dateFrom, data.dateTo]);
+  }, [data.failureByDate, data.dateFrom, data.dateTo, data.dataDateMax, dateFrom, dateTo, failureDateMax]);
 
   const societyOptions = useMemo(() => {
     if (filterOptions?.societyName?.length) return filterOptions.societyName;
@@ -192,7 +202,13 @@ export default function PurchyFailureDateDrilldownTab({
           </label>
           <label className="flex flex-col gap-0.5">
             <span className={`text-[9px] font-bold uppercase ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>To</span>
-            <input type="date" value={dateTo || ''} onChange={(e) => setDateTo(e.target.value)} className={`rounded-lg border px-2 py-1 text-xs ${input}`} />
+            <input
+              type="date"
+              value={dateTo || ''}
+              max={failureDateMax || data?.dataDateMax || undefined}
+              onChange={(e) => setDateTo(e.target.value)}
+              className={`rounded-lg border px-2 py-1 text-xs ${input}`}
+            />
           </label>
         </div>
       </div>
