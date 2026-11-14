@@ -2,8 +2,8 @@
  * Cane Performance season workbook. One sheet per dashboard tab (named as in the app),
  * a Summary sheet when every tab is exported, and record sheets holding every
  * g_ctc / cnt_performance row the dashboard aggregates, so each figure can be
- * recomputed date by date. Record sheets carry the live G_CTC / CntPerformance columns
- * the dashboard reads (live names, live order), then the values the dashboard derives from them.
+ * recomputed date by date. Record sheets list every live G_CTC / CntPerformance column
+ * (live names, live order), then the values the dashboard derives from them.
  */
 const ExcelJS = require('exceljs');
 const { pool: mysqlPool } = require('../config/mysql');
@@ -15,22 +15,37 @@ const {
   CNT_OVERRUN,
 } = require('../controllers/canePerformanceMysql');
 const { CANE_EXPORT_TABS, buildTabSections } = require('./canePerformanceExportSummary');
+const { ensureCaneLiveExportColumns } = require('./caneLiveExportColumns');
 
 const GATE_SHEET = 'Gate Records';
 const CENTER_SHEET = 'Center Records';
 
 /** MySQL stores live minute durations as hours (minutes / 60, 4 dp); this restores the live minutes exactly. */
 const minutes = (hoursCol) => `ROUND(${hoursCol} * 60)`;
+const stamp = (col) => `DATE_FORMAT(${col}, '%Y-%m-%d %H:%i:%s')`;
 
-/** Live G_CTC columns the dashboard reads, in live order, then derived columns (calc: true). */
+/** Every live G_CTC column, in live order, then the columns the dashboard derives (calc: true). */
 const GATE_FIELDS = [
   { header: 'v_code', sql: 'v_code', type: 'id', width: 9 },
+  { header: 'v_name', sql: 'v_name', type: 'text', width: 18 },
+  { header: 'g_code', sql: 'g_code', type: 'id', width: 10 },
+  { header: 'g_name', sql: 'g_name', type: 'text', width: 18 },
+  { header: 'g_father', sql: 'g_father', type: 'text', width: 16 },
   { header: 'purchyno', sql: 'purchyno', type: 'id', width: 16 },
   { header: 'SUP_MOD', sql: 'sup_mod', type: 'text', width: 13 },
   { header: 'm_date', sql: "DATE_FORMAT(m_date, '%Y-%m-%d')", type: 'date', width: 12 },
+  { header: 'PUR_ISSUE_DT', sql: stamp('pur_issue_dt'), type: 'text', width: 20 },
+  { header: 'PUR_WEIGHT_DT', sql: stamp('pur_weight_dt'), type: 'text', width: 20 },
+  { header: 'CutDate', sql: stamp('cut_date'), type: 'text', width: 20 },
+  { header: 'KACHATOKENDATETIME', sql: stamp('kacha_token_datetime'), type: 'text', width: 22 },
+  { header: 'Tokendatetime', sql: stamp('token_datetime'), type: 'text', width: 20 },
+  { header: 'Grossdatetime', sql: stamp('gross_datetime'), type: 'text', width: 20 },
+  { header: 'TAREdatetime', sql: stamp('tare_datetime'), type: 'text', width: 20 },
   { header: 'Purchase_QTL (Qtls)', sql: 'purchase_qtl', type: 'num', width: 18 },
+  { header: 'CutToToken (Min)', sql: minutes('cut_to_token_time'), type: 'int', width: 16 },
   { header: 'TokenToGross (Min)', sql: minutes('yard_holding_time'), type: 'int', width: 18 },
   { header: 'GrossToTare (Min)', sql: minutes('unloading_time'), type: 'int', width: 17 },
+  { header: 'CTC (Min)', sql: 'ctc_minutes', type: 'int', width: 12 },
   {
     header: 'Overrun (Qtls)',
     sql: `CASE WHEN purchase_qtl > 0 THEN purchase_qtl - (${GATE_OVERRUN}) END`,
@@ -56,14 +71,32 @@ const GATE_FIELDS = [
   },
 ];
 
-/** Live CntPerformance columns the dashboard reads, in live order, then derived columns (calc: true). */
+/** Every live CntPerformance column, in live order, then the columns the dashboard derives (calc: true). */
 const CENTER_FIELDS = [
+  { header: 'C.Code', sql: 'c_code', type: 'id', width: 10 },
   { header: 'C.Name', sql: 'center', type: 'text', width: 20 },
+  { header: 'V.Code', sql: 'v_code', type: 'id', width: 10 },
+  { header: 'V.Name', sql: 'v_name', type: 'text', width: 18 },
+  { header: 'G.Code', sql: 'g_code', type: 'id', width: 10 },
+  { header: 'G.Name', sql: 'grower', type: 'text', width: 18 },
+  { header: 'G.Father', sql: 'g_father', type: 'text', width: 16 },
   { header: 'Purchy No.', sql: 'purchy_no', type: 'id', width: 16 },
+  { header: 'Mode Code of Transport', sql: 'mode_code_of_transport', type: 'id', width: 14 },
   { header: 'Mode Name of Transport', sql: 'transport_mode', type: 'text', width: 15 },
+  { header: 'Purchy Issue Date (SMS Date)', sql: "DATE_FORMAT(purchy_issue_date, '%Y-%m-%d')", type: 'date', width: 16 },
   { header: 'Weighment Date (Purchy)', sql: "DATE_FORMAT(report_date, '%Y-%m-%d')", type: 'date', width: 15 },
   { header: 'Purchased Quantity (Qtl.)', sql: 'cane_qty_qtls', type: 'num', width: 16 },
+  { header: 'Harvest (Date/Time)', sql: stamp('harvest_datetime'), type: 'text', width: 20 },
+  { header: 'Gross Weighment @ Centre (Grower) (Date/Time)', sql: stamp('gross_weighment_centre'), type: 'text', width: 22 },
+  { header: 'Tare Weighment @ Centre (Grower) (Date/Time) (6)', sql: stamp('tare_weighment_centre'), type: 'text', width: 22 },
   { header: 'CHALLAN', sql: 'challan_no', type: 'id', width: 12 },
+  { header: 'CH_DEP_DATE', sql: stamp('challan_issue_time'), type: 'text', width: 20 },
+  { header: 'M_TokenDate_Time', sql: stamp('vehicle_arrival_center'), type: 'text', width: 20 },
+  { header: 'TT_TOKDATETIME', sql: stamp('truck_yard_token_time'), type: 'text', width: 20 },
+  { header: 'KTOKENDATETIME', sql: stamp('truck_yard_kaccha_token'), type: 'text', width: 20 },
+  { header: 'TT_GRODATETIME', sql: stamp('gate_weighment_time'), type: 'text', width: 20 },
+  { header: 'TT_DATE', sql: stamp('tare_weighment_mill'), type: 'text', width: 20 },
+  { header: 'TravelHrToCnt (Min)', sql: 'travel_to_center_minutes', type: 'int', width: 16 },
   {
     header: 'WaitingTimeCnt (Min)',
     sql: `COALESCE(truck_holding_time_center_minutes, ${minutes('holding_time_center')})`,
@@ -73,6 +106,9 @@ const CENTER_FIELDS = [
   { header: 'TravelHrCntYard (Min)', sql: minutes('truck_transit_time'), type: 'int', width: 16 },
   { header: 'WaitingTimeYard (Min)', sql: minutes('yard_waiting_time'), type: 'int', width: 16 },
   { header: 'WaitingTimeDonga (Min)', sql: minutes('unloading_time'), type: 'int', width: 16 },
+  { header: 'ToalTimeCTC (Min)', sql: 'total_ctc_minutes', type: 'int', width: 16 },
+  { header: 'CentreArr', sql: stamp('centre_arr'), type: 'text', width: 20 },
+  { header: 'Truck @ Yard (GPS Based) (Date/Time)', sql: stamp('truck_yard_gps_based'), type: 'text', width: 22 },
   {
     header: 'Overrun (Qtls)',
     sql: `CASE WHEN cane_qty_qtls > 0 AND transport_mode IS NOT NULL THEN cane_qty_qtls - (${CNT_OVERRUN}) END`,
@@ -341,7 +377,7 @@ function infoSection(title, { from, to, dataSource, recordSheets }) {
   if (recordSheets.length) {
     rows.push({
       Field: 'Record columns',
-      Value: 'Grey headers are the live DB columns the dashboard reads; amber headers are derived from them the way the dashboard derives them',
+      Value: 'Grey headers are every live table column. Amber headers are the hours, overrun, and flags the dashboard calculates. Dashboard totals still use the same stored columns as before.',
     });
   }
   return { title, headers: ['Field', 'Value'], rows };
@@ -495,6 +531,8 @@ async function streamCaneSeasonWorkbook(res, { scope, tabId, from, to, dataSourc
   payloads.forEach(({ tab, sections }) => {
     writeTabSheet(workbook, { tab, sections, meta, withInfo: scope !== 'all' });
   });
+
+  if (wanted.size) await ensureCaneLiveExportColumns();
 
   if (wanted.has(GATE_SHEET)) {
     await writeRecordSheet(workbook, {
