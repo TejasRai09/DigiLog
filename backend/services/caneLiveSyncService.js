@@ -1,6 +1,7 @@
 const { poolPromise } = require('../utils/sqlServer');
 const { pool: mysqlPool } = require('../config/mysql');
 const { clearDateRangeCache } = require('../controllers/canePerformanceMysql');
+const { ensureCaneLiveExportColumns } = require('../utils/caneLiveExportColumns');
 
 const COOLDOWN_MS = 60_000; // Auto-sync at most once per minute
 let lastSyncTime = 0;
@@ -139,6 +140,7 @@ async function performSync() {
   }
 
   await ensureCaneUpsertKeys();
+  await ensureCaneLiveExportColumns();
   const gctcBefore = await countTable('g_ctc');
   const cntBefore = await countTable('cnt_performance');
 
@@ -180,6 +182,7 @@ async function performSync() {
       cutToTokenMins != null ? +(cutToTokenMins / 60.0).toFixed(4) : null,
       grossToTareMins != null ? +(grossToTareMins / 60.0).toFixed(4) : null,
       mDate,
+      intOrNull(r.CTC),
     ];
   });
 
@@ -191,7 +194,7 @@ async function performSync() {
         sup_mod, m_date, pur_issue_dt, pur_weight_dt, cut_date,
         kacha_token_datetime, token_datetime, gross_datetime, tare_datetime,
         purchase_qtl, yard_holding_time, cut_to_token_time, unloading_time,
-        report_date
+        report_date, ctc_minutes
       ) VALUES ?
       ON DUPLICATE KEY UPDATE
         v_code = VALUES(v_code),
@@ -212,7 +215,8 @@ async function performSync() {
         yard_holding_time = VALUES(yard_holding_time),
         cut_to_token_time = VALUES(cut_to_token_time),
         unloading_time = VALUES(unloading_time),
-        report_date = VALUES(report_date)
+        report_date = VALUES(report_date),
+        ctc_minutes = VALUES(ctc_minutes)
     `;
     const [resG] = await mysqlPool.query(gctcSql, [gctcRows]);
     gctcAffected = resG.affectedRows;
@@ -276,6 +280,14 @@ async function performSync() {
       waitCnt != null ? +(waitCnt / 60.0).toFixed(4) : null, // truck_holding_time_center
       intOrNull(r['Mode Code of Transport']),
       caneHold,
+      intOrNull(r['C.Code']),
+      intOrNull(r['V.Code']),
+      intOrNull(r['G.Code']),
+      intOrNull(r.TravelHrToCnt),
+      intOrNull(r.ToalTimeCTC),
+      parseDateStr(r.CentreArr),
+      parseDateStr(r.TruckYardGPS),
+      parseDateStr(r['Harvest (Date/Time)']),
     ];
   });
 
@@ -291,7 +303,9 @@ async function performSync() {
         holding_time_center, truck_holding_time_center_minutes,
         truck_transit_time, yard_waiting_time, unloading_time,
         truck_holding_time_center,
-        mode_code_of_transport, cane_holding_time
+        mode_code_of_transport, cane_holding_time,
+        c_code, v_code, g_code, travel_to_center_minutes, total_ctc_minutes,
+        centre_arr, truck_yard_gps_based, harvest_datetime
       ) VALUES ?
       ON DUPLICATE KEY UPDATE
         center = VALUES(center),
@@ -320,7 +334,15 @@ async function performSync() {
         unloading_time = VALUES(unloading_time),
         truck_holding_time_center = VALUES(truck_holding_time_center),
         mode_code_of_transport = VALUES(mode_code_of_transport),
-        cane_holding_time = VALUES(cane_holding_time)
+        cane_holding_time = VALUES(cane_holding_time),
+        c_code = VALUES(c_code),
+        v_code = VALUES(v_code),
+        g_code = VALUES(g_code),
+        travel_to_center_minutes = VALUES(travel_to_center_minutes),
+        total_ctc_minutes = VALUES(total_ctc_minutes),
+        centre_arr = VALUES(centre_arr),
+        truck_yard_gps_based = VALUES(truck_yard_gps_based),
+        harvest_datetime = VALUES(harvest_datetime)
     `;
     const [resC] = await mysqlPool.query(cntSql, [cntRows]);
     cntAffected = resC.affectedRows;
