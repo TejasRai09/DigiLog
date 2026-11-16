@@ -247,6 +247,7 @@ export function applyCockpitCompareSelection({
   dataMin,
   dataMax,
   setComparisonType,
+  alignMode,
 }) {
   setComparisonType(nextId);
   if (!nextId || nextId === 'PP') return;
@@ -258,6 +259,7 @@ export function applyCockpitCompareSelection({
     seasonLabels,
     seasonMapping,
     rangePreset,
+    alignMode,
   );
   const label =
     resolved.label
@@ -280,6 +282,12 @@ export function ensureCompareSelectionValid(comparisonType, comparisonOptions, s
 
 export function clampIsoToBounds(iso, minStr, maxStr) {
   if (!iso) return iso;
+  let v = String(iso).slice(0, 10);
+  if (minStr && v < minStr) v = minStr;
+  if (maxStr && v > maxStr) v = maxStr;
+  return v;
+}
+
 /**
  * Until the user picks a chip, select the season immediately before the current one.
  * Returns a function to call when the user clicks a compare chip.
@@ -307,12 +315,6 @@ export function useDefaultPreviousSeasonCompare(comparisonType, comparisonOption
   }, []);
 }
 
-  let v = String(iso).slice(0, 10);
-  if (minStr && v < minStr) v = minStr;
-  if (maxStr && v > maxStr) v = maxStr;
-  return v;
-}
-
 /** Distillery KPI date: "Apr 1". */
 export function formatFriendlyCompareDate(iso) {
   if (!iso) return '';
@@ -320,12 +322,6 @@ export function formatFriendlyCompareDate(iso) {
   return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-/**
- * Distillery-style compare window for KPI cards.
- * "Prev. Month (Apr 1 - Apr 10)" or "2023-24 (Oct 15 - Oct 22)"
- */
-export function formatKpiComparePeriodLabel({ label, start, end, from, to } = {}) {
-  const a = formatFriendlyCompareDate(start || from);
 function formatLongComparisonDate(iso) {
   if (!iso) return '';
   const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
@@ -450,6 +446,12 @@ export function formatActiveComparisonContext({
   return `You are viewing the comparison for the period ${fromLabel} to ${toLabel} ${comparisonAgainstClause(compareLabel, false)}.`;
 }
 
+/**
+ * Distillery-style compare window for KPI cards.
+ * "Prev. Month (Apr 1 - Apr 10)" or "2023-24 (Oct 15 - Oct 22)"
+ */
+export function formatKpiComparePeriodLabel({ label, start, end, from, to } = {}) {
+  const a = formatFriendlyCompareDate(start || from);
   const b = formatFriendlyCompareDate(end || to);
   const prefix = String(label || '').trim();
   if (a && b) return prefix ? `${prefix} (${a} - ${b})` : `${a} - ${b}`;
