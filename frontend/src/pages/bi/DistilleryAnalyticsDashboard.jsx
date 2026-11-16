@@ -28,7 +28,7 @@ import {
 import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
-  ensureCompareSelectionValid,
+  useDefaultPreviousSeasonCompare,
   formatKpiComparePeriodLabel,
   resolveCockpitCompareRange,
   resolveCockpitPriorRange,
@@ -628,7 +628,7 @@ export default function DistilleryAnalyticsDashboard() {
 
   const applyYearType = (nextType) => {
     setYearType(nextType);
-    setComparisonType('PP');
+    setComparisonType(null);
     const nextPreset = isValidChildPreset(nextType, rangePreset)
       ? rangePreset
       : defaultChildPresetForYearType(nextType);
@@ -705,11 +705,14 @@ export default function DistilleryAnalyticsDashboard() {
     return opts;
   }, [dynamicPPLabel, activeYearMapping, toDate, rangeToIso, compareRangePreset]);
 
-  useEffect(() => {
-    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
-  }, [comparisonType, comparisonOptions]);
+  const markCompareSelected = useDefaultPreviousSeasonCompare(
+    comparisonType,
+    comparisonOptions,
+    setComparisonType,
+  );
 
   const onCompareSelect = useCallback((nextId) => {
+    markCompareSelected();
     applyCockpitCompareSelection({
       nextId,
       fromDate,

@@ -205,6 +205,8 @@ async function getManagementDashboard(req, res) {
     const allMaxs = boundsResults.map((r) => dateKey(r?.[0]?.maxD)).filter(Boolean).sort();
     const dataMin = allMins[0] || null;
     const dataMax = allMaxs.length ? allMaxs[allMaxs.length - 1] : null;
+    const purchaseIdx = boundsTables.findIndex((t) => t.table === 'centre_purchase_data');
+    const purchaseMax = dateKey(boundsResults[purchaseIdx]?.[0]?.maxD) || null;
 
     const queryForBound = { ...req.query };
     if ((!queryForBound.from || !ISO_DATE_RE.test(String(queryForBound.from))) && dataMin) {
@@ -357,7 +359,7 @@ async function getManagementDashboard(req, res) {
       to: queryForBound.to || null,
       dma,
       daysElapsed,
-      dateBounds: { min: dataMin, max: dataMax, from: dataMin, to: dataMax },
+      dateBounds: { min: dataMin, max: dataMax, from: dataMin, to: dataMax, purchaseMax },
       rows,
     });
   } catch (err) {

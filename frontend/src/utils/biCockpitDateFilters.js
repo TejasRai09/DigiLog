@@ -2,11 +2,13 @@
  * Shared BI cockpit date / compare filters (Milling pattern).
  * Compare season chips = all season_mapping rows except the current From/To season.
  */
+import { useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import {
   alignMappedSeasonByDayOffset,
   alignMappedSeasonCompareRange,
   computePriorPeriodRange,
+  daysBetweenIso,
   findSeasonLabelForDate,
   formatYMD,
   getSeasonComparisonLabels,
@@ -156,11 +158,13 @@ export function buildCockpitComparisonOptions(rangePreset, seasonMappingOrLabels
 
 /**
  * Prior-period (PP) window.
- * STD + mapping → previous season day 1→N; else computePriorPeriodRange.
+ * Crop day (or STD when no mode is passed) → same crop days in the previous season.
+ * Date based → previous week, month, or equal-length window.
  */
-export function resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMapping = {}) {
+export function resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMapping = {}, alignMode) {
+  const useCropDay = alignMode === 'cropDay' || (alignMode !== 'calendar' && rangePreset === 'STD');
   if (
-    rangePreset === 'STD'
+    useCropDay
     && fromDate
     && toDate
     && seasonMapping
@@ -169,7 +173,7 @@ export function resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMa
     const labels = getSeasonComparisonLabelsFromMapping(toDate || fromDate, seasonMapping);
     if (labels.season1) {
       const aligned = alignMappedSeasonByDayOffset(fromDate, toDate, labels.season1, seasonMapping);
-      return { start: aligned.start, end: aligned.end, label: 'Prev. Season' };
+      return { start: aligned.start, end: aligned.end, label: labels.season1, overlap: aligned.overlap };
     }
   }
   return computePriorPeriodRange(fromDate, toDate, rangePreset);
@@ -178,6 +182,7 @@ export function resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMa
 /**
  * Compare window for PP or season chip.
  * STD → day-of-season offset; MTD/WTD/Custom → calendar month/day in mapped season.
+ * alignMode 'calendar' or 'cropDay' overrides that preset rule. Omit it to keep the preset rule.
  */
 export function resolveCockpitCompareRange(
   fromDate,
@@ -186,18 +191,20 @@ export function resolveCockpitCompareRange(
   seasonLabels,
   seasonMapping = {},
   rangePreset = 'Custom',
+  alignMode,
 ) {
   if (comparisonType === 'PP') {
-    return resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMapping);
+    return resolveCockpitPriorRange(fromDate, toDate, rangePreset, seasonMapping, alignMode);
   }
   const seasonLabel = resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping);
   if (!seasonLabel || !fromDate || !toDate) return { start: '', end: '' };
 
   const from = fromDate <= toDate ? fromDate : toDate;
   const to = fromDate <= toDate ? toDate : fromDate;
-  const align = rangePreset === 'STD' ? alignMappedSeasonByDayOffset : alignMappedSeasonCompareRange;
+  const useCropDay = alignMode === 'cropDay' || (alignMode !== 'calendar' && rangePreset === 'STD');
+  const align = useCropDay ? alignMappedSeasonByDayOffset : alignMappedSeasonCompareRange;
   const aligned = align(from, to, seasonLabel, seasonMapping);
-  return { start: aligned.start, end: aligned.end, label: seasonLabel };
+  return { start: aligned.start, end: aligned.end, label: seasonLabel, overlap: aligned.overlap };
 }
 
 /** True if [compareFrom, compareTo] overlaps dashboard data [dataMin, dataMax]. */
@@ -273,6 +280,33 @@ export function ensureCompareSelectionValid(comparisonType, comparisonOptions, s
 
 export function clampIsoToBounds(iso, minStr, maxStr) {
   if (!iso) return iso;
+/**
+ * Until the user picks a chip, select the season immediately before the current one.
+ * Returns a function to call when the user clicks a compare chip.
+ */
+export function useDefaultPreviousSeasonCompare(comparisonType, comparisonOptions, setComparisonType) {
+  const touched = useRef(false);
+  useEffect(() => {
+    const opts = comparisonOptions || [];
+    if (!opts.length) return;
+    const previousSeason = opts.find((opt) => opt.id !== 'PP');
+    if (!comparisonType) {
+      const next = previousSeason?.id || opts[0]?.id;
+      if (next) setComparisonType(next);
+      return;
+    }
+    if (!touched.current && previousSeason && comparisonType !== previousSeason.id) {
+      setComparisonType(previousSeason.id);
+      return;
+    }
+    ensureCompareSelectionValid(comparisonType, opts, setComparisonType);
+  }, [comparisonType, comparisonOptions, setComparisonType]);
+
+  return useCallback(() => {
+    touched.current = true;
+  }, []);
+}
+
   let v = String(iso).slice(0, 10);
   if (minStr && v < minStr) v = minStr;
   if (maxStr && v > maxStr) v = maxStr;
@@ -292,6 +326,130 @@ export function formatFriendlyCompareDate(iso) {
  */
 export function formatKpiComparePeriodLabel({ label, start, end, from, to } = {}) {
   const a = formatFriendlyCompareDate(start || from);
+function formatLongComparisonDate(iso) {
+  if (!iso) return '';
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatComparisonSeasonName(label) {
+  const raw = String(label || '').trim();
+  if (!raw) return '';
+  return raw.replace(/(\d{4})\s*[-–]\s*(\d{2,4})/, '$1–$2');
+}
+
+function comparisonAgainstClause(label, cropDay) {
+  const name = formatComparisonSeasonName(label);
+  const subject = cropDay ? 'crop days' : 'period';
+  if (name && /\d{4}/.test(name)) {
+    return `against the corresponding ${subject} in the ${name} season`;
+  }
+  const plain = (name || 'previous period').replace(/^Prev\.\s*/i, 'previous ');
+  return `against the corresponding ${subject} in the ${plain}`;
+}
+
+/**
+ * Active comparison sentence for the Management Dashboard.
+ * Crop Day 1 is the first day of the current season.
+ */
+function cropDaySpan(dayFrom, dayTo) {
+  if (!Number.isFinite(dayFrom) || !Number.isFinite(dayTo) || dayFrom < 1 || dayTo < 1) return '';
+  return dayFrom === dayTo ? `Crop Day ${dayFrom}` : `Crop Day ${dayFrom} to Crop Day ${dayTo}`;
+}
+
+function viewedCropOffsets(startIso, endIso, seasonMapping) {
+  const seasonLabel = findSeasonLabelForDate(endIso, seasonMapping)
+    || findSeasonLabelForDate(startIso, seasonMapping);
+  const seasonStart = seasonLabel && seasonMapping?.[seasonLabel]?.startDate
+    ? String(seasonMapping[seasonLabel].startDate).slice(0, 10)
+    : '';
+  if (!seasonStart) return { seasonStart: '', offsetFrom: null, offsetTo: null };
+  return {
+    seasonStart,
+    offsetFrom: daysBetweenIso(seasonStart, startIso),
+    offsetTo: daysBetweenIso(seasonStart, endIso),
+  };
+}
+
+export function formatActiveComparisonContext({
+  from,
+  to,
+  alignMode,
+  compareLabel,
+  seasonMapping = {},
+  overlap,
+  compareStart,
+  compareEnd,
+} = {}) {
+  const startIso = from && to && from <= to ? from : to;
+  const endIso = from && to && from <= to ? to : from;
+  if (!startIso || !endIso) return '';
+
+  const seasonName = formatComparisonSeasonName(compareLabel);
+  const hasSeason = Boolean(seasonName && /\d{4}/.test(seasonName));
+  const fromLabel = formatLongComparisonDate(startIso);
+  const toLabel = formatLongComparisonDate(endIso);
+  const { seasonStart, offsetFrom, offsetTo } = alignMode === 'cropDay'
+    ? viewedCropOffsets(startIso, endIso, seasonMapping)
+    : { seasonStart: '', offsetFrom: null, offsetTo: null };
+
+  let cropFrom = null;
+  let cropTo = null;
+  if (offsetFrom != null && offsetTo != null && offsetTo >= 0) {
+    cropFrom = Math.max(0, offsetFrom) + 1;
+    cropTo = offsetTo + 1;
+    if (compareStart && compareEnd) {
+      const spanDays = daysBetweenIso(compareStart, compareEnd);
+      if (spanDays != null && spanDays >= 0) cropTo = cropFrom + spanDays;
+    }
+  }
+  const cropSpan = cropDaySpan(cropFrom, cropTo);
+
+  if (overlap === 'none') {
+    if (alignMode === 'cropDay' && cropSpan && hasSeason) {
+      return `The ${seasonName} season has no corresponding crop days for ${cropSpan}.`;
+    }
+    if (hasSeason && fromLabel && toLabel) {
+      return `The ${seasonName} season has no corresponding days for ${fromLabel} to ${toLabel}.`;
+    }
+    return '';
+  }
+
+  if (alignMode === 'cropDay' && offsetFrom != null && offsetTo != null && offsetFrom >= 0 && offsetTo >= 0) {
+    const viewedSpan = cropDaySpan(offsetFrom + 1, offsetTo + 1);
+    if (overlap === 'partial' && cropSpan && viewedSpan && cropSpan !== viewedSpan && hasSeason) {
+      return `You are viewing the comparison for ${viewedSpan} against ${cropSpan} in the ${seasonName} season.`;
+    }
+    if (viewedSpan) {
+      return `You are viewing the comparison for ${viewedSpan} ${comparisonAgainstClause(compareLabel, true)}.`;
+    }
+  }
+
+  if (alignMode === 'cropDay' && cropSpan && offsetFrom != null && offsetFrom < 0 && seasonStart) {
+    const outside = formatLongComparisonDate(seasonStart);
+    return `You are viewing the comparison for ${cropSpan} ${comparisonAgainstClause(compareLabel, true)}. Dates before ${outside} are outside this season.`;
+  }
+
+  if (
+    overlap === 'partial'
+    && hasSeason
+    && fromLabel
+    && toLabel
+    && compareStart
+    && compareEnd
+  ) {
+    const cmpFrom = formatLongComparisonDate(compareStart);
+    const cmpTo = formatLongComparisonDate(compareEnd);
+    if (cmpFrom && cmpTo) {
+      return `You are viewing the comparison for the period ${fromLabel} to ${toLabel} against ${cmpFrom} to ${cmpTo} in the ${seasonName} season.`;
+    }
+  }
+
+  if (!fromLabel || !toLabel) return '';
+  return `You are viewing the comparison for the period ${fromLabel} to ${toLabel} ${comparisonAgainstClause(compareLabel, false)}.`;
+}
+
   const b = formatFriendlyCompareDate(end || to);
   const prefix = String(label || '').trim();
   if (a && b) return prefix ? `${prefix} (${a} - ${b})` : `${a} - ${b}`;
