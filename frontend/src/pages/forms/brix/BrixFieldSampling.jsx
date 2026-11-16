@@ -120,7 +120,7 @@ const BrixFieldSampling = () => {
         <BackToFormsHub formKey="brix_field_sampling" />
       </div>
       
-      <h1 className="page-title mb-1">GSMA Field Brix Sampling Form 23-24</h1>
+      <h1 className="page-title mb-1">GSMA Field Brix Sampling Form</h1>
       <p className="text-xs text-gray-500 mb-6 uppercase tracking-wider">Cane Area Brix measurement and Analysis Form</p>
       <FormsHubViewOnlyBanner />
       

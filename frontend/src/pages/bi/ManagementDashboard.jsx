@@ -21,11 +21,12 @@ import { formatYMD } from '../../utils/distilleryBiDateRange';
 import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
-  ensureCompareSelectionValid,
   getCockpitPresetDateRange,
+  useDefaultPreviousSeasonCompare,
   getCockpitSeasonLabels,
   formatKpiComparePeriodLabel,
   formatExpandPeriodBadge,
+  formatActiveComparisonContext,
   resolveCockpitCompareRange,
 } from '../../utils/biCockpitDateFilters';
 import { millOperatingDays } from '../../utils/millingBiComparison';
@@ -105,8 +106,10 @@ export default function ManagementDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Compare toggle — named seasons on STD (no Prev. Season); PP + seasons on other presets
+  // Compare toggle — default is the season immediately before the current one.
   const [compareType, setCompareType] = useState('PP');
+  // null follows the preset: STD is crop day, other presets are calendar date.
+  const [compareAlignChoice, setCompareAlignChoice] = useState(null);
   const [pyData, setPyData] = useState(null);
   const [pyLoading, setPyLoading] = useState(false);
   const [seasonMapping, setSeasonMapping] = useState({});
@@ -142,11 +145,12 @@ export default function ManagementDashboard() {
     return buildCockpitComparisonOptions(preset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [preset, seasonMapping, to, dateBounds.max]);
 
-  useEffect(() => {
-    ensureCompareSelectionValid(compareType, compareOptions, setCompareType);
-  }, [compareType, compareOptions]);
+  const markCompareSelected = useDefaultPreviousSeasonCompare(compareType, compareOptions, setCompareType);
+
+  const compareAlignMode = compareAlignChoice ?? (preset === 'STD' ? 'cropDay' : 'calendar');
 
   const onCompareSelect = useCallback((nextId) => {
+    markCompareSelected();
     applyCockpitCompareSelection({
       nextId,
       fromDate: from,
@@ -157,8 +161,9 @@ export default function ManagementDashboard() {
       dataMin: dateBounds.min,
       dataMax: dateBounds.max,
       setComparisonType: setCompareType,
+      alignMode: compareAlignMode,
     });
-  }, [from, to, preset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max]);
+  }, [from, to, preset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max, compareAlignMode, markCompareSelected]);
 
   const fetchDashboard = useCallback(async (fromDate, toDate) => {
     setLoading(true);
@@ -185,27 +190,45 @@ export default function ManagementDashboard() {
   }, [from, to, fetchDashboard]);
 
   // ── Compare range (cockpit: STD = day-of-season offset) ─────────────
-  const priorRange = useMemo(() => {
+  const compareResolution = useMemo(() => {
     if (!from || !to) return null;
-    const resolved = resolveCockpitCompareRange(
+    return resolveCockpitCompareRange(
       from,
       to,
       compareType,
       seasonLabels,
       seasonMapping,
       preset,
+      compareAlignMode,
     );
-    if (!resolved?.start || !resolved?.end) return null;
+  }, [compareType, from, to, preset, seasonLabels, seasonMapping, compareAlignMode]);
+
+  const priorRange = useMemo(() => {
+    if (!compareResolution?.start || !compareResolution?.end) return null;
     return {
-      start: resolved.start,
-      end: resolved.end,
-      label: resolved.label || (compareType === 'PP' ? 'Prev. Period' : ''),
+      start: compareResolution.start,
+      end: compareResolution.end,
+      label: compareResolution.label || (compareType === 'PP' ? 'Prev. Period' : ''),
     };
-  }, [compareType, from, to, preset, seasonLabels, seasonMapping]);
+  }, [compareResolution, compareType]);
 
   const compareLabel = useMemo(
     () => (priorRange ? formatKpiComparePeriodLabel(priorRange) : null),
     [priorRange],
+  );
+
+  const comparisonContext = useMemo(
+    () => formatActiveComparisonContext({
+      from,
+      to,
+      alignMode: compareAlignMode,
+      compareLabel: compareResolution?.label,
+      seasonMapping,
+      overlap: compareResolution?.overlap,
+      compareStart: compareResolution?.start,
+      compareEnd: compareResolution?.end,
+    }),
+    [from, to, compareAlignMode, compareResolution, seasonMapping],
   );
 
   // Fetch prior-period data whenever priorRange changes
@@ -291,10 +314,11 @@ export default function ManagementDashboard() {
       }
       setPreset(p);
       const bounds = customBounds || dateBounds;
-      const ref = bounds.max ? new Date(`${bounds.max}T12:00:00`) : new Date();
+      const anchor = bounds.purchaseMax || bounds.max;
+      const ref = anchor ? new Date(`${anchor}T12:00:00`) : new Date();
       const r = getPresetRange(p, ref, bounds, seasonMapping);
       setFrom(r.from || bounds.min);
-      setTo(r.to || bounds.max);
+      setTo(r.to || anchor);
     },
     [dateBounds, seasonMapping],
   );
@@ -315,7 +339,7 @@ export default function ManagementDashboard() {
         setFrom(curBounds.min);
       }
     }
-  }, [dashboardData?.dateBounds?.max, dashboardData?.dateBounds?.min, preset, seasonMapping]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dashboardData?.dateBounds?.max, dashboardData?.dateBounds?.min, dashboardData?.dateBounds?.purchaseMax, preset, seasonMapping]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleExpand = useCallback(
     (kpi) => {
@@ -372,6 +396,18 @@ export default function ManagementDashboard() {
           help="Tap a KPI cell to expand."
           trailing={<BiCurrentSeasonChip toDate={to} seasonMapping={seasonMapping} isDarkMode={dm} />}
           actions={
+        <div className="flex w-full min-w-0 items-stretch gap-3">
+          {comparisonContext && (
+            <p
+              className={`flex min-w-0 flex-1 items-center rounded-md border px-2.5 py-1.5 text-left text-xs font-semibold leading-snug shadow-sm backdrop-blur-md sm:text-sm ${
+                dm
+                  ? 'border-purple-500/30 bg-slate-800/80 text-slate-300 shadow-purple-900/20'
+                  : 'border-purple-200 bg-white/80 text-slate-500 shadow-purple-100/50'
+              }`}
+            >
+              {comparisonContext}
+            </p>
+          )}
         <BiFilterBarLayout isDarkMode={dm} setIsDarkMode={setDm} compact alignEnd>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
             <div className={`flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
@@ -430,6 +466,26 @@ export default function ManagementDashboard() {
 
             <div className={`hidden h-4 w-px sm:block ${dm ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
+            <div className="flex min-w-0 flex-col items-stretch gap-0.5">
+            <div className={`flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
+              {[
+                { id: 'calendar', label: 'Date Based Comparison' },
+                { id: 'cropDay', label: 'Crop Day Comparison' },
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setCompareAlignChoice(opt.id)}
+                  className={`shrink-0 whitespace-nowrap rounded-md px-1.5 py-0.5 text-[8px] font-black transition-all sm:text-[9px] ${
+                    compareAlignMode === opt.id
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                      : `text-slate-500 hover:text-slate-700 ${dm ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div className={`flex min-w-0 flex-wrap items-center gap-0.5 rounded-lg border p-0.5 ${dm ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
               <span className={`ml-0.5 shrink-0 text-[8px] font-bold uppercase tracking-wider ${dm ? 'text-slate-400' : 'text-slate-500'}`}>
                 Compare
@@ -449,6 +505,7 @@ export default function ManagementDashboard() {
                 </button>
               ))}
             </div>
+            </div>
             {pyLoading && <Spinner size="sm" />}
           </div>
 
@@ -462,6 +519,7 @@ export default function ManagementDashboard() {
             />
           )}
         </BiFilterBarLayout>
+        </div>
           }
         />
       </div>

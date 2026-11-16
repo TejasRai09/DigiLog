@@ -42,7 +42,7 @@ import {
 import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
-  ensureCompareSelectionValid,
+  useDefaultPreviousSeasonCompare,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   formatKpiComparePeriodLabel,
@@ -373,11 +373,14 @@ export default function BrixSamplingDashboard() {
     return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, dateTo, dbMaxDateStr]);
 
-  useEffect(() => {
-    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
-  }, [comparisonType, comparisonOptions]);
+  const markCompareSelected = useDefaultPreviousSeasonCompare(
+    comparisonType,
+    comparisonOptions,
+    setComparisonType,
+  );
 
   const onCompareSelect = useCallback((nextId) => {
+    markCompareSelected();
     applyCockpitCompareSelection({
       nextId,
       fromDate: dateFrom,

@@ -338,6 +338,68 @@ export function addDaysIso(iso, days) {
   return formatYMD(d);
 }
 
+function emptySeasonOverlap(fyStart = '', fyEnd = '') {
+  return { start: '', end: '', fyStart, fyEnd, overlap: 'none' };
+}
+
+/**
+ * Same month/day inside a season window, or the nearest out-of-window candidate.
+ * In-bounds hits match compareDateIsoInMappedSeason (first year that lands inside).
+ */
+function nearestMonthDayInSeason(iso, seasonStart, seasonEnd) {
+  const d = new Date(`${String(iso).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  const startY = Number(String(seasonStart).slice(0, 4));
+  const endY = Number(String(seasonEnd).slice(0, 4));
+  if (!Number.isFinite(startY) || !Number.isFinite(endY) || endY < startY) return null;
+
+  let inside = null;
+  let nearest = null;
+  let nearestDist = Infinity;
+  for (let y = startY; y <= endY; y += 1) {
+    const candidate = formatYMD(new Date(y, d.getMonth(), d.getDate()));
+    if (candidate >= seasonStart && candidate <= seasonEnd) {
+      inside = candidate;
+      break;
+    }
+    const dist = candidate < seasonStart
+      ? daysBetweenIso(candidate, seasonStart)
+      : daysBetweenIso(seasonEnd, candidate);
+    if (dist != null && dist < nearestDist) {
+      nearestDist = dist;
+      nearest = candidate;
+    }
+  }
+  if (inside) return { date: inside, inside: true };
+  if (!nearest) return null;
+  return { date: nearest, inside: false };
+}
+
+/** Clip a viewed From–To onto the calendar days that exist in the target season. */
+function clipCalendarSeasonOverlap(from, to, seasonStart, seasonEnd) {
+  if (!seasonStart || !seasonEnd || seasonEnd < seasonStart) {
+    return emptySeasonOverlap(seasonStart, seasonEnd);
+  }
+  const a = nearestMonthDayInSeason(from, seasonStart, seasonEnd);
+  const b = nearestMonthDayInSeason(to, seasonStart, seasonEnd);
+  if (!a || !b) return emptySeasonOverlap(seasonStart, seasonEnd);
+
+  const orderedStart = a.date <= b.date ? a.date : b.date;
+  const orderedEnd = a.date <= b.date ? b.date : a.date;
+  if (orderedEnd < seasonStart || orderedStart > seasonEnd) {
+    return emptySeasonOverlap(seasonStart, seasonEnd);
+  }
+
+  const start = orderedStart < seasonStart ? seasonStart : orderedStart;
+  const end = orderedEnd > seasonEnd ? seasonEnd : orderedEnd;
+  if (start > end) return emptySeasonOverlap(seasonStart, seasonEnd);
+
+  const overlap = a.inside && b.inside && start === orderedStart && end === orderedEnd
+    ? 'exact'
+    : 'partial';
+  return { start, end, fyStart: seasonStart, fyEnd: seasonEnd, overlap };
+}
+
 /**
  * Align From–To into a mapped season by season-day offset (day 1→N).
  * Day 0 of current season → day 0 of target season (same progress into the campaign).
@@ -350,6 +412,7 @@ export function alignMappedSeasonByDayOffset(fromDate, toDate, targetSeasonLabel
   if (!tgtStart || !tgtEnd) {
     return alignMappedSeasonCompareRange(fromDate, toDate, targetSeasonLabel, seasonMapping);
   }
+  if (tgtEnd < tgtStart) return emptySeasonOverlap(tgtStart, tgtEnd);
 
   const from = fromDate <= toDate ? fromDate : toDate;
   const to = fromDate <= toDate ? toDate : fromDate;
@@ -365,18 +428,23 @@ export function alignMappedSeasonByDayOffset(fromDate, toDate, targetSeasonLabel
 
   const offsetFrom = daysBetweenIso(curStart, from);
   const offsetTo = daysBetweenIso(curStart, to);
-  if (offsetFrom == null || offsetTo == null) {
-    return { start: tgtStart, end: tgtEnd, fyStart: tgtStart, fyEnd: tgtEnd };
+  const maxOff = daysBetweenIso(tgtStart, tgtEnd);
+  if (offsetFrom == null || offsetTo == null || maxOff == null) {
+    return emptySeasonOverlap(tgtStart, tgtEnd);
   }
 
-  let start = addDaysIso(tgtStart, Math.max(0, offsetFrom));
-  let end = addDaysIso(tgtStart, Math.max(0, offsetTo));
-  if (!start || !end) return { start: tgtStart, end: tgtEnd, fyStart: tgtStart, fyEnd: tgtEnd };
+  const lo = Math.min(offsetFrom, offsetTo);
+  const hi = Math.max(offsetFrom, offsetTo);
+  if (hi < 0 || lo > maxOff) return emptySeasonOverlap(tgtStart, tgtEnd);
 
-  if (start < tgtStart) start = tgtStart;
-  if (end > tgtEnd) end = tgtEnd;
-  if (start > end) return { start: tgtStart, end: tgtEnd, fyStart: tgtStart, fyEnd: tgtEnd };
-  return { start, end, fyStart: tgtStart, fyEnd: tgtEnd };
+  const clippedLo = Math.max(0, lo);
+  const clippedHi = Math.min(maxOff, hi);
+  const start = addDaysIso(tgtStart, clippedLo);
+  const end = addDaysIso(tgtStart, clippedHi);
+  if (!start || !end || start > end) return emptySeasonOverlap(tgtStart, tgtEnd);
+
+  const overlap = clippedLo === lo && clippedHi === hi ? 'exact' : 'partial';
+  return { start, end, fyStart: tgtStart, fyEnd: tgtEnd, overlap };
 }
 
 /**
@@ -395,17 +463,7 @@ export function alignMappedSeasonCompareRange(fromDate, toDate, seasonLabel, sea
 
   const from = fromDate <= toDate ? fromDate : toDate;
   const to = fromDate <= toDate ? toDate : fromDate;
-  const startIso = compareDateIsoInMappedSeason(from, startDate, endDate);
-  const endIso = compareDateIsoInMappedSeason(to, startDate, endDate);
-  if (!startIso || !endIso) {
-    return { start: startDate, end: endDate, fyStart: startDate, fyEnd: endDate };
-  }
-  let start = startIso <= endIso ? startIso : endIso;
-  let end = startIso <= endIso ? endIso : startIso;
-  if (start < startDate) start = startDate;
-  if (end > endDate) end = endDate;
-  if (start > end) return { start: startDate, end: endDate, fyStart: startDate, fyEnd: endDate };
-  return { start, end, fyStart: startDate, fyEnd: endDate };
+  return clipCalendarSeasonOverlap(from, to, startDate, endDate);
 }
 
 /** Season containing iso, else latest season starting on/before iso, else oldest/latest in mapping. */

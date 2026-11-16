@@ -152,8 +152,8 @@ const formDefs = [
   { name: 'Clarification Log Book',                  description: 'Hourly juice clarification readings and process parameters',                 formKey: 'prod_clarification',  app: 'Production', sort_order: 5 },
 
   // Brix Sampling Forms
-  { name: 'GSMA Yard Brix Sampling Form 23-24',      description: 'Yard Area Brix measurement and Analysis Form',                               formKey: 'brix_yard_sampling',  app: 'Brix Sampling Forms', sort_order: 1 },
-  { name: 'GSMA Field Brix Sampling Form 23-24',     description: 'Cane Area Brix measurement and Analysis Form',                               formKey: 'brix_field_sampling', app: 'Brix Sampling Forms', sort_order: 2 },
+  { name: 'GSMA Yard Brix Sampling Form',            description: 'Yard Area Brix measurement and Analysis Form',                               formKey: 'brix_yard_sampling',  app: 'Brix Sampling Forms', sort_order: 1 },
+  { name: 'GSMA Field Brix Sampling Form',           description: 'Cane Area Brix measurement and Analysis Form',                               formKey: 'brix_field_sampling', app: 'Brix Sampling Forms', sort_order: 2 },
 
   // BI dashboards (routes under /bi/…; mapped via forms like other apps)
   {

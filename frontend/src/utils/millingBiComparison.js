@@ -35,6 +35,7 @@ export function filterMillSeasonCompareRows(
     ? alignMappedSeasonByDayOffset
     : alignMappedSeasonCompareRange;
   const { start, end } = align(fromDate, toDate, seasonLabel, seasonMapping);
+  if (!start || !end || start > end) return [];
   return rawData.filter((r) => {
     if (!r.dateIso) return false;
     if (r.dateIso < start || r.dateIso > end) return false;

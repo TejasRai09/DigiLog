@@ -22,7 +22,7 @@ import { formatYMD, resolveDashboardToDate } from "../../utils/distilleryBiDateR
 import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
-  ensureCompareSelectionValid,
+  useDefaultPreviousSeasonCompare,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   formatKpiComparePeriodLabel,

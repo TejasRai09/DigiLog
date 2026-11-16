@@ -48,7 +48,7 @@ import {
 import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
-  ensureCompareSelectionValid,
+  useDefaultPreviousSeasonCompare,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   formatKpiComparePeriodLabel,
@@ -512,11 +512,14 @@ export default function MillingOperationsDashboard() {
     return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, toDate, rangeToIso]);
 
-  useEffect(() => {
-    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
-  }, [comparisonType, comparisonOptions]);
+  const markCompareSelected = useDefaultPreviousSeasonCompare(
+    comparisonType,
+    comparisonOptions,
+    setComparisonType,
+  );
 
   const onCompareSelect = useCallback((nextId) => {
+    markCompareSelected();
     applyCockpitCompareSelection({
       nextId,
       fromDate,
@@ -538,11 +541,12 @@ export default function MillingOperationsDashboard() {
   useEffect(() => {
     if (!isSeasonComparisonType(comparisonType)) return;
     const label = resolveSeasonLabelFromCompareId(comparisonType, seasonLabels, seasonMapping);
-    if (!label) setComparisonType('PP');
+    if (!label) setComparisonType(null);
   }, [comparisonType, seasonLabels, seasonMapping]);
 
   const compareData = useMemo(() => {
     if (comparisonType === 'PP') {
+      if (!priorRange?.start || !priorRange?.end) return [];
       return filterMillStoppages(rawData, priorRange.start, priorRange.end, selectedSections);
     }
     if (activeSeasonLabel) {

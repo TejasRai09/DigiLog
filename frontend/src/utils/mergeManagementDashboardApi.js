@@ -86,6 +86,7 @@ export function mergeManagementDashboardApi(apiData) {
       max: bounds.max || null,
       from: bounds.min || null,
       to: bounds.max || null,
+      purchaseMax: bounds.purchaseMax || null,
     },
     rows,
   };
