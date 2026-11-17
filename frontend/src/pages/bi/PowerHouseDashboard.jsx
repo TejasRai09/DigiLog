@@ -131,15 +131,18 @@ export default function PowerHouseDashboard() {
     return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, to, dateBounds.max]);
 
-  useEffect(() => {
-    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
-  }, [comparisonType, comparisonOptions]);
+  const markCompareSelected = useDefaultPreviousSeasonCompare(
+    comparisonType,
+    comparisonOptions,
+    setComparisonType,
+  );
 
   useEffect(() => {
     setExpandedChart(null);
   }, [tab]);
 
   const onCompareSelect = useCallback((nextId) => {
+    markCompareSelected();
     applyCockpitCompareSelection({
       nextId,
       fromDate: from,
@@ -151,7 +154,7 @@ export default function PowerHouseDashboard() {
       dataMax: dateBounds.max,
       setComparisonType,
     });
-  }, [from, to, rangePreset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max]);
+  }, [from, to, rangePreset, seasonMapping, seasonLabels, dateBounds.min, dateBounds.max, markCompareSelected]);
 
   useEffect(() => {
     let cancelled = false;

@@ -260,11 +260,11 @@ const AUDIT_GUIDE = {
       C,
       'Per C.Name: average of Truck Transit (Hrs), sum of Purchased Quantity (Qtl.), distinct CHALLAN (Trips)',
     ],
-    ['KPIs', C, 'Count of centers, average of the center values, sum of Challan Qty'],
+    ['KPIs', C, 'Count of centers, average of the center values, sum of Cane Qty'],
   ],
   'truck-holding': [
     ['Centers by Truck Holding', C, 'Per C.Name: average of Truck Holding (Hrs), sum of Purchased Quantity (Qtl.)'],
-    ['KPIs', C, 'Count of centers, average of the center values, sum of Challan Qty'],
+    ['KPIs', C, 'Count of centers, average of the center values, sum of Cane Qty'],
   ],
 };
 
