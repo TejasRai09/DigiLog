@@ -20,14 +20,18 @@ function formatBytes(n) {
 
 function formatIngestedAt(iso) {
   if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return String(iso);
-  return d.toLocaleString('en-US', {
-    month: 'short',
+  const s = String(iso).trim();
+  const mysqlUtc = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/.exec(s);
+  const d = mysqlUtc ? new Date(`${mysqlUtc[1]}T${mysqlUtc[2]}Z`) : new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
     day: 'numeric',
+    month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
   });
 }
 

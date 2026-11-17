@@ -428,11 +428,11 @@ function buildTabSections(tabId, data) {
         })),
         {
           time: `Transit Time ${HRS}`,
-          volume: `Challan Qty ${QTLS}`,
+          volume: `Cane Qty ${QTLS}`,
           trips: `Trips ${NOS}`,
           countLabel: `Total Centers ${NOS}`,
           avgLabel: `Avg Transit Duration ${HRS}`,
-          volumeLabel: `Total Challan Volume ${QTLS}`,
+          volumeLabel: `Total Cane Qty ${QTLS}`,
         },
       );
     case 'truck-holding':
@@ -441,10 +441,10 @@ function buildTabSections(tabId, data) {
         (data?.truckHoldByCenter || []).map((row) => ({ center: row.center, time: row.holdingHrs, volume: row.challanQty })),
         {
           time: `Holding Time ${HRS}`,
-          volume: `Challan Qty ${QTLS}`,
+          volume: `Cane Qty ${QTLS}`,
           countLabel: `Active Holding Yards ${NOS}`,
           avgLabel: `Avg Truck Holding Time ${HRS}`,
-          volumeLabel: `Total Volume On Hold ${QTLS}`,
+          volumeLabel: `Total Cane Qty ${QTLS}`,
         },
       );
     default:
