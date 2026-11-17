@@ -22,7 +22,7 @@ import { formatYMD, resolveDashboardToDate } from "../../utils/distilleryBiDateR
 import {
   applyCockpitCompareSelection,
   buildCockpitComparisonOptions,
-  ensureCompareSelectionValid,
+  useDefaultPreviousSeasonCompare,
   getCockpitPresetDateRange,
   getCockpitSeasonLabels,
   formatKpiComparePeriodLabel,
@@ -496,12 +496,12 @@ const LOGISTICS_CFG = {
   transit: {
     entityLabel: "Center",
     timeLabel: "Transit Time",
-    volumeLabel: "Challan Qty (Qtls)",
+    volumeLabel: "Cane Qty (Qtls)",
     volumeUnit: "Qtls",
     kpi1: "Total Centers",
     kpi1Suffix: "Centers",
     kpi2: "Avg Transit Duration",
-    kpi3: "Total Challan Volume",
+    kpi3: "Total Cane Qty (Qtls)",
     leaderboardTitle: "Fastest Transit Centers",
     leaderboardSub: "Top centers by speed",
     searchPh: "Search center name…",
@@ -517,12 +517,12 @@ const LOGISTICS_CFG = {
   holding: {
     entityLabel: "Holding Yard / Center",
     timeLabel: "Holding Duration",
-    volumeLabel: "Challan Qty (Qtls)",
+    volumeLabel: "Cane Qty (Qtls)",
     volumeUnit: "Qtls",
     kpi1: "Active Holding Yards",
     kpi1Suffix: "Yards",
     kpi2: "Avg Truck Holding Time",
-    kpi3: "Total Volume On Hold",
+    kpi3: "Total Cane Qty (Qtls)",
     leaderboardTitle: "Fastest Yard Turnaround",
     leaderboardSub: "Lowest truck dwell time",
     searchPh: "Search holding center…",
@@ -707,7 +707,7 @@ const LogisticsCommandPanel = ({ mode = "centers", rows = [], dm = false }) => {
 
         <div className={`relative p-4 rounded-2xl border ${cardPopCls(dm)} ${cardCls}`}>
           <div className="absolute top-2.5 right-2.5 z-10">
-            <InfoTip text={resolveSectionInfo(cfg.kpi3, "Total volume associated with entities in this view (vehicles / challan qty depending on tab).")} dm={dm} />
+            <InfoTip text={resolveSectionInfo(cfg.kpi3, "Total cane quantity (Qtls) for the centers in this view. Vehicle Holding uses vehicle count.")} dm={dm} />
           </div>
           <div className="flex items-center justify-between pr-6">
             <div>
@@ -1144,16 +1144,8 @@ const gate1ModeColor = (m) => GATE1_MODE_COLORS[m] || COLORS[0];
 
 const GATE1_RAD = Math.PI / 180;
 
-/** Short display names for purchase-split callouts (matches design labels). */
-const shortModeLabel = (name) => {
-  const s = String(name || "").toUpperCase();
-  if (s.includes("99")) return "99";
-  if (s.includes("18") || s.includes("CART")) return "Q CART";
-  if (s.includes("36")) return "QTROL";
-  if (s.includes("45")) return "45";
-  if (s.includes("63") || s.includes("TROLL")) return "OLLY";
-  return String(name || "").split(/\s+/).slice(-1)[0] || name;
-};
+/** Full mode name on purchase-split callouts (18 QCART, 36 QTROLLY, …). */
+const shortModeLabel = (name) => String(name || "").trim();
 
 /** Pure-SVG callout (no foreignObject) so labels stay visible. */
 const gate1DonutCalloutLabel = (dm) => (props) => {
@@ -1209,9 +1201,9 @@ const Gate1ModeDonut = ({ data = [], dm, centerUnit = "Qtls" }) => {
   const total = rows.reduce((a, b) => a + n(b.value), 0);
   return (
     <div className="relative flex items-center justify-center h-full min-h-[400px] px-1 pb-2 pt-0 overflow-visible">
-      <div className="relative w-full h-full min-h-[380px] max-w-[560px] overflow-visible">
+      <div className="relative w-full h-full min-h-[380px] max-w-[640px] overflow-visible">
         <ResponsiveContainer width="100%" height="100%" minHeight={380}>
-          <PieChart margin={{ top: 52, right: 78, bottom: 52, left: 78 }}>
+          <PieChart margin={{ top: 36, right: 108, bottom: 36, left: 108 }}>
             <defs>
               {rows.map((e, i) => (
                 <linearGradient key={`pg${i}`} id={`gate1PieGrad${i}`} x1="0" y1="0" x2="1" y2="1">
@@ -1603,11 +1595,14 @@ export default function CanePerformanceDashboard(){
     return buildCockpitComparisonOptions(rangePreset, seasonMapping, refIso, { omitPpOnStd: true });
   }, [rangePreset, seasonMapping, toDate, dbMaxDateStr]);
 
-  React.useEffect(() => {
-    ensureCompareSelectionValid(comparisonType, comparisonOptions, setComparisonType);
-  }, [comparisonType, comparisonOptions]);
+  const markCompareSelected = useDefaultPreviousSeasonCompare(
+    comparisonType,
+    comparisonOptions,
+    setComparisonType,
+  );
 
   const onCompareSelect = useCallback((nextId) => {
+    markCompareSelected();
     applyCockpitCompareSelection({
       nextId,
       fromDate,
@@ -1619,7 +1614,7 @@ export default function CanePerformanceDashboard(){
       dataMax: dbMaxDateStr,
       setComparisonType,
     });
-  }, [fromDate, toDate, rangePreset, seasonMapping, seasonLabels, dbMinDateStr, dbMaxDateStr]);
+  }, [fromDate, toDate, rangePreset, seasonMapping, seasonLabels, dbMinDateStr, dbMaxDateStr, markCompareSelected]);
 
   const applyDateRange = useCallback((dateRange) => {
     if (!dateRange) return;

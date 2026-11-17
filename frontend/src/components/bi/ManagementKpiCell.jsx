@@ -321,7 +321,7 @@ export function CompareChip({ pct, inverseGood, isDarkMode, label, compact = fal
   const iconCls = large ? 'h-3.5 w-3.5' : 'h-2.5 w-2.5';
 
   return (
-    <div className={`${compact ? '' : 'mt-0.5'} flex min-w-0 shrink-0 items-center gap-1 ${compact ? 'flex-nowrap' : 'flex-wrap'}`}>
+    <div className={`${compact ? 'shrink-0' : 'mt-0.5'} flex min-w-0 items-center gap-1 flex-nowrap`}>
       <span
         className={`inline-flex shrink-0 items-center gap-0.5 rounded px-1.5 py-0.5 ${textCls} font-bold tabular-nums leading-none ${chipCls}`}
         title={label ? `vs ${label}` : 'vs prior period'}
@@ -333,9 +333,9 @@ export function CompareChip({ pct, inverseGood, isDarkMode, label, compact = fal
             : <MdTrendingDown className={iconCls} />}
         {Math.abs(pct).toFixed(1)}%
       </span>
-      {label && !compact && (
+      {label && (
         <span
-          className={`truncate ${large ? 'text-[11px]' : 'text-[7px] sm:text-[8px]'} font-semibold leading-none ${labelCls}`}
+          className={`min-w-0 truncate ${large ? 'text-[11px]' : 'text-[7px] sm:text-[8px]'} font-semibold leading-none ${labelCls}`}
           title={`vs ${label}`}
         >
           vs {label}
@@ -360,11 +360,28 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
 
   const isStacked = subValues.length > 0;
   const compactStacked = subValues.length >= 2;
+  const periodBesidePct = hasChart && showCompare && Boolean(compareLabel);
+  const primaryHasCompare = periodBesidePct && Number.isFinite(kpi.compareVal);
+  const periodSubIndex = primaryHasCompare
+    ? -1
+    : periodBesidePct
+      ? subValues.findIndex((sub) => Number.isFinite(sub.compareVal))
+      : -1;
 
   return (
     <div
       className={`group relative flex h-full min-w-0 flex-1 basis-0 flex-col overflow-hidden rounded-lg border p-1 transition-shadow sm:rounded-xl sm:p-1.5 ${cellBg}`}
     >
+      {showCompare && compareLabel && !hasChart && (
+        <p
+          className={`mb-0.5 w-full truncate text-right text-[8px] font-semibold leading-none sm:text-[9px] ${
+            isDarkMode ? 'text-slate-400' : 'text-slate-500'
+          }`}
+          title={`vs ${compareLabel}`}
+        >
+          vs {compareLabel}
+        </p>
+      )}
       {!isStacked && (
         <div className="mb-0.5 flex items-start justify-between gap-0.5">
           <div className="flex min-w-0 flex-1 items-start">
@@ -399,9 +416,9 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
             dense={compactStacked}
             compareVal={showCompare ? kpi.compareVal : null}
             inverseGood={kpi.inverseGood}
-            compareLabel={compareLabel}
+            compareLabel={primaryHasCompare ? compareLabel : undefined}
           />
-          {subValues.map((sub) => (
+          {subValues.map((sub, index) => (
             <StackedMetric
               key={sub.label}
               value={sub.value}
@@ -412,7 +429,7 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
               dense={compactStacked}
               compareVal={showCompare ? sub.compareVal : null}
               inverseGood={kpi.inverseGood}
-              compareLabel={compareLabel}
+              compareLabel={index === periodSubIndex ? compareLabel : undefined}
             />
           ))}
         </div>
@@ -434,7 +451,7 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
                 inverseGood={kpi.inverseGood}
                 isDarkMode={isDarkMode}
                 compact={hasChart}
-                label={compareLabel}
+                label={hasChart ? compareLabel : undefined}
               />
             </div>
           )}
