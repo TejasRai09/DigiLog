@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
+import PurityReadout from '../../../components/PurityReadout';
 import { buildRSLogbookReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
@@ -20,6 +21,33 @@ const Section = ({ title, children }) => (
     <div className="form-row flex-wrap">{children}</div>
   </div>
 );
+
+/** Pol + Brix rows. `extra` holds readings that are not part of the purity pair (IU). */
+const POL_BRIX_SECTIONS = [
+  { title: 'Clear Juice:', pol: 'CJ_Pol', brix: 'CJ_Brix' },
+  { title: 'Filterate Juice:', pol: 'FJ_Pol', brix: 'FJ_Brix' },
+  { title: 'Untreated Syrup:', pol: 'UtrSyrp_Pol', brix: 'UtrSyrp_Brix' },
+  { title: 'Raw M/C:', pol: 'RawMc_Pol', brix: 'RawMc_Brix' },
+  { title: 'R1 M/C:', pol: 'R1Mc_Pol', brix: 'R1Mc_Brix', extra: [{ name: 'R1Mc_IU', placeholder: 'IU' }] },
+  { title: 'R2 M/C:', pol: 'R2Mc_Pol', brix: 'R2Mc_Brix', extra: [{ name: 'R2Mc_IU', placeholder: 'IU' }] },
+  { title: 'B M/C:', pol: 'BMc_Pol', brix: 'BMc_Brix' },
+  { title: 'C M/C:', pol: 'CMc_Pol', brix: 'CMc_Brix' },
+  { title: 'A-Hy Molasses:', pol: 'AH_Mol_Pol', brix: 'AH_Mol_Brix' },
+  { title: 'A-Light Molasses:', pol: 'AL_Mol_Pol', brix: 'AL_Mol_Brix' },
+  { title: 'R1-Heavy Molasses:', pol: 'R1_Mol_Pol', brix: 'R1_Mol_Brix', extra: [{ name: 'R1Mol_IU', placeholder: 'IU' }] },
+  { title: 'R2-Heavy Molasses:', pol: 'R2_Mol_Pol', brix: 'R2_Mol_Brix', extra: [{ name: 'R2Mol_IU', placeholder: 'IU' }] },
+  { title: 'B-Hy Molasses:', pol: 'BH_Mol_Pol', brix: 'BH_Mol_Brix' },
+  { title: 'C-Light Molasses:', pol: 'CL_Mol_Pol', brix: 'CL_Mol_Brix' },
+  { title: 'Final Molasses:', pol: 'FMol_Pol', brix: 'FMol_Brix' },
+  { title: 'Raw Melt:', pol: 'RawMlt_Pol', brix: 'RawMlt_Brix', extra: [{ name: 'RawMlt_IU', placeholder: 'Raw Melt IU' }] },
+  { title: 'Clear Melt:', pol: 'ClearMlt_Pol', brix: 'ClearMlt_Brix', extra: [{ name: 'ClearMlt_IU', placeholder: 'Clear Melt IU' }] },
+  {
+    title: 'Fine Liqour Melt:',
+    pol: 'Pol_FineLiqourMelt',
+    brix: 'Brix_FineLiqourMelt',
+    extra: [{ name: 'IU_FineLiqourMelt', placeholder: 'Fine Liqour Melt IU' }],
+  },
+];
 
 const INITIAL = {
   date: '', shift: '', samplingTime: '', op_mode: 'B Heavy',
@@ -96,85 +124,23 @@ const RSLogbook = () => {
           </div>
         </div>
 
-        <Section title="Clear Juice:">
-          <LegacyNumField label="" placeholder="Pol" name="CJ_Pol" value={form.CJ_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="CJ_Brix" value={form.CJ_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="Filterate Juice:">
-          <LegacyNumField label="" placeholder="Pol" name="FJ_Pol" value={form.FJ_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="FJ_Brix" value={form.FJ_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="Untreated Syrup:">
-          <LegacyNumField label="" placeholder="Pol" name="UtrSyrp_Pol" value={form.UtrSyrp_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="UtrSyrp_Brix" value={form.UtrSyrp_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="Raw M/C:">
-          <LegacyNumField label="" placeholder="Pol" name="RawMc_Pol" value={form.RawMc_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="RawMc_Brix" value={form.RawMc_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="R1 M/C:">
-          <LegacyNumField label="" placeholder="Pol" name="R1Mc_Pol" value={form.R1Mc_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="R1Mc_Brix" value={form.R1Mc_Brix} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="IU" name="R1Mc_IU" value={form.R1Mc_IU} onChange={handleChange} />
-        </Section>
-        <Section title="R2 M/C:">
-          <LegacyNumField label="" placeholder="Pol" name="R2Mc_Pol" value={form.R2Mc_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="R2Mc_Brix" value={form.R2Mc_Brix} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="IU" name="R2Mc_IU" value={form.R2Mc_IU} onChange={handleChange} />
-        </Section>
-        <Section title="B M/C:">
-          <LegacyNumField label="" placeholder="Pol" name="BMc_Pol" value={form.BMc_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="BMc_Brix" value={form.BMc_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="C M/C:">
-          <LegacyNumField label="" placeholder="Pol" name="CMc_Pol" value={form.CMc_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="CMc_Brix" value={form.CMc_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="A-Hy Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="AH_Mol_Pol" value={form.AH_Mol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="AH_Mol_Brix" value={form.AH_Mol_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="A-Light Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="AL_Mol_Pol" value={form.AL_Mol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="AL_Mol_Brix" value={form.AL_Mol_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="R1-Heavy Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="R1_Mol_Pol" value={form.R1_Mol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="R1_Mol_Brix" value={form.R1_Mol_Brix} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="IU" name="R1Mol_IU" value={form.R1Mol_IU} onChange={handleChange} />
-        </Section>
-        <Section title="R2-Heavy Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="R2_Mol_Pol" value={form.R2_Mol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="R2_Mol_Brix" value={form.R2_Mol_Brix} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="IU" name="R2Mol_IU" value={form.R2Mol_IU} onChange={handleChange} />
-        </Section>
-        <Section title="B-Hy Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="BH_Mol_Pol" value={form.BH_Mol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="BH_Mol_Brix" value={form.BH_Mol_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="C-Light Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="CL_Mol_Pol" value={form.CL_Mol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="CL_Mol_Brix" value={form.CL_Mol_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="Final Molasses:">
-          <LegacyNumField label="" placeholder="Pol" name="FMol_Pol" value={form.FMol_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Brix" name="FMol_Brix" value={form.FMol_Brix} onChange={handleChange} />
-        </Section>
-        <Section title="Raw Melt:">
-          <LegacyNumField label="" placeholder="Raw Melt Pol" name="RawMlt_Pol" value={form.RawMlt_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Raw Melt Brix" name="RawMlt_Brix" value={form.RawMlt_Brix} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Raw Melt IU" name="RawMlt_IU" value={form.RawMlt_IU} onChange={handleChange} />
-        </Section>
-        <Section title="Clear Melt:">
-          <LegacyNumField label="" placeholder="Clear Melt Pol" name="ClearMlt_Pol" value={form.ClearMlt_Pol} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Clear Melt Brix" name="ClearMlt_Brix" value={form.ClearMlt_Brix} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Clear Melt IU" name="ClearMlt_IU" value={form.ClearMlt_IU} onChange={handleChange} />
-        </Section>
-        <Section title="Fine Liqour Melt:">
-          <LegacyNumField label="" placeholder="Fine Liqour Melt Pol" name="Pol_FineLiqourMelt" value={form.Pol_FineLiqourMelt} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Fine Liqour Melt Brix" name="Brix_FineLiqourMelt" value={form.Brix_FineLiqourMelt} onChange={handleChange} />
-          <LegacyNumField label="" placeholder="Fine Liqour Melt IU" name="IU_FineLiqourMelt" value={form.IU_FineLiqourMelt} onChange={handleChange} />
-        </Section>
+        {POL_BRIX_SECTIONS.map(({ title, pol, brix, extra = [] }) => (
+          <Section key={title} title={title}>
+            <LegacyNumField label="" placeholder="Brix" name={brix} value={form[brix]} onChange={handleChange} />
+            <LegacyNumField label="" placeholder="Pol" name={pol} value={form[pol]} onChange={handleChange} />
+            <PurityReadout pol={form[pol]} brix={form[brix]} />
+            {extra.map((field) => (
+              <LegacyNumField
+                key={field.name}
+                label=""
+                placeholder={field.placeholder}
+                name={field.name}
+                value={form[field.name]}
+                onChange={handleChange}
+              />
+            ))}
+          </Section>
+        ))}
         <Section title="Filter Cake:">
           <LegacyNumField label="" placeholder="Pol (To be added at shift end)" name="FCake_Pol" value={form.FCake_Pol} onChange={handleChange} />
         </Section>

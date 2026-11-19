@@ -4,6 +4,7 @@
  */
 
 import { formatDistilleryDerivedNumber } from '../utils/distilleryCalculations';
+import { formatPurity, isLabPurityKey } from '../utils/labPurity';
 
 const push = (arr, dbKey, heading, subheading) => {
   arr.push({ dbKey, heading, subheading });
@@ -218,6 +219,9 @@ export function formatRecordCellForDisplay(dbKey, value, formKey = null, row = n
   ) {
     return formatDistilleryDerivedNumber(value);
   }
+  if (isLabPurityKey(dbKey) && value !== '' && Number.isFinite(Number(value))) {
+    return formatPurity(value);
+  }
   const s = typeof value === 'string' ? value : String(value);
   if (
     (formKey === 'brix_yard_sampling' || formKey === 'brix_field_sampling') &&
@@ -383,8 +387,9 @@ function schemaDSLogbook() {
   push(a, 'Sampling_time', 'Report Header', 'Sampling Time');
   push(a, 'op_mode', 'Report Header', 'Mode of Operation');
   for (const { key, label } of DS_POL_BRIX) {
-    push(a, `${key}_Pol`, label, 'Pol');
     push(a, `${key}_Brix`, label, 'Brix');
+    push(a, `${key}_Pol`, label, 'Pol');
+    push(a, `${key}_Purity`, label, 'Purity');
   }
   push(a, 'Bag_Pol', 'Bagasse', 'Pol');
   push(a, 'Bag_Moisture', 'Bagasse', 'Moisture');
@@ -403,48 +408,66 @@ function schemaRSLogbook() {
   push(a, 'Shift', 'Report Header', 'Shift');
   push(a, 'Sampling_time', 'Report Header', 'Sampling Time');
   push(a, 'op_mode', 'Report Header', 'Mode of Operation');
-  push(a, 'CJ_Pol', 'Juices', 'CJ Pol');
   push(a, 'CJ_Brix', 'Juices', 'CJ Brix');
-  push(a, 'FJ_Pol', 'Juices', 'FJ Pol');
+  push(a, 'CJ_Pol', 'Juices', 'CJ Pol');
+  push(a, 'CJ_Purity', 'Juices', 'CJ Purity');
   push(a, 'FJ_Brix', 'Juices', 'FJ Brix');
-  push(a, 'UtrSyrp_Pol', 'Juices', 'Untr. Syrup Pol');
+  push(a, 'FJ_Pol', 'Juices', 'FJ Pol');
+  push(a, 'FJ_Purity', 'Juices', 'FJ Purity');
   push(a, 'UtrSyrp_Brix', 'Juices', 'Untr. Syrup Brix');
-  push(a, 'RawMc_Pol', 'Massecuites', 'Raw Mc Pol');
+  push(a, 'UtrSyrp_Pol', 'Juices', 'Untr. Syrup Pol');
+  push(a, 'UtrSyrp_Purity', 'Juices', 'Untr. Syrup Purity');
   push(a, 'RawMc_Brix', 'Massecuites', 'Raw Mc Brix');
-  push(a, 'R1Mc_Pol', 'Massecuites', 'R1 Mc Pol');
+  push(a, 'RawMc_Pol', 'Massecuites', 'Raw Mc Pol');
+  push(a, 'RawMc_Purity', 'Massecuites', 'Raw Mc Purity');
   push(a, 'R1Mc_Brix', 'Massecuites', 'R1 Mc Brix');
+  push(a, 'R1Mc_Pol', 'Massecuites', 'R1 Mc Pol');
+  push(a, 'R1Mc_Purity', 'Massecuites', 'R1 Mc Purity');
   push(a, 'R1Mc_IU', 'Massecuites', 'R1 Mc IU');
-  push(a, 'R2Mc_Pol', 'Massecuites', 'R2 Mc Pol');
   push(a, 'R2Mc_Brix', 'Massecuites', 'R2 Mc Brix');
+  push(a, 'R2Mc_Pol', 'Massecuites', 'R2 Mc Pol');
+  push(a, 'R2Mc_Purity', 'Massecuites', 'R2 Mc Purity');
   push(a, 'R2Mc_IU', 'Massecuites', 'R2 Mc IU');
-  push(a, 'BMc_Pol', 'Massecuites', 'B Mc Pol');
   push(a, 'BMc_Brix', 'Massecuites', 'B Mc Brix');
-  push(a, 'CMc_Pol', 'Massecuites', 'C Mc Pol');
+  push(a, 'BMc_Pol', 'Massecuites', 'B Mc Pol');
+  push(a, 'BMc_Purity', 'Massecuites', 'B Mc Purity');
   push(a, 'CMc_Brix', 'Massecuites', 'C Mc Brix');
-  push(a, 'AH_Mol_Pol', 'Molasses', 'AH Mol Pol');
+  push(a, 'CMc_Pol', 'Massecuites', 'C Mc Pol');
+  push(a, 'CMc_Purity', 'Massecuites', 'C Mc Purity');
   push(a, 'AH_Mol_Brix', 'Molasses', 'AH Mol Brix');
-  push(a, 'AL_Mol_Pol', 'Molasses', 'AL Mol Pol');
+  push(a, 'AH_Mol_Pol', 'Molasses', 'AH Mol Pol');
+  push(a, 'AH_Mol_Purity', 'Molasses', 'AH Mol Purity');
   push(a, 'AL_Mol_Brix', 'Molasses', 'AL Mol Brix');
-  push(a, 'R1_Mol_Pol', 'Molasses', 'R1 Mol Pol');
+  push(a, 'AL_Mol_Pol', 'Molasses', 'AL Mol Pol');
+  push(a, 'AL_Mol_Purity', 'Molasses', 'AL Mol Purity');
   push(a, 'R1_Mol_Brix', 'Molasses', 'R1 Mol Brix');
+  push(a, 'R1_Mol_Pol', 'Molasses', 'R1 Mol Pol');
+  push(a, 'R1_Mol_Purity', 'Molasses', 'R1 Mol Purity');
   push(a, 'R1Mol_IU', 'Molasses', 'R1 Mol IU');
-  push(a, 'R2_Mol_Pol', 'Molasses', 'R2 Mol Pol');
   push(a, 'R2_Mol_Brix', 'Molasses', 'R2 Mol Brix');
+  push(a, 'R2_Mol_Pol', 'Molasses', 'R2 Mol Pol');
+  push(a, 'R2_Mol_Purity', 'Molasses', 'R2 Mol Purity');
   push(a, 'R2Mol_IU', 'Molasses', 'R2 Mol IU');
-  push(a, 'BH_Mol_Pol', 'Molasses', 'BH Mol Pol');
   push(a, 'BH_Mol_Brix', 'Molasses', 'BH Mol Brix');
-  push(a, 'CL_Mol_Pol', 'Molasses', 'CL Mol Pol');
+  push(a, 'BH_Mol_Pol', 'Molasses', 'BH Mol Pol');
+  push(a, 'BH_Mol_Purity', 'Molasses', 'BH Mol Purity');
   push(a, 'CL_Mol_Brix', 'Molasses', 'CL Mol Brix');
-  push(a, 'FMol_Pol', 'Molasses', 'F Mol Pol');
+  push(a, 'CL_Mol_Pol', 'Molasses', 'CL Mol Pol');
+  push(a, 'CL_Mol_Purity', 'Molasses', 'CL Mol Purity');
   push(a, 'FMol_Brix', 'Molasses', 'F Mol Brix');
-  push(a, 'RawMlt_Pol', 'Melt', 'Raw Melt Pol');
+  push(a, 'FMol_Pol', 'Molasses', 'F Mol Pol');
+  push(a, 'FMol_Purity', 'Molasses', 'F Mol Purity');
   push(a, 'RawMlt_Brix', 'Melt', 'Raw Melt Brix');
+  push(a, 'RawMlt_Pol', 'Melt', 'Raw Melt Pol');
+  push(a, 'RawMlt_Purity', 'Melt', 'Raw Melt Purity');
   push(a, 'RawMlt_IU', 'Melt', 'Raw Melt IU');
-  push(a, 'ClearMlt_Pol', 'Melt', 'Clear Melt Pol');
   push(a, 'ClearMlt_Brix', 'Melt', 'Clear Melt Brix');
+  push(a, 'ClearMlt_Pol', 'Melt', 'Clear Melt Pol');
+  push(a, 'ClearMlt_Purity', 'Melt', 'Clear Melt Purity');
   push(a, 'ClearMlt_IU', 'Melt', 'Clear Melt IU');
-  push(a, 'Pol_FineLiqourMelt', 'Melt', 'Fine Liquor Pol');
   push(a, 'Brix_FineLiqourMelt', 'Melt', 'Fine Liquor Brix');
+  push(a, 'Pol_FineLiqourMelt', 'Melt', 'Fine Liquor Pol');
+  push(a, 'Purity_FineLiqourMelt', 'Melt', 'Fine Liquor Purity');
   push(a, 'IU_FineLiqourMelt', 'Melt', 'Fine Liquor IU');
   push(a, 'IERInlet_IU', 'IER', 'IER Inlet IU');
   push(a, 'IERInlet_PH', 'IER', 'IER Inlet PH');
@@ -541,10 +564,11 @@ function schemaSyrpLogbook() {
   push(a, 'syrp_prodRS', 'Syrup Production', 'Syrup Prod RS');
   push(a, 'div_mode', 'Diversion', 'Diversion Mode');
   push(a, 'syrp_div', 'Diversion', 'Syrup Diversion');
-  push(a, 'MoLtoDist_DS', 'Diversion', 'Molasses to Dist DS');
-  push(a, 'MoLtoDist_RS', 'Diversion', 'Molasses to Dist RS');
-  push(a, 'syrp_trs', 'TRS', 'Syrup TRS');
-  push(a, 'bh_trs', 'TRS', 'Boil House TRS');
+  push(a, 'MoLtoDist_DS', 'Molasses Production', 'From DS');
+  push(a, 'MoLtoDist_RS', 'Molasses Production', 'From RS');
+  push(a, 'syrp_trs', 'Quality', 'Avg Syrup TRS');
+  push(a, 'bh_trs', 'Quality', 'Avg B-Heavy TRS');
+  push(a, 'ch_trs', 'Quality', 'Avg C-Heavy TRS');
   push(a, 'timestamp', 'System', 'Recorded at');
   return a;
 }

@@ -20,7 +20,7 @@ const INITIAL = {
   div_mode: 'No Diversion',
   syrp_div: '',
   MoLtoDist_DS: '', MoLtoDist_RS: '',
-  syrp_trs: '', bh_trs: '',
+  syrp_trs: '', bh_trs: '', ch_trs: '',
 };
 
 const SyrupLogbook = () => {
@@ -92,7 +92,7 @@ const SyrupLogbook = () => {
         </div>
 
         <div className="form-section">
-          <h3 className="section-title">MolassestoDistil:</h3>
+          <h3 className="section-title">Molasses Production:</h3>
           <div className="form-row flex-wrap">
             <LegacyNumField label="" placeholder="From DS" name="MoLtoDist_DS" value={form.MoLtoDist_DS} onChange={handleChange} />
             <LegacyNumField label="" placeholder="From RS" name="MoLtoDist_RS" value={form.MoLtoDist_RS} onChange={handleChange} />
@@ -104,6 +104,7 @@ const SyrupLogbook = () => {
           <div className="form-row flex-wrap">
             <LegacyNumField label="" placeholder="Avg Syrup TRS" name="syrp_trs" value={form.syrp_trs} onChange={handleChange} />
             <LegacyNumField label="" placeholder="Avg B-Heavy TRS" name="bh_trs" value={form.bh_trs} onChange={handleChange} />
+            <LegacyNumField label="" placeholder="Avg C-Heavy TRS" name="ch_trs" value={form.ch_trs} onChange={handleChange} />
           </div>
         </div>
 
