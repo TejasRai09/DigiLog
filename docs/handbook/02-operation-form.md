@@ -131,7 +131,7 @@ Retired (not in the grid): **Mill House Equipment History**, **Power Plant Equip
 - **What:** direct sulphitation Pol / Brix log.
 - **How to open:** **Lab Logbook** → **DS Logbook** → **Open Form**.
 - **Header:** Date, Shift, Sampling Time, Mode of Operation (**B Heavy** / **C Heavy**).
-- **Pol and Brix pairs:** Primary Juice, Mixed Juice, Last Mill Juice, Clear Juice, Filterate Juice, Unsulphured Syrup, Sulphured Syrup, A / B / A1 / C massecuite, A1 / A-Hy / A-Light / B-Hy / C-Light molasses, Final Molasses.
+- **Brix, Pol, and Purity:** Primary Juice, Mixed Juice, Last Mill Juice, Clear Juice, Filterate Juice, Unsulphured Syrup, Sulphured Syrup, A / B / A1 / C massecuite, A1 / A-Hy / A-Light / B-Hy / C-Light molasses, Final Molasses. Enter Brix and Pol. Purity fills itself as (Pol / Brix) × 100. It stays blank if Brix is empty or zero.
 - **Other:** Bagasse Pol, Bagasse Moisture, Filter Cake Pol, Decanter Mud Pol, Mill Drain Pol, Boiling House Drain Pol.
 - **Required:** Date and Shift.
 - **Where it goes:** Management Overview — **Pol in Cane %** and mill/sugar gaps.
@@ -143,7 +143,7 @@ Retired (not in the grid): **Mill House Equipment History**, **Power Plant Equip
 - **What:** remelt sulphitation Pol / Brix log.
 - **How to open:** **Lab Logbook** → **RS Logbook** → **Open Form**.
 - **Header:** Date, Shift, Sampling Time.
-- **Groups:** Juices, Massecuites, Molasses, Melt, IER, Filter Cake Pol (labels as on the form).
+- **Groups:** Juices, Massecuites, Molasses, Melt, IER, Filter Cake Pol (labels as on the form). Where Brix and Pol are both entered, Brix comes first and Purity is calculated as (Pol / Brix) × 100.
 - **Where it goes:** Management Overview (fills a reading when DMR has no value).
 
 ### 2.4.3 Operations Logbook
@@ -176,8 +176,9 @@ Retired (not in the grid): **Mill House Equipment History**, **Power Plant Equip
 - **How to open:** **Lab Logbook** → **Syrup Logbook** → **Open Form**.
 - **Header:** Date, Shift.
 - **Syrup Production:** Syrup Prod DS, Syrup Prod RS.
-- **Diversion:** Diversion Mode, Syrup Diversion, Molasses to Dist DS, Molasses to Dist RS.
-- **TRS:** Syrup TRS, Boil House TRS.
+- **Diversion:** Diversion Mode, Syrup Diversion.
+- **Molasses Production:** From DS, From RS.
+- **Quality:** Avg Syrup TRS, Avg B-Heavy TRS, Avg C-Heavy TRS.
 - **Dashboard:** none.
 
 ### 2.4.6 Stoppage Logbook

@@ -1,4 +1,5 @@
 import { formatDistilleryDerivedNumber } from '../utils/distilleryCalculations';
+import { withComputedPurity } from '../utils/labPurity';
 import {
   displayValue,
   fieldsFromDefs,
@@ -30,11 +31,65 @@ const DS_POL_BRIX = [
   { key: 'FMol', label: 'Final Molasses' },
 ];
 
+function polBrixPairs(pairs) {
+  return pairs.map(({ key, label }) => ({
+    label,
+    brix: `${key}_Brix`,
+    pol: `${key}_Pol`,
+    purity: `${key}_Purity`,
+  }));
+}
+
 function polBrixDefs(pairs) {
-  return pairs.flatMap(({ key, label }) => [
-    { key: `${key}_Pol`, label: `${label} — Pol` },
-    { key: `${key}_Brix`, label: `${label} — Brix` },
+  return pairs.flatMap(({ label, brix, pol, purity }) => [
+    { key: brix, label: `${label} — Brix` },
+    { key: pol, label: `${label} — Pol` },
+    { key: purity, label: `${label} — Purity` },
   ]);
+}
+
+const RS_POL_BRIX = [
+  { label: 'Clear Juice', brix: 'CJ_Brix', pol: 'CJ_Pol', purity: 'CJ_Purity' },
+  { label: 'Filterate Juice', brix: 'FJ_Brix', pol: 'FJ_Pol', purity: 'FJ_Purity' },
+  { label: 'Untreated Syrup', brix: 'UtrSyrp_Brix', pol: 'UtrSyrp_Pol', purity: 'UtrSyrp_Purity' },
+  { label: 'Raw M/C', brix: 'RawMc_Brix', pol: 'RawMc_Pol', purity: 'RawMc_Purity' },
+  { label: 'R1 M/C', brix: 'R1Mc_Brix', pol: 'R1Mc_Pol', purity: 'R1Mc_Purity', extra: [{ key: 'R1Mc_IU', label: 'R1 M/C — IU' }] },
+  { label: 'R2 M/C', brix: 'R2Mc_Brix', pol: 'R2Mc_Pol', purity: 'R2Mc_Purity', extra: [{ key: 'R2Mc_IU', label: 'R2 M/C — IU' }] },
+  { label: 'B M/C', brix: 'BMc_Brix', pol: 'BMc_Pol', purity: 'BMc_Purity' },
+  { label: 'C M/C', brix: 'CMc_Brix', pol: 'CMc_Pol', purity: 'CMc_Purity' },
+  { label: 'A-Hy Molasses', brix: 'AH_Mol_Brix', pol: 'AH_Mol_Pol', purity: 'AH_Mol_Purity' },
+  { label: 'A-Light Molasses', brix: 'AL_Mol_Brix', pol: 'AL_Mol_Pol', purity: 'AL_Mol_Purity' },
+  { label: 'R1-Heavy Molasses', brix: 'R1_Mol_Brix', pol: 'R1_Mol_Pol', purity: 'R1_Mol_Purity', extra: [{ key: 'R1Mol_IU', label: 'R1-Heavy Molasses — IU' }] },
+  { label: 'R2-Heavy Molasses', brix: 'R2_Mol_Brix', pol: 'R2_Mol_Pol', purity: 'R2_Mol_Purity', extra: [{ key: 'R2Mol_IU', label: 'R2-Heavy Molasses — IU' }] },
+  { label: 'B-Hy Molasses', brix: 'BH_Mol_Brix', pol: 'BH_Mol_Pol', purity: 'BH_Mol_Purity' },
+  { label: 'C-Light Molasses', brix: 'CL_Mol_Brix', pol: 'CL_Mol_Pol', purity: 'CL_Mol_Purity' },
+  { label: 'Final Molasses', brix: 'FMol_Brix', pol: 'FMol_Pol', purity: 'FMol_Purity' },
+  { label: 'Raw Melt', brix: 'RawMlt_Brix', pol: 'RawMlt_Pol', purity: 'RawMlt_Purity', extra: [{ key: 'RawMlt_IU', label: 'Raw Melt — IU' }] },
+  { label: 'Clear Melt', brix: 'ClearMlt_Brix', pol: 'ClearMlt_Pol', purity: 'ClearMlt_Purity', extra: [{ key: 'ClearMlt_IU', label: 'Clear Melt — IU' }] },
+  {
+    label: 'Fine Liqour Melt',
+    brix: 'Brix_FineLiqourMelt',
+    pol: 'Pol_FineLiqourMelt',
+    purity: 'Purity_FineLiqourMelt',
+    extra: [{ key: 'IU_FineLiqourMelt', label: 'Fine Liqour Melt — IU' }],
+  },
+];
+
+function rsLogbookDefs() {
+  const defs = RS_POL_BRIX.flatMap(({ label, brix, pol, purity, extra = [] }) => [
+    { key: brix, label: `${label} — Brix` },
+    { key: pol, label: `${label} — Pol` },
+    { key: purity, label: `${label} — Purity` },
+    ...extra,
+  ]);
+  defs.push(
+    { key: 'FCake_Pol', label: 'Filter Cake — Pol' },
+    { key: 'IERInlet_IU', label: 'IER Inlet — IU' },
+    { key: 'IERInlet_PH', label: 'IER Inlet — PH' },
+    { key: 'IEROutlet_IU', label: 'IER Outlet — IU' },
+    { key: 'IEROutlet_PH', label: 'IER Outlet — PH' },
+  );
+  return defs;
 }
 
 const DISTILLERY_PRODUCTION = [
@@ -134,8 +189,10 @@ export function buildDistilleryReview(form, derived) {
 }
 
 export function buildDSLogbookReview(form) {
+  const pairs = polBrixPairs(DS_POL_BRIX);
+  const filled = withComputedPurity(form, pairs);
   const defs = [
-    ...polBrixDefs(DS_POL_BRIX),
+    ...polBrixDefs(pairs),
     { key: 'Bag_Pol', label: 'Bagasse — Pol' },
     { key: 'Bag_Moisture', label: 'Bagasse — Moisture' },
     { key: 'FCake_Pol', label: 'Filter Cake — Pol' },
@@ -144,17 +201,14 @@ export function buildDSLogbookReview(form) {
     { key: 'BoilHouseDrain_Pol', label: 'Boiling House Drain — Pol' },
   ];
   return reviewMeta('Review DS Logbook', labSummary(form), [
-    section('Logbook Entries', fieldsFromDefs(form, defs)),
+    section('Logbook Entries', fieldsFromDefs(filled, defs)),
   ]);
 }
 
 export function buildRSLogbookReview(form) {
-  const keys = Object.keys(form).filter(
-    (k) => !['date', 'shift', 'samplingTime', 'op_mode'].includes(k),
-  );
-  const defs = keys.map((key) => ({ key, label: key.replace(/_/g, ' ') }));
+  const filled = withComputedPurity(form, RS_POL_BRIX);
   return reviewMeta('Review RS Logbook', labSummary(form), [
-    section('Logbook Entries', fieldsFromDefs(form, defs)),
+    section('Logbook Entries', fieldsFromDefs(filled, rsLogbookDefs())),
   ]);
 }
 
@@ -184,10 +238,11 @@ export function buildSyrupLogbookReview(form) {
       { key: 'syrp_prodDS', label: 'Syrup Production (DS)' },
       { key: 'syrp_prodRS', label: 'Syrup Production (RS)' },
       { key: 'syrp_div', label: 'Syrup Diversion (Qtls)' },
-      { key: 'MoLtoDist_DS', label: 'Molasses to Distillery (DS)' },
-      { key: 'MoLtoDist_RS', label: 'Molasses to Distillery (RS)' },
+      { key: 'MoLtoDist_DS', label: 'Molasses Production (DS)' },
+      { key: 'MoLtoDist_RS', label: 'Molasses Production (RS)' },
       { key: 'syrp_trs', label: 'Avg Syrup TRS' },
       { key: 'bh_trs', label: 'Avg B-Heavy TRS' },
+      { key: 'ch_trs', label: 'Avg C-Heavy TRS' },
     ])),
   ]);
 }

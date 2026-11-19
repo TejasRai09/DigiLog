@@ -229,6 +229,23 @@ model DsLogbook {
   A1_Mol_Brix        Float?
   MillDrain_Pol      Float?
   BoilHouseDrain_Pol Float?
+  PJ_Purity          Float?
+  MJ_Purity          Float?
+  LMJ_Purity         Float?
+  CJ_Purity          Float?
+  FJ_Purity          Float?
+  USul_Syrp_Purity   Float?
+  Sul_Syrp_Purity    Float?
+  A_Mc_Purity        Float?
+  B_Mc_Purity        Float?
+  A1_Mc_Purity       Float?
+  C_Mc_Purity        Float?
+  AH_Mol_Purity      Float?
+  AL_Mol_Purity      Float?
+  BH_Mol_Purity      Float?
+  CL_Mol_Purity      Float?
+  FMol_Purity        Float?
+  A1_Mol_Purity      Float?
   timestamp          DateTime? @default(now()) @db.Timestamp(0)
 
   @@map("ds_logbook")
@@ -286,9 +303,27 @@ model RsLogbook {
   IU_FineLiqourMelt   Float?
   IERInlet_IU         Float?
   IERInlet_PH         Float?
-  IEROutlet_IU        Float?
-  IEROutlet_PH        Float?
-  timestamp           DateTime? @default(now()) @db.Timestamp(0)
+  IEROutlet_IU          Float?
+  IEROutlet_PH          Float?
+  CJ_Purity             Float?
+  FJ_Purity             Float?
+  UtrSyrp_Purity        Float?
+  RawMc_Purity          Float?
+  R1Mc_Purity           Float?
+  R2Mc_Purity           Float?
+  BMc_Purity            Float?
+  CMc_Purity            Float?
+  AH_Mol_Purity         Float?
+  AL_Mol_Purity         Float?
+  R1_Mol_Purity         Float?
+  R2_Mol_Purity         Float?
+  BH_Mol_Purity         Float?
+  CL_Mol_Purity         Float?
+  FMol_Purity           Float?
+  RawMlt_Purity         Float?
+  ClearMlt_Purity       Float?
+  Purity_FineLiqourMelt Float?
+  timestamp             DateTime? @default(now()) @db.Timestamp(0)
 
   @@map("rs_logbook")
   @@ignore
@@ -406,6 +441,7 @@ model SyrpLogbook {
   MoLtoDist_RS Float?
   syrp_trs     Float?
   bh_trs       Float?
+  ch_trs       Float?
   timestamp    DateTime? @default(now()) @db.Timestamp(0)
 
   @@map("syrp_logbook")
