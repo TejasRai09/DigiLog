@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
@@ -9,6 +9,7 @@ import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 import BackToFormsHub from '../../../components/BackToFormsHub';
 import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
+import useAuth from '../../../hooks/useAuth';
 
 const INITIAL = {
   Date: '',
@@ -17,6 +18,7 @@ const INITIAL = {
   GrowerName: '',
   VillageName: '',
   Variety: '',
+  otherVariety: '',
   LandType: '',
   SoilType: '',
   CropType: '',
@@ -28,7 +30,7 @@ const INITIAL = {
   TopBrix: ''
 };
 
-const VARIETIES = ['CO0238', 'COUK94184', 'CO0118', 'COPK5151', 'COS8272', 'Others'];
+const VARIETIES = ['CO0238', 'COLK94184', 'CO0118', 'COPK5151', 'COS8272', 'COLK14201', 'CO15023', 'Others'];
 const TEST_TYPES = ['New', 'Repeat'];
 const LAND_TYPES = ['Upland', 'Midland', 'Lowland'];
 const SOIL_TYPES = ['Loamy', 'Sandy', 'Clay', 'Silt', 'Others'];
@@ -39,10 +41,28 @@ const SAMPLING_POINTS = ['Border', 'Center'];
 
 const BrixFieldSampling = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState(INITIAL);
+  const { user } = useAuth();
+  const [form, setForm] = useState(() => ({ ...INITIAL, Name: user?.name ?? '' }));
+  const [samplingTime, setSamplingTime] = useState(() =>
+    new Date().toLocaleTimeString('en-GB', { hour12: false }),
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSamplingTime(new Date().toLocaleTimeString('en-GB', { hour12: false }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (user?.name) setForm((p) => ({ ...p, Name: user.name }));
+  }, [user?.name]);
 
   const handleInput = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
-  const handleRadio = (name, value) => setForm((p) => ({ ...p, [name]: value }));
+  const handleRadio = (name, value) => setForm((p) => {
+    const next = { ...p, [name]: value };
+    if (name === 'Variety' && value !== 'Others') next.otherVariety = '';
+    return next;
+  });
+  const varietyToSave = form.Variety === 'Others' ? form.otherVariety.trim() : form.Variety;
 
   const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
     validate: () => {
@@ -52,6 +72,10 @@ const BrixFieldSampling = () => {
       if (!form.GrowerName) { toast.error('Grower Name is required.'); return false; }
       if (!form.VillageName) { toast.error('Village Name is required.'); return false; }
       if (!form.Variety) { toast.error('Variety of Cane is required.'); return false; }
+      if (form.Variety === 'Others' && !form.otherVariety.trim()) {
+        toast.error('Variety name is required when Others is selected.');
+        return false;
+      }
       if (!form.LandType) { toast.error('Land Type is required.'); return false; }
       if (!form.SoilType) { toast.error('Soil Type is required.'); return false; }
       if (!form.CropType) { toast.error('Crop Type is required.'); return false; }
@@ -71,7 +95,7 @@ const BrixFieldSampling = () => {
           TestType: form.TestType,
           GrowerName: form.GrowerName,
           VillageName: form.VillageName,
-          Variety: form.Variety,
+          Variety: varietyToSave,
           LandType: form.LandType,
           SoilType: form.SoilType,
           CropType: form.CropType,
@@ -84,13 +108,14 @@ const BrixFieldSampling = () => {
         }),
         'Field Brix Sampling Form submitted!'
       );
-      setForm(INITIAL);
+      setForm({ ...INITIAL, Name: user?.name ?? '' });
     }
   });
 
   const buildReview = () => [
     { title: 'Record Info', fields: [
         { label: 'Date', value: form.Date },
+        { label: 'Sampling Time', value: `${samplingTime} (saved on submit)` },
         { label: 'Name', value: form.Name },
         { label: 'Test Type', value: form.TestType }
       ]},
@@ -99,7 +124,7 @@ const BrixFieldSampling = () => {
         { label: 'Village Name', value: form.VillageName }
       ]},
     { title: 'Field Details', fields: [
-        { label: 'Variety', value: form.Variety },
+        { label: 'Variety', value: varietyToSave },
         { label: 'Land Type', value: form.LandType },
         { label: 'Soil Type', value: form.SoilType },
         { label: 'Crop Type', value: form.CropType },
@@ -138,8 +163,14 @@ const BrixFieldSampling = () => {
               <AutoNowInput type="date" name="Date" value={form.Date} onChange={handleInput} className="input" />
             </div>
             <div>
+              <label className="label">Sampling Time</label>
+              <input type="text" value={samplingTime} readOnly className="input bg-slate-50 text-slate-700" />
+              <p className="mt-1 text-xs text-gray-500">Filled automatically when you submit. Another report can be saved on the same date at a different time.</p>
+            </div>
+            <div>
               <label className="label">2. Name <span className="text-red-500">*</span></label>
-              <input type="text" name="Name" value={form.Name} onChange={handleInput} className="input" placeholder="Enter your answer" />
+              <input type="text" name="Name" value={form.Name} readOnly className="input bg-slate-50 text-slate-700" />
+              <p className="mt-1 text-xs text-gray-500">Filled from your account name.</p>
             </div>
             <div className="sm:col-span-2">
               <label className="label">3. Select Test Type <span className="text-red-500">*</span></label>
@@ -186,6 +217,12 @@ const BrixFieldSampling = () => {
                     </label>
                   ))}
                 </div>
+                {form.Variety === 'Others' && (
+                  <div className="mt-3">
+                    <label className="label">Variety name <span className="text-red-500">*</span></label>
+                    <input type="text" name="otherVariety" value={form.otherVariety} onChange={handleInput} maxLength={100} className="input" placeholder="Enter variety name" />
+                  </div>
+                )}
               </div>
 
               <div>
