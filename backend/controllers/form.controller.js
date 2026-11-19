@@ -2,6 +2,7 @@ const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { isFormsHubViewOnly, VIEW_ONLY_MESSAGE } = require('../utils/formsHubViewOnly');
+const { stripLabPurityColumns } = require('../utils/labPurityColumns');
 
 function queueFormIfRequired(args) {
   return require('../services/formApproval.service').queueIfRequired(args);
@@ -168,6 +169,7 @@ function buildAdminUpdatePayload(formKey, config, body) {
   if (skipGenerated) {
     for (const k of skipGenerated) delete payload[k];
   }
+  stripLabPurityColumns(formKey, payload);
 
   if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(payload, 'end_time')) {
     payload.end_Time = payload.end_time;
@@ -576,6 +578,7 @@ const submitForm = async (req, res) => {
   if (skipGenerated) {
     for (const k of skipGenerated) delete payload[k];
   }
+  stripLabPurityColumns(formKey, payload);
 
   const columns      = Object.keys(payload).map((c) => `\`${c}\``).join(', ');
   const placeholders = Object.keys(payload).map(() => '?').join(', ');
@@ -890,6 +893,7 @@ async function insertPreparedRow(formKey, config, payload) {
   if (skipGenerated) {
     for (const k of skipGenerated) delete row[k];
   }
+  stripLabPurityColumns(formKey, row);
   if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(row, 'end_time')) {
     row.end_Time = row.end_time;
     delete row.end_time;

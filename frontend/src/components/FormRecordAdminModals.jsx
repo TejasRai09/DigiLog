@@ -15,6 +15,7 @@ import {
   isRecordFileColumn,
   VIRTUAL_FILE_SLOT_KEYS,
 } from '../config/formColumnSchemas';
+import { formatPurity, isLabPurityKey } from '../utils/labPurity';
 
 const NON_EDITABLE_COLS = new Set([
   'timestamp',
@@ -240,6 +241,15 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
   const editableCols = useMemo(
     () => columns.filter((c) => (
       !NON_EDITABLE_COLS.has(c.dbKey)
+      && !isLabPurityKey(c.dbKey)
+      && !VIRTUAL_FILE_SLOT_KEYS.has(c.dbKey)
+      && !isRecordFileColumn(form.formKey, c.dbKey, row[c.dbKey])
+    )),
+    [columns, form.formKey, row],
+  );
+  const editorCols = useMemo(
+    () => columns.filter((c) => (
+      !NON_EDITABLE_COLS.has(c.dbKey)
       && !VIRTUAL_FILE_SLOT_KEYS.has(c.dbKey)
       && !isRecordFileColumn(form.formKey, c.dbKey, row[c.dbKey])
     )),
@@ -297,8 +307,22 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
         </div>
       ) : null}
       <div className="space-y-4">
-        {editableCols.map((col) => {
+        {editorCols.map((col) => {
           const label = headerLabel(col);
+          if (isLabPurityKey(col.dbKey)) {
+            return (
+              <label key={col.dbKey} className="block">
+                <span className="mb-1 block text-xs font-medium text-gray-600">{label}</span>
+                <input
+                  type="text"
+                  readOnly
+                  tabIndex={-1}
+                  value={formatPurity(row[col.dbKey])}
+                  className="input w-full bg-gray-50 text-gray-800 cursor-default"
+                />
+              </label>
+            );
+          }
           const value = draft[col.dbKey] ?? '';
           const isFileField = isDataUrl(value) || isRecordFileColumn(form.formKey, col.dbKey, value);
           const isLong = col.dbKey === 'remarks' || col.dbKey === 'remark'

@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import api from '../../../api/axios';
 import Spinner from '../../../components/Spinner';
 import LegacyNumField from '../../../components/LegacyNumField';
+import PurityReadout from '../../../components/PurityReadout';
 import { buildDSLogbookReview } from '../../../config/gsmaFormReviewBuilders';
 import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
@@ -119,8 +120,9 @@ const DSLogbook = () => {
 
         {polBrixPairs.map(({ key, label }) => (
           <Section key={key} title={label}>
-            <LegacyNumField label="" placeholder="Pol" name={`${key}_Pol`} value={form[`${key}_Pol`]} onChange={handleChange} />
             <LegacyNumField label="" placeholder="Brix" name={`${key}_Brix`} value={form[`${key}_Brix`]} onChange={handleChange} />
+            <LegacyNumField label="" placeholder="Pol" name={`${key}_Pol`} value={form[`${key}_Pol`]} onChange={handleChange} />
+            <PurityReadout pol={form[`${key}_Pol`]} brix={form[`${key}_Brix`]} />
           </Section>
         ))}
 

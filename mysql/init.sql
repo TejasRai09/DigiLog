@@ -622,6 +622,23 @@ CREATE TABLE IF NOT EXISTS `ds_logbook` (
   `A1_Mol_Brix` DOUBLE NULL DEFAULT NULL,
   `MillDrain_Pol` DOUBLE NULL DEFAULT NULL,
   `BoilHouseDrain_Pol` DOUBLE NULL DEFAULT NULL,
+  `PJ_Purity` DOUBLE AS (IF(`PJ_Brix` IS NULL OR `PJ_Brix` = 0 OR `PJ_Pol` IS NULL, NULL, ROUND((`PJ_Pol` / `PJ_Brix`) * 100, 2))) STORED,
+  `MJ_Purity` DOUBLE AS (IF(`MJ_Brix` IS NULL OR `MJ_Brix` = 0 OR `MJ_Pol` IS NULL, NULL, ROUND((`MJ_Pol` / `MJ_Brix`) * 100, 2))) STORED,
+  `LMJ_Purity` DOUBLE AS (IF(`LMJ_Brix` IS NULL OR `LMJ_Brix` = 0 OR `LMJ_Pol` IS NULL, NULL, ROUND((`LMJ_Pol` / `LMJ_Brix`) * 100, 2))) STORED,
+  `CJ_Purity` DOUBLE AS (IF(`CJ_Brix` IS NULL OR `CJ_Brix` = 0 OR `CJ_Pol` IS NULL, NULL, ROUND((`CJ_Pol` / `CJ_Brix`) * 100, 2))) STORED,
+  `FJ_Purity` DOUBLE AS (IF(`FJ_Brix` IS NULL OR `FJ_Brix` = 0 OR `FJ_Pol` IS NULL, NULL, ROUND((`FJ_Pol` / `FJ_Brix`) * 100, 2))) STORED,
+  `USul_Syrp_Purity` DOUBLE AS (IF(`USul_Syrp_Brix` IS NULL OR `USul_Syrp_Brix` = 0 OR `USul_Syrp_Pol` IS NULL, NULL, ROUND((`USul_Syrp_Pol` / `USul_Syrp_Brix`) * 100, 2))) STORED,
+  `Sul_Syrp_Purity` DOUBLE AS (IF(`Sul_Syrp_Brix` IS NULL OR `Sul_Syrp_Brix` = 0 OR `Sul_Syrp_Pol` IS NULL, NULL, ROUND((`Sul_Syrp_Pol` / `Sul_Syrp_Brix`) * 100, 2))) STORED,
+  `A_Mc_Purity` DOUBLE AS (IF(`A_Mc_Brix` IS NULL OR `A_Mc_Brix` = 0 OR `A_Mc_Pol` IS NULL, NULL, ROUND((`A_Mc_Pol` / `A_Mc_Brix`) * 100, 2))) STORED,
+  `B_Mc_Purity` DOUBLE AS (IF(`B_Mc_Brix` IS NULL OR `B_Mc_Brix` = 0 OR `B_Mc_Pol` IS NULL, NULL, ROUND((`B_Mc_Pol` / `B_Mc_Brix`) * 100, 2))) STORED,
+  `A1_Mc_Purity` DOUBLE AS (IF(`A1_Mc_Brix` IS NULL OR `A1_Mc_Brix` = 0 OR `A1_Mc_Pol` IS NULL, NULL, ROUND((`A1_Mc_Pol` / `A1_Mc_Brix`) * 100, 2))) STORED,
+  `C_Mc_Purity` DOUBLE AS (IF(`C_Mc_Brix` IS NULL OR `C_Mc_Brix` = 0 OR `C_Mc_Pol` IS NULL, NULL, ROUND((`C_Mc_Pol` / `C_Mc_Brix`) * 100, 2))) STORED,
+  `AH_Mol_Purity` DOUBLE AS (IF(`AH_Mol_Brix` IS NULL OR `AH_Mol_Brix` = 0 OR `AH_Mol_Pol` IS NULL, NULL, ROUND((`AH_Mol_Pol` / `AH_Mol_Brix`) * 100, 2))) STORED,
+  `AL_Mol_Purity` DOUBLE AS (IF(`AL_Mol_Brix` IS NULL OR `AL_Mol_Brix` = 0 OR `AL_Mol_Pol` IS NULL, NULL, ROUND((`AL_Mol_Pol` / `AL_Mol_Brix`) * 100, 2))) STORED,
+  `BH_Mol_Purity` DOUBLE AS (IF(`BH_Mol_Brix` IS NULL OR `BH_Mol_Brix` = 0 OR `BH_Mol_Pol` IS NULL, NULL, ROUND((`BH_Mol_Pol` / `BH_Mol_Brix`) * 100, 2))) STORED,
+  `CL_Mol_Purity` DOUBLE AS (IF(`CL_Mol_Brix` IS NULL OR `CL_Mol_Brix` = 0 OR `CL_Mol_Pol` IS NULL, NULL, ROUND((`CL_Mol_Pol` / `CL_Mol_Brix`) * 100, 2))) STORED,
+  `FMol_Purity` DOUBLE AS (IF(`FMol_Brix` IS NULL OR `FMol_Brix` = 0 OR `FMol_Pol` IS NULL, NULL, ROUND((`FMol_Pol` / `FMol_Brix`) * 100, 2))) STORED,
+  `A1_Mol_Purity` DOUBLE AS (IF(`A1_Mol_Brix` IS NULL OR `A1_Mol_Brix` = 0 OR `A1_Mol_Pol` IS NULL, NULL, ROUND((`A1_Mol_Pol` / `A1_Mol_Brix`) * 100, 2))) STORED,
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
@@ -678,6 +695,24 @@ CREATE TABLE IF NOT EXISTS `rs_logbook` (
   `IERInlet_PH` DOUBLE NULL DEFAULT NULL,
   `IEROutlet_IU` DOUBLE NULL DEFAULT NULL,
   `IEROutlet_PH` DOUBLE NULL DEFAULT NULL,
+  `CJ_Purity` DOUBLE AS (IF(`CJ_Brix` IS NULL OR `CJ_Brix` = 0 OR `CJ_Pol` IS NULL, NULL, ROUND((`CJ_Pol` / `CJ_Brix`) * 100, 2))) STORED,
+  `FJ_Purity` DOUBLE AS (IF(`FJ_Brix` IS NULL OR `FJ_Brix` = 0 OR `FJ_Pol` IS NULL, NULL, ROUND((`FJ_Pol` / `FJ_Brix`) * 100, 2))) STORED,
+  `UtrSyrp_Purity` DOUBLE AS (IF(`UtrSyrp_Brix` IS NULL OR `UtrSyrp_Brix` = 0 OR `UtrSyrp_Pol` IS NULL, NULL, ROUND((`UtrSyrp_Pol` / `UtrSyrp_Brix`) * 100, 2))) STORED,
+  `RawMc_Purity` DOUBLE AS (IF(`RawMc_Brix` IS NULL OR `RawMc_Brix` = 0 OR `RawMc_Pol` IS NULL, NULL, ROUND((`RawMc_Pol` / `RawMc_Brix`) * 100, 2))) STORED,
+  `R1Mc_Purity` DOUBLE AS (IF(`R1Mc_Brix` IS NULL OR `R1Mc_Brix` = 0 OR `R1Mc_Pol` IS NULL, NULL, ROUND((`R1Mc_Pol` / `R1Mc_Brix`) * 100, 2))) STORED,
+  `R2Mc_Purity` DOUBLE AS (IF(`R2Mc_Brix` IS NULL OR `R2Mc_Brix` = 0 OR `R2Mc_Pol` IS NULL, NULL, ROUND((`R2Mc_Pol` / `R2Mc_Brix`) * 100, 2))) STORED,
+  `BMc_Purity` DOUBLE AS (IF(`BMc_Brix` IS NULL OR `BMc_Brix` = 0 OR `BMc_Pol` IS NULL, NULL, ROUND((`BMc_Pol` / `BMc_Brix`) * 100, 2))) STORED,
+  `CMc_Purity` DOUBLE AS (IF(`CMc_Brix` IS NULL OR `CMc_Brix` = 0 OR `CMc_Pol` IS NULL, NULL, ROUND((`CMc_Pol` / `CMc_Brix`) * 100, 2))) STORED,
+  `AH_Mol_Purity` DOUBLE AS (IF(`AH_Mol_Brix` IS NULL OR `AH_Mol_Brix` = 0 OR `AH_Mol_Pol` IS NULL, NULL, ROUND((`AH_Mol_Pol` / `AH_Mol_Brix`) * 100, 2))) STORED,
+  `AL_Mol_Purity` DOUBLE AS (IF(`AL_Mol_Brix` IS NULL OR `AL_Mol_Brix` = 0 OR `AL_Mol_Pol` IS NULL, NULL, ROUND((`AL_Mol_Pol` / `AL_Mol_Brix`) * 100, 2))) STORED,
+  `R1_Mol_Purity` DOUBLE AS (IF(`R1_Mol_Brix` IS NULL OR `R1_Mol_Brix` = 0 OR `R1_Mol_Pol` IS NULL, NULL, ROUND((`R1_Mol_Pol` / `R1_Mol_Brix`) * 100, 2))) STORED,
+  `R2_Mol_Purity` DOUBLE AS (IF(`R2_Mol_Brix` IS NULL OR `R2_Mol_Brix` = 0 OR `R2_Mol_Pol` IS NULL, NULL, ROUND((`R2_Mol_Pol` / `R2_Mol_Brix`) * 100, 2))) STORED,
+  `BH_Mol_Purity` DOUBLE AS (IF(`BH_Mol_Brix` IS NULL OR `BH_Mol_Brix` = 0 OR `BH_Mol_Pol` IS NULL, NULL, ROUND((`BH_Mol_Pol` / `BH_Mol_Brix`) * 100, 2))) STORED,
+  `CL_Mol_Purity` DOUBLE AS (IF(`CL_Mol_Brix` IS NULL OR `CL_Mol_Brix` = 0 OR `CL_Mol_Pol` IS NULL, NULL, ROUND((`CL_Mol_Pol` / `CL_Mol_Brix`) * 100, 2))) STORED,
+  `FMol_Purity` DOUBLE AS (IF(`FMol_Brix` IS NULL OR `FMol_Brix` = 0 OR `FMol_Pol` IS NULL, NULL, ROUND((`FMol_Pol` / `FMol_Brix`) * 100, 2))) STORED,
+  `RawMlt_Purity` DOUBLE AS (IF(`RawMlt_Brix` IS NULL OR `RawMlt_Brix` = 0 OR `RawMlt_Pol` IS NULL, NULL, ROUND((`RawMlt_Pol` / `RawMlt_Brix`) * 100, 2))) STORED,
+  `ClearMlt_Purity` DOUBLE AS (IF(`ClearMlt_Brix` IS NULL OR `ClearMlt_Brix` = 0 OR `ClearMlt_Pol` IS NULL, NULL, ROUND((`ClearMlt_Pol` / `ClearMlt_Brix`) * 100, 2))) STORED,
+  `Purity_FineLiqourMelt` DOUBLE AS (IF(`Brix_FineLiqourMelt` IS NULL OR `Brix_FineLiqourMelt` = 0 OR `Pol_FineLiqourMelt` IS NULL, NULL, ROUND((`Pol_FineLiqourMelt` / `Brix_FineLiqourMelt`) * 100, 2))) STORED,
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
@@ -787,6 +822,7 @@ CREATE TABLE IF NOT EXISTS `syrp_logbook` (
   `MoLtoDist_RS` DOUBLE NULL DEFAULT NULL,
   `syrp_trs` DOUBLE NULL DEFAULT NULL,
   `bh_trs` DOUBLE NULL DEFAULT NULL,
+  `ch_trs` DOUBLE NULL DEFAULT NULL,
   `timestamp` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE = InnoDB DEFAULT CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci;
 
