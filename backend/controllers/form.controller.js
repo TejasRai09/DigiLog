@@ -102,9 +102,9 @@ function formatMySQLDateTime(d) {
 }
 
 function nowHms() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  // India clock, even when the server timezone is UTC.
+  const raw = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+  return raw.slice(11, 19);
 }
 
 async function ensureSamplingTimeColumn(table) {
