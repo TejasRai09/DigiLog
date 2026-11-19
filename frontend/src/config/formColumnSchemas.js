@@ -179,6 +179,27 @@ export function getRecordFileSlot(formKey, row, dbKey, fallbackName = '') {
   return normalizeFileSlot(item, label, 'jpg');
 }
 
+/** mysql2 reads TIMESTAMP in the UTC session. Show it on the India clock. */
+function formatUtcMysqlDateTimeAsIst(value) {
+  const s = String(value).trim();
+  const m = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/.exec(s);
+  if (!m) return s;
+  const d = new Date(`${m[1]}T${m[2]}Z`);
+  if (Number.isNaN(d.getTime())) return s;
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d);
+  const get = (type) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`;
+}
+
 export function formatRecordCellForDisplay(dbKey, value, formKey = null, row = null) {
   if (isRecordFileColumn(formKey, dbKey, value) || VIRTUAL_FILE_SLOT_KEYS.has(dbKey)) {
     return getRecordFileSlot(formKey, row, dbKey)?.name || '';
@@ -198,6 +219,12 @@ export function formatRecordCellForDisplay(dbKey, value, formKey = null, row = n
     return formatDistilleryDerivedNumber(value);
   }
   const s = typeof value === 'string' ? value : String(value);
+  if (
+    (formKey === 'brix_yard_sampling' || formKey === 'brix_field_sampling') &&
+    (dbKey === 'timestamp' || dbKey === 'timestamp_col')
+  ) {
+    return formatUtcMysqlDateTimeAsIst(s);
+  }
   /* MySQL DATE often arrives as ISO instant from APIs / older responses */
   if (dbKey === 'Date') {
     const isoMidnight = s.match(/^(\d{4}-\d{2}-\d{2})T00:00:00(?:\.000)?Z$/);
