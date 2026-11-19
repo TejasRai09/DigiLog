@@ -3,6 +3,7 @@ USE `__MYSQL_DATABASE__`;
 CREATE TABLE IF NOT EXISTS `brix_yard_sampling` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `Date` DATE,
+  `Time` TIME NULL,
   `Name` VARCHAR(100),
   `DeliveryPoint` VARCHAR(50),
   `VillageOrCenterCode` VARCHAR(50),
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS `brix_yard_sampling` (
 CREATE TABLE IF NOT EXISTS `brix_field_sampling` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `Date` DATE,
+  `Time` TIME NULL,
   `Name` VARCHAR(100),
   `TestType` VARCHAR(50),
   `GrowerName` VARCHAR(150),
