@@ -18,7 +18,9 @@ import {
   RecordViewModal,
   RecordEditModal,
   DeleteRecordConfirmModal,
+  EditRequestReviewModal,
   FormFileSlotCell,
+  recordKeyFromRow,
 } from './FormRecordAdminModals';
 import { withoutGsmaLabel } from '../utils/displayLabels';
 import { isSimpleOpenForm, openFormTarget } from '../utils/formTableNav';
@@ -76,6 +78,15 @@ function approvalBadge(row) {
   );
 }
 
+function editRequestBadge(row) {
+  if (!row?.editRequestId) return null;
+  return (
+    <span className="ml-1 inline-flex rounded-full bg-sky-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-700">
+      Edit request pending
+    </span>
+  );
+}
+
 function rowEmphasisClass(row, isFocus) {
   if (isFocus) return 'bg-amber-50 ring-2 ring-inset ring-amber-400';
   if (!row?.pendingRequestId) return 'hover:bg-gray-50';
@@ -91,21 +102,24 @@ function stickyActionsClass(row, isFocus) {
 }
 
 // ─── View Data Modal ──────────────────────────────────────────
-const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusApprovalRequestId = null }) => {
+const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusApprovalRequestId = null, focusRecordTs = null }) => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const viewOnly = useFormsHubViewOnly();
 
   const [page, setPage]       = useState(1);
-  const [data, setData]       = useState(null);   // { total, records, tsCol }
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [rowMenu, setRowMenu] = useState(null);
   const [viewRow, setViewRow] = useState(null);
   const [editRow, setEditRow] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
+  const [editRequest, setEditRequest] = useState(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
   const [highlightedRequestId, setHighlightedRequestId] = useState(
     focusApprovalRequestId ? Number(focusApprovalRequestId) : null,
   );
+  const [highlightedRecordTs, setHighlightedRecordTs] = useState(focusRecordTs || null);
   const focusHandledRef = useRef(null);
   const LIMIT = 20;
   const tsCol = data?.tsCol || 'timestamp';
@@ -116,17 +130,30 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
     return isAdmin;
   };
   const canDeleteRow = (row) => isAdmin && !viewOnly && !row?.pendingRequestId;
-  const showRowActions = (row) => isAdmin || Boolean(row?.pendingRequestId);
-  const showActionsCol = isAdmin || Boolean(data?.records?.some((r) => r.pendingRequestId));
+  const canEditRequestRow = (row) => (
+    !isAdmin && !viewOnly && !row?.pendingRequestId && !row?.editRequestId
+  );
+  const showRowActions = () => !viewOnly;
+  const showActionsCol = !viewOnly;
 
-  const fetchPage = async (p) => {
+  const fetchPage = async (p, focus) => {
     setLoading(true);
     try {
+      const focusQuery = focus ? `&focus=${encodeURIComponent(focus)}` : '';
       const { data: res } = await api.get(
-        `/forms/${form.formKey}/records?page=${p}&limit=${LIMIT}`
+        `/forms/${form.formKey}/records?page=${p}&limit=${LIMIT}${focusQuery}`
       );
-      setData(res);
-      setPage(p);
+      const nextPage = focus && res.focusPage && res.focusPage !== p ? res.focusPage : p;
+      if (nextPage !== p) {
+        const { data: focused } = await api.get(
+          `/forms/${form.formKey}/records?page=${nextPage}&limit=${LIMIT}`
+        );
+        setData(focused);
+        setPage(nextPage);
+      } else {
+        setData(res);
+        setPage(p);
+      }
     } catch {
       toast.error('Failed to load records.');
     } finally {
@@ -134,8 +161,7 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
     }
   };
 
-  // Load first page on mount
-  useEffect(() => { fetchPage(1); }, []);
+  useEffect(() => { fetchPage(1, focusRecordTs); }, []);
 
   useEffect(() => {
     const focusId = Number(focusApprovalRequestId);
@@ -149,6 +175,13 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
       setEditRow(row);
     }
   }, [data, focusApprovalRequestId, viewOnly]);
+
+  useEffect(() => {
+    if (!focusRecordTs || !data?.records) return;
+    const match = data.records.find((row) => String(row[tsCol] || '').slice(0, 19) === String(focusRecordTs).slice(0, 19));
+    if (!match) return;
+    setHighlightedRecordTs(String(focusRecordTs).slice(0, 19));
+  }, [data, focusRecordTs, tsCol]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -291,10 +324,16 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {data.records.map((row, i) => {
-                  const isFocus = Number(highlightedRequestId) > 0
-                    && Number(row.pendingRequestId) === Number(highlightedRequestId);
+                  const recordTs = String(row[tsCol] || '').slice(0, 19);
+                  const isFocus = (
+                    Number(highlightedRequestId) > 0
+                    && Number(row.pendingRequestId) === Number(highlightedRequestId)
+                  ) || (
+                    highlightedRecordTs
+                    && recordTs === String(highlightedRecordTs).slice(0, 19)
+                  );
                   return (
-                  <tr key={`${page}-${row.pendingRequestId || ''}-${i}`} className={rowEmphasisClass(row, isFocus)}>
+                  <tr key={`${page}-${row.pendingRequestId || ''}-${row.editRequestId || ''}-${i}`} className={rowEmphasisClass(row, isFocus)}>
                     {columns.map((col, colIdx) => {
                       const isFileSlot = isRecordFileColumn(form.formKey, col.dbKey, row[col.dbKey]);
                       const slot = isFileSlot
@@ -313,6 +352,7 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
                                 formatRecordCellForDisplay(col.dbKey, row[col.dbKey], form.formKey, row)
                               )}
                               {approvalBadge(row)}
+                              {editRequestBadge(row)}
                             </span>
                           ) : isFileSlot ? (
                             <FormFileSlotCell slot={slot} />
@@ -346,9 +386,11 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
             onClose={() => setRowMenu(null)}
             onView={setViewRow}
             onEdit={setEditRow}
+            onEditRequest={(row) => setEditRequest({ row })}
             onDelete={setDeleteRow}
             canEdit={rowMenu ? canEditRow(rowMenu.row) : false}
             canDelete={rowMenu ? canDeleteRow(rowMenu.row) : false}
+            canEditRequest={rowMenu ? canEditRequestRow(rowMenu.row) : false}
           />
           {viewRow && (
             <RecordViewModal
@@ -374,6 +416,45 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
               tsCol={tsCol}
               onClose={() => setDeleteRow(null)}
               onDeleted={() => fetchPage(page)}
+            />
+          )}
+          {editRequest?.row && (
+            <RecordEditModal
+              form={form}
+              row={editRequest.row}
+              tsCol={tsCol}
+              mode="editRequest"
+              onClose={() => setEditRequest(null)}
+              onSaved={(review) => setEditRequest((current) => ({ ...current, ...review }))}
+            />
+          )}
+          {editRequest?.fields && (
+            <EditRequestReviewModal
+              form={form}
+              fields={editRequest.fields}
+              submitting={sendingRequest}
+              onClose={() => setEditRequest((current) => ({ row: current.row }))}
+              onConfirm={async (comment) => {
+                const recordKey = recordKeyFromRow(editRequest.row, tsCol);
+                if (!recordKey) {
+                  toast.error('Cannot identify this record.');
+                  return;
+                }
+                setSendingRequest(true);
+                try {
+                  await api.post(`/forms/${form.formKey}/records/${recordKey}/edit-requests`, {
+                    ...editRequest.draft,
+                    editRequestComment: comment,
+                  });
+                  toast.success('Edit request sent.');
+                  setEditRequest(null);
+                  fetchPage(page);
+                } catch (err) {
+                  toast.error(err.response?.data?.message || 'Could not send the edit request.');
+                } finally {
+                  setSendingRequest(false);
+                }
+              }}
             />
           )}
         </>
@@ -442,21 +523,25 @@ const FormTable = ({
   const viewOnly            = useFormsHubViewOnly();
   const [viewing, setViewing] = useState(null); // form object being viewed
   const [focusApprovalRequestId, setFocusApprovalRequestId] = useState(null);
+  const [focusRecordTs, setFocusRecordTs] = useState(null);
 
   useEffect(() => {
     const viewForm = searchParams.get('viewForm');
     const viewData = searchParams.get('viewData');
     const approvalRequestId = searchParams.get('approvalRequestId');
+    const recordTs = searchParams.get('recordTs');
     if (!viewForm && viewData !== '1') return;
     const match = forms?.find((f) => f.formKey === viewForm)
       || (viewData === '1' && forms?.length === 1 ? forms[0] : null);
     if (!match) return;
     setFocusApprovalRequestId(approvalRequestId || null);
+    setFocusRecordTs(recordTs || null);
     setViewing(match);
     const next = new URLSearchParams(searchParams);
     next.delete('viewForm');
     next.delete('viewData');
     next.delete('approvalRequestId');
+    next.delete('recordTs');
     setSearchParams(next, { replace: true });
   }, [forms, searchParams, setSearchParams]);
 
@@ -582,10 +667,12 @@ const FormTable = ({
           onClose={() => {
             setViewing(null);
             setFocusApprovalRequestId(null);
+            setFocusRecordTs(null);
           }}
           appName={withoutGsmaLabel(appName) || null}
           appId={appId}
           focusApprovalRequestId={focusApprovalRequestId}
+          focusRecordTs={focusRecordTs}
         />
       )}
     </>

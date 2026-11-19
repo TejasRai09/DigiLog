@@ -1,4 +1,4 @@
-import { MdAssignment, MdCategory, MdFactCheck, MdHistory, MdInsights, MdNotes, MdPeople, MdCalendarToday, MdStore } from 'react-icons/md';
+import { MdAssignment, MdCategory, MdEditNote, MdFactCheck, MdHistory, MdInsights, MdNotes, MdPeople, MdCalendarToday, MdStore } from 'react-icons/md';
 import EmployeeCategoriesSection from './EmployeeCategoriesSection';
 import EmployeeManagementSection from './EmployeeManagementSection';
 import BiDashboardSettingsSection from './BiDashboardSettingsSection';
@@ -8,6 +8,7 @@ import AuditLogSection from './AuditLogSection';
 import MaintenanceHistoryApprovalSection from './MaintenanceHistoryApprovalSection';
 import MaintenanceNotesApprovalSection from './MaintenanceNotesApprovalSection';
 import FormsApprovalSection from './FormsApprovalSection';
+import EditRequestsSection from './EditRequestsSection';
 
 /**
  * Registry of admin Config sections. Add new entries here to expose
@@ -76,6 +77,13 @@ export const ADMIN_CONFIG_SECTIONS = [
     description: 'HOD approval for Forms Hub cards and individual forms. Off until you enable a card or form.',
     Icon: MdAssignment,
     Component: FormsApprovalSection,
+  },
+  {
+    id: 'edit-requests',
+    label: 'Edit Requests',
+    description: 'Review corrections users asked for on saved form rows.',
+    Icon: MdEditNote,
+    Component: EditRequestsSection,
   },
 ];
 

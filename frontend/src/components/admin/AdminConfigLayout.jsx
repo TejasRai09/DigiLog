@@ -2,7 +2,12 @@ import { MdSettings } from 'react-icons/md';
 import { ADMIN_CONFIG_SECTIONS } from './config/adminConfigSections';
 import AppPageHeader from '../AppPageHeader';
 
-export default function AdminConfigLayout({ activeSectionId, onSectionChange, children }) {
+export default function AdminConfigLayout({
+  activeSectionId,
+  onSectionChange,
+  children,
+  pendingEditRequests = 0,
+}) {
   return (
     <main className="app-main">
       <AppPageHeader className="mb-6">
@@ -46,7 +51,14 @@ export default function AdminConfigLayout({ activeSectionId, onSectionChange, ch
                       <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${active ? 'text-blue-600' : 'text-gray-400'}`} />
                     ) : null}
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium">{label}</span>
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        {label}
+                        {id === 'edit-requests' && pendingEditRequests > 0 ? (
+                          <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            {pendingEditRequests}
+                          </span>
+                        ) : null}
+                      </span>
                       {description ? (
                         <span className="mt-0.5 block text-xs leading-snug text-gray-500">
                           {comingSoon ? 'Coming soon' : description}

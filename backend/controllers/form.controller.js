@@ -644,6 +644,15 @@ const getRecords = async (req, res) => {
       ? `ORDER BY (\`${config.tsCol}\` IS NULL) ASC, \`${config.tsCol}\` DESC`
       : `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC`;
 
+    let focusPage = null;
+    if (req.query.focus) {
+      focusPage = await require('../services/formEditRequest.service').focusPageForRecord(
+        config,
+        req.query.focus,
+        { limit, virtualCount },
+      );
+    }
+
     let records;
     if (offset < virtualCount) {
       const virtSlice = overlay.slice(offset, offset + limit);
@@ -789,38 +798,8 @@ const updateRecord = async (req, res) => {
 
     if (!requireAdmin(req, res)) return;
 
-    const existing = await fetchRecordByKey(config, recordKey);
-    if (!existing) return res.status(404).json({ message: 'Record not found.' });
-
-    const payload = buildAdminUpdatePayload(formKey, config, req.body);
-    const before = {};
-    for (const key of Object.keys(payload)) before[key] = existing[key];
-    req.auditBefore = before;
-    if (Object.keys(payload).length === 0) {
-      return res.status(400).json({ message: 'No fields to update.' });
-    }
-
-    const fieldCheck = validateFormPayload(formKey, payload);
-    if (!fieldCheck.ok) {
-      return res.status(400).json({ message: fieldCheck.message });
-    }
-
-    const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
-      autoTime: config.autoTime,
-      tsCol: config.tsCol,
-      excludeRecordKey: recordKey,
-    });
-    if (dup) {
-      return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
-    }
-
-    const setParts = Object.keys(payload).map((c) => `\`${c}\` = ?`);
-    const values = [...Object.values(payload), decodeRecordKey(recordKey)];
-    await pool.execute(
-      `UPDATE \`${config.table}\` SET ${setParts.join(', ')} WHERE \`${config.tsCol}\` = ?`,
-      values,
-    );
-
+    const applied = await applySavedRecordUpdate(formKey, recordKey, req.body);
+    req.auditBefore = applied.before;
     res.json({ message: 'Record updated successfully.' });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -874,12 +853,58 @@ async function insertPreparedRow(formKey, config, payload) {
     err.status = 409;
     throw err;
   }
-  const columns      = Object.keys(row).map((c) => `\`${c}\``).join(', ');
+  const columns = Object.keys(row).map((c) => `\`${c}\``).join(', ');
   const placeholders = Object.keys(row).map(() => '?').join(', ');
   await pool.execute(
     `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`,
     Object.values(row),
   );
+}
+
+async function applySavedRecordUpdate(formKey, recordKey, body) {
+  const config = FORM_CONFIG[formKey];
+  if (!config) {
+    const err = new Error('Unknown form.');
+    err.status = 400;
+    throw err;
+  }
+  const existing = await fetchRecordByKey(config, recordKey);
+  if (!existing) {
+    const err = new Error('Record not found.');
+    err.status = 404;
+    throw err;
+  }
+  const payload = buildAdminUpdatePayload(formKey, config, body);
+  if (Object.keys(payload).length === 0) {
+    const err = new Error('No fields to update.');
+    err.status = 400;
+    throw err;
+  }
+  const fieldCheck = validateFormPayload(formKey, payload);
+  if (!fieldCheck.ok) {
+    const err = new Error(fieldCheck.message);
+    err.status = 400;
+    throw err;
+  }
+  const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
+    autoTime: config.autoTime,
+    tsCol: config.tsCol,
+    excludeRecordKey: recordKey,
+  });
+  if (dup) {
+    const err = new Error(DUPLICATE_OPERATION_MSG);
+    err.status = 409;
+    throw err;
+  }
+  const before = {};
+  for (const key of Object.keys(payload)) before[key] = existing[key];
+  const setParts = Object.keys(payload).map((c) => `\`${c}\` = ?`);
+  const values = [...Object.values(payload), decodeRecordKey(recordKey)];
+  await pool.execute(
+    `UPDATE \`${config.table}\` SET ${setParts.join(', ')} WHERE \`${config.tsCol}\` = ?`,
+    values,
+  );
+  return { before, payload };
 }
 
 /**
@@ -917,4 +942,11 @@ module.exports = {
   deleteRecord,
   canAccessForm,
   applyApprovedInsert,
+  applySavedRecordUpdate,
+  buildAdminUpdatePayload,
+  fetchRecordByKey,
+  validateFormPayload,
+  hasDuplicateOperationRow,
+  normalizeRecordTimestamp,
+  DUPLICATE_OPERATION_MSG,
 };

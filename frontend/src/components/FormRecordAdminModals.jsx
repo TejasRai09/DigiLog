@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  MdClose, MdDelete, MdEdit, MdMoreVert, MdSave, MdVisibility,
+  MdClose, MdDelete, MdEdit, MdEditNote, MdMoreVert, MdSave, MdVisibility,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import Spinner from './Spinner';
+import FormReviewModal from './FormReviewModal';
 import WordDocPreview, { isWordFile } from './WordDocPreview';
 import {
   getDisplayColumns,
@@ -235,7 +236,7 @@ export function RecordViewModal({ form, row, tsCol, onClose }) {
   );
 }
 
-export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
+export function RecordEditModal({ form, row, tsCol, onClose, onSaved, mode = 'admin' }) {
   const columns = getDisplayColumns(form.formKey, row);
   const editableCols = useMemo(
     () => columns.filter((c) => (
@@ -262,6 +263,34 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
       toast.error('Cannot identify this record.');
       return;
     }
+    if (mode === 'editRequest') {
+      const merged = { ...row, ...draft };
+      const fields = columns
+        .filter((col) => col.dbKey !== 'timestamp' && col.dbKey !== 'timestamp_col')
+        .map((col) => {
+          const editable = editableCols.some((item) => item.dbKey === col.dbKey);
+          const beforeRaw = cellToEditValue(col.dbKey, row[col.dbKey]);
+          const afterRaw = editable ? draft[col.dbKey] : beforeRaw;
+          const blank = (value) => value == null || value === '';
+          const changed = editable && !(blank(beforeRaw) && blank(afterRaw)) && String(beforeRaw ?? '') !== String(afterRaw ?? '');
+          const beforeText = formatRecordCellForDisplay(col.dbKey, row[col.dbKey], form.formKey, row);
+          const afterText = formatRecordCellForDisplay(col.dbKey, afterRaw, form.formKey, merged);
+          return {
+            key: col.dbKey,
+            heading: col.heading || 'Details',
+            label: headerLabel(col),
+            before: beforeText || '—',
+            after: afterText || '—',
+            changed,
+          };
+        });
+      if (!fields.some((field) => field.changed)) {
+        toast.error('No fields were changed.');
+        return;
+      }
+      onSaved({ draft, fields });
+      return;
+    }
     setSaving(true);
     try {
       await api.put(`/forms/${form.formKey}/records/${recordKey}`, draft);
@@ -277,15 +306,19 @@ export function RecordEditModal({ form, row, tsCol, onClose, onSaved }) {
 
   return (
     <RecordModalShell
-      title={`${form.name} — Edit Record`}
-      subtitle={row?.pendingStatus === 'needs_modification' ? 'Sent back by HOD — edit and resubmit' : 'Admin edit'}
+      title={mode === 'editRequest' ? `${form.name} — Edit request` : `${form.name} — Edit Record`}
+      subtitle={
+        mode === 'editRequest'
+          ? 'This does not change the saved row until an admin approves it'
+          : row?.pendingStatus === 'needs_modification' ? 'Sent back by HOD — edit and resubmit' : 'Admin edit'
+      }
       onClose={onClose}
       footer={(
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className="btn-secondary" disabled={saving}>Cancel</button>
           <button type="button" onClick={handleSave} className="btn-primary" disabled={saving}>
             {saving ? <Spinner size="sm" /> : <MdSave className="h-4 w-4" />}
-            {row?.pendingStatus === 'needs_modification' ? 'Resubmit for approval' : 'Save changes'}
+            {mode === 'editRequest' ? 'Review changes' : row?.pendingStatus === 'needs_modification' ? 'Resubmit for approval' : 'Save changes'}
           </button>
         </div>
       )}
@@ -428,8 +461,10 @@ export function RecordRowActionMenu({
   onView,
   onEdit,
   onDelete,
+  onEditRequest,
   canEdit = true,
   canDelete = true,
+  canEditRequest = false,
 }) {
   if (!rowMenu) return null;
 
@@ -450,6 +485,17 @@ export function RecordRowActionMenu({
           <MdVisibility className="h-4 w-4 text-blue-600" />
           View
         </button>
+        {canEditRequest && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { onClose(); onEditRequest(rowMenu.row); }}
+            className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+          >
+            <MdEditNote className="h-4 w-4 text-amber-600" />
+            Edit request
+          </button>
+        )}
         {canEdit && (
           <button
             type="button"
@@ -489,5 +535,90 @@ export function RecordActionsButton({ onOpenMenu }) {
     >
       <MdMoreVert className="h-5 w-5" />
     </button>
+  );
+}
+
+function ChangedFieldValue({ before, after }) {
+  return (
+    <span className="block">
+      <span className="block text-xs font-medium text-gray-400 line-through">{before || '—'}</span>
+      <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-amber-950">{after || '—'}</span>
+    </span>
+  );
+}
+
+export function editRequestReviewSections(fields) {
+  const sections = [];
+  let current = null;
+  for (const field of fields) {
+    if (!current || current.title !== field.heading) {
+      current = { title: field.heading, fields: [] };
+      sections.push(current);
+    }
+    current.fields.push({
+      label: field.label,
+      value: field.changed
+        ? <ChangedFieldValue before={field.before} after={field.after} />
+        : (field.after || '—'),
+    });
+  }
+  return sections;
+}
+
+export function EditRequestReviewModal({ form, fields, submitting, onClose, onConfirm }) {
+  const [comment, setComment] = useState('');
+  const [commentError, setCommentError] = useState(false);
+  const commentRef = useRef(null);
+
+  const send = () => {
+    const text = comment.trim();
+    if (text.length < 10) {
+      setCommentError(true);
+      commentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      commentRef.current?.focus();
+      return;
+    }
+    onConfirm(text);
+  };
+
+  return (
+    <FormReviewModal
+      open
+      title={`Review ${form.name}`}
+      subtitle="Every field is listed. Changed values are highlighted."
+      sections={editRequestReviewSections(fields)}
+      onClose={onClose}
+      onConfirm={send}
+      confirming={submitting}
+      confirmLabel="Send edit request"
+      confirmingLabel="Sending…"
+      backLabel="Back to Edit"
+      notice={null}
+      overlayClassName="z-[230]"
+      extra={(
+        <label className="mt-5 block">
+          <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-600">
+            Comment <span className="text-red-500">*</span>
+          </span>
+          <textarea
+            ref={commentRef}
+            value={comment}
+            onChange={(event) => {
+              setComment(event.target.value);
+              if (event.target.value.trim().length >= 10) setCommentError(false);
+            }}
+            rows={3}
+            required
+            minLength={10}
+            aria-required="true"
+            className={`input w-full ${commentError ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+            placeholder="Why this row should be corrected"
+          />
+          {commentError ? (
+            <span className="mt-1 block text-xs font-medium text-red-600">Comment must be at least 10 characters.</span>
+          ) : null}
+        </label>
+      )}
+    />
   );
 }
