@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MdArrowBack, MdSave } from 'react-icons/md';
 import FormReviewModal from '../../../components/FormReviewModal';
@@ -9,6 +9,7 @@ import { useGsmaFormReview } from '../../../hooks/useGsmaFormReview';
 import { gsmaSubmitRequest } from '../../../utils/gsmaFormSubmit';
 import BackToFormsHub from '../../../components/BackToFormsHub';
 import FormsHubViewOnlyBanner from '../../../components/FormsHubViewOnlyBanner';
+import useAuth from '../../../hooks/useAuth';
 
 const INITIAL = {
   Date: '',
@@ -19,6 +20,7 @@ const INITIAL = {
   TruckNumber: '',
   VehicleType: '',
   VarietyOfCane: '',
+  otherVariety: '',
   CropType: '',
   MiddleBrix: '',
   DiseasedCane: '',
@@ -26,7 +28,7 @@ const INITIAL = {
   ConsignmentConditions: ''
 };
 
-const VARIETIES = ['CO0238', 'COUK94184', 'CO0118', 'COPK5151', 'COS8272', 'Others'];
+const VARIETIES = ['CO0238', 'COLK94184', 'CO0118', 'COPK5151', 'COS8272', 'COLK14201', 'CO15023', 'Others'];
 const VEHICLES = ['Cart', 'Trolley', 'Truck'];
 const CROP_TYPES = ['Plant', 'Ratoon'];
 const YES_NO = ['Yes', 'No'];
@@ -34,10 +36,28 @@ const CONDITIONS = ['Roots', 'Dry Leaves', 'Muddy', 'Clean'];
 
 const BrixYardSampling = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState(INITIAL);
+  const { user } = useAuth();
+  const [form, setForm] = useState(() => ({ ...INITIAL, Name: user?.name ?? '' }));
+  const [samplingTime, setSamplingTime] = useState(() =>
+    new Date().toLocaleTimeString('en-GB', { hour12: false }),
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSamplingTime(new Date().toLocaleTimeString('en-GB', { hour12: false }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (user?.name) setForm((p) => ({ ...p, Name: user.name }));
+  }, [user?.name]);
 
   const handleInput = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
-  const handleRadio = (name, value) => setForm((p) => ({ ...p, [name]: value }));
+  const handleRadio = (name, value) => setForm((p) => {
+    const next = { ...p, [name]: value };
+    if (name === 'VarietyOfCane' && value !== 'Others') next.otherVariety = '';
+    return next;
+  });
+  const varietyToSave = form.VarietyOfCane === 'Others' ? form.otherVariety.trim() : form.VarietyOfCane;
 
   const { reviewOpen, submitting, openReview, closeReview, confirmSubmit } = useGsmaFormReview({
     validate: () => {
@@ -47,6 +67,10 @@ const BrixYardSampling = () => {
       if (!form.VillageOrCenterCode) { toast.error('Village/Center Code is required.'); return false; }
       if (!form.VehicleType) { toast.error('Vehicle Type is required.'); return false; }
       if (!form.VarietyOfCane) { toast.error('Variety of Cane is required.'); return false; }
+      if (form.VarietyOfCane === 'Others' && !form.otherVariety.trim()) {
+        toast.error('Variety name is required when Others is selected.');
+        return false;
+      }
       if (!form.CropType) { toast.error('Crop Type is required.'); return false; }
       if (!form.MiddleBrix) { toast.error('Middle Brix % is required.'); return false; }
       if (!form.DiseasedCane) { toast.error('Diseased Cane is required.'); return false; }
@@ -64,7 +88,7 @@ const BrixYardSampling = () => {
           GrowerCode: form.GrowerCode,
           TruckNumber: form.TruckNumber,
           VehicleType: form.VehicleType,
-          VarietyOfCane: form.VarietyOfCane,
+          VarietyOfCane: varietyToSave,
           CropType: form.CropType,
           MiddleBrix: parseFloat(form.MiddleBrix) || 0,
           DiseasedCane: form.DiseasedCane,
@@ -73,7 +97,7 @@ const BrixYardSampling = () => {
         }),
         'Yard Brix Sampling Form submitted!'
       );
-      setForm(INITIAL);
+      setForm({ ...INITIAL, Name: user?.name ?? '' });
     }
   });
 
@@ -81,6 +105,7 @@ const BrixYardSampling = () => {
   const buildReview = () => [
     { title: 'Record Info', fields: [
         { label: 'Date', value: form.Date },
+        { label: 'Sampling Time', value: `${samplingTime} (saved on submit)` },
         { label: 'Name', value: form.Name }
       ]},
     { title: 'Origin Details', fields: [
@@ -93,7 +118,7 @@ const BrixYardSampling = () => {
         { label: 'Truck Number', value: form.TruckNumber || '-' }
       ]},
     { title: 'Cane Details', fields: [
-        { label: 'Variety', value: form.VarietyOfCane },
+        { label: 'Variety', value: varietyToSave },
         { label: 'Crop Type', value: form.CropType }
       ]},
     { title: 'Quality Parameters', fields: [
@@ -128,8 +153,14 @@ const BrixYardSampling = () => {
               <AutoNowInput type="date" name="Date" value={form.Date} onChange={handleInput} className="input" />
             </div>
             <div>
+              <label className="label">Sampling Time</label>
+              <input type="text" value={samplingTime} readOnly className="input bg-slate-50 text-slate-700" />
+              <p className="mt-1 text-xs text-gray-500">Filled automatically when you submit. Another report can be saved on the same date at a different time.</p>
+            </div>
+            <div>
               <label className="label">2. Name <span className="text-red-500">*</span></label>
-              <input type="text" name="Name" value={form.Name} onChange={handleInput} className="input" placeholder="Enter your answer" />
+              <input type="text" name="Name" value={form.Name} readOnly className="input bg-slate-50 text-slate-700" />
+              <p className="mt-1 text-xs text-gray-500">Filled from your account name.</p>
             </div>
           </div>
         </div>
@@ -203,6 +234,12 @@ const BrixYardSampling = () => {
                   </label>
                 ))}
               </div>
+              {form.VarietyOfCane === 'Others' && (
+                <div className="mt-3">
+                  <label className="label">Variety name <span className="text-red-500">*</span></label>
+                  <input type="text" name="otherVariety" value={form.otherVariety} onChange={handleInput} maxLength={100} className="input" placeholder="Enter variety name" />
+                </div>
+              )}
             </div>
             <div>
               <label className="label">9. Crop Type <span className="text-red-500">*</span></label>
