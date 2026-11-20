@@ -647,7 +647,20 @@ const getFormMeta = async (req, res) => {
   }
 };
 
+function recordsOrderBy(config, dateSort) {
+  const ts = `\`${config.tsCol}\``;
+  if (dateSort === 'date_asc' || dateSort === 'date_desc') {
+    const dir = dateSort === 'date_asc' ? 'ASC' : 'DESC';
+    return `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` ${dir}, (${ts} IS NULL) ASC, ${ts} ${dir}`;
+  }
+  if (config.sortByTs) {
+    return `ORDER BY (${ts} IS NULL) ASC, ${ts} DESC`;
+  }
+  return `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, ${ts} DESC`;
+}
+
 // ─── GET /api/forms/:formKey/records?page=1&limit=20 ─────────
+// sort=date_desc | date_asc sorts Brix sampling forms by Sampling Date.
 const getRecords = async (req, res) => {
   const { formKey } = req.params;
   const config = FORM_CONFIG[formKey];
@@ -660,6 +673,10 @@ const getRecords = async (req, res) => {
   const page   = Math.max(1, parseInt(req.query.page  || '1',  10));
   const limit  = Math.min(10000, parseInt(req.query.limit || '20', 10)); // allow up to 10000 for CSV export
   const offset = (page - 1) * limit;
+  const dateSort = (
+    (formKey === 'brix_yard_sampling' || formKey === 'brix_field_sampling')
+    && (req.query.sort === 'date_asc' || req.query.sort === 'date_desc')
+  ) ? req.query.sort : null;
 
   try {
     const overlayUserId = req.user?.role === 'admin' ? null : req.user?.id;
@@ -670,9 +687,7 @@ const getRecords = async (req, res) => {
       `SELECT COUNT(*) AS total FROM \`${config.table}\``
     );
     const total = Number(dbTotal) + virtualCount;
-    const orderBy = config.sortByTs
-      ? `ORDER BY (\`${config.tsCol}\` IS NULL) ASC, \`${config.tsCol}\` DESC`
-      : `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC`;
+    const orderBy = recordsOrderBy(config, dateSort);
 
     let focusPage = null;
     if (req.query.focus) {
@@ -706,7 +721,7 @@ const getRecords = async (req, res) => {
       );
       records = rows;
     }
-    res.json({ total, page, limit, tsCol: config.tsCol, records });
+    res.json({ total, page, limit, tsCol: config.tsCol, sort: dateSort, records });
   } catch (err) {
     sendServerError(res, 'Form records error:', err, MSG.LOAD);
   }

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MdOpenInNew, MdTableChart, MdDownload,
   MdClose, MdChevronLeft, MdChevronRight,
+  MdArrowDownward, MdArrowUpward, MdUnfoldMore,
 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
@@ -120,9 +121,16 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
     focusApprovalRequestId ? Number(focusApprovalRequestId) : null,
   );
   const [highlightedRecordTs, setHighlightedRecordTs] = useState(focusRecordTs || null);
+  const [dateSort, setDateSort] = useState(null);
   const focusHandledRef = useRef(null);
   const LIMIT = 20;
   const tsCol = data?.tsCol || 'timestamp';
+
+  const recordsUrl = (p, focus, sortDir) => {
+    const sortQuery = sortDir === 'asc' || sortDir === 'desc' ? `&sort=date_${sortDir}` : '';
+    const focusQuery = focus ? `&focus=${encodeURIComponent(focus)}` : '';
+    return `/forms/${form.formKey}/records?page=${p}&limit=${LIMIT}${sortQuery}${focusQuery}`;
+  };
 
   const canEditRow = (row) => {
     if (viewOnly) return false;
@@ -136,18 +144,13 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
   const showRowActions = () => !viewOnly;
   const showActionsCol = !viewOnly;
 
-  const fetchPage = async (p, focus) => {
+  const fetchPage = async (p, focus, sortDir = dateSort) => {
     setLoading(true);
     try {
-      const focusQuery = focus ? `&focus=${encodeURIComponent(focus)}` : '';
-      const { data: res } = await api.get(
-        `/forms/${form.formKey}/records?page=${p}&limit=${LIMIT}${focusQuery}`
-      );
+      const { data: res } = await api.get(recordsUrl(p, focus, sortDir));
       const nextPage = focus && res.focusPage && res.focusPage !== p ? res.focusPage : p;
       if (nextPage !== p) {
-        const { data: focused } = await api.get(
-          `/forms/${form.formKey}/records?page=${nextPage}&limit=${LIMIT}`
-        );
+        const { data: focused } = await api.get(recordsUrl(nextPage, null, sortDir));
         setData(focused);
         setPage(nextPage);
       } else {
@@ -159,6 +162,12 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSamplingDateSort = () => {
+    const next = dateSort === 'desc' ? 'asc' : 'desc';
+    setDateSort(next);
+    fetchPage(1, null, next);
   };
 
   useEffect(() => { fetchPage(1, focusRecordTs); }, []);
@@ -247,8 +256,9 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
               onClick={async () => {
                 try {
                   toast.loading('Preparing CSV…', { id: 'csv' });
+                  const sortQuery = dateSort === 'asc' || dateSort === 'desc' ? `&sort=date_${dateSort}` : '';
                   const { data: res } = await api.get(
-                    `/forms/${form.formKey}/records?page=1&limit=10000`
+                    `/forms/${form.formKey}/records?page=1&limit=10000${sortQuery}`
                   );
                   const cols = getDisplayColumns(form.formKey, res.records?.[0] ?? null);
                   const ok = downloadCSV(`${form.formKey}.csv`, res.records, cols, form.formKey);
@@ -315,9 +325,50 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
                   {columns.map((col) => (
                     <th
                       key={col.dbKey}
+                      aria-sort={
+                        col.subheading === 'Sampling Date'
+                          ? (dateSort === 'asc' ? 'ascending' : dateSort === 'desc' ? 'descending' : 'none')
+                          : undefined
+                      }
                       className="px-3 py-2 text-left font-medium text-gray-500 whitespace-nowrap border-b border-gray-200"
                     >
-                      {col.subheading || '\u2014'}
+                      {col.subheading === 'Sampling Date' ? (
+                        <button
+                          type="button"
+                          onClick={toggleSamplingDateSort}
+                          disabled={loading}
+                          title={
+                            dateSort === 'desc'
+                              ? 'Newest to oldest. Click for oldest to newest.'
+                              : dateSort === 'asc'
+                                ? 'Oldest to newest. Click for newest to oldest.'
+                                : 'Sort by sampling date, newest to oldest'
+                          }
+                          aria-label={
+                            dateSort === 'desc'
+                              ? 'Sampling Date, newest to oldest. Click to sort oldest to newest.'
+                              : dateSort === 'asc'
+                                ? 'Sampling Date, oldest to newest. Click to sort newest to oldest.'
+                                : 'Sort Sampling Date from newest to oldest'
+                          }
+                          className={`inline-flex items-center gap-1 rounded px-1 py-0.5 -mx-1 font-medium whitespace-nowrap disabled:opacity-60 ${
+                            dateSort
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                          }`}
+                        >
+                          Sampling Date
+                          {dateSort === 'asc' ? (
+                            <MdArrowUpward className="h-3.5 w-3.5" aria-hidden />
+                          ) : dateSort === 'desc' ? (
+                            <MdArrowDownward className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <MdUnfoldMore className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+                          )}
+                        </button>
+                      ) : (
+                        col.subheading || '\u2014'
+                      )}
                     </th>
                   ))}
                 </tr>
