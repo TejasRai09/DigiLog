@@ -315,6 +315,11 @@ export async function submitHistoryDraft(approvalRequestId) {
   return data;
 }
 
+export async function deleteHistoryDraft(approvalRequestId) {
+  const { data } = await api.delete(`/change-requests/${approvalRequestId}/draft`);
+  return data;
+}
+
 export async function submitAllHistoryDrafts({ domain, equipId }) {
   const { data } = await api.post('/change-requests/submit-drafts', { domain, equipId });
   return data;

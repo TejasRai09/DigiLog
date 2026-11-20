@@ -2,6 +2,7 @@ const { pool } = require('../config/mysql');
 const { sendServerError, MSG } = require('../utils/httpError');
 const { validHistoryImageField } = require('../utils/historyImages');
 const { isFormsHubViewOnly, VIEW_ONLY_MESSAGE } = require('../utils/formsHubViewOnly');
+const { stripLabPurityColumns } = require('../utils/labPurityColumns');
 
 function queueFormIfRequired(args) {
   return require('../services/formApproval.service').queueIfRequired(args);
@@ -64,8 +65,10 @@ const FORM_CONFIG = {
   prod_clarification: { table: 'prod_clarification', pattern: 'G', tsCol: 'timestamp' },
 
   // Brix Sampling Forms
-  brix_yard_sampling:  { table: 'brix_yard_sampling', pattern: 'G', tsCol: 'timestamp', sortByTs: true },
-  brix_field_sampling: { table: 'brix_field_sampling', pattern: 'G', tsCol: 'timestamp', sortByTs: true },
+  // stampTime fills Time at save. Duplicate key stays Date + Time (do not set autoTime:
+  // autoTime on pattern E collapses the check back to Date only).
+  brix_yard_sampling:  { table: 'brix_yard_sampling', pattern: 'E', tsCol: 'timestamp', sortByTs: true, stampTime: true },
+  brix_field_sampling: { table: 'brix_field_sampling', pattern: 'E', tsCol: 'timestamp', sortByTs: true, stampTime: true },
 };
 
 // ─── Access guard ─────────────────────────────────────────────
@@ -97,6 +100,23 @@ const canAccessForm = async (user, formKey) => {
 function formatMySQLDateTime(d) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function nowHms() {
+  // India clock, even when the server timezone is UTC.
+  const raw = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' });
+  return raw.slice(11, 19);
+}
+
+async function ensureSamplingTimeColumn(table) {
+  const [cols] = await pool.query(
+    `SELECT 1 AS ok FROM information_schema.columns
+     WHERE table_schema = DATABASE() AND table_name = ? AND column_name = 'Time'
+     LIMIT 1`,
+    [table],
+  );
+  if (cols.length) return;
+  await pool.query(`ALTER TABLE \`${table}\` ADD COLUMN \`Time\` TIME NULL AFTER \`Date\``);
 }
 
 function normalizeRecordTimestamp(val) {
@@ -142,11 +162,14 @@ function buildAdminUpdatePayload(formKey, config, body) {
   if (hasMeta) {
     injectDateCols(payload, config.pattern, body, { autoTime: false });
   }
+  // Sampling time is stamped on insert only. An edit must not clear or replace it.
+  if (config.stampTime) delete payload.Time;
 
   const skipGenerated = GENERATED_INSERT_EXCLUDE[formKey];
   if (skipGenerated) {
     for (const k of skipGenerated) delete payload[k];
   }
+  stripLabPurityColumns(formKey, payload);
 
   if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(payload, 'end_time')) {
     payload.end_Time = payload.end_time;
@@ -157,7 +180,7 @@ function buildAdminUpdatePayload(formKey, config, body) {
 }
 
 // ─── Inject date/time columns by pattern ─────────────────────
-const injectDateCols = (payload, pattern, body, { autoTime = false } = {}) => {
+const injectDateCols = (payload, pattern, body, { autoTime = false, stampTime = false } = {}) => {
   switch (pattern) {
     case 'A':
       payload.Date  = body.date  ?? null;
@@ -180,7 +203,9 @@ const injectDateCols = (payload, pattern, body, { autoTime = false } = {}) => {
       break;
     case 'E':
       payload.Date = body.date ?? null;
-      payload.Time = autoTime ? formatMySQLDateTime(new Date()) : (body.time ?? null);
+      payload.Time = stampTime
+        ? nowHms()
+        : (autoTime ? formatMySQLDateTime(new Date()) : (body.time ?? null));
       break;
     case 'G':
       payload.Date = body.date ?? null;
@@ -529,7 +554,10 @@ const submitForm = async (req, res) => {
   if (!allowed) return res.status(403).json({ message: 'Access denied to this form.' });
 
   const payload = sanitisePayload(req.body);
-  injectDateCols(payload, config.pattern, req.body, { autoTime: config.autoTime });
+  injectDateCols(payload, config.pattern, req.body, {
+    autoTime: config.autoTime,
+    stampTime: config.stampTime,
+  });
 
   if (config.autoTime && !payload.Date) {
     return res.status(400).json({ message: 'Date is required.' });
@@ -550,6 +578,7 @@ const submitForm = async (req, res) => {
   if (skipGenerated) {
     for (const k of skipGenerated) delete payload[k];
   }
+  stripLabPurityColumns(formKey, payload);
 
   const columns      = Object.keys(payload).map((c) => `\`${c}\``).join(', ');
   const placeholders = Object.keys(payload).map(() => '?').join(', ');
@@ -558,6 +587,7 @@ const submitForm = async (req, res) => {
   const sql = `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`;
 
   try {
+    if (config.stampTime) await ensureSamplingTimeColumn(config.table);
     const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
       autoTime: config.autoTime,
     });
@@ -800,6 +830,39 @@ const updateRecord = async (req, res) => {
 
     const applied = await applySavedRecordUpdate(formKey, recordKey, req.body);
     req.auditBefore = applied.before;
+    const existing = await fetchRecordByKey(config, recordKey);
+    if (!existing) return res.status(404).json({ message: 'Record not found.' });
+
+    const payload = buildAdminUpdatePayload(formKey, config, req.body);
+    const before = {};
+    for (const key of Object.keys(payload)) before[key] = existing[key];
+    req.auditBefore = before;
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({ message: 'No fields to update.' });
+    }
+
+    const fieldCheck = validateFormPayload(formKey, payload);
+    if (!fieldCheck.ok) {
+      return res.status(400).json({ message: fieldCheck.message });
+    }
+
+    if (config.stampTime) await ensureSamplingTimeColumn(config.table);
+    const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
+      autoTime: config.autoTime,
+      tsCol: config.tsCol,
+      excludeRecordKey: recordKey,
+    });
+    if (dup) {
+      return res.status(409).json({ message: DUPLICATE_OPERATION_MSG });
+    }
+
+    const setParts = Object.keys(payload).map((c) => `\`${c}\` = ?`);
+    const values = [...Object.values(payload), decodeRecordKey(recordKey)];
+    await pool.execute(
+      `UPDATE \`${config.table}\` SET ${setParts.join(', ')} WHERE \`${config.tsCol}\` = ?`,
+      values,
+    );
+
     res.json({ message: 'Record updated successfully.' });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -841,10 +904,12 @@ async function insertPreparedRow(formKey, config, payload) {
   if (skipGenerated) {
     for (const k of skipGenerated) delete row[k];
   }
+  stripLabPurityColumns(formKey, row);
   if (formKey === 'ph_stoppage' && Object.prototype.hasOwnProperty.call(row, 'end_time')) {
     row.end_Time = row.end_time;
     delete row.end_time;
   }
+  if (config.stampTime) await ensureSamplingTimeColumn(config.table);
   const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, row, {
     autoTime: config.autoTime,
   });
