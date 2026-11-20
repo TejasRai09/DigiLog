@@ -32,6 +32,14 @@ const FormReviewModal = ({
   onClose,
   onConfirm,
   confirming = false,
+  confirmLabel = 'Confirm & Commit',
+  confirmingLabel = 'Committing…',
+  backLabel = 'Back to Edit',
+  notice,
+  overlayClassName = 'z-[100]',
+  secondaryAction = null,
+  preface = null,
+  extra = null,
 }) => {
   useEffect(() => {
     if (!open) return undefined;
@@ -60,7 +68,7 @@ const FormReviewModal = ({
   return (
     <ModalPortal>
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto p-3 sm:p-4 md:p-6"
+      className={`fixed inset-0 ${overlayClassName} flex items-center justify-center overflow-y-auto p-3 sm:p-4 md:p-6`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="form-review-title"
@@ -117,6 +125,7 @@ const FormReviewModal = ({
             </div>
           ) : null}
 
+          {preface}
           <div
             className={
               twoColumn ? 'grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-2 lg:gap-8' : 'max-w-3xl'
@@ -160,9 +169,12 @@ const FormReviewModal = ({
             ))}
           </div>
 
-          <div className="mt-4 sm:mt-5">
-            <ConfirmationPolicyNotice />
-          </div>
+          {extra}
+          {notice === null ? null : (
+            <div className="mt-4 sm:mt-5">
+              {notice || <ConfirmationPolicyNotice />}
+            </div>
+          )}
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 border-t border-gray-100 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:px-6 sm:py-4 md:px-8">
@@ -173,17 +185,29 @@ const FormReviewModal = ({
             className="btn-primary order-1 w-full bg-[#1e40af] hover:bg-[#1e3a8a] sm:order-2 sm:min-w-[11rem] sm:w-auto"
           >
             {confirming ? <Spinner size="sm" /> : <MdCheck className="h-4 w-4" />}
-            {confirming ? 'Committing…' : 'Confirm & Commit'}
+            {confirming ? confirmingLabel : confirmLabel}
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={confirming}
-            className="btn-secondary order-2 w-full sm:order-1 sm:min-w-[9rem] sm:w-auto"
-          >
-            <MdSwapHoriz className="h-4 w-4" />
-            Back to Edit
-          </button>
+          {backLabel ? (
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={confirming}
+              className="btn-secondary order-3 w-full sm:order-1 sm:min-w-[9rem] sm:w-auto"
+            >
+              <MdSwapHoriz className="h-4 w-4" />
+              {backLabel}
+            </button>
+          ) : null}
+          {secondaryAction ? (
+            <button
+              type="button"
+              onClick={secondaryAction.onClick}
+              disabled={confirming || secondaryAction.disabled}
+              className="btn-secondary order-2 w-full sm:w-auto"
+            >
+              {secondaryAction.label}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

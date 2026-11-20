@@ -10,7 +10,9 @@ const {
   updateRecord,
   deleteRecord,
 } = require('../controllers/form.controller');
+const { postEditRequest } = require('../controllers/formEditRequest.controller');
 
+router.post('/:formKey/records/:recordKey/edit-requests', authenticate, rejectIfFormsHubViewOnly, postEditRequest);
 router.get('/:formKey/records/:recordKey', authenticate, getRecord);
 router.put('/:formKey/records/:recordKey', authenticate, rejectIfFormsHubViewOnly, updateRecord);
 router.delete('/:formKey/records/:recordKey', authenticate, rejectIfFormsHubViewOnly, deleteRecord);
