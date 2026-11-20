@@ -2,10 +2,15 @@
  * Copy the sampling date people entered on the Brix forms from audit_logs
  * into brix_yard_sampling and brix_field_sampling.
  *
+ * Only audit rows with action Create and result Success are used.
  * Does NOT truncate, delete, or reload either table.
  * Existing rows are updated in place (Date only) when the audit save can be
  * matched to the row that was written at the same time.
  * A row is inserted only when that save is not already in the table.
+ * Sampling Time is not in the audit body. On insert it is taken from the
+ * audit log submit time, converted to India time (HH:MM:SS), which is how
+ * the form stamps Time. An existing row with an empty Time is filled the
+ * same way. A Time that is already stored is left as it is.
  *
  * Dry run (default — prints what would change, writes nothing):
  *   node scripts/backfill-brix-dates-from-audit.js
@@ -147,6 +152,25 @@ function sqlDate(value) {
   return m ? m[1] : s.slice(0, 10);
 }
 
+/** Audit created_at is UTC on read. Sampling Time is the India clock, same as the form. */
+function samplingTimeFromAudit(createdAt) {
+  let instant = null;
+  if (createdAt instanceof Date && !Number.isNaN(createdAt.getTime())) {
+    instant = createdAt;
+  } else {
+    const m = String(createdAt).trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (!m) return null;
+    instant = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+  }
+  return instant.toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }).slice(11, 19);
+}
+
+function sqlTime(value) {
+  if (value == null) return null;
+  const m = String(value).match(/(\d{2}:\d{2}:\d{2})/);
+  return m ? m[1] : null;
+}
+
 async function columnSet(table) {
   const [cols] = await pool.query(`SHOW COLUMNS FROM \`${table}\``);
   return new Set(cols.map((c) => c.Field));
@@ -157,7 +181,7 @@ async function findMatch(table, createdAt, row) {
     ? '`MiddleBrix` IS NULL'
     : 'ROUND(IFNULL(`MiddleBrix`, -99999), 2) = ROUND(?, 2)';
   const [rows] = await pool.query(
-    `SELECT id, \`Date\`, \`timestamp\`
+    `SELECT id, \`Date\`, \`Time\`, \`timestamp\`
      FROM \`${table}\`
      WHERE ABS(TIMESTAMPDIFF(SECOND, \`timestamp\`, ?)) <= ?
        AND LOWER(TRIM(IFNULL(Name, ''))) = LOWER(TRIM(?))
@@ -191,15 +215,19 @@ async function alreadyStored(table, spec, row) {
     }
   }
   const [rows] = await pool.query(
-    `SELECT id FROM \`${table}\` WHERE ${where.join(' AND ')} LIMIT 1`,
+    `SELECT id, \`Time\` FROM \`${table}\` WHERE ${where.join(' AND ')} LIMIT 1`,
     params,
   );
   return rows[0] || null;
 }
 
-async function insertRow(table, spec, row, createdAt, columns) {
+async function insertRow(table, spec, row, createdAt, samplingTime, columns) {
   const names = ['Date'];
   const values = [row.Date];
+  if (columns.has('Time')) {
+    names.push('Time');
+    values.push(samplingTime);
+  }
   for (const [, column] of spec.text) {
     if (!columns.has(column)) continue;
     names.push(column);
@@ -226,12 +254,11 @@ async function runForm(formKey) {
   const spec = FORMS[formKey];
   const columns = await columnSet(spec.table);
   const [logs] = await pool.query(
-    `SELECT id, created_at, user_name, status_code, success, request_body
+    `SELECT id, created_at, user_name, action_type, status_code, success, request_body
      FROM audit_logs
-     WHERE method = 'POST'
+     WHERE action_type = 'Create'
+       AND success = 1
        AND (path = ? OR path LIKE ?)
-       AND status_code >= 200 AND status_code < 300
-       AND (success = 1 OR success IS NULL)
      ORDER BY id ASC`,
     [`/api/forms/${formKey}`, `/api/forms/${formKey}?%`],
   );
@@ -239,6 +266,7 @@ async function runForm(formKey) {
   const stats = {
     logs: logs.length,
     updated: 0,
+    timeFilled: 0,
     inserted: 0,
     already: 0,
     skippedNoDate: 0,
@@ -259,6 +287,7 @@ async function runForm(formKey) {
       console.log(`  skip audit ${log.id}: no sampling date in the saved form`);
       continue;
     }
+    const samplingTime = samplingTimeFromAudit(log.created_at);
 
     const matches = await findMatch(spec.table, log.created_at, row);
     if (matches.length > 1) {
@@ -269,30 +298,60 @@ async function runForm(formKey) {
 
     if (matches.length === 1) {
       const current = sqlDate(matches[0].Date);
-      if (current === row.Date) {
+      const currentTime = sqlTime(matches[0].Time);
+      const dateSame = current === row.Date;
+      const fillTime = !currentTime && samplingTime && columns.has('Time');
+      if (dateSame && !fillTime) {
         stats.already += 1;
         continue;
       }
-      console.log(`  update ${spec.table} id ${matches[0].id}: Date ${current || 'NULL'} -> ${row.Date} (audit ${log.id}, ${log.user_name || 'unknown'})`);
+      const sets = [];
+      const params = [];
+      if (!dateSame) {
+        sets.push('`Date` = ?');
+        params.push(row.Date);
+      }
+      if (fillTime) {
+        sets.push('`Time` = ?');
+        params.push(samplingTime);
+      }
+      params.push(matches[0].id);
+      const bits = [];
+      if (!dateSame) bits.push(`Date ${current || 'NULL'} -> ${row.Date}`);
+      if (fillTime) bits.push(`Time empty -> ${samplingTime}`);
+      console.log(`  update ${spec.table} id ${matches[0].id}: ${bits.join(', ')} (audit ${log.id}, ${log.user_name || 'unknown'})`);
       if (APPLY) {
         await pool.query(
-          `UPDATE \`${spec.table}\` SET \`Date\` = ? WHERE id = ?`,
-          [row.Date, matches[0].id],
+          `UPDATE \`${spec.table}\` SET ${sets.join(', ')} WHERE id = ?`,
+          params,
         );
       }
-      stats.updated += 1;
+      if (!dateSame) stats.updated += 1;
+      if (fillTime) stats.timeFilled += 1;
       continue;
     }
 
     const existing = await alreadyStored(spec.table, spec, row);
     if (existing) {
-      stats.already += 1;
+      const currentTime = sqlTime(existing.Time);
+      if (!currentTime && samplingTime && columns.has('Time')) {
+        console.log(`  update ${spec.table} id ${existing.id}: Time empty -> ${samplingTime} (audit ${log.id}, ${log.user_name || 'unknown'})`);
+        if (APPLY) {
+          await pool.query(
+            `UPDATE \`${spec.table}\` SET \`Time\` = ? WHERE id = ? AND \`Time\` IS NULL`,
+            [samplingTime, existing.id],
+          );
+        }
+        stats.timeFilled += 1;
+      } else {
+        stats.already += 1;
+      }
       continue;
     }
 
-    console.log(`  insert ${spec.table}: Date ${row.Date}, ${row.Name || 'no name'} (audit ${log.id}, ${log.user_name || 'unknown'})`);
+    console.log(`  insert ${spec.table}: Date ${row.Date}, Time ${samplingTime || 'empty'}, ${row.Name || 'no name'} (audit ${log.id}, ${log.user_name || 'unknown'})`);
     if (APPLY) {
-      await insertRow(spec.table, spec, row, log.created_at, columns);
+      await insertRow(spec.table, spec, row, log.created_at, samplingTime, columns);
     }
     stats.inserted += 1;
   }
