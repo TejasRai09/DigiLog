@@ -138,8 +138,13 @@ const ViewDataModal = ({ form, onClose, appName = null, appId = null, focusAppro
     return isAdmin;
   };
   const canDeleteRow = (row) => isAdmin && !viewOnly && !row?.pendingRequestId;
+  const editRequestsEnabled = data?.editRequestsEnabled === true;
   const canEditRequestRow = (row) => (
-    !isAdmin && !viewOnly && !row?.pendingRequestId && !row?.editRequestId
+    editRequestsEnabled
+    && !isAdmin
+    && !viewOnly
+    && !row?.pendingRequestId
+    && !row?.editRequestId
   );
   const showRowActions = () => !viewOnly;
   const showActionsCol = !viewOnly;

@@ -4,6 +4,8 @@ const {
   countPending,
   approveEditRequest,
   rejectEditRequest,
+  isEditRequestFlowEnabled,
+  setEditRequestFlowEnabled,
 } = require('../services/formEditRequest.service');
 const { isFormsHubViewOnly, VIEW_ONLY_MESSAGE } = require('../utils/formsHubViewOnly');
 
@@ -53,6 +55,27 @@ const getEditRequestCount = async (_req, res) => {
   }
 };
 
+const getEditRequestSettings = async (_req, res) => {
+  try {
+    const enabled = await isEditRequestFlowEnabled();
+    res.json({ enabled });
+  } catch (err) {
+    sendError(res, err, 'Could not load the edit request setting.');
+  }
+};
+
+const putEditRequestSettings = async (req, res) => {
+  if (typeof req.body?.enabled !== 'boolean') {
+    return res.status(400).json({ message: 'enabled must be true or false.' });
+  }
+  try {
+    const enabled = await setEditRequestFlowEnabled(req.body.enabled);
+    res.json({ enabled });
+  } catch (err) {
+    sendError(res, err, 'Could not save the edit request setting.');
+  }
+};
+
 const postApproveEditRequest = async (req, res) => {
   try {
     await approveEditRequest(req.params.id, req.user);
@@ -75,6 +98,8 @@ module.exports = {
   postEditRequest,
   getEditRequests,
   getEditRequestCount,
+  getEditRequestSettings,
+  putEditRequestSettings,
   postApproveEditRequest,
   postRejectEditRequest,
 };

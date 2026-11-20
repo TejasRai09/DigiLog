@@ -38,17 +38,39 @@ export default function EditRequestsSection() {
   const [status, setStatus] = useState('pending');
   const [review, setReview] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [enabled, setEnabled] = useState(false);
+  const [savingToggle, setSavingToggle] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const { data } = await api.get(`/admin/form-edit-requests?status=${status}`);
+      const [{ data }, settings] = await Promise.all([
+        api.get(`/admin/form-edit-requests?status=${status}`),
+        api.get('/admin/form-edit-requests/settings'),
+      ]);
       setRequests(data.requests || []);
+      setEnabled(settings.data?.enabled === true);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not load edit requests.');
     } finally {
       setLoading(false);
     }
   }, [status]);
+
+  const toggleFlow = async () => {
+    const next = !enabled;
+    setSavingToggle(true);
+    try {
+      const { data } = await api.put('/admin/form-edit-requests/settings', { enabled: next });
+      setEnabled(data.enabled === true);
+      toast.success(next
+        ? 'Users can send an edit request from the form action menu.'
+        : 'Edit request is hidden from the form action menu.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update the setting.');
+    } finally {
+      setSavingToggle(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -78,6 +100,33 @@ export default function EditRequestsSection() {
     <ConfigSectionPanel
       title="Edit Requests"
       description="Approve a request to update the saved row. Reject leaves the row unchanged and tells the user."
+      actions={(
+        <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+          <div className="text-right">
+            <p className="text-sm font-semibold text-gray-800">Edit requests for users</p>
+            <p className="text-xs text-gray-500">
+              {enabled ? 'On — Edit request shows in the form action menu' : 'Off — users do not see Edit request'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            aria-label="Allow users to request edits"
+            disabled={savingToggle}
+            onClick={toggleFlow}
+            className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-60 ${
+              enabled ? 'bg-emerald-500' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform mt-0.5 ${
+                enabled ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      )}
     >
       <div className="mb-4 flex gap-2">
         {['pending', 'approved', 'rejected'].map((item) => (

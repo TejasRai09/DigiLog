@@ -1,6 +1,27 @@
 const { pool } = require('../config/mysql');
 const { createUserNotification } = require('./userNotification.service');
 
+const EDIT_REQUESTS_SETTING_KEY = 'form_edit_requests_enabled';
+
+async function isEditRequestFlowEnabled() {
+  const [[row]] = await pool.query(
+    'SELECT setting_value FROM portal_settings WHERE setting_key = ? LIMIT 1',
+    [EDIT_REQUESTS_SETTING_KEY],
+  );
+  if (!row) return false;
+  return row.setting_value === '1' || row.setting_value === 'true';
+}
+
+async function setEditRequestFlowEnabled(enabled) {
+  const value = enabled ? '1' : '0';
+  await pool.query(
+    `INSERT INTO portal_settings (setting_key, setting_value) VALUES (?, ?)
+     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+    [EDIT_REQUESTS_SETTING_KEY, value],
+  );
+  return Boolean(enabled);
+}
+
 function formApi() {
   return require('../controllers/form.controller');
 }
@@ -88,6 +109,11 @@ async function notifyRequester(row, { approved }) {
 }
 
 async function createEditRequest({ user, formKey, recordKey, body, comment }) {
+  if (!(await isEditRequestFlowEnabled())) {
+    const err = new Error('Edit requests are turned off.');
+    err.status = 403;
+    throw err;
+  }
   const api = formApi();
   const config = api.FORM_CONFIG[formKey];
   if (!config) {
@@ -327,4 +353,6 @@ module.exports = {
   rejectEditRequest,
   attachPendingFlags,
   focusPageForRecord,
+  isEditRequestFlowEnabled,
+  setEditRequestFlowEnabled,
 };

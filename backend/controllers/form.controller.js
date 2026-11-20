@@ -721,7 +721,8 @@ const getRecords = async (req, res) => {
       );
       records = rows;
     }
-    res.json({ total, page, limit, tsCol: config.tsCol, sort: dateSort, records });
+    const editRequestsEnabled = await require('../services/formEditRequest.service').isEditRequestFlowEnabled();
+    res.json({ total, page, limit, tsCol: config.tsCol, sort: dateSort, editRequestsEnabled, records });
   } catch (err) {
     sendServerError(res, 'Form records error:', err, MSG.LOAD);
   }
