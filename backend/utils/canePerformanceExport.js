@@ -116,7 +116,7 @@ const CENTER_FIELDS = [
     width: 14,
     calc: true,
   },
-  { header: 'Center Holding (Hrs)', sql: 'holding_time_center', type: 'num', width: 19, calc: true },
+  { header: 'Center Holding (Hrs)', sql: 'NULL', type: 'num', width: 19, calc: true, formulaFrom: 'WaitingTimeCnt (Min)' },
   { header: 'Truck Transit (Hrs)', sql: 'truck_transit_time', type: 'num', width: 18, calc: true },
   { header: 'Yard Waiting (Hrs)', sql: 'yard_waiting_time', type: 'num', width: 17, calc: true },
   { header: 'Time at Donga (Hrs)', sql: 'unloading_time', type: 'num', width: 18, calc: true },
@@ -237,7 +237,7 @@ const AUDIT_GUIDE = {
     ['Most / Least Vehicle Handled', C, 'Per C.Name: row count by Mode Name of Transport and in total'],
   ],
   'vehicle-holding': [
-    ['Holding by Mode', C, 'Per Mode Name of Transport: average of Center Holding (Hrs), row count'],
+    ['Holding by Mode', C, 'Per Mode Name of Transport: average of Center Holding (Hrs) = WaitingTimeCnt (Min) / 60, row count'],
     ['Avg Holding Time (Hrs)', C, 'Average of the Holding by Mode values'],
     [
       'Avg Holding Time at Centers - Trend',
@@ -281,6 +281,17 @@ function toExcelDate(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
   if (!match) return null;
   return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+}
+
+function columnLetter(index) {
+  let n = index + 1;
+  let letters = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    letters = String.fromCharCode(65 + rem) + letters;
+    n = Math.floor((n - 1) / 26);
+  }
+  return letters;
 }
 
 function cellValue(field, raw) {
@@ -482,10 +493,20 @@ async function writeRecordSheet(workbook, { name, table, dateCol, fields, whereF
       where.params,
     );
     rows.forEach((raw) => {
-      const row = sheet.addRow(fields.map((field, i) => cellValue(field, raw[`c${i}`])));
-      for (let i = 0; i < fields.length; i += 1) {
-        row.getCell(i + 1).style = styles[i];
-      }
+      const row = sheet.addRow([]);
+      const rowNumber = row.number;
+      fields.forEach((field, i) => {
+        const cell = row.getCell(i + 1);
+        if (field.formulaFrom) {
+          const sourceIndex = fields.findIndex((item) => item.header === field.formulaFrom);
+          const minutes = cellValue(fields[sourceIndex], raw[`c${sourceIndex}`]);
+          const ref = `${columnLetter(sourceIndex)}${rowNumber}`;
+          cell.value = minutes == null ? null : { formula: `${ref}/60`, result: minutes / 60 };
+        } else {
+          cell.value = cellValue(field, raw[`c${i}`]);
+        }
+        cell.style = styles[i];
+      });
       row.commit();
     });
     count += rows.length;

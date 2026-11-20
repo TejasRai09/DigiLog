@@ -33,7 +33,7 @@ const AppDetail = () => {
           navigate('/dashboard');
           return;
         }
-        const wantsViewData = searchParams.get('viewForm') || searchParams.get('approvalRequestId');
+        const wantsViewData = searchParams.get('viewForm') || searchParams.get('approvalRequestId') || searchParams.get('recordTs');
         const singleHub = getSingleHubRoute(found.forms);
         if (singleHub && !wantsViewData) {
           skipLoadingDone = true;

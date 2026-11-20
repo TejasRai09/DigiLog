@@ -647,7 +647,20 @@ const getFormMeta = async (req, res) => {
   }
 };
 
+function recordsOrderBy(config, dateSort) {
+  const ts = `\`${config.tsCol}\``;
+  if (dateSort === 'date_asc' || dateSort === 'date_desc') {
+    const dir = dateSort === 'date_asc' ? 'ASC' : 'DESC';
+    return `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` ${dir}, (${ts} IS NULL) ASC, ${ts} ${dir}`;
+  }
+  if (config.sortByTs) {
+    return `ORDER BY (${ts} IS NULL) ASC, ${ts} DESC`;
+  }
+  return `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, ${ts} DESC`;
+}
+
 // ─── GET /api/forms/:formKey/records?page=1&limit=20 ─────────
+// sort=date_desc | date_asc sorts Brix sampling forms by Sampling Date.
 const getRecords = async (req, res) => {
   const { formKey } = req.params;
   const config = FORM_CONFIG[formKey];
@@ -660,6 +673,10 @@ const getRecords = async (req, res) => {
   const page   = Math.max(1, parseInt(req.query.page  || '1',  10));
   const limit  = Math.min(10000, parseInt(req.query.limit || '20', 10)); // allow up to 10000 for CSV export
   const offset = (page - 1) * limit;
+  const dateSort = (
+    (formKey === 'brix_yard_sampling' || formKey === 'brix_field_sampling')
+    && (req.query.sort === 'date_asc' || req.query.sort === 'date_desc')
+  ) ? req.query.sort : null;
 
   try {
     const overlayUserId = req.user?.role === 'admin' ? null : req.user?.id;
@@ -670,9 +687,16 @@ const getRecords = async (req, res) => {
       `SELECT COUNT(*) AS total FROM \`${config.table}\``
     );
     const total = Number(dbTotal) + virtualCount;
-    const orderBy = config.sortByTs
-      ? `ORDER BY (\`${config.tsCol}\` IS NULL) ASC, \`${config.tsCol}\` DESC`
-      : `ORDER BY (\`Date\` IS NULL) ASC, \`Date\` DESC, \`${config.tsCol}\` DESC`;
+    const orderBy = recordsOrderBy(config, dateSort);
+
+    let focusPage = null;
+    if (req.query.focus) {
+      focusPage = await require('../services/formEditRequest.service').focusPageForRecord(
+        config,
+        req.query.focus,
+        { limit, virtualCount },
+      );
+    }
 
     let records;
     if (offset < virtualCount) {
@@ -697,7 +721,8 @@ const getRecords = async (req, res) => {
       );
       records = rows;
     }
-    res.json({ total, page, limit, tsCol: config.tsCol, records });
+    const editRequestsEnabled = await require('../services/formEditRequest.service').isEditRequestFlowEnabled();
+    res.json({ total, page, limit, tsCol: config.tsCol, sort: dateSort, editRequestsEnabled, records });
   } catch (err) {
     sendServerError(res, 'Form records error:', err, MSG.LOAD);
   }
@@ -819,6 +844,8 @@ const updateRecord = async (req, res) => {
 
     if (!requireAdmin(req, res)) return;
 
+    const applied = await applySavedRecordUpdate(formKey, recordKey, req.body);
+    req.auditBefore = applied.before;
     const existing = await fetchRecordByKey(config, recordKey);
     if (!existing) return res.status(404).json({ message: 'Record not found.' });
 
@@ -907,12 +934,58 @@ async function insertPreparedRow(formKey, config, payload) {
     err.status = 409;
     throw err;
   }
-  const columns      = Object.keys(row).map((c) => `\`${c}\``).join(', ');
+  const columns = Object.keys(row).map((c) => `\`${c}\``).join(', ');
   const placeholders = Object.keys(row).map(() => '?').join(', ');
   await pool.execute(
     `INSERT INTO \`${config.table}\` (${columns}) VALUES (${placeholders})`,
     Object.values(row),
   );
+}
+
+async function applySavedRecordUpdate(formKey, recordKey, body) {
+  const config = FORM_CONFIG[formKey];
+  if (!config) {
+    const err = new Error('Unknown form.');
+    err.status = 400;
+    throw err;
+  }
+  const existing = await fetchRecordByKey(config, recordKey);
+  if (!existing) {
+    const err = new Error('Record not found.');
+    err.status = 404;
+    throw err;
+  }
+  const payload = buildAdminUpdatePayload(formKey, config, body);
+  if (Object.keys(payload).length === 0) {
+    const err = new Error('No fields to update.');
+    err.status = 400;
+    throw err;
+  }
+  const fieldCheck = validateFormPayload(formKey, payload);
+  if (!fieldCheck.ok) {
+    const err = new Error(fieldCheck.message);
+    err.status = 400;
+    throw err;
+  }
+  const dup = await hasDuplicateOperationRow(pool, config.table, config.pattern, payload, {
+    autoTime: config.autoTime,
+    tsCol: config.tsCol,
+    excludeRecordKey: recordKey,
+  });
+  if (dup) {
+    const err = new Error(DUPLICATE_OPERATION_MSG);
+    err.status = 409;
+    throw err;
+  }
+  const before = {};
+  for (const key of Object.keys(payload)) before[key] = existing[key];
+  const setParts = Object.keys(payload).map((c) => `\`${c}\` = ?`);
+  const values = [...Object.values(payload), decodeRecordKey(recordKey)];
+  await pool.execute(
+    `UPDATE \`${config.table}\` SET ${setParts.join(', ')} WHERE \`${config.tsCol}\` = ?`,
+    values,
+  );
+  return { before, payload };
 }
 
 /**
@@ -950,4 +1023,11 @@ module.exports = {
   deleteRecord,
   canAccessForm,
   applyApprovedInsert,
+  applySavedRecordUpdate,
+  buildAdminUpdatePayload,
+  fetchRecordByKey,
+  validateFormPayload,
+  hasDuplicateOperationRow,
+  normalizeRecordTimestamp,
+  DUPLICATE_OPERATION_MSG,
 };

@@ -134,4 +134,20 @@ router.get('/maintenance-notes-approval-settings', getMaintenanceNotesApprovalSe
 router.put('/maintenance-notes-approval-settings', putMaintenanceNotesApprovalSettings);
 router.post('/maintenance-notes-approval-settings/resend-digest', postResendMaintenanceNotesDigest);
 
+const {
+  getEditRequests,
+  getEditRequestCount,
+  getEditRequestSettings,
+  putEditRequestSettings,
+  postApproveEditRequest,
+  postRejectEditRequest,
+} = require('../controllers/formEditRequest.controller');
+
+router.get('/form-edit-requests', getEditRequests);
+router.get('/form-edit-requests/count', getEditRequestCount);
+router.get('/form-edit-requests/settings', getEditRequestSettings);
+router.put('/form-edit-requests/settings', putEditRequestSettings);
+router.post('/form-edit-requests/:id/approve', postApproveEditRequest);
+router.post('/form-edit-requests/:id/reject', postRejectEditRequest);
+
 module.exports = router;
