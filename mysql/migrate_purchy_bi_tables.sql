@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS `purchy_years` (
   PRIMARY KEY (`year`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+
 INSERT IGNORE INTO `purchy_years` (`year`, `year_order`) VALUES
   ('2020', 1), ('2021', 2), ('2022', 3), ('2023', 4), ('2024', 5), ('2025', 6), ('2026', 7);
 
