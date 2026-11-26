@@ -478,7 +478,8 @@ async function runPack(name, ctx) {
     case 'holdingByCenter': {
       const [rows] = await mysqlPool.execute(
         `SELECT IFNULL(center,'Unknown') as center,
-          AVG(holding_time_center) as holdingHrs, COUNT(purchy_no) as vehicles
+          AVG(TIMESTAMPDIFF(MINUTE, vehicle_arrival_center, tare_weighment_centre) / 60) as holdingHrs,
+          COUNT(purchy_no) as vehicles
         FROM cnt_performance WHERE ${c.sql}
         GROUP BY center ORDER BY center`,
         c.params

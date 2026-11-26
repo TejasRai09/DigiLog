@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import api from '../../api/axios';
 import { MdArrowBack, MdGrass } from 'react-icons/md';
 import BiDashboardHeader from '../../components/bi/BiDashboardHeader';
@@ -107,7 +107,7 @@ const CONDITION_COLORS = {
 const CustomChartTooltip = ({ active, payload, label, darkMode }) => {
   if (active && payload && payload.length) {
     return (
-      <div className={`p-2.5 rounded-lg shadow-xl text-[11px] backdrop-blur-md border ${darkMode
+      <div className={`p-2.5 rounded-lg shadow-xl text-sm backdrop-blur-md border ${darkMode
           ? 'bg-slate-900/95 text-white border-slate-700/50'
           : 'bg-white/95 text-slate-800 border-slate-200 shadow-slate-200/50'
         }`}>
@@ -138,7 +138,7 @@ const MetricCard = ({ title, value, unit, change, changeText, isNegative, sparkl
   <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 sm:p-3 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
     <div>
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase flex items-center gap-1">
+        <span className="text-sm font-semibold text-slate-600 dark:text-slate-400 tracking-wide uppercase flex items-center gap-1">
           {title}
           <Info className="w-3 h-3 text-slate-400 cursor-pointer hover:text-slate-600" />
         </span>
@@ -146,7 +146,7 @@ const MetricCard = ({ title, value, unit, change, changeText, isNegative, sparkl
       <div className="flex items-baseline justify-between gap-1 mt-0.5">
         <div className="flex items-baseline gap-1">
           <span className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{value}</span>
-          {unit && <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400">{unit}</span>}
+          {unit && <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-400">{unit}</span>}
         </div>
         {sparklineData && (
           <div className="w-16 sm:w-20 h-7">
@@ -166,9 +166,9 @@ const MetricCard = ({ title, value, unit, change, changeText, isNegative, sparkl
         )}
       </div>
     </div>
-    <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+    <div className="mt-2 pt-1.5 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-sm">
       {change !== undefined && (
-        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-bold text-[10px] ${isNegative
+        <div className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-bold text-[13px] ${isNegative
             ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'
             : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
           }`}>
@@ -176,7 +176,7 @@ const MetricCard = ({ title, value, unit, change, changeText, isNegative, sparkl
           <span>{change}</span>
         </div>
       )}
-      <span className="text-slate-500 dark:text-slate-400 font-medium truncate ml-1 text-[10px]">
+      <span className="text-slate-500 dark:text-slate-400 font-medium truncate ml-1 text-[13px]">
         {changeText || subtitle || 'vs Prev.'}
       </span>
     </div>
@@ -196,13 +196,13 @@ const formatVariance = (v) => {
 const ChangeBadge = ({ change, variance, isUp, label }) => {
   if (change === undefined || change === null || Number.isNaN(Number(change))) {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[13px] font-medium bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500">
         No prior data
       </span>
     );
   }
   return (
-    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold
+    <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[13px] font-bold
       ${isUp
         ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400'
         : 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400'}`}>
@@ -213,6 +213,43 @@ const ChangeBadge = ({ change, variance, isUp, label }) => {
     </span>
   );
 };
+
+function DashboardFit({ children, layoutKey }) {
+  const hostRef = useRef(null);
+  const innerRef = useRef(null);
+
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    const inner = innerRef.current;
+    if (!host || !inner) return undefined;
+
+    const fit = () => {
+      const hostH = host.clientHeight;
+      const hostW = host.clientWidth;
+      if (!hostH || !hostW) return;
+      inner.style.transform = 'none';
+      inner.style.width = `${hostW}px`;
+      const contentH = inner.scrollHeight;
+      const scale = contentH > 0 ? Math.max(0.35, Math.min(1, hostH / contentH)) : 1;
+      inner.style.width = `${hostW / scale}px`;
+      inner.style.transformOrigin = 'top left';
+      inner.style.transform = `scale(${scale})`;
+    };
+
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, [layoutKey]);
+
+  return (
+    <div ref={hostRef} className="absolute inset-0 overflow-hidden">
+      <div ref={innerRef} className="px-3 py-2 sm:px-4">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Main Dashboard Component
@@ -299,7 +336,7 @@ export default function BrixSamplingDashboard() {
     setYardDates(updateFn);
   }, [clampToDb]);
 
-  const applyStatsDateRange = useCallback((dateRange, tab) => {
+  const applyStatsDateRange = useCallback((dateRange, tab, mappingFromResponse) => {
     if (!dateRange || (tab !== 'field' && tab !== 'yard')) return;
     const minStr = toInputDate(dateRange.minDate);
     const maxStr = toInputDate(dateRange.maxDate);
@@ -314,29 +351,33 @@ export default function BrixSamplingDashboard() {
     setFieldDateRange(updateRange);
     setYardDateRange(updateRange);
 
-    const updateDates = (prev) => {
-      const min = minStr || '';
-      const max = maxStr || '';
+    if (!fieldRangeSeededRef.current && minStr && maxStr) {
+      fieldRangeSeededRef.current = true;
+      yardRangeSeededRef.current = true;
+      const mapping = mappingFromResponse && typeof mappingFromResponse === 'object' && Object.keys(mappingFromResponse).length
+        ? mappingFromResponse
+        : seasonMapping;
+      const toIso = resolveDashboardToDate(null, maxStr);
+      const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
+      const std = getCockpitPresetDateRange('STD', ref, mapping);
+      const next = {
+        from: clampIso(std.from, minStr, maxStr),
+        to: clampIso(std.to, minStr, maxStr),
+      };
+      setFieldDates(next);
+      setYardDates(next);
+      setRangePreset('STD');
+      return;
+    }
 
-      // First load across tabs: default to STD anchored to global union latest date
-      if (!fieldRangeSeededRef.current && min && max) {
-        fieldRangeSeededRef.current = true;
-        yardRangeSeededRef.current = true;
-        const toIso = resolveDashboardToDate(null, max);
-        const ref = toIso ? new Date(`${toIso}T12:00:00`) : new Date();
-        const std = getCockpitPresetDateRange('STD', ref, seasonMapping);
-        const nextFrom = clampIso(std.from, min, max);
-        const nextTo = clampIso(std.to, min, max);
-        return { from: nextFrom, to: nextTo };
-      }
-
-      const from = prev.from ? clampIso(prev.from, min, max) : min;
-      const to = prev.to ? clampIso(prev.to, min, max) : max;
+    const clampExisting = (prev) => {
+      const from = prev.from ? clampIso(prev.from, minStr, maxStr) : minStr;
+      const to = prev.to ? clampIso(prev.to, minStr, maxStr) : maxStr;
       if (prev.from === from && prev.to === to) return prev;
       return { from, to };
     };
-    setFieldDates(updateDates);
-    setYardDates(updateDates);
+    setFieldDates(clampExisting);
+    setYardDates(clampExisting);
   }, [seasonMapping]);
 
   // Cockpit-style season compare labels from Season Mapping
@@ -458,7 +499,7 @@ export default function BrixSamplingDashboard() {
       if (signal?.aborted) return;
 
       if (data.seasonMapping) mergeSeasonMapping(data.seasonMapping);
-      if (data.dateRange) applyStatsDateRange(data.dateRange, 'field');
+      if (data.dateRange) applyStatsDateRange(data.dateRange, 'field', data.seasonMapping);
       if (Array.isArray(data.testTypes) && data.testTypes.length) setTestTypes(data.testTypes);
 
       // First hit seeds From/To only — skip full chart work until dates exist
@@ -543,7 +584,7 @@ export default function BrixSamplingDashboard() {
       if (signal?.aborted) return;
 
       if (data.seasonMapping) mergeSeasonMapping(data.seasonMapping);
-      if (data.dateRange) applyStatsDateRange(data.dateRange, 'yard');
+      if (data.dateRange) applyStatsDateRange(data.dateRange, 'yard', data.seasonMapping);
       if (Array.isArray(data.deliveryPoints) && data.deliveryPoints.length) {
         setDeliveryPoints(data.deliveryPoints);
       }
@@ -656,7 +697,7 @@ export default function BrixSamplingDashboard() {
               { id: 'yard', icon: <Truck className="w-3.5 h-3.5" />, label: 'Yard Sampling' },
             ].map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`shrink-0 flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                className={`shrink-0 flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2 py-1 text-[13px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-sm ${
                   activeTab === t.id
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                     : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -671,7 +712,7 @@ export default function BrixSamplingDashboard() {
           <div className={`flex shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
             {['WTD', 'MTD', 'STD'].map(type => (
               <button key={type} onClick={() => handleQuickDate(type)}
-                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[13px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-sm ${
                   rangePreset === type
                     ? 'bg-blue-600 text-white shadow-md'
                     : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -680,7 +721,7 @@ export default function BrixSamplingDashboard() {
               </button>
             ))}
             <button type="button" onClick={() => handleQuickDate('Custom')}
-              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+              className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[13px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-sm ${
                 rangePreset === 'Custom'
                   ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25'
                   : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -692,9 +733,9 @@ export default function BrixSamplingDashboard() {
           <div className="flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:gap-2">
             {activeTab === 'field' && (
               <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Operation</span>
+                <span className={`text-[12px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Operation</span>
                 <select value={fieldTestType} onChange={e => setFieldTestType(e.target.value)}
-                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[13px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-sm ${
                     darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                   }`}>
                   <option value="All">All</option>
@@ -705,9 +746,9 @@ export default function BrixSamplingDashboard() {
 
             {activeTab === 'yard' && (
               <div className="flex shrink-0 flex-col gap-0.5">
-                <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Point</span>
+                <span className={`text-[12px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>Point</span>
                 <select value={yardDelivery} onChange={e => setYardDelivery(e.target.value)}
-                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                  className={`w-[6rem] min-w-0 rounded-lg border px-1.5 py-1 text-[13px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:w-[7.25rem] sm:px-2 sm:py-1.5 sm:text-sm ${
                     darkMode ? 'border-slate-600 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-800'
                   }`}>
                   <option value="All">All</option>
@@ -719,29 +760,29 @@ export default function BrixSamplingDashboard() {
             <div className={`mx-0.5 hidden h-6 w-px shrink-0 sm:block ${darkMode ? 'bg-slate-600' : 'bg-slate-200'}`} />
 
             <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
+              <span className={`text-[12px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>From</span>
               <input type="date" value={dateFrom}
                 min={dbMinDateStr || undefined}
                 max={(dateTo && dbMaxDateStr ? (dateTo < dbMaxDateStr ? dateTo : dbMaxDateStr) : (dateTo || dbMaxDateStr)) || undefined}
                 onChange={e => { setDateFrom(clampToDb(e.target.value)); setRangePreset('Custom'); }}
-                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[13px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-sm ${
                   darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
                 }`} />
             </div>
             <div className="flex shrink-0 flex-col gap-0.5">
-              <span className={`text-[9px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
+              <span className={`text-[12px] font-bold uppercase tracking-wide ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>To</span>
               <input type="date" value={dateTo}
                 min={(dateFrom && dbMinDateStr ? (dateFrom > dbMinDateStr ? dateFrom : dbMinDateStr) : (dateFrom || dbMinDateStr)) || undefined}
                 max={dbMaxDateStr || undefined}
                 onChange={e => { setDateTo(clampToDb(e.target.value)); setRangePreset('Custom'); }}
-                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[10px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-[11px] ${
+                className={`bi-date-input min-w-0 rounded-lg border px-1.5 py-1 text-[13px] font-semibold shadow-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500 sm:px-2 sm:py-1.5 sm:text-sm ${
                   darkMode ? 'border-slate-600 bg-slate-900 text-slate-100 [color-scheme:dark]' : 'border-slate-200 bg-white text-slate-800'
                 }`} />
             </div>
           </div>
 
           <div className={`flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 rounded-xl border p-1 sm:gap-2 sm:p-1.5 ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'}`}>
-            <span className={`ml-0.5 shrink-0 text-[9px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[10px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            <span className={`ml-0.5 shrink-0 text-[12px] font-bold uppercase tracking-wide sm:ml-1 sm:text-[13px] ${darkMode ? 'text-slate-500' : 'text-slate-400'}`}>
               Compare
             </span>
             <div className="flex min-w-0 flex-wrap gap-0.5 sm:gap-1">
@@ -750,7 +791,7 @@ export default function BrixSamplingDashboard() {
                   key={comp.id}
                   type="button"
                   onClick={() => onCompareSelect(comp.id)}
-                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[10px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-[11px] ${
+                  className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-[13px] font-black transition-all sm:px-2.5 sm:py-1.5 sm:text-sm ${
                     comparisonType === comp.id
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                       : `text-slate-500 hover:text-slate-700 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-50'}`
@@ -765,7 +806,7 @@ export default function BrixSamplingDashboard() {
       </div>
 
       {/* ── Main Dashboard Body ── */}
-      <main className="flex-1 w-full px-3 sm:px-4 py-2 flex flex-col justify-between overflow-hidden gap-2 relative">
+      <main className="relative min-h-0 w-full flex-1 overflow-hidden">
 
         {/* ── Loading Overlay ── */}
         {((activeTab === 'field' && fieldLoading) || (activeTab === 'yard' && yardLoading)) && (
@@ -773,19 +814,19 @@ export default function BrixSamplingDashboard() {
             <div className="relative">
               <div className="w-12 h-12 rounded-full border-4 border-slate-200 dark:border-slate-700 border-t-blue-500 dark:border-t-blue-400 animate-spin" />
             </div>
-            <p className="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase animate-pulse">
+            <p className="mt-3 text-sm font-bold text-slate-500 dark:text-slate-400 tracking-wider uppercase animate-pulse">
               Loading {activeTab === 'field' ? 'Field' : 'Yard'} Data…
             </p>
           </div>
         )}
 
-        <div className="flex-1 flex flex-col justify-between overflow-hidden gap-2 min-h-0">
+        <DashboardFit layoutKey={`${activeTab}-${fieldLoading}-${yardLoading}-${yardVehicle.length}-${fieldCropCond.length}`}>
 
             {/* ════════════════════════════════════════════════════
                 FIELD TAB  — Matching reference mockup design
             ════════════════════════════════════════════════════ */}
             {activeTab === 'field' && (
-              <div className="flex-1 flex flex-col justify-between overflow-hidden gap-2.5 min-h-0">
+              <div className="flex flex-col gap-2.5">
 
                 {/* ── Top KPI Row ── */}
                 <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -849,19 +890,19 @@ export default function BrixSamplingDashboard() {
                 </div>
 
                 {/* ── Top Main Section Row (Brix Trend Across Sections + Crop Health & Land Classification) ── */}
-                <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-2.5 min-h-0 overflow-hidden">
+                <div className="grid h-[300px] grid-cols-1 gap-2.5 lg:grid-cols-12">
 
                   {/* Left: Brix Trend Across Plant Sections (~60% / col-span-7) */}
                   <div className="lg:col-span-7 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex flex-col justify-between">
                     <div className="flex items-center justify-between mb-1">
                       <div>
-                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                           Brix Trend Across Plant Sections
                         </h3>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">Top, Middle &amp; Bottom cane stalk sweetness</p>
+                        <p className="text-[13px] text-slate-500 dark:text-slate-400">Top, Middle &amp; Bottom cane stalk sweetness</p>
                       </div>
-                      <div className="flex items-center gap-3 text-[10px] font-bold">
+                      <div className="flex items-center gap-3 text-[13px] font-bold">
                         <span className="flex items-center gap-1 text-amber-500"><span className="w-2 h-2 rounded-full bg-amber-500"></span>Bottom</span>
                         <span className="flex items-center gap-1 text-emerald-500"><span className="w-2 h-2 rounded-full bg-emerald-500"></span>Middle</span>
                         <span className="flex items-center gap-1 text-indigo-500"><span className="w-2 h-2 rounded-full bg-indigo-500"></span>Top</span>
@@ -884,8 +925,8 @@ export default function BrixSamplingDashboard() {
                                 <ResponsiveContainer width="100%" height="100%">
                                   <LineChart data={rows} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                                    <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
-                                    <YAxis tickLine={false} tick={{ fontSize: 9, fill: tickColor }} domain={[0, 35]} />
+                                    <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
+                                    <YAxis tickLine={false} tick={{ fontSize: 12, fill: tickColor }} domain={[0, 35]} />
                                     <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                                     <Line type="monotone" dataKey="bottomBrix" name="Bottom Brix" stroke="#eab308" strokeWidth={2.5} dot={{ r: 2 }} />
                                     <Line type="monotone" dataKey="midBrix" name="Mid Brix" stroke="#22c55e" strokeWidth={2.5} dot={{ r: 2.5 }} />
@@ -902,8 +943,8 @@ export default function BrixSamplingDashboard() {
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={fieldTrend.length ? fieldTrend : fieldBrixTrendData} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                          <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
-                          <YAxis tickLine={false} tick={{ fontSize: 9, fill: tickColor }} domain={[0, 35]} />
+                          <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
+                          <YAxis tickLine={false} tick={{ fontSize: 12, fill: tickColor }} domain={[0, 35]} />
                           <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                           <Line type="monotone" dataKey="bottomBrix" name="Bottom Brix" stroke="#eab308" strokeWidth={2.5} dot={{ r: 2 }} />
                           <Line type="monotone" dataKey="midBrix" name="Mid Brix" stroke="#22c55e" strokeWidth={2.5} dot={{ r: 2.5 }} />
@@ -918,12 +959,12 @@ export default function BrixSamplingDashboard() {
                     {/* Left Vertical Card: Crop Standing & Health */}
                     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                       <div className="flex items-center justify-between mb-0.5">
-                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                           <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
                           Crop Standing
                         </h3>
                         <div className="flex items-center gap-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">HEALTH</span>
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">HEALTH</span>
                           <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                             compact
@@ -969,11 +1010,11 @@ export default function BrixSamplingDashboard() {
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                           <span className="text-base sm:text-lg font-black text-slate-900 dark:text-white">99.8%</span>
-                          <span className="text-[10px] font-bold text-emerald-600">Good</span>
+                          <span className="text-[13px] font-bold text-emerald-600">Good</span>
                         </div>
                       </div>
 
-                      <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1 text-[9px] font-bold">
+                      <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1 text-[12px] font-bold">
                         <div className="flex items-center justify-between p-1 rounded bg-slate-50 dark:bg-slate-800/50">
                           <span className="text-slate-500 font-medium">Good:</span>
                           <span className="text-blue-600 font-extrabold">2.64K (99.8%)</span>
@@ -988,12 +1029,12 @@ export default function BrixSamplingDashboard() {
                     {/* Right Vertical Card: Land Topography */}
                     <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                       <div className="flex items-center justify-between mb-0.5">
-                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 truncate">
                           <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
                           Land Topography
                         </h3>
                         <div className="flex items-center gap-1">
-                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">TYPE</span>
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TYPE</span>
                           <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                             compact
@@ -1039,7 +1080,7 @@ export default function BrixSamplingDashboard() {
                         </ResponsiveContainer>
                       </div>
 
-                      <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1 text-[9px] font-bold">
+                      <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1 text-[12px] font-bold">
                         <div className="flex items-center justify-between p-1 rounded bg-slate-50 dark:bg-slate-800/50">
                           <span className="text-slate-500 font-medium">Upland:</span>
                           <span className="text-indigo-600 font-extrabold">80% (2.12K)</span>
@@ -1060,13 +1101,13 @@ export default function BrixSamplingDashboard() {
                   <div className="md:col-span-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                     <div className="flex items-center justify-between mb-0.5">
                       <div>
-                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-cyan-500"></span>
                           Brix Trend - Hydration &amp; Field Condition
                         </h3>
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400">Impact of Waterlogged vs Regular Irrigation</p>
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400">Impact of Waterlogged vs Regular Irrigation</p>
                       </div>
-                      <div className="flex items-center gap-2 text-[9px] font-bold">
+                      <div className="flex items-center gap-2 text-[12px] font-bold">
                         <span className="text-amber-500">■ No Water</span>
                         <span className="text-slate-400">-- Avg</span>
                         <span className="text-cyan-500">■ Waterlogged</span>
@@ -1087,8 +1128,8 @@ export default function BrixSamplingDashboard() {
                               <ResponsiveContainer width="100%" height="100%">
                                 <LineChart data={fieldCondTrend} margin={{ top: 2, right: 10, left: -25, bottom: 0 }}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                                  <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                                  <YAxis tickLine={false} tick={{ fontSize: 8, fill: tickColor }} domain={[0, 25]} />
+                                  <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                                  <YAxis tickLine={false} tick={{ fontSize: 11, fill: tickColor }} domain={[0, 25]} />
                                   <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                                   <Line type="monotone" dataKey="noWater" name="No Water" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} connectNulls={true} />
                                   <Line type="monotone" dataKey="overallAvg" name="Avg" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
@@ -1104,8 +1145,8 @@ export default function BrixSamplingDashboard() {
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={fieldCondTrend} margin={{ top: 2, right: 10, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                          <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                          <YAxis tickLine={false} tick={{ fontSize: 8, fill: tickColor }} domain={[0, 25]} />
+                          <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                          <YAxis tickLine={false} tick={{ fontSize: 11, fill: tickColor }} domain={[0, 25]} />
                           <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                           <Line type="monotone" dataKey="noWater" name="No Water" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2 }} connectNulls={true} />
                           <Line type="monotone" dataKey="overallAvg" name="Avg" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="3 3" dot={false} />
@@ -1118,9 +1159,9 @@ export default function BrixSamplingDashboard() {
                   {/* Col 2: Maturity by Soil Type (~27% / col-span-3) */}
                   <div className="md:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Maturity by Soil Type</h3>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Maturity by Soil Type</h3>
                       <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-slate-400">Count &amp; Ratio</span>
+                        <span className="text-[12px] text-slate-400">Count &amp; Ratio</span>
                         <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
@@ -1139,9 +1180,9 @@ export default function BrixSamplingDashboard() {
                                 <ResponsiveContainer width="100%" height="100%">
                                   <ComposedChart data={rows} margin={{ top: 4, right: 0, left: -25, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                                    <XAxis dataKey="soil" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                                    <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                                    <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <XAxis dataKey="soil" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                                    <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                                    <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
                                     <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                                     <Bar yAxisId="left" dataKey="samples" name="Samples" fill="#818cf8" opacity={0.3} radius={[3, 3, 0, 0]} />
                                     <Line yAxisId="right" type="monotone" dataKey="maturity" name="Maturity" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} />
@@ -1157,9 +1198,9 @@ export default function BrixSamplingDashboard() {
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={fieldSoilType.length ? fieldSoilType : soilTypeMaturityData} margin={{ top: 4, right: 0, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                          <XAxis dataKey="soil" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                          <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                          <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                          <XAxis dataKey="soil" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                          <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                          <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
                           <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                           <Bar yAxisId="left" dataKey="samples" name="Samples" fill="#818cf8" opacity={0.3} radius={[3, 3, 0, 0]} />
                           <Line yAxisId="right" type="monotone" dataKey="maturity" name="Maturity" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3, fill: '#3b82f6' }} />
@@ -1171,9 +1212,9 @@ export default function BrixSamplingDashboard() {
                   {/* Col 3: Maturity by Crop Variety (~28% / col-span-4) */}
                   <div className="md:col-span-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex flex-col justify-between min-h-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Maturity by Crop Variety</h3>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Maturity by Crop Variety</h3>
                       <div className="flex items-center gap-1">
-                        <span className="text-[9px] text-slate-400">Cultivars</span>
+                        <span className="text-[12px] text-slate-400">Cultivars</span>
                         <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
@@ -1192,9 +1233,9 @@ export default function BrixSamplingDashboard() {
                                 <ResponsiveContainer width="100%" height="100%">
                                   <ComposedChart data={rows} margin={{ top: 4, right: 0, left: -25, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                                    <XAxis dataKey="variety" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                                    <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                                    <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                                    <XAxis dataKey="variety" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                                    <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                                    <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
                                     <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                                     <Bar yAxisId="left" dataKey="samples" name="Samples" fill="#818cf8" opacity={0.3} radius={[3, 3, 0, 0]} />
                                     <Line yAxisId="right" type="monotone" dataKey="maturity" name="Maturity" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2.5, fill: '#3b82f6' }} />
@@ -1210,9 +1251,9 @@ export default function BrixSamplingDashboard() {
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={fieldVariety.length ? fieldVariety : cropVarietyData} margin={{ top: 4, right: 0, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                          <XAxis dataKey="variety" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                          <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
-                          <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 8, fill: tickColor }} />
+                          <XAxis dataKey="variety" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                          <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
+                          <YAxis yAxisId="right" orientation="right" domain={[0.8, 1.2]} tickLine={false} tick={{ fontSize: 11, fill: tickColor }} />
                           <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                           <Bar yAxisId="left" dataKey="samples" name="Samples" fill="#818cf8" opacity={0.3} radius={[3, 3, 0, 0]} />
                           <Line yAxisId="right" type="monotone" dataKey="maturity" name="Maturity" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2.5, fill: '#3b82f6' }} />
@@ -1230,20 +1271,7 @@ export default function BrixSamplingDashboard() {
                 YARD TAB  — Live data from Power BI formulas
             ════════════════════════════════════════════════════ */}
             {activeTab === 'yard' && (
-              <div className="flex-1 flex flex-col justify-between overflow-hidden gap-2 min-h-0">
-
-                {/* Section header */}
-                <div className="shrink-0 flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-1">
-                  <div className="flex items-center gap-1.5">
-                    <Truck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                      Yard Intake &amp; Consignment Quality
-                    </h2>
-                  </div>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                    {yardLoading ? 'Loading…' : `${Number(yardStats?.totalSamples?.value ?? 0).toLocaleString()} Yard Samples`}
-                  </span>
-                </div>
+              <div className="flex flex-col gap-2">
 
                 {/* KPI Cards — 5 primary measures */}
                 <div className="shrink-0 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2">
@@ -1325,8 +1353,8 @@ export default function BrixSamplingDashboard() {
                 <div className="shrink-0 grid grid-cols-2 gap-2">
                   <div className="bg-rose-50 dark:bg-rose-950/30 rounded-xl border border-rose-200 dark:border-rose-800/50 p-2.5 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wide">Total Affected Cane</p>
-                      <p className="text-[9px] text-rose-500">Diseased OR Stale = Yes</p>
+                      <p className="text-[13px] font-semibold text-rose-600 dark:text-rose-400 uppercase tracking-wide">Total Affected Cane</p>
+                      <p className="text-[12px] text-rose-500">Diseased OR Stale = Yes</p>
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-extrabold text-rose-700 dark:text-rose-300">
@@ -1344,8 +1372,8 @@ export default function BrixSamplingDashboard() {
                   </div>
                   <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-xl border border-emerald-200 dark:border-emerald-800/50 p-2.5 flex items-center justify-between">
                     <div>
-                      <p className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Brix &gt; {yardStats?.brixThreshold ?? 18} Rate</p>
-                      <p className="text-[9px] text-emerald-600">COUNT(MiddleBrix &gt; {yardStats?.brixThreshold ?? 18}) / Total</p>
+                      <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">Brix &gt; {yardStats?.brixThreshold ?? 18} Rate</p>
+                      <p className="text-[12px] text-emerald-600">COUNT(MiddleBrix &gt; {yardStats?.brixThreshold ?? 18}) / Total</p>
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-300">
@@ -1364,14 +1392,14 @@ export default function BrixSamplingDashboard() {
                 </div>
 
                 {/* Charts row */}
-                <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-2.5 min-h-0 overflow-hidden">
+                <div className="grid grid-cols-1 items-stretch gap-2.5 lg:grid-cols-3 lg:min-h-[360px]">
 
                   {/* Combo chart — Brix daily trend */}
                   <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-3 shadow-sm flex flex-col">
                     <div className="mb-1 flex items-start justify-between gap-2">
                       <div>
-                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % Daily Trend</h3>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Middle Brix % Daily Trend</h3>
+                        <p className="text-[13px] text-slate-500 dark:text-slate-400">
                           Bars = samples with Brix &gt; {yardStats?.brixThreshold ?? 18} · Line = avg Brix % (secondary axis, min 16)
                         </p>
                       </div>
@@ -1391,11 +1419,11 @@ export default function BrixSamplingDashboard() {
                             <ResponsiveContainer width="100%" height="100%">
                               <ComposedChart data={yardTrend} margin={{ top: 4, right: 10, left: -25, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.6} />
-                                <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
-                                <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
-                                <YAxis yAxisId="right" orientation="right" domain={[16, 'auto']} tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
+                                <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
+                                <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
+                                <YAxis yAxisId="right" orientation="right" domain={[16, 'auto']} tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
                                 <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
-                                <Legend wrapperStyle={{ fontSize: '10px' }} />
+                                <Legend wrapperStyle={{ fontSize: '13px' }} />
                                 <Bar yAxisId="left" dataKey="countAbove18" name={`Middle Brix > ${yardStats?.brixThreshold ?? 18}`} fill="#ec4899" opacity={0.5} radius={[3, 3, 0, 0]} />
                                 <Line yAxisId="right" type="monotone" dataKey="avgBrix" name="Avg Middle Brix %" stroke={lineDark} strokeWidth={2.5} dot={{ r: 2.5 }} />
                               </ComposedChart>
@@ -1408,11 +1436,11 @@ export default function BrixSamplingDashboard() {
                       <ResponsiveContainer width="100%" height="100%">
                         <ComposedChart data={yardTrend} margin={{ top: 4, right: 10, left: -25, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.6} />
-                          <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
-                          <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
-                          <YAxis yAxisId="right" orientation="right" domain={[16, 'auto']} tickLine={false} tick={{ fontSize: 9, fill: tickColor }} />
+                          <XAxis dataKey="date" tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
+                          <YAxis yAxisId="left" tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
+                          <YAxis yAxisId="right" orientation="right" domain={[16, 'auto']} tickLine={false} tick={{ fontSize: 12, fill: tickColor }} />
                           <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
-                          <Legend wrapperStyle={{ fontSize: '10px' }} />
+                          <Legend wrapperStyle={{ fontSize: '13px' }} />
                           <Bar yAxisId="left" dataKey="countAbove18" name={`Middle Brix > ${yardStats?.brixThreshold ?? 18}`} fill="#ec4899" opacity={0.5} radius={[3, 3, 0, 0]} />
                           <Line yAxisId="right" type="monotone" dataKey="avgBrix" name="Avg Middle Brix %" stroke={lineDark} strokeWidth={2.5} dot={{ r: 2.5 }} />
                         </ComposedChart>
@@ -1421,12 +1449,12 @@ export default function BrixSamplingDashboard() {
                   </div>
 
                   {/* Right column */}
-                  <div className="flex flex-col gap-2 min-h-0">
+                  <div className="flex min-h-[340px] flex-col gap-2">
 
                     {/* Vehicle bar chart */}
-                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex-1 flex flex-col">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex min-h-0 flex-1 flex-col overflow-hidden">
                       <div className="mb-1.5 flex items-center justify-between gap-2">
-                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Middle Brix % by Carrier</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Middle Brix % by Carrier</h3>
                         <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
                           compact
@@ -1443,8 +1471,8 @@ export default function BrixSamplingDashboard() {
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={yardVehicle} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
                                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={gridStroke} opacity={0.5} />
-                                  <XAxis dataKey="vehicleType" tickLine={false} tick={{ fontSize: 10, fill: tickColor }} />
-                                  <YAxis tickLine={false} tick={{ fontSize: 10, fill: tickColor }} />
+                                  <XAxis dataKey="vehicleType" tickLine={false} tick={{ fontSize: 13, fill: tickColor }} />
+                                  <YAxis tickLine={false} tick={{ fontSize: 13, fill: tickColor }} />
                                   <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
                                   <Bar dataKey="avgBrix" name="Avg Brix %" fill="#4f46e5" radius={[4, 4, 0, 0]} />
                                 </BarChart>
@@ -1453,10 +1481,10 @@ export default function BrixSamplingDashboard() {
                           })}
                         />
                       </div>
-                      <div className="space-y-2 flex-1">
+                      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
                         {yardVehicle.map(item => (
                           <div key={item.vehicleType}>
-                            <div className="flex justify-between text-[11px] font-semibold mb-0.5">
+                            <div className="flex justify-between text-sm font-semibold mb-0.5">
                               <span className="text-slate-700 dark:text-slate-300">{item.vehicleType}</span>
                               <span className="text-blue-600 dark:text-blue-400 font-bold">{item.avgBrix}%</span>
                             </div>
@@ -1464,21 +1492,21 @@ export default function BrixSamplingDashboard() {
                               <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full"
                                 style={{ width: `${Math.min((item.avgBrix / 25) * 100, 100)}%` }} />
                             </div>
-                            <p className="text-[9px] text-slate-400 mt-0.5">{item.samples} samples</p>
+                            <p className="text-[12px] text-slate-400 mt-0.5">{item.samples} samples</p>
                           </div>
                         ))}
                         {yardVehicle.length === 0 && !yardLoading &&
-                          <p className="text-[11px] text-slate-400 text-center py-4">No data</p>}
+                          <p className="text-sm text-slate-400 text-center py-4">No data</p>}
                       </div>
                     </div>
 
                     {/* Condition pie — excl. affected cane */}
-                    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm flex items-center justify-between gap-2">
+                    <div className="flex min-h-[140px] shrink-0 items-center justify-between gap-2 overflow-visible rounded-xl border border-slate-200/80 bg-white p-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                       <div className="min-w-0 flex-1">
                         <div className="mb-1 flex items-start justify-between gap-2">
                           <div>
-                            <h3 className="text-xs font-bold text-slate-900 dark:text-white">Consignment Condition</h3>
-                            <p className="text-[9px] text-slate-500 dark:text-slate-400">Excl. affected cane (PBI formula)</p>
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Consignment Condition</h3>
+                            <p className="text-[12px] text-slate-500 dark:text-slate-400">Excl. affected cane (PBI formula)</p>
                           </div>
                           <CompareRangeBadge label={kpiCompareLabel} isDarkMode={darkMode} />
                         <ChartCardToolbar
@@ -1510,7 +1538,7 @@ export default function BrixSamplingDashboard() {
                           {yardCondition.map(c => {
                             const total = yardCondition.reduce((s, x) => s + x.count, 0);
                             return (
-                              <div key={c.name} className="flex items-center gap-1 text-[10px]">
+                              <div key={c.name} className="flex items-center gap-1 text-[13px]">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
                                 <span className="text-slate-600 dark:text-slate-400">{c.name}:</span>
                                 <span className="font-bold text-slate-900 dark:text-white">
@@ -1521,10 +1549,10 @@ export default function BrixSamplingDashboard() {
                           })}
                         </div>
                       </div>
-                      <div className="w-28 h-28 shrink-0">
+                      <div className="h-[112px] w-[112px] shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
-                            <Pie data={yardCondition} cx="50%" cy="50%" innerRadius={28} outerRadius={52} dataKey="value">
+                            <Pie data={yardCondition} cx="50%" cy="50%" innerRadius={26} outerRadius={46} dataKey="value">
                               {yardCondition.map((e, i) => <Cell key={`cond-${i}`} fill={e.color} />)}
                             </Pie>
                             <Tooltip content={<CustomChartTooltip darkMode={darkMode} />} />
@@ -1538,18 +1566,18 @@ export default function BrixSamplingDashboard() {
                 {/* Center-wise pivot table */}
                 <div className="shrink-0 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 p-2.5 shadow-sm h-[150px] flex flex-col">
                   <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Center-wise Condition</h3>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Center-wise Condition</h3>
                     <div className="relative w-36">
                       <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1.5" />
                       <input type="text" placeholder="Search center…" value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-800 text-[10px] pl-6 pr-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none" />
+                        className="w-full bg-slate-50 dark:bg-slate-800 text-[13px] pl-6 pr-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none" />
                     </div>
                   </div>
-                  <div className="overflow-y-auto flex-1 text-[11px]">
+                  <div className="overflow-y-auto flex-1 text-sm">
                     <table className="w-full text-left">
                       <thead>
-                        <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[9px] tracking-wider sticky top-0 bg-white dark:bg-slate-900">
+                        <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase text-[12px] tracking-wider sticky top-0 bg-white dark:bg-slate-900">
                           <th className="pb-1 font-semibold">Center</th>
                           <th className="pb-1 font-semibold text-right text-emerald-600">Clean</th>
                           <th className="pb-1 font-semibold text-right text-amber-500">Dry Leaves</th>
@@ -1579,7 +1607,7 @@ export default function BrixSamplingDashboard() {
 
               </div>
             )}
-          </div>
+        </DashboardFit>
       </main>
       <BiChartExpandModal
         config={expandedChart ? { ...expandedChart, compareBadge: kpiCompareLabel, periodLabel: rangePreset } : null}

@@ -1510,6 +1510,8 @@ export default function CanePerformanceDashboard(){
       await exportCaneSeasonWorkbook({
         scope,
         tabId: tab,
+        from: fromDate,
+        to: toDate,
         seasonMapping,
         dbMinDateStr,
         dbMaxDateStr,
@@ -1520,7 +1522,7 @@ export default function CanePerformanceDashboard(){
     } finally {
       setExporting(false);
     }
-  }, [exporting, tab, seasonMapping, dbMinDateStr, dbMaxDateStr]);
+  }, [exporting, tab, fromDate, toDate, seasonMapping, dbMinDateStr, dbMaxDateStr]);
 
 
 
@@ -2252,7 +2254,6 @@ export default function CanePerformanceDashboard(){
         {tab==="procurement"&&(() => {
           const gateRows = proc?.gateVehicles || [];
           const centerVehRows = proc?.centerVehicles || [];
-          const holdRows = (proc?.centerHolding || []).filter((r) => r.mode !== "Total");
           const yardRows = proc?.yardGate || [];
           const millRows = proc?.mill || [];
 
@@ -2282,7 +2283,6 @@ export default function CanePerformanceDashboard(){
                 key="procurement-cut-to-crush"
                 gateRows={gateRows}
                 centerVehRows={centerVehRows}
-                holdRows={holdRows}
                 totalTrips={curTrips}
                 tripsDelta={tripsDelta}
                 transitDelta={transitDelta}
