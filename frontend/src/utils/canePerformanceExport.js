@@ -51,23 +51,27 @@ function saveBlob(blob, filename) {
 export async function exportCaneSeasonWorkbook({
   scope = 'tab',
   tabId = 'procurement',
+  from,
+  to,
   seasonMapping,
   dbMinDateStr,
   dbMaxDateStr,
 }) {
-  const { from, to } = resolveCaneSeasonWindow({ seasonMapping, dbMinDateStr, dbMaxDateStr });
-  if (!from || !to) {
+  const season = resolveCaneSeasonWindow({ seasonMapping, dbMinDateStr, dbMaxDateStr });
+  const fromDate = from || season.from;
+  const toDate = to || season.to;
+  if (!fromDate || !toDate) {
     throw new Error('Current season dates are not available yet.');
   }
 
-  const params = { scope, tab: tabId, from, to };
+  const params = { scope, tab: tabId, from: fromDate, to: toDate };
   try {
     const res = await api.get('/bi/cane-performance/export', { params, responseType: 'blob' });
     const filename = scope === 'all'
-      ? `cane-performance-season-${from}-to-${to}.xlsx`
-      : `cane-performance-${tabId}-${from}-to-${to}.xlsx`;
+      ? `cane-performance-season-${fromDate}-to-${toDate}.xlsx`
+      : `cane-performance-${tabId}-${fromDate}-to-${toDate}.xlsx`;
     saveBlob(res.data, filename);
-    return { filename, from, to };
+    return { filename, from: fromDate, to: toDate };
   } catch (err) {
     throw new Error(await blobErrorMessage(err));
   }

@@ -235,7 +235,7 @@ const KpiSparklineTooltip = ({ active, payload, isDarkMode, unit }) => {
   const valueLabel =
     unit === '%'
       ? `${v.toFixed(2)}%`
-      : `${v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${unit}`;
+      : `${v.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${unit}`;
 
   return (
     <div
@@ -292,7 +292,9 @@ const MetricCard = ({
         <div className="z-10 min-w-0 shrink-0">
           <div className="flex items-baseline gap-1">
             <span className={`text-xl font-black leading-none ${textClasses.value}`}>
-              {value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {value.toLocaleString(undefined, unit === '%'
+                ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+                : { maximumFractionDigits: 0 })}
             </span>
             <span className={`text-[10px] font-bold ${textClasses.unit}`}>{unit}</span>
           </div>

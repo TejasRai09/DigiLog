@@ -251,7 +251,7 @@ const AUDIT_GUIDE = {
     ],
   ],
   'vehicle-holding2': [
-    ['Centers by Holding Time', C, 'Per C.Name: average of Center Holding (Hrs), row count (Vehicles)'],
+    ['Centers by Holding Time', C, 'Per C.Name: average of minutes from M_TokenDate_Time to Tare Weighment @ Centre (Grower) (Date/Time) (6) divided by 60, row count (Vehicles)'],
     ['KPIs', C, 'Count of centers, average of the center values, sum of Vehicles'],
   ],
   'truck-transit': [

@@ -46,6 +46,14 @@ function intFmt(value) {
   return n.toLocaleString("en-IN");
 }
 
+const MODE_ORDER = ["18 QCART", "36 QTROLLY", "45 QTROLLY", "63 QTROLLY", "99 QTROLLY", "99 QTRUCK"];
+
+function modeRank(mode) {
+  const key = String(mode || "").trim().toUpperCase();
+  const index = MODE_ORDER.indexOf(key);
+  return index === -1 ? MODE_ORDER.length : index;
+}
+
 /** Card height for header + body rows + Total (includes padding and 1px borders). */
 function dataTableHeight(rowCount) {
   const chrome = 4 + 8 + 2;
@@ -55,7 +63,10 @@ function dataTableHeight(rowCount) {
 
 function splitTable(rows, columns, fields) {
   const list = Array.isArray(rows) ? rows : [];
-  const body = list.filter((r) => r.mode !== "Total");
+  const body = list
+    .filter((r) => r.mode !== "Total")
+    .slice()
+    .sort((a, b) => modeRank(a.mode) - modeRank(b.mode) || String(a.mode).localeCompare(String(b.mode)));
   const totalRow = list.find((r) => r.mode === "Total");
   return {
     columns,
@@ -478,9 +489,7 @@ const YardParking = () => {
 
 const ROADS = [
   "M163 186 H668",
-  "M103 277 V553 H290",
-  "M397 553 H445",
-  "M510 624 V655 H668",
+  "M105 277 V714 H668",
 ];
 
 function Roads({ uid }) {
@@ -510,7 +519,7 @@ function Roads({ uid }) {
       <g filter={`url(#${uid}-soft)`}>
         <path d="M958 284h50v-10l22 17-22 17v-10h-50z" fill={`url(#${uid}-arrowG)`} />
         <path d="M968 426h22v-8l16 13-16 13v-8h-22z" fill={`url(#${uid}-arrowG)`} />
-        <path d="M940 646h86v-10l24 17-24 17v-10h-86z" fill={`url(#${uid}-arrowG)`} />
+        <path d="M940 714h86v-10l24 17-24 17v-10h-86z" fill={`url(#${uid}-arrowG)`} />
       </g>
     </svg>
   );
@@ -529,7 +538,6 @@ function Canvas({
   farmTable,
   yardTable,
   millTable,
-  holdingTable,
   totalTrips,
   tripsDelta,
   transitDelta,
@@ -606,11 +614,13 @@ function Canvas({
         <DataTable data={farmTable} colWidths={[86, 66, 82, 78]} />
       </Card>
 
-      <Abs x={282} y={488}><CentersIcon uid={uid} /></Abs>
-      <ZoneLabel x={296} y={590} w={92} solid={false}>Centers</ZoneLabel>
+      <Kpi x={16} y={504} w={248} h={118} value={truckHolding} label="Truck Holding" delta={truckHoldDelta} compareLabel={compareLabel} size={34} accent={C.amber} />
+
+      <Abs x={46} y={654}><CentersIcon uid={uid} /></Abs>
+      <ZoneLabel x={59} y={756} w={92} solid={false}>Centers</ZoneLabel>
       <Card
-        x={438}
-        y={492}
+        x={335}
+        y={649}
         w={162}
         h={130}
         style={{
@@ -682,12 +692,7 @@ function Canvas({
           )}
         </div>
       </Card>
-      <Tag x={612} y={636} w={78} h={38}>Center<br />Vehicles</Tag>
-
-      <Card x={56} y={628} w={209} h={152} style={{ overflow: "auto" }}>
-        <DataTable data={holdingTable} colWidths={[90, 99]} />
-      </Card>
-      <Kpi x={275} y={628} w={160} h={152} value={truckHolding} label="Truck Holding" delta={truckHoldDelta} compareLabel={compareLabel} size={38} accent={C.amber} />
+      <Tag x={612} y={695} w={78} h={38}>Center<br />Vehicles</Tag>
 
       <ZoneLabel x={764} y={95} w={100}>Yard</ZoneLabel>
       <Card x={682} y={150} w={264} h={Math.max(174, dataTableHeight(yardTable.rows.length))}>
@@ -714,7 +719,6 @@ function Canvas({
 function ProcurementCutToCrushScene({
   gateRows = [],
   centerVehRows = [],
-  holdRows = [],
   totalTrips,
   tripsDelta,
   transitDelta,
@@ -754,10 +758,6 @@ function ProcurementCutToCrushScene({
   const millTable = useMemo(
     () => splitTable(millRows, ["Mode", "Avg Time", "Dev (>0.5H)"], ["mode", "avg", "dev"]),
     [millRows],
-  );
-  const holdingTable = useMemo(
-    () => splitTable(holdRows, ["Mode", "Holding Time (H)"], ["mode", "h"]),
-    [holdRows],
   );
 
   useEffect(() => {
@@ -821,7 +821,6 @@ function ProcurementCutToCrushScene({
             farmTable={farmTable}
             yardTable={yardTable}
             millTable={millTable}
-            holdingTable={holdingTable}
             totalTrips={totalTrips}
             tripsDelta={tripsDelta}
             transitDelta={transitDelta}
