@@ -303,7 +303,7 @@ export const MANAGEMENT_KPI_CATALOG = [
   {
     id: 'power_gen',
     rowId: 'power',
-    title: 'Power Gen (Units)',
+    title: 'Power Gen (KWH)',
     sourceTable: 'power',
     sourceField: 'Total Power Gen',
     aggregation: 'sum',
@@ -317,7 +317,7 @@ export const MANAGEMENT_KPI_CATALOG = [
   {
     id: 'power_export',
     rowId: 'power',
-    title: 'Export (Units)',
+    title: 'Export (KWH)',
     sourceTable: 'power',
     sourceField: 'ExportGrid30',
     aggregation: 'sum',
@@ -331,7 +331,7 @@ export const MANAGEMENT_KPI_CATALOG = [
   {
     id: 'inhouse_consp',
     rowId: 'power',
-    title: 'Inhouse Consp (Units)',
+    title: 'Inhouse Consp (KWH)',
     sourceTable: 'power',
     sourceField: 'Total Internal Consp Col',
     aggregation: 'sum',
@@ -345,7 +345,7 @@ export const MANAGEMENT_KPI_CATALOG = [
   {
     id: 'steam_gen',
     rowId: 'power',
-    title: 'Total Steam Gen (T)',
+    title: 'Total Steam Gen (MT)',
     sourceTable: 'steam',
     sourceField: 'TotalSteamGen',
     aggregation: 'sum',
@@ -359,7 +359,7 @@ export const MANAGEMENT_KPI_CATALOG = [
   {
     id: 'steam_to_sugar',
     rowId: 'power',
-    title: 'Total Steam to Sugar (T)',
+    title: 'Total Steam to Sugar (MT)',
     sourceTable: 'steam',
     sourceField: 'TotalSteamtoSug',
     aggregation: 'sum',

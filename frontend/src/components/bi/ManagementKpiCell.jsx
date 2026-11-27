@@ -82,8 +82,16 @@ function formatMetricTonnes(value) {
   return `${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT`;
 }
 
-const LAKH_QUINTAL_IDS = new Set(['cane_indent', 'cane_purchase', 'cane_crush', 'mixed_juice']);
-const WHOLE_QUINTAL_IDS = new Set(['yard_bal', 'cane_ds', 'cane_rs', 'sugar_total', 'syrup_mol']);
+const LAKH_QUINTAL_IDS = new Set([
+  'cane_indent',
+  'cane_purchase',
+  'cane_crush',
+  'mixed_juice',
+  'cane_ds',
+  'cane_rs',
+  'sugar_total',
+]);
+const WHOLE_QUINTAL_IDS = new Set(['yard_bal', 'syrup_mol']);
 const LAKH_LITRE_IDS = new Set(['ethanol_prod', 'ethanol_store']);
 const LAKH_UNIT_IDS = new Set(['power_gen', 'power_export', 'inhouse_consp']);
 const METRIC_TONNE_IDS = new Set(['steam_gen', 'steam_to_sugar']);
