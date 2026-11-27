@@ -263,10 +263,15 @@ const KPI_TITLE_TO_ID = {
   'Steam/Sugar (T/Q)': 'steam_per_sugar',
   'Steam/Sugar (KG/Q)': 'steam_per_sugar',
   'Power Gen (Units)': 'power_gen',
+  'Power Gen (KWH)': 'power_gen',
   'Export (Units)': 'power_export',
+  'Export (KWH)': 'power_export',
   'Inhouse Consp (Units)': 'inhouse_consp',
+  'Inhouse Consp (KWH)': 'inhouse_consp',
   'Total Steam Gen (T)': 'steam_gen',
+  'Total Steam Gen (MT)': 'steam_gen',
   'Total Steam to Sugar (T)': 'steam_to_sugar',
+  'Total Steam to Sugar (MT)': 'steam_to_sugar',
   'Steam/Bag 150 TPH': 'steam_bag',
   'Sp. Steam 30MW': 'spec_steam',
   'Syrup+Mol Used (Q)': 'syrup_mol',
@@ -525,31 +530,31 @@ function buildRows(payload) {
       color: 'bg-[#ccffcc]',
       icon: 'power',
       kpis: [
-        kpi('Power Gen (Units)', power.Total_Power_Gen, {
+        kpi('Power Gen (KWH)', power.Total_Power_Gen, {
           rightVal: rv('powerGen'),
           chart: 'line',
           chartColor: '#22c55e',
           series: series.powerGen,
         }),
-        kpi('Export (Units)', power.ExportGrid30, {
+        kpi('Export (KWH)', power.ExportGrid30, {
           rightVal: rv('powerExport'),
           chart: 'line',
           chartColor: '#22c55e',
           series: series.powerExport,
         }),
-        kpi('Inhouse Consp (Units)', power.Total_Internal_Con, {
+        kpi('Inhouse Consp (KWH)', power.Total_Internal_Con, {
           chart: 'line',
           chartColor: '#22c55e',
           series: series.inhouse,
           rightVal: rv('inhouse'),
         }),
-        kpi('Total Steam Gen (T)', steam.TotalSteamgen, {
+        kpi('Total Steam Gen (MT)', steam.TotalSteamgen, {
           rightVal: rv('steamGen'),
           chart: 'line',
           chartColor: '#22c55e',
           series: series.steamGen,
         }),
-        kpi('Total Steam to Sugar (T)', steam.TotalStmtoSugar, {
+        kpi('Total Steam to Sugar (MT)', steam.TotalStmtoSugar, {
           chart: 'line',
           chartColor: '#22c55e',
           series: series.steamToSugar,
