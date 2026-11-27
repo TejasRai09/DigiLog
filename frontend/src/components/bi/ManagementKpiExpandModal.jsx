@@ -7,10 +7,14 @@ import { BI_DASHBOARDS } from '../../utils/activityPath';
 import { CompareChip, ManagementKpiExpandedChart } from './ManagementKpiCell';
 import { ExpandPeriodBadge } from './CompareRangeBadge';
 import { formatCompact, formatNum } from '../../utils/powerHouseMeasures';
+import { formatManagementKpiValue, managementKpiUsesInlineUnit } from './ManagementKpiCell';
 
 const MODAL_CHART_HEIGHT = 420;
 
-function formatMetric(v, unit) {
+function formatMetric(v, unit, kpiId) {
+  if (managementKpiUsesInlineUnit(kpiId)) {
+    return formatManagementKpiValue(v, unit, kpiId);
+  }
   if (v == null || v === '') return '—';
   if (typeof v === 'string') return v;
   const n = Number(v);
@@ -131,8 +135,8 @@ export default function ManagementKpiExpandModal({
                 Period value
               </span>
               <p className={`text-2xl font-black tabular-nums ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                {formatMetric(kpi.value, kpi.unit)}
-                {kpi.unit && kpi.unit !== '%' && (
+                {formatMetric(kpi.value, kpi.unit, kpi.id)}
+                {kpi.unit && kpi.unit !== '%' && !managementKpiUsesInlineUnit(kpi.id) && (
                   <span className={`ml-1 text-xs font-bold ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                     {kpi.unit}
                   </span>

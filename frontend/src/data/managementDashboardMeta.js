@@ -437,7 +437,7 @@ export const MANAGEMENT_KPI_CATALOG = [
     dateCalendar: MANAGEMENT_DATE_CALENDAR,
     dateJoin: 'Distillery[Operation Date] → DMR_SS24[Date]',
     chartType: 'line',
-    unit: 'BL/Q',
+    unit: '%',
   },
   {
     id: 'ethanol_store',

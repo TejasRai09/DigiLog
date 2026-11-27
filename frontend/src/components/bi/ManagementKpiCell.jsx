@@ -30,11 +30,83 @@ function parseNumeric(value) {
   return null;
 }
 
-/** Percents are already percent — do not treat 0.49 as 49%. */
-function formatDisplayValue(value, unit) {
+function blankOrText(value) {
   if (value == null || value === '' || value === '(Blank)') {
     return value === '(Blank)' ? '(Blank)' : '—';
   }
+  return null;
+}
+
+/** 1.8M quintals = 18.00 lakh quintals. */
+function formatLakhQuintals(value) {
+  const blank = blankOrText(value);
+  if (blank) return blank;
+  const n = parseNumeric(value);
+  if (n == null) return String(value);
+  return `${(n / 1e5).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LQ`;
+}
+
+/** 16871.18 → 16,871 Q */
+function formatWholeQuintals(value) {
+  const blank = blankOrText(value);
+  if (blank) return blank;
+  const n = parseNumeric(value);
+  if (n == null) return String(value);
+  return `${Math.round(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })} Q`;
+}
+
+/** 125.20K BL = 1.25 lakh litres. */
+function formatLakhLitres(value) {
+  const blank = blankOrText(value);
+  if (blank) return blank;
+  const n = parseNumeric(value);
+  if (n == null) return String(value);
+  return `${(n / 1e5).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LL`;
+}
+
+/** 10.8M kWh = 108.00 lakh units. */
+function formatLakhUnits(value) {
+  const blank = blankOrText(value);
+  if (blank) return blank;
+  const n = parseNumeric(value);
+  if (n == null) return String(value);
+  return `${(n / 1e5).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} LU`;
+}
+
+/** 75.6K tonnes = 75,600.00 MT */
+function formatMetricTonnes(value) {
+  const blank = blankOrText(value);
+  if (blank) return blank;
+  const n = parseNumeric(value);
+  if (n == null) return String(value);
+  return `${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MT`;
+}
+
+const LAKH_QUINTAL_IDS = new Set(['cane_indent', 'cane_purchase', 'cane_crush', 'mixed_juice']);
+const WHOLE_QUINTAL_IDS = new Set(['yard_bal', 'cane_ds', 'cane_rs', 'sugar_total', 'syrup_mol']);
+const LAKH_LITRE_IDS = new Set(['ethanol_prod', 'ethanol_store']);
+const LAKH_UNIT_IDS = new Set(['power_gen', 'power_export', 'inhouse_consp']);
+const METRIC_TONNE_IDS = new Set(['steam_gen', 'steam_to_sugar']);
+
+/** Value string already includes its unit, so the card must not append kpi.unit again. */
+export function managementKpiUsesInlineUnit(kpiId) {
+  return LAKH_QUINTAL_IDS.has(kpiId)
+    || WHOLE_QUINTAL_IDS.has(kpiId)
+    || LAKH_LITRE_IDS.has(kpiId)
+    || LAKH_UNIT_IDS.has(kpiId)
+    || METRIC_TONNE_IDS.has(kpiId);
+}
+
+/** Card headline. Quantity totals use the unit requested for that KPI. */
+export function formatManagementKpiValue(value, unit, kpiId) {
+  if (LAKH_QUINTAL_IDS.has(kpiId)) return formatLakhQuintals(value);
+  if (WHOLE_QUINTAL_IDS.has(kpiId) && unit !== '%') return formatWholeQuintals(value);
+  if (LAKH_LITRE_IDS.has(kpiId)) return formatLakhLitres(value);
+  if (LAKH_UNIT_IDS.has(kpiId)) return formatLakhUnits(value);
+  if (METRIC_TONNE_IDS.has(kpiId)) return formatMetricTonnes(value);
+
+  const blank = blankOrText(value);
+  if (blank) return blank;
   const n = parseNumeric(value);
   if (n == null) return String(value);
   if (unit === '%') {
@@ -46,11 +118,11 @@ function formatDisplayValue(value, unit) {
   return formatNum(n, 2);
 }
 
-/** Power BI multi-row card: full number (21051.52) or 111.8%. */
-function formatStackedValue(value, unit) {
-  if (value == null || value === '' || value === '(Blank)') {
-    return value === '(Blank)' ? '(Blank)' : '—';
-  }
+/** Power BI multi-row card: full number, except yard balance (whole Q) and percents. */
+function formatStackedValue(value, unit, kpiId) {
+  if (unit === 'Q' || (kpiId === 'yard_bal' && unit !== '%')) return formatWholeQuintals(value);
+  const blank = blankOrText(value);
+  if (blank) return blank;
   const n = parseNumeric(value);
   if (n == null) return String(value);
   if (unit === '%') {
@@ -64,6 +136,7 @@ function StackedMetric({
   value,
   label,
   unit,
+  kpiId,
   glossary,
   isDarkMode,
   dense = false,
@@ -79,7 +152,7 @@ function StackedMetric({
             isDarkMode ? 'text-white' : 'text-slate-900'
           }`}
         >
-          {formatStackedValue(value, unit)}
+          {formatStackedValue(value, unit, kpiId)}
         </span>
         <span
           className={`min-w-0 flex-1 truncate text-[8px] sm:text-[9px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
@@ -109,7 +182,7 @@ function StackedMetric({
             isDarkMode ? 'text-white' : 'text-slate-900'
           }`}
         >
-          {formatStackedValue(value, unit)}
+          {formatStackedValue(value, unit, kpiId)}
         </span>
       </div>
       <div className="flex min-w-0 items-center gap-1">
@@ -411,6 +484,7 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
             value={primaryValue}
             label={kpi.stackedLabel || kpi.title}
             unit={kpi.unit}
+            kpiId={kpi.id}
             glossary={glossary}
             isDarkMode={isDarkMode}
             dense={compactStacked}
@@ -441,7 +515,7 @@ export default function ManagementKpiCell({ kpi, isDarkMode, onExpand, filteredS
                 isDarkMode ? 'text-white' : 'text-slate-800'
               }`}
             >
-              {formatDisplayValue(primaryValue, kpi.unit)}
+              {formatManagementKpiValue(primaryValue, kpi.unit, kpi.id)}
             </span>
           </div>
           {showCompare && (
